@@ -246,8 +246,8 @@ CREATE TABLE assessment_frameworks (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     version VARCHAR(20),
-    question_count INTEGER,
-    estimated_duration INTEGER, -- in minutes
+    question_count UUID(as_uuid=True),
+    estimated_duration UUID(as_uuid=True), -- in minutes
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -259,7 +259,7 @@ CREATE TABLE assessment_questions (
     question_type VARCHAR(50), -- likert, multiple_choice, binary
     options JSONB, -- for multiple choice questions
     category VARCHAR(100),
-    order_index INTEGER,
+    order_index UUID(as_uuid=True),
     is_active BOOLEAN DEFAULT true
 );
 
@@ -279,7 +279,7 @@ CREATE TABLE assessment_responses (
     assessment_id UUID REFERENCES assessments(id),
     question_id UUID REFERENCES assessment_questions(id),
     response_value TEXT,
-    response_score INTEGER,
+    response_score UUID(as_uuid=True),
     answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1,5 +1,5 @@
 # models.py - SQLAlchemy Database Models
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, UUID(as_uuid=True), String, DateTime, Float, Text, Boolean, ForeignKey, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -11,7 +11,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = "users"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
     hashed_password = Column(String(255), nullable=False)
@@ -30,17 +30,17 @@ class User(Base):
 class Team(Base):
     __tablename__ = "teams"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     team_type = Column(String(100), default="agile")  # agile, product, engineering, etc.
     status = Column(String(50), default="active")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Team configuration
-    max_members = Column(Integer, default=12)
+    max_members = Column(UUID(as_uuid=True), default=12)
     methodology = Column(String(50), default="scrum")  # scrum, kanban, safe, etc.
     
     # Relationships
@@ -52,9 +52,9 @@ class Team(Base):
 class TeamMember(Base):
     __tablename__ = "team_members"
     
-    id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     role = Column(String(100), nullable=False)  # scrum_master, product_owner, developer, etc.
     join_date = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
@@ -70,8 +70,8 @@ class TeamMember(Base):
 class Assessment(Base):
     __tablename__ = "assessments"
     
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     framework_type = Column(String(100), nullable=False)  # enneagram, mbti, big_five, etc.
     raw_data = Column(JSON, nullable=False)  # Original assessment responses
     processed_results = Column(JSON, nullable=False)  # Processed personality insights
@@ -81,7 +81,7 @@ class Assessment(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)  # Some assessments expire
     
     # Assessment metadata
-    completion_time_minutes = Column(Integer, nullable=True)
+    completion_time_minutes = Column(UUID(as_uuid=True), nullable=True)
     ip_address = Column(String(45), nullable=True)  # For security/fraud detection
     user_agent = Column(Text, nullable=True)
     
@@ -91,8 +91,8 @@ class Assessment(Base):
 class Prediction(Base):
     __tablename__ = "predictions"
     
-    id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
     prediction_type = Column(String(100), nullable=False)  # performance, conflict, velocity
     prediction_data = Column(JSON, nullable=False)  # Detailed prediction results
     confidence_score = Column(Float, nullable=False)  # 0.0 to 1.0
@@ -110,8 +110,8 @@ class Prediction(Base):
 class Sprint(Base):
     __tablename__ = "sprints"
     
-    id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
     name = Column(String(255), nullable=False)
     goal = Column(Text, nullable=True)
     start_date = Column(DateTime(timezone=True), nullable=False)
@@ -119,14 +119,14 @@ class Sprint(Base):
     status = Column(String(50), default="planned")  # planned, active, completed, cancelled
     
     # Sprint metrics
-    planned_points = Column(Integer, nullable=True)
-    completed_points = Column(Integer, nullable=True)
+    planned_points = Column(UUID(as_uuid=True), nullable=True)
+    completed_points = Column(UUID(as_uuid=True), nullable=True)
     velocity = Column(Float, nullable=True)
     team_satisfaction = Column(Float, nullable=True)  # 1.0 to 5.0
     
     # Behavioral insights
     collaboration_score = Column(Float, nullable=True)
-    conflict_incidents = Column(Integer, default=0)
+    conflict_incidents = Column(UUID(as_uuid=True), default=0)
     communication_effectiveness = Column(Float, nullable=True)
     
     # Relationships
@@ -136,16 +136,16 @@ class Sprint(Base):
 class UserStory(Base):
     __tablename__ = "user_stories"
     
-    id = Column(Integer, primary_key=True, index=True)
-    sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    sprint_id = Column(UUID(as_uuid=True), ForeignKey("sprints.id"), nullable=False)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
-    story_points = Column(Integer, nullable=True)
+    story_points = Column(UUID(as_uuid=True), nullable=True)
     priority = Column(String(20), default="medium")  # low, medium, high, critical
     status = Column(String(50), default="todo")  # todo, in_progress, review, done
     
     # Assignment based on personality fit
-    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     personality_fit_score = Column(Float, nullable=True)  # How well suited the assignee is
     collaboration_requirements = Column(JSON, nullable=True)  # Required personality traits
     
@@ -161,8 +161,8 @@ class UserStory(Base):
 class BehavioralInsight(Base):
     __tablename__ = "behavioral_insights"
     
-    id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
     insight_type = Column(String(100), nullable=False)  # compatibility, conflict, optimization
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=False)
@@ -183,8 +183,8 @@ class BehavioralInsight(Base):
 class PersonalityProfile(Base):
     __tablename__ = "personality_profiles"
     
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # Unified personality scores (0.0 to 1.0)
     openness = Column(Float, nullable=True)
@@ -195,7 +195,7 @@ class PersonalityProfile(Base):
     
     # Framework-specific types
     mbti_type = Column(String(10), nullable=True)  # INTJ, ENFP, etc.
-    enneagram_type = Column(Integer, nullable=True)  # 1-9
+    enneagram_type = Column(UUID(as_uuid=True), nullable=True)  # 1-9
     enneagram_wing = Column(String(10), nullable=True)  # 1w9, 2w1, etc.
     
     # Strengths (top 5)
@@ -229,10 +229,10 @@ class PersonalityProfile(Base):
 class TeamCompatibilityMatrix(Base):
     __tablename__ = "team_compatibility_matrices"
     
-    id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
-    member_a_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    member_b_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
+    member_a_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    member_b_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     
     # Compatibility scores (0.0 to 1.0)
     overall_compatibility = Column(Float, nullable=False)
@@ -267,7 +267,7 @@ load_dotenv()
 # Database URL from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://psychsync:password@localhost:5432/psychsync_db"
+    "postgresql+asyncpg://psychsync_user@localhost/psychsync_db
 )
 
 # Create SQLAlchemy engine

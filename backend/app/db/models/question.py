@@ -5,13 +5,10 @@ from ..base import Base
 
 
 class Question(Base):
-__tablename__ = "questions"
+    __tablename__ = "questions"
 
-
-id = sa.Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()"))
-framework_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('frameworks.id', ondelete='CASCADE'), nullable=False)
-code = sa.Column(sa.Text, nullable=True)
-body = sa.Column(sa.Text, nullable=False)
-kind = sa.Column(sa.Text, nullable=False)
-position = sa.Column(sa.Integer, nullable=False, server_default=sa.text('0'))
-created_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
+    id = sa.Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()"))
+    text = sa.Column(sa.String, nullable=False)
+    framework_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey("frameworks.id"), nullable=False)
+    created_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
+    updated_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)

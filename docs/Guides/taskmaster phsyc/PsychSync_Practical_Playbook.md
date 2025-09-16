@@ -65,7 +65,7 @@ This playbook turns your PDF plan into step‑by‑step actions you can execute 
 3. **Environment variables**
    ```bash
    touch .env
-   echo 'DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/psychsync' >> .env
+   echo 'DATABASE_URL=postgresql+asyncpg://psychsync_user@localhost/psychsync_db' >> .env
    echo 'SECRET_KEY='$(python -c 'import secrets; print(secrets.token_urlsafe(32))') >> .env
    ```
 
@@ -89,11 +89,11 @@ This playbook turns your PDF plan into step‑by‑step actions you can execute 
 6. **User model (minimal)**
    ```python
    # app/models/user.py
-   from sqlalchemy import Column, Integer, String, Boolean
+   from sqlalchemy import Column, UUID(as_uuid=True), String, Boolean
    from .base import Base
    class User(Base):
        __tablename__ = "users"
-       id = Column(Integer, primary_key=True, index=True)
+       id = Column(UUID(as_uuid=True), primary_key=True, index=True)
        email = Column(String, unique=True, index=True, nullable=False)
        hashed_password = Column(String, nullable=False)
        is_active = Column(Boolean, default=True)

@@ -1,4 +1,3 @@
-
 # backend/app/db/base.py
 from sqlalchemy.orm import DeclarativeBase
 
@@ -8,8 +7,46 @@ class Base(DeclarativeBase):
     pass
 
 
-# Import all models so Alembic can see them
-from app.db.models import organization, user, team, assessment
+# Import all models so Alembic can discover them
+# from app.db.models import organization, user, team, assessment  # noqa
+
+# Import all models so Alembic can discover them
+from app.db.models import (
+    organization,
+    user,
+    team,
+    assessment,
+    framework,
+    question,
+    question_option,
+    response,
+    role,
+    org_member,
+    team_member,
+  ) # noqa
+
+
+
+
+
+
+
+
+
+
+
+
+# # backend/app/db/base.py
+# from sqlalchemy.orm import declarative_base
+
+# # Central declarative base class
+# class Base(DeclarativeBase):
+#     """Base for all ORM models. Alembic will import Base.metadata."""
+#     pass
+
+
+# # Import all models so Alembic can see them
+# from app.db.models import organization, user, team, assessment
 
 
 

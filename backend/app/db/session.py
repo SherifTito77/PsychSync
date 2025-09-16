@@ -7,7 +7,7 @@ from .base import Base
 
 DATABASE_URL = os.getenv(
 "DATABASE_URL",
-"postgresql+asyncpg://psychsync:psychsync@localhost:5432/psychsync",
+"postgresql+asyncpg://psychsync_user@localhost/psychsync_db",
 )
 
 

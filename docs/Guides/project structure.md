@@ -73,38 +73,17 @@ psychsync/
 
 
 
-backend/
-├── alembic/                     # DB migrations
-│   └── versions/                # migration scripts
-├── app/
-│   ├── __init__.py
-│   ├── main.py                  # ← from psychsync_backend_main.py
-│   ├── core/
-│   │   ├── config.py            # env + settings
-│   │   └── security.py          # auth / JWT utils
-│   ├── db/
-│   │   ├── base.py              # imports all models
-│   │   ├── session.py           # DB session factory
-│   │   ├── init_db.py           # ← from create_db.py
-│   │   └── models/
-│   │       ├── __init__.py
-│   │       ├── user.py
-│   │       ├── assessment.py
-│   │       └── … (split psychsync_database_models.py here)
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── v1/
-│   │       ├── __init__.py
-│   │       ├── routes.py        # ← from routes/api_routes.py
-│   │       ├── users.py
-│   │       └── assessments.py
-│   ├── schemas/                 # Pydantic models
-│   │   ├── user.py
-│   │   ├── assessment.py
-│   │   └── …
-│   ├── services/                # Business logic
-│   │   └── assessment_service.py
-│   └── tests/                   # Backend unit tests
-│       └── test_docs.py         # ← from psychsync_testing_docs.py
-├── requirements.txt
-└── pyproject.toml (optional, if moving to Poetry)
+
+sphyco_code/backend/
+├── create_db.py                  → backend/app/db/init_db.py
+├── data/psychsync.db             → backend/app/db/data/psychsync.db (keep only for dev)
+├── psychsync_ai_engine.py        → ai/engine.py
+├── psychsync_assessment_processors.py → ai/processors/assessment_processor.py
+├── psychsync_backend_main.py     → backend/app/main.py
+├── psychsync_database_models.py  → backend/app/db/models/base_models.py
+├── psychsync_deployment_config.txt → infra/config/psychsync_deployment_config.txt
+├── psychsync_frontend_app.js     → frontend/src/legacy/psychsync_frontend_app.js (likely remove later)
+├── psychsync_testing_docs.py     → tests/backend/test_docs.py
+├── routes/api_routes.py          → backend/app/api/v1/routes.py
+├── static/                       → static/ (already top-level)
+└── templates/                    → templates/ (already top-level)
