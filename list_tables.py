@@ -6,7 +6,7 @@ from sqlalchemy import text
 # Get URL from env or fallback
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://psychsync_user@localhost/psychsync_db"
+    "postgresql+asyncpg://psychsync_user:password@localhost/psychsync_db"
 )
 
 async def list_tables():
@@ -24,10 +24,6 @@ async def list_tables():
 
 if __name__ == "__main__":
     asyncio.run(list_tables())
-
-
-
-
 
 
 # # list_tables.py

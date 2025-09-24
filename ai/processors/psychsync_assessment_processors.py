@@ -1,1481 +1,535 @@
-            # Assign questions to dimensions cyclically
-            dimension_index = i % 4
+
+# ai/processors/psychsync_assessment_processors.py
+
+# ai/processors/psychsync_assessment_processors.py
+from typing import Dict, Any, List
+import numpy as np
+from ai.engine import PersonalityFrameworkProcessor
+
+class EnneagramProcessor(PersonalityFrameworkProcessor):
+    """Process Enneagram assessment results"""
+    
+    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process raw Enneagram data into standardized format"""
+        try:
+            # Extract primary type
+            primary_type = raw_data.get('type', 1)
+            confidence = raw_data.get('confidence', 0.8)
+            wing = raw_data.get('wing', None)
             
-            if dimension_index == 0:  # E vs I
-                if answer > 3:
-                    scores['E'] += answer
-                else:
-                    scores['I'] += (6 - answer)
-            elif dimension_index == 1:  # S vs N
-                if answer > 3:
-                    scores['S'] += answer
-                else:
-                    scores['N'] += (6 - answer)
-            elif dimension_index == 2:  # T vs F
-                if answer > 3:
-                    scores['T'] += answer
-                else:
-                    scores['F'] += (6 - answer)
-            else:  # J vs P
-                if answer > 3:
-                    scores['J'] += answer
-                else:
-                    scores['P'] += (6 - answer)
-        
-        # Normalize scores to percentages
-        total_e_i = scores['E'] + scores['I']
-        total_s_n = scores['S'] + scores['N']
-        total_t_f = scores['T'] + scores['F']
-        total_j_p = scores['J'] + scores['P']
-        
-        normalized_scores = {
-            'E': scores['E'] / total_e_i if total_e_i > 0 else 0.5,
-            'I': scores['I'] / total_e_i if total_e_i > 0 else 0.5,
-            'S': scores['S'] / total_s_n if total_s_n > 0 else 0.5,
-            'N': scores['N'] / total_s_n if total_s_n > 0 else 0.5,
-            'T': scores['T'] / total_t_f if total_t_f > 0 else 0.5,
-            'F': scores['F'] / total_t_f if total_t_f > 0 else 0.5,
-            'J': scores['J'] / total_j_p if total_j_p > 0 else 0.5,
-            'P': scores['P'] / total_j_p if total_j_p > 0 else 0.5
+            # Map to standardized personality dimensions
+            type_mapping = self._get_enneagram_mapping()
+            
+            if primary_type in type_mapping:
+                dimensions = type_mapping[primary_type].copy()
+            else:
+                dimensions = self._default_dimensions()
+            
+            # Adjust for wing influence if present
+            if wing and isinstance(wing, str) and 'w' in wing:
+                wing_type = int(wing.split('w')[1])
+                if wing_type in type_mapping:
+                    wing_dimensions = type_mapping[wing_type]
+                    # Blend primary type with wing (30% wing influence)
+                    for dim, value in wing_dimensions.items():
+                        dimensions[dim] = dimensions[dim] * 0.7 + value * 0.3
+            
+            return {
+                'type': primary_type,
+                'wing': wing,
+                'confidence': confidence,
+                'dimensions': dimensions,
+                'interpretation': self._get_type_interpretation(primary_type),
+                'growth_areas': self._get_growth_areas(primary_type),
+                'strengths': self._get_type_strengths(primary_type)
+            }
+            
+        except Exception as e:
+            return self._fallback_result('enneagram', str(e))
+    
+    def _get_enneagram_mapping(self) -> Dict[int, Dict[str, float]]:
+        """Map Enneagram types to Big Five dimensions"""
+        return {
+            1: {'openness': 0.3, 'conscientiousness': 0.9, 'extraversion': 0.4, 'agreeableness': 0.3, 'neuroticism': 0.6},
+            2: {'openness': 0.5, 'conscientiousness': 0.6, 'extraversion': 0.8, 'agreeableness': 0.9, 'neuroticism': 0.5},
+            3: {'openness': 0.6, 'conscientiousness': 0.8, 'extraversion': 0.9, 'agreeableness': 0.5, 'neuroticism': 0.4},
+            4: {'openness': 0.9, 'conscientiousness': 0.4, 'extraversion': 0.3, 'agreeableness': 0.5, 'neuroticism': 0.8},
+            5: {'openness': 0.8, 'conscientiousness': 0.5, 'extraversion': 0.2, 'agreeableness': 0.3, 'neuroticism': 0.6},
+            6: {'openness': 0.4, 'conscientiousness': 0.7, 'extraversion': 0.5, 'agreeableness': 0.7, 'neuroticism': 0.8},
+            7: {'openness': 0.9, 'conscientiousness': 0.3, 'extraversion': 0.9, 'agreeableness': 0.6, 'neuroticism': 0.3},
+            8: {'openness': 0.5, 'conscientiousness': 0.6, 'extraversion': 0.8, 'agreeableness': 0.2, 'neuroticism': 0.3},
+            9: {'openness': 0.4, 'conscientiousness': 0.4, 'extraversion': 0.3, 'agreeableness': 0.9, 'neuroticism': 0.4}
         }
-        
-        return normalized_scores
     
-    def _determine_type(self, scores: Dict[str, float]) -> str:
-        """Determine MBTI type from dimension scores"""
-        type_letters = []
-        
-        # Extraversion vs Introversion
-        type_letters.append('E' if scores['E'] > scores['I'] else 'I')
-        
-        # Sensing vs Intuition
-        type_letters.append('S' if scores['S'] > scores['N'] else 'N')
-        
-        # Thinking vs Feeling
-        type_letters.append('T' if scores['T'] > scores['F'] else 'F')
-        
-        # Judging vs Perceiving
-        type_letters.append('J' if scores['J'] > scores['P'] else 'P')
-        
-        return ''.join(type_letters)
+    def _get_type_interpretation(self, type_num: int) -> str:
+        """Get interpretation for Enneagram type"""
+        interpretations = {
+            1: "The Perfectionist - Rational, idealistic, principled, purposeful",
+            2: "The Helper - Caring, interpersonal, demonstrative, generous",
+            3: "The Achiever - Success-oriented, pragmatic, adaptive, driven",
+            4: "The Individualist - Sensitive, withdrawn, expressive, dramatic",
+            5: "The Investigator - Intense, cerebral, perceptive, innovative",
+            6: "The Loyalist - Committed, security-oriented, engaging, responsible",
+            7: "The Enthusiast - Spontaneous, versatile, distractible, scattered",
+            8: "The Challenger - Self-confident, decisive, willful, confrontational",
+            9: "The Peacemaker - Receptive, reassuring, agreeable, complacent"
+        }
+        return interpretations.get(type_num, "Unknown type")
     
-    def _calculate_mbti_confidence(self, scores: Dict[str, float], raw_data: Dict) -> float:
-        """Calculate confidence in MBTI type determination"""
-        base_confidence = self.calculate_confidence(raw_data)
+    def _get_growth_areas(self, type_num: int) -> List[str]:
+        """Get growth areas for each type"""
+        growth_areas = {
+            1: ["Perfectionism management", "Flexibility", "Self-compassion"],
+            2: ["Self-care", "Boundary setting", "Authentic self-expression"],
+            3: ["Work-life balance", "Authentic relationships", "Process over results"],
+            4: ["Emotional regulation", "Practical focus", "Resilience building"],
+            5: ["Social engagement", "Action orientation", "Emotional expression"],
+            6: ["Self-trust", "Independent thinking", "Anxiety management"],
+            7: ["Focus and commitment", "Depth over breadth", "Present-moment awareness"],
+            8: ["Vulnerability", "Collaborative leadership", "Patience"],
+            9: ["Initiative taking", "Conflict engagement", "Self-advocacy"]
+        }
+        return growth_areas.get(type_num, ["Self-awareness", "Personal growth"])
+    
+    def _get_type_strengths(self, type_num: int) -> List[str]:
+        """Get strengths for each type"""
+        strengths = {
+            1: ["High standards", "Ethical behavior", "Continuous improvement"],
+            2: ["Empathy", "Supportiveness", "Relationship building"],
+            3: ["Goal achievement", "Adaptability", "Leadership"],
+            4: ["Creativity", "Emotional depth", "Authenticity"],
+            5: ["Analytical thinking", "Independence", "Innovation"],
+            6: ["Loyalty", "Problem-solving", "Team collaboration"],
+            7: ["Enthusiasm", "Versatility", "Optimism"],
+            8: ["Leadership", "Decisiveness", "Protection of others"],
+            9: ["Harmony creation", "Mediation", "Acceptance"]
+        }
+        return strengths.get(type_num, ["Unique perspective", "Personal insights"])
+    
+    def _default_dimensions(self) -> Dict[str, float]:
+        """Default dimensions when type is unknown"""
+        return {'openness': 0.5, 'conscientiousness': 0.5, 'extraversion': 0.5, 'agreeableness': 0.5, 'neuroticism': 0.5}
+    
+    def _fallback_result(self, framework: str, error: str) -> Dict[str, Any]:
+        """Fallback result when processing fails"""
+        return {
+            'error': f"Failed to process {framework}: {error}",
+            'confidence': 0.1,
+            'dimensions': self._default_dimensions()
+        }
+
+
+class MBTIProcessor(PersonalityFrameworkProcessor):
+    """Process MBTI assessment results"""
+    
+    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process raw MBTI data into standardized format"""
+        try:
+            mbti_type = raw_data.get('type', 'INTJ').upper()
+            confidence = raw_data.get('confidence', 0.8)
+            
+            if len(mbti_type) != 4 or not self._is_valid_mbti(mbti_type):
+                mbti_type = 'INTJ'  # Default fallback
+            
+            # Map to Big Five dimensions
+            dimensions = self._mbti_to_big_five(mbti_type)
+            
+            return {
+                'type': mbti_type,
+                'confidence': confidence,
+                'dimensions': dimensions,
+                'preferences': self._get_preferences(mbti_type),
+                'description': self._get_type_description(mbti_type),
+                'strengths': self._get_type_strengths(mbti_type),
+                'blind_spots': self._get_blind_spots(mbti_type)
+            }
+            
+        except Exception as e:
+            return self._fallback_result('mbti', str(e))
+    
+    def _is_valid_mbti(self, mbti_type: str) -> bool:
+        """Validate MBTI type format"""
+        if len(mbti_type) != 4:
+            return False
+        return (mbti_type[0] in 'EI' and mbti_type[1] in 'SN' and 
+                mbti_type[2] in 'TF' and mbti_type[3] in 'JP')
+    
+    def _mbti_to_big_five(self, mbti_type: str) -> Dict[str, float]:
+        """Convert MBTI type to Big Five dimensions"""
+        dimensions = {'openness': 0.5, 'conscientiousness': 0.5, 'extraversion': 0.5, 'agreeableness': 0.5, 'neuroticism': 0.5}
         
-        # Calculate clarity of preferences
-        preferences_clarity = [
-            abs(scores['E'] - scores['I']),
-            abs(scores['S'] - scores['N']),
-            abs(scores['T'] - scores['F']),
-            abs(scores['J'] - scores['P'])
-        ]
+        # Extraversion/Introversion
+        dimensions['extraversion'] = 0.75 if mbti_type[0] == 'E' else 0.25
         
-        avg_clarity = np.mean(preferences_clarity)
-        clarity_bonus = min(0.3, avg_clarity)
+        # Sensing/Intuition -> Openness
+        dimensions['openness'] = 0.75 if mbti_type[1] == 'N' else 0.35
         
-        return min(1.0, base_confidence + clarity_bonus)
+        # Thinking/Feeling -> Agreeableness
+        dimensions['agreeableness'] = 0.75 if mbti_type[2] == 'F' else 0.35
+        
+        # Judging/Perceiving -> Conscientiousness
+        dimensions['conscientiousness'] = 0.75 if mbti_type[3] == 'J' else 0.35
+        
+        return dimensions
+    
+    def _get_preferences(self, mbti_type: str) -> Dict[str, str]:
+        """Get preference descriptions"""
+        return {
+            'energy': 'Extraversion' if mbti_type[0] == 'E' else 'Introversion',
+            'information': 'Sensing' if mbti_type[1] == 'S' else 'Intuition',
+            'decisions': 'Thinking' if mbti_type[2] == 'T' else 'Feeling',
+            'lifestyle': 'Judging' if mbti_type[3] == 'J' else 'Perceiving'
+        }
+    
+    def _get_type_description(self, mbti_type: str) -> str:
+        """Get type description"""
+        descriptions = {
+            'INTJ': "The Architect - Strategic, independent, and innovative",
+            'INTP': "The Thinker - Logical, flexible, and adaptable",
+            'ENTJ': "The Commander - Bold, imaginative, and strong-willed",
+            'ENTP': "The Debater - Smart, curious, and playful",
+            'INFJ': "The Advocate - Creative, insightful, and principled",
+            'INFP': "The Mediator - Poetic, kind, and altruistic",
+            'ENFJ': "The Protagonist - Charismatic, inspiring, and caring",
+            'ENFP': "The Campaigner - Enthusiastic, creative, and sociable",
+            'ISTJ': "The Logistician - Practical, fact-minded, and reliable",
+            'ISFJ': "The Protector - Warm-hearted, conscientious, and cooperative",
+            'ESTJ': "The Executive - Organized, practical, and results-oriented",
+            'ESFJ': "The Consul - Caring, social, and community-minded",
+            'ISTP': "The Virtuoso - Bold, practical, and experimental",
+            'ISFP': "The Adventurer - Charming, sensitive, and artistic",
+            'ESTP': "The Entrepreneur - Smart, energetic, and perceptive",
+            'ESFP': "The Entertainer - Spontaneous, energetic, and enthusiastic"
+        }
+        return descriptions.get(mbti_type, "Unknown type")
     
     def _get_type_strengths(self, mbti_type: str) -> List[str]:
         """Get strengths for MBTI type"""
-        strengths_map = {
-            'INTJ': ['Strategic thinking', 'Independent work', 'Long-term planning', 'System optimization'],
-            'INTP': ['Logical analysis', 'Creative problem-solving', 'Theoretical thinking', 'Adaptability'],
-            'ENTJ': ['Leadership', 'Strategic planning', 'Efficiency', 'Decision-making'],
-            'ENTP': ['Innovation', 'Brainstorming', 'Networking', 'Adaptability'],
-            'INFJ': ['Insight', 'Long-term vision', 'Empathy', 'Dedication'],
-            'INFP': ['Creativity', 'Values-based decisions', 'Authenticity', 'Individual focus'],
-            'ENFJ': ['Team leadership', 'Communication', 'Inspiration', 'Development of others'],
-            'ENFP': ['Enthusiasm', 'Creativity', 'People skills', 'Adaptability'],
-            'ISTJ': ['Reliability', 'Attention to detail', 'Organization', 'Thoroughness'],
-            'ISFJ': ['Service orientation', 'Loyalty', 'Attention to others needs', 'Practical help'],
-            'ESTJ': ['Management', 'Organization', 'Efficiency', 'Decisiveness'],
-            'ESFJ': ['Team harmony', 'Service', 'Organization', 'Communication'],
-            'ISTP': ['Problem-solving', 'Hands-on skills', 'Flexibility', 'Crisis management'],
-            'ISFP': ['Artistic abilities', 'Flexibility', 'Service', 'Individual attention'],
-            'ESTP': ['Action orientation', 'Adaptability', 'Practical problem-solving', 'People skills'],
-            'ESFP': ['Enthusiasm', 'People skills', 'Flexibility', 'Team spirit']
+        # Simplified - in reality you'd have detailed mappings
+        strengths = {
+            'INTJ': ["Strategic thinking", "Independence", "Vision"],
+            'INTP': ["Logical analysis", "Flexibility", "Innovation"],
+            'ENTJ': ["Leadership", "Strategic planning", "Efficiency"],
+            'ENTP': ["Innovation", "Adaptability", "Enthusiasm"],
+            'INFJ': ["Insight", "Empathy", "Vision"],
+            'INFP': ["Authenticity", "Creativity", "Values-driven"],
+            'ENFJ': ["Inspiring others", "Communication", "Empathy"],
+            'ENFP': ["Enthusiasm", "Creativity", "People skills"],
+            'ISTJ': ["Reliability", "Attention to detail", "Consistency"],
+            'ISFJ': ["Supportiveness", "Loyalty", "Attention to others"],
+            'ESTJ': ["Organization", "Leadership", "Practicality"],
+            'ESFJ': ["Cooperation", "Harmony", "Service to others"],
+            'ISTP': ["Problem-solving", "Adaptability", "Practicality"],
+            'ISFP': ["Creativity", "Compassion", "Flexibility"],
+            'ESTP': ["Action-orientation", "Adaptability", "Realism"],
+            'ESFP': ["Enthusiasm", "People skills", "Spontaneity"]
         }
-        return strengths_map.get(mbti_type, [])
+        return strengths.get(mbti_type, ["Balanced perspective"])
     
-    def _get_development_areas(self, mbti_type: str) -> List[str]:
-        """Get development areas for MBTI type"""
-        development_map = {
-            'INTJ': ['Emotional expression', 'Team collaboration', 'Patience with details', 'Flexibility'],
-            'INTP': ['Follow-through', 'Practical application', 'Emotional awareness', 'Time management'],
-            'ENTJ': ['Patience', 'Emotional sensitivity', 'Listening skills', 'Work-life balance'],
-            'ENTP': ['Follow-through', 'Attention to detail', 'Emotional sensitivity', 'Routine tasks'],
-            # Add more types...
+    def _get_blind_spots(self, mbti_type: str) -> List[str]:
+        """Get potential blind spots for MBTI type"""
+        blind_spots = {
+            'INTJ': ["May overlook people factors", "Can be overly critical"],
+            'INTP': ["May procrastinate", "Difficulty with routine tasks"],
+            'ENTJ': ["May be too direct", "Impatience with inefficiency"],
+            'ENTP': ["May jump between projects", "Difficulty with follow-through"]
         }
-        return development_map.get(mbti_type, [])
-    
-    def _get_communication_style(self, mbti_type: str) -> Dict[str, str]:
-        """Get communication style for MBTI type"""
-        # Simplified - would be more detailed in production
-        if 'E' in mbti_type:
-            energy = 'Outwardly expressive, thinks out loud'
-        else:
-            energy = 'Reflective, thinks before speaking'
-        
-        if 'N' in mbti_type:
-            information = 'Big picture, conceptual'
-        else:
-            information = 'Specific, detailed, practical'
-        
-        return {
-            'energy_style': energy,
-            'information_style': information
-        }
-    
-    def _get_leadership_style(self, mbti_type: str) -> str:
-        """Get leadership style for MBTI type"""
-        leadership_styles = {
-            'ENTJ': 'Strategic and commanding',
-            'ENFJ': 'Inspirational and developmental',
-            'ESTJ': 'Traditional and organized',
-            'ESFJ': 'Supportive and harmonious',
-            'INTJ': 'Visionary and independent',
-            'INFJ': 'Insightful and values-driven',
-            'ISTJ': 'Reliable and methodical',
-            'ISFJ': 'Caring and behind-the-scenes'
-        }
-        return leadership_styles.get(mbti_type, 'Situational leadership')
-    
-    def _get_team_contribution(self, mbti_type: str) -> List[str]:
-        """Get team contributions for MBTI type"""
-        contributions = {
-            'INTJ': ['Strategic insights', 'System improvements', 'Long-term planning'],
-            'ENFP': ['Creative ideas', 'Team motivation', 'Exploring possibilities'],
-            'ISTJ': ['Process adherence', 'Quality control', 'Reliable execution'],
-            'ESFJ': ['Team harmony', 'Coordination', 'Supporting others']
-            # Add more types...
-        }
-        return contributions.get(mbti_type, ['Unique perspective', 'Dedicated contribution'])
-    
-    def _get_stress_indicators(self, mbti_type: str) -> List[str]:
-        """Get stress indicators for MBTI type"""
-        stress_indicators = {
-            'INTJ': ['Micromanaging details', 'Becoming overly critical', 'Withdrawing from others'],
-            'ENFP': ['Becoming scattered', 'Overcommitting', 'Neglecting details'],
-            'ISTJ': ['Becoming inflexible', 'Worrying excessively', 'Avoiding change'],
-            'ESFP': ['Becoming moody', 'Overreacting emotionally', 'Avoiding responsibilities']
-            # Add more types...
-        }
-        return stress_indicators.get(mbti_type, ['Changes in normal behavior patterns'])
+        return blind_spots.get(mbti_type, ["Areas for development"])
 
 
-class BigFiveProcessor(AssessmentProcessor):
-    """Process Big Five (OCEAN) personality assessments"""
-    
-    def __init__(self):
-        self.dimensions = {
-            'openness': 'Openness to Experience',
-            'conscientiousness': 'Conscientiousness',
-            'extraversion': 'Extraversion',
-            'agreeableness': 'Agreeableness',
-            'neuroticism': 'Neuroticism'
-        }
-        
-        self.facets = self._create_facets_map()
-    
-    def _create_facets_map(self) -> Dict[str, List[str]]:
-        """Create mapping of dimensions to their facets"""
-        return {
-            'openness': [
-                'Ideas', 'Fantasy', 'Aesthetics', 'Actions', 'Feelings', 'Values'
-            ],
-            'conscientiousness': [
-                'Competence', 'Order', 'Dutifulness', 'Achievement Striving',
-                'Self-Discipline', 'Deliberation'
-            ],
-            'extraversion': [
-                'Warmth', 'Gregariousness', 'Assertiveness', 'Activity',
-                'Excitement Seeking', 'Positive Emotions'
-            ],
-            'agreeableness': [
-                'Trust', 'Straightforwardness', 'Altruism', 'Compliance',
-                'Modesty', 'Tender-Mindedness'
-            ],
-            'neuroticism': [
-                'Anxiety', 'Angry Hostility', 'Depression', 'Self-Consciousness',
-                'Impulsiveness', 'Vulnerability'
-            ]
-        }
-    
-    def validate_input(self, raw_data: Dict[str, Any]) -> bool:
-        """Validate Big Five assessment input"""
-        if not isinstance(raw_data, dict):
-            return False
-        
-        # Need minimum questions for reliable assessment
-        if len(raw_data) < 25:  # 5 per dimension minimum
-            return False
-        
-        # Validate answer format (1-5 scale typically)
-        for key, value in raw_data.items():
-            if value is not None and not (1 <= value <= 5):
-                return False
-        
-        return True
+class BigFiveProcessor(PersonalityFrameworkProcessor):
+    """Process Big Five assessment results"""
     
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process Big Five assessment data"""
-        if not self.validate_input(raw_data):
-            raise ValueError("Invalid Big Five assessment data")
-        
-        # Calculate dimension scores
-        dimension_scores = self._calculate_dimension_scores(raw_data)
-        
-        # Calculate facet scores
-        facet_scores = self._calculate_facet_scores(raw_data)
-        
-        # Calculate confidence
-        confidence = self.calculate_confidence(raw_data)
-        
-        # Generate interpretations
-        interpretations = self._generate_interpretations(dimension_scores)
-        
-        result = {
-            "openness": dimension_scores['openness'],
-            "conscientiousness": dimension_scores['conscientiousness'],
-            "extraversion": dimension_scores['extraversion'],
-            "agreeableness": dimension_scores['agreeableness'],
-            "neuroticism": dimension_scores['neuroticism'],
-            "facet_scores": facet_scores,
-            "confidence": confidence,
-            "interpretations": interpretations,
-            "percentiles": self._calculate_percentiles(dimension_scores),
-            "profile_pattern": self._determine_profile_pattern(dimension_scores),
-            "work_implications": self._get_work_implications(dimension_scores),
-            "team_dynamics": self._get_team_dynamics_implications(dimension_scores),
-            "development_suggestions": self._get_development_suggestions(dimension_scores),
-            "processed_at": datetime.utcnow().isoformat()
-        }
-        
-        return result
-    
-    def _calculate_dimension_scores(self, raw_data: Dict[str, Any]) -> Dict[str, float]:
-        """Calculate scores for each Big Five dimension"""
-        # Distribute questions evenly across dimensions
-        questions_per_dimension = len(raw_data) // 5
-        
-        scores = {dim: [] for dim in self.dimensions.keys()}
-        
-        for i, (question, answer) in enumerate(raw_data.items()):
-            if answer is None:
-                continue
-                
-            # Determine which dimension this question belongs to
-            dimension_index = i % 5
-            dimension_keys = list(self.dimensions.keys())
-            dimension = dimension_keys[dimension_index]
+        """Process raw Big Five data into standardized format"""
+        try:
+            dimensions = {}
+            dimension_names = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism']
             
-            # Convert to 0-1 scale
-            normalized_answer = (answer - 1) / 4.0
-            scores[dimension].append(normalized_answer)
-        
-        # Calculate average scores
-        dimension_averages = {}
-        for dimension, values in scores.items():
-            if values:
-                dimension_averages[dimension] = np.mean(values)
-            else:
-                dimension_averages[dimension] = 0.5  # Neutral if no data
-        
-        return dimension_averages
+            for dim in dimension_names:
+                value = raw_data.get(dim, 0.5)
+                dimensions[dim] = max(0.0, min(1.0, float(value)))
+            
+            return {
+                'dimensions': dimensions,
+                'confidence': raw_data.get('confidence', 0.9),
+                'interpretations': self._get_interpretations(dimensions),
+                'percentiles': self._convert_to_percentiles(dimensions),
+                'facets': raw_data.get('facets', {}),
+                'strengths': self._identify_strengths(dimensions),
+                'development_areas': self._identify_development_areas(dimensions)
+            }
+            
+        except Exception as e:
+            return self._fallback_result('big_five', str(e))
     
-    def _calculate_facet_scores(self, raw_data: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
-        """Calculate facet scores within each dimension"""
-        # Simplified facet calculation
-        facet_scores = {}
-        
-        for dimension, facets in self.facets.items():
-            facet_scores[dimension] = {}
-            for facet in facets:
-                # Mock calculation - would use specific question mapping in production
-                facet_scores[dimension][facet] = np.random.beta(2, 2)
-        
-        return facet_scores
-    
-    def _generate_interpretations(self, scores: Dict[str, float]) -> Dict[str, Dict[str, str]]:
-        """Generate text interpretations for each dimension"""
+    def _get_interpretations(self, dimensions: Dict[str, float]) -> Dict[str, str]:
+        """Get interpretations for each dimension"""
         interpretations = {}
         
-        for dimension, score in scores.items():
-            if score > 0.7:
-                level = "high"
-            elif score > 0.3:
-                level = "moderate"
+        for dim, value in dimensions.items():
+            if value > 0.7:
+                level = "High"
+            elif value > 0.3:
+                level = "Moderate"
             else:
-                level = "low"
+                level = "Low"
             
-            interpretations[dimension] = {
-                "level": level,
-                "description": self._get_dimension_description(dimension, level),
-                "behavioral_indicators": self._get_behavioral_indicators(dimension, level)
-            }
+            interpretations[dim] = f"{level} {dim.title()}"
         
         return interpretations
     
-    def _get_dimension_description(self, dimension: str, level: str) -> str:
-        """Get description for dimension at specific level"""
+    def _convert_to_percentiles(self, dimensions: Dict[str, float]) -> Dict[str, int]:
+        """Convert raw scores to percentiles"""
+        return {dim: int(value * 100) for dim, value in dimensions.items()}
+    
+    def _identify_strengths(self, dimensions: Dict[str, float]) -> List[str]:
+        """Identify strengths based on Big Five scores"""
+        strengths = []
+        
+        if dimensions.get('openness', 0.5) > 0.7:
+            strengths.append("Creative and open to new experiences")
+        if dimensions.get('conscientiousness', 0.5) > 0.7:
+            strengths.append("Organized and goal-oriented")
+        if dimensions.get('extraversion', 0.5) > 0.7:
+            strengths.append("Energetic and socially confident")
+        if dimensions.get('agreeableness', 0.5) > 0.7:
+            strengths.append("Cooperative and trustworthy")
+        if dimensions.get('neuroticism', 0.5) < 0.3:
+            strengths.append("Emotionally stable and resilient")
+        
+        return strengths if strengths else ["Balanced personality profile"]
+    
+    def _identify_development_areas(self, dimensions: Dict[str, float]) -> List[str]:
+        """Identify development areas based on Big Five scores"""
+        areas = []
+        
+        if dimensions.get('conscientiousness', 0.5) < 0.3:
+            areas.append("Organization and self-discipline")
+        if dimensions.get('neuroticism', 0.5) > 0.7:
+            areas.append("Stress management and emotional regulation")
+        if dimensions.get('agreeableness', 0.5) < 0.3:
+            areas.append("Collaboration and empathy")
+        
+        return areas
+
+
+class PIProcessor(PersonalityFrameworkProcessor):
+    """Process Predictive Index assessment results"""
+    
+    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process raw PI data into standardized format"""
+        try:
+            dimensions = {
+                'dominance': max(0.0, min(1.0, raw_data.get('dominance', 0.5))),
+                'extraversion': max(0.0, min(1.0, raw_data.get('extraversion', 0.5))),
+                'patience': max(0.0, min(1.0, raw_data.get('patience', 0.5))),
+                'formality': max(0.0, min(1.0, raw_data.get('formality', 0.5)))
+            }
+            
+            # Convert to Big Five approximation
+            big_five = self._pi_to_big_five(dimensions)
+            
+            return {
+                'pi_dimensions': dimensions,
+                'big_five_approximation': big_five,
+                'confidence': raw_data.get('confidence', 0.8),
+                'behavioral_pattern': self._determine_pattern(dimensions),
+                'work_style': self._determine_work_style(dimensions),
+                'management_needs': self._determine_management_needs(dimensions)
+            }
+            
+        except Exception as e:
+            return self._fallback_result('predictive_index', str(e))
+    
+    def _pi_to_big_five(self, pi_dims: Dict[str, float]) -> Dict[str, float]:
+        """Convert PI dimensions to Big Five approximation"""
+        return {
+            'openness': 0.5,  # PI doesn't directly measure this
+            'conscientiousness': pi_dims['formality'],
+            'extraversion': pi_dims['extraversion'],
+            'agreeableness': 1.0 - pi_dims['dominance'],  # Inverse relationship
+            'neuroticism': 1.0 - pi_dims['patience']  # Inverse relationship
+        }
+    
+    def _determine_pattern(self, dimensions: Dict[str, float]) -> str:
+        """Determine PI behavioral pattern"""
+        # Simplified pattern recognition
+        if dimensions['dominance'] > 0.7 and dimensions['extraversion'] > 0.7:
+            return "Influencer"
+        elif dimensions['dominance'] > 0.7 and dimensions['patience'] < 0.3:
+            return "Dominant"
+        elif dimensions['patience'] > 0.7 and dimensions['formality'] > 0.7:
+            return "Steady"
+        else:
+            return "Balanced"
+    
+    def _determine_work_style(self, dimensions: Dict[str, float]) -> List[str]:
+        """Determine work style preferences"""
+        style = []
+        
+        if dimensions['dominance'] > 0.6:
+            style.append("Results-oriented")
+        if dimensions['extraversion'] > 0.6:
+            style.append("People-focused")
+        if dimensions['patience'] > 0.6:
+            style.append("Process-oriented")
+        if dimensions['formality'] > 0.6:
+            style.append("Detail-oriented")
+        
+        return style if style else ["Adaptable"]
+    
+    def _determine_management_needs(self, dimensions: Dict[str, float]) -> List[str]:
+        """Determine management and motivation needs"""
+        needs = []
+        
+        if dimensions['dominance'] > 0.7:
+            needs.append("Autonomy and challenges")
+        if dimensions['extraversion'] > 0.7:
+            needs.append("Social interaction and recognition")
+        if dimensions['patience'] > 0.7:
+            needs.append("Stability and clear processes")
+        if dimensions['formality'] > 0.7:
+            needs.append("Structure and detailed information")
+        
+        return needs if needs else ["Balanced approach"]
+
+
+class StrengthsProcessor(PersonalityFrameworkProcessor):
+    """Process StrengthsFinder assessment results"""
+    
+    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process raw StrengthsFinder data into standardized format"""
+        try:
+            top_themes = raw_data.get('top_themes', [])[:5]  # Top 5 themes
+            theme_scores = raw_data.get('theme_scores', {})
+            
+            return {
+                'top_themes': top_themes,
+                'theme_scores': theme_scores,
+                'confidence': raw_data.get('confidence', 0.8),
+                'theme_descriptions': self._get_theme_descriptions(top_themes),
+                'domain_distribution': self._get_domain_distribution(top_themes),
+                'team_contribution': self._get_team_contribution(top_themes),
+                'development_suggestions': self._get_development_suggestions(top_themes)
+            }
+            
+        except Exception as e:
+            return self._fallback_result('strengths', str(e))
+    
+    def _get_theme_descriptions(self, themes: List[str]) -> Dict[str, str]:
+        """Get descriptions for themes"""
         descriptions = {
-            'openness': {
-                'high': 'Very creative, curious, and open to new experiences',
-                'moderate': 'Balanced between tradition and innovation',
-                'low': 'Prefers familiar routines and conventional approaches'
-            },
-            'conscientiousness': {
-                'high': 'Highly organized, disciplined, and goal-oriented',
-                'moderate': 'Generally reliable with some flexibility',
-                'low': 'More spontaneous and less structured in approach'
-            },
-            'extraversion': {
-                'high': 'Outgoing, energetic, and socially confident',
-                'moderate': 'Comfortable in both social and solitary settings',
-                'low': 'Prefers quiet environments and smaller social groups'
-            },
-            'agreeableness': {
-                'high': 'Cooperative, trusting, and considerate of others',
-                'moderate': 'Balanced between self-interest and cooperation',
-                'low': 'More skeptical and competitive in relationships'
-            },
-            'neuroticism': {
-                'high': 'Tends to experience stress and emotional instability',
-                'moderate': 'Generally emotionally stable with occasional stress',
-                'low': 'Very emotionally stable and resilient'
-            }
+            'Achiever': 'A constant need for achievement and productivity',
+            'Activator': 'The ability to make things happen by turning thoughts into action',
+            'Analytical': 'The search for reasons and causes',
+            'Strategic': 'The ability to sort through the clutter and find the best route',
+            'Learner': 'A great desire to learn and continuously improve'
+            # Add more as needed
         }
-        return descriptions.get(dimension, {}).get(level, '')
+        return {theme: descriptions.get(theme, 'Strength theme') for theme in themes}
     
-    def _get_behavioral_indicators(self, dimension: str, level: str) -> List[str]:
-        """Get behavioral indicators for dimension at specific level"""
-        indicators = {
-            'openness_high': ['Seeks variety', 'Enjoys abstract thinking', 'Appreciates art'],
-            'openness_low': ['Prefers routine', 'Focuses on practical matters', 'Traditional values'],
-            'conscientiousness_high': ['Plans ahead', 'Pays attention to details', 'Meets deadlines'],
-            'conscientiousness_low': ['Flexible with plans', 'Comfortable with ambiguity', 'Spontaneous'],
-            'extraversion_high': ['Talkative', 'Energetic in groups', 'Seeks social attention'],
-            'extraversion_low': ['Reflective', 'Prefers written communication', 'Values privacy'],
-            'agreeableness_high': ['Helpful', 'Avoids conflict', 'Trusting'],
-            'agreeableness_low': ['Direct communication', 'Skeptical', 'Competitive'],
-            'neuroticism_high': ['Worries frequently', 'Emotionally reactive', 'Stress-sensitive'],
-            'neuroticism_low': ['Calm under pressure', 'Emotionally even', 'Resilient']
-        }
-        key = f"{dimension}_{level}"
-        return indicators.get(key, [])
-    
-    def _calculate_percentiles(self, scores: Dict[str, float]) -> Dict[str, int]:
-        """Calculate percentile ranks for each dimension"""
-        # Mock percentile calculation - would use normative data in production
-        percentiles = {}
-        for dimension, score in scores.items():
-            # Convert 0-1 score to percentile (simplified)
-            percentile = int(score * 100)
-            percentiles[dimension] = max(1, min(99, percentile))
-        return percentiles
-    
-    def _determine_profile_pattern(self, scores: Dict[str, float]) -> str:
-        """Determine overall personality profile pattern"""
-        high_dims = [dim for dim, score in scores.items() if score > 0.7]
-        low_dims = [dim for dim, score in scores.items() if score < 0.3]
-        
-        if len(high_dims) >= 3:
-            return "high_functioning"
-        elif 'neuroticism' in low_dims and 'conscientiousness' in high_dims:
-            return "resilient_achiever"
-        elif 'extraversion' in high_dims and 'openness' in high_dims:
-            return "innovative_leader"
-        elif 'agreeableness' in high_dims and 'conscientiousness' in high_dims:
-            return "reliable_team_player"
-        else:
-            return "balanced_profile"
-    
-    def _get_work_implications(self, scores: Dict[str, float]) -> Dict[str, List[str]]:
-        """Get work-related implications of personality profile"""
-        implications = {
-            "strengths": [],
-            "challenges": [],
-            "ideal_roles": [],
-            "work_environment": []
+    def _get_domain_distribution(self, themes: List[str]) -> Dict[str, int]:
+        """Get distribution across CliftonStrengths domains"""
+        domain_mapping = {
+            'Achiever': 'Executing', 'Activator': 'Influencing',
+            'Analytical': 'Strategic Thinking', 'Strategic': 'Strategic Thinking',
+            'Learner': 'Strategic Thinking'
+            # Add more mappings as needed
         }
         
-        # Conscientiousness implications
-        if scores['conscientiousness'] > 0.7:
-            implications["strengths"].extend(["Detail-oriented", "Reliable", "Goal-focused"])
-            implications["ideal_roles"].extend(["Project manager", "Quality assurance"])
+        domains = {'Executing': 0, 'Influencing': 0, 'Relationship Building': 0, 'Strategic Thinking': 0}
         
-        # Extraversion implications
-        if scores['extraversion'] > 0.7:
-            implications["strengths"].extend(["Team collaboration", "Communication"])
-            implications["ideal_roles"].extend(["Team lead", "Client-facing roles"])
-            implications["work_environment"].append("Open, collaborative spaces")
-        else:
-            implications["work_environment"].append("Quiet, focused work areas")
+        for theme in themes:
+            domain = domain_mapping.get(theme, 'Strategic Thinking')
+            domains[domain] += 1
         
-        # Openness implications
-        if scores['openness'] > 0.7:
-            implications["strengths"].extend(["Innovation", "Adaptability"])
-            implications["ideal_roles"].extend(["Research", "Creative roles"])
-        
-        return implications
+        return domains
     
-    def _get_team_dynamics_implications(self, scores: Dict[str, float]) -> Dict[str, Any]:
-        """Get team dynamics implications"""
-        return {
-            "collaboration_style": "cooperative" if scores['agreeableness'] > 0.6 else "independent",
-            "communication_preference": "verbal" if scores['extraversion'] > 0.6 else "written",
-            "conflict_approach": "avoiding" if scores['agreeableness'] > 0.7 else "direct",
-            "stress_response": "resilient" if scores['neuroticism'] < 0.3 else "sensitive",
-            "change_adaptation": "embracing" if scores['openness'] > 0.6 else "cautious"
-        }
-    
-    def _get_development_suggestions(self, scores: Dict[str, float]) -> List[str]:
-        """Get personalized development suggestions"""
-        suggestions = []
-        
-        if scores['conscientiousness'] < 0.4:
-            suggestions.append("Practice time management and goal-setting techniques")
-        
-        if scores['extraversion'] < 0.3:
-            suggestions.append("Gradually increase participation in team discussions")
-        
-        if scores['neuroticism'] > 0.7:
-            suggestions.append("Develop stress management and resilience strategies")
-        
-        if scores['agreeableness'] < 0.3:
-            suggestions.append("Practice active listening and empathy in team interactions")
-        
-        return suggestions if suggestions else ["Continue leveraging your natural strengths"]
-
-
-class PIProcessor(AssessmentProcessor):
-    """Process Predictive Index assessments"""
-    
-    def __init__(self):
-        self.dimensions = {
-            'dominance': 'Drive to exert influence on people or events',
-            'extraversion': 'Drive for social interaction',
-            'patience': 'Drive for consistency and stability',
-            'formality': 'Drive to conform to rules and structure'
-        }
-        
-        self.behavioral_patterns = self._create_behavioral_patterns()
-    
-    def _create_behavioral_patterns(self) -> Dict[str, Dict[str, Any]]:
-        """Create behavioral pattern definitions"""
-        return {
-            'analyzer': {
-                'description': 'Analytical, precise, and systematic',
-                'traits': ['Detail-oriented', 'Cautious', 'Diplomatic'],
-                'drives': {'dominance': 'low', 'extraversion': 'low', 'patience': 'high', 'formality': 'high'}
-            },
-            'controller': {
-                'description': 'Independent, driving, and determined',
-                'traits': ['Results-focused', 'Fast-paced', 'Self-confident'],
-                'drives': {'dominance': 'high', 'extraversion': 'low', 'patience': 'low', 'formality': 'low'}
-            },
-            'promoter': {
-                'description': 'Persuasive, outgoing, and optimistic',
-                'traits': ['Enthusiastic', 'Trusting', 'Flexible'],
-                'drives': {'dominance': 'high', 'extraversion': 'high', 'patience': 'low', 'formality': 'low'}
-            },
-            'supporter': {
-                'description': 'Patient, reliable, and sincere',
-                'traits': ['Stable', 'Team-oriented', 'Helpful'],
-                'drives': {'dominance': 'low', 'extraversion': 'low', 'patience': 'high', 'formality': 'low'}
-            }
-        }
-    
-    def validate_input(self, raw_data: Dict[str, Any]) -> bool:
-        """Validate PI assessment input"""
-        if not isinstance(raw_data, dict):
-            return False
-        
-        # PI typically uses forced-choice format
-        if len(raw_data) < 12:  # Minimum questions
-            return False
-        
-        return True
-    
-    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process PI assessment data"""
-        if not self.validate_input(raw_data):
-            raise ValueError("Invalid PI assessment data")
-        
-        # Calculate dimension scores
-        dimension_scores = self._calculate_pi_scores(raw_data)
-        
-        # Determine behavioral pattern
-        pattern = self._determine_behavioral_pattern(dimension_scores)
-        
-        # Calculate confidence
-        confidence = self.calculate_confidence(raw_data)
-        
-        result = {
-            "dominance": dimension_scores['dominance'],
-            "extraversion": dimension_scores['extraversion'],
-            "patience": dimension_scores['patience'],
-            "formality": dimension_scores['formality'],
-            "behavioral_pattern": pattern,
-            "pattern_description": self.behavioral_patterns[pattern]['description'],
-            "key_traits": self.behavioral_patterns[pattern]['traits'],
-            "confidence": confidence,
-            "work_style": self._get_work_style_implications(dimension_scores),
-            "management_style": self._get_management_implications(dimension_scores),
-            "team_dynamics": self._get_team_implications(dimension_scores),
-            "development_focus": self._get_development_focus(dimension_scores),
-            "processed_at": datetime.utcnow().isoformat()
-        }
-        
-        return result
-    
-    def _calculate_pi_scores(self, raw_data: Dict[str, Any]) -> Dict[str, float]:
-        """Calculate PI dimension scores"""
-        # Simplified calculation - distribute questions across dimensions
-        scores = {'dominance': 0, 'extraversion': 0, 'patience': 0, 'formality': 0}
-        counts = {'dominance': 0, 'extraversion': 0, 'patience': 0, 'formality': 0}
-        
-        dimensions = list(scores.keys())
-        
-        for i, (question, answer) in enumerate(raw_data.items()):
-            if answer is None:
-                continue
-            
-            dimension = dimensions[i % 4]
-            
-            # Convert answer to numeric score
-            if isinstance(answer, str):
-                numeric_answer = 1 if answer.lower() in ['yes', 'true', 'agree'] else 0
-            else:
-                numeric_answer = float(answer)
-            
-            scores[dimension] += numeric_answer
-            counts[dimension] += 1
-        
-        # Normalize scores
-        normalized_scores = {}
-        for dim in dimensions:
-            if counts[dim] > 0:
-                normalized_scores[dim] = scores[dim] / counts[dim]
-            else:
-                normalized_scores[dim] = 0.5
-        
-        return normalized_scores
-    
-    def _determine_behavioral_pattern(self, scores: Dict[str, float]) -> str:
-        """Determine primary behavioral pattern"""
-        # Simplified pattern matching
-        if scores['dominance'] > 0.6 and scores['extraversion'] > 0.6:
-            return 'promoter'
-        elif scores['dominance'] > 0.6:
-            return 'controller'
-        elif scores['formality'] > 0.6 and scores['patience'] > 0.6:
-            return 'analyzer'
-        else:
-            return 'supporter'
-    
-    def _get_work_style_implications(self, scores: Dict[str, float]) -> Dict[str, Any]:
-        """Get work style implications from PI scores"""
-        return {
-            "pace": "fast" if scores['patience'] < 0.4 else "steady",
-            "decision_style": "quick" if scores['dominance'] > 0.6 else "deliberate",
-            "communication": "direct" if scores['dominance'] > 0.6 else "diplomatic",
-            "work_environment": "dynamic" if scores['extraversion'] > 0.6 else "focused",
-            "structure_preference": "high" if scores['formality'] > 0.6 else "flexible"
-        }
-    
-    def _get_management_implications(self, scores: Dict[str, float]) -> Dict[str, str]:
-        """Get management style implications"""
-        style = "directive" if scores['dominance'] > 0.6 else "collaborative"
-        approach = "results-focused" if scores['dominance'] > 0.6 else "people-focused"
-        
-        return {
-            "management_style": style,
-            "approach": approach,
-            "delegation": "outcomes" if scores['dominance'] > 0.6 else "process"
-        }
-    
-    def _get_team_implications(self, scores: Dict[str, float]) -> Dict[str, str]:
-        """Get team dynamics implications"""
-        return {
-            "role_preference": "leader" if scores['dominance'] > 0.7 else "contributor",
-            "interaction_style": "collaborative" if scores['extraversion'] > 0.6 else "independent",
-            "change_response": "embracing" if scores['patience'] < 0.4 else "cautious",
-            "conflict_style": "direct" if scores['dominance'] > 0.6 else "harmonizing"
-        }
-    
-    def _get_development_focus(self, scores: Dict[str, float]) -> List[str]:
-        """Get development focus areas"""
-        focus_areas = []
-        
-        if scores['dominance'] > 0.8:
-            focus_areas.append("Develop listening and empathy skills")
-        
-        if scores['extraversion'] < 0.3:
-            focus_areas.append("Practice public speaking and team participation")
-        
-        if scores['patience'] < 0.2:
-            focus_areas.append("Work on patience and attention to detail")
-        
-        if scores['formality'] > 0.8:
-            focus_areas.append("Increase flexibility and adaptability")
-        
-        return focus_areas if focus_areas else ["Continue leveraging natural strengths"]
-
-
-class StrengthsProcessor(AssessmentProcessor):
-    """Process StrengthsFinder/CliftonStrengths assessments"""
-    
-    def __init__(self):
-        self.all_themes = [
-            'Achiever', 'Activator', 'Adaptability', 'Analytical', 'Arranger', 'Belief',
-            'Command', 'Communication', 'Competition', 'Connectedness', 'Consistency',
-            'Context', 'Deliberative', 'Developer', 'Discipline', 'Empathy', 'Focus',
-            'Futuristic', 'Harmony', 'Ideation', 'Includer', 'Individualization',
-            'Input', 'Intellection', 'Learner', 'Maximizer', 'Positivity', 'Relator',
-            'Responsibility', 'Restorative', 'Self-Assurance', 'Significance', 'Strategic', 'Woo'
-        ]
-        
-        self.theme_domains = self._create_theme_domains()
-        self.theme_descriptions = self._create_theme_descriptions()
-    
-    def _create_theme_domains(self) -> Dict[str, str]:
-        """Map themes to their domains"""
-        return {
-            # Executing Domain
-            'Achiever': 'Executing', 'Arranger': 'Executing', 'Belief': 'Executing',
-            'Consistency': 'Executing', 'Deliberative': 'Executing', 'Discipline': 'Executing',
-            'Focus': 'Executing', 'Responsibility': 'Executing', 'Restorative': 'Executing',
-            
-            # Influencing Domain
-            'Activator': 'Influencing', 'Command': 'Influencing', 'Communication': 'Influencing',
-            'Competition': 'Influencing', 'Maximizer': 'Influencing', 'Self-Assurance': 'Influencing',
-            'Significance': 'Influencing', 'Woo': 'Influencing',
-            
-            # Relationship Building Domain
-            'Adaptability': 'Relationship Building', 'Connectedness': 'Relationship Building',
-            'Developer': 'Relationship Building', 'Empathy': 'Relationship Building',
-            'Harmony': 'Relationship Building', 'Includer': 'Relationship Building',
-            'Individualization': 'Relationship Building', 'Positivity': 'Relationship Building',
-            'Relator': 'Relationship Building',
-            
-            # Strategic Thinking Domain
-            'Analytical': 'Strategic Thinking', 'Context': 'Strategic Thinking',
-            'Futuristic': 'Strategic Thinking', 'Ideation': 'Strategic Thinking',
-            'Input': 'Strategic Thinking', 'Intellection': 'Strategic Thinking',
-            'Learner': 'Strategic Thinking', 'Strategic': 'Strategic Thinking'
-        }
-    
-    def _create_theme_descriptions(self) -> Dict[str, Dict[str, str]]:
-        """Create descriptions for each strength theme"""
-        return {
-            'Achiever': {
-                'description': 'People exceptionally talented in the Achiever theme work hard and possess great stamina.',
-                'action_items': ['Set challenging goals', 'Track progress daily', 'Celebrate completions']
-            },
-            'Strategic': {
-                'description': 'People exceptionally talented in the Strategic theme create alternative ways to proceed.',
-                'action_items': ['Lead planning sessions', 'Analyze multiple scenarios', 'Share strategic insights']
-            },
-            'Learner': {
-                'description': 'People exceptionally talented in the Learner theme have a great desire to learn.',
-                'action_items': ['Pursue continuous education', 'Share knowledge with others', 'Explore new domains']
-            },
-            'Communication': {
-                'description': 'People exceptionally talented in the Communication theme find it easy to put thoughts into words.',
-                'action_items': ['Lead presentations', 'Facilitate meetings', 'Create compelling narratives']
-            },
-            'Empathy': {
-                'description': 'People exceptionally talented in the Empathy theme can sense other peoples emotions.',
-                'action_items': ['Provide emotional support', 'Mediate conflicts', 'Build inclusive environments']
-            }
-            # Add more themes as needed
-        }
-    
-    def validate_input(self, raw_data: Dict[str, Any]) -> bool:
-        """Validate StrengthsFinder assessment input"""
-        if not isinstance(raw_data, dict):
-            return False
-        
-        # Check for top themes or raw scores
-        if 'top_themes' in raw_data:
-            top_themes = raw_data['top_themes']
-            if not isinstance(top_themes, list) or len(top_themes) < 1:
-                return False
-            
-            # Validate theme names
-            for theme in top_themes:
-                if theme not in self.all_themes:
-                    return False
-        
-        return True
-    
-    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process StrengthsFinder assessment data"""
-        if not self.validate_input(raw_data):
-            raise ValueError("Invalid StrengthsFinder assessment data")
-        
-        # Extract top themes
-        if 'top_themes' in raw_data:
-            top_themes = raw_data['top_themes'][:5]  # Top 5
-        else:
-            # If raw scores provided, determine top themes
-            top_themes = self._determine_top_themes(raw_data)
-        
-        # Calculate domain distribution
-        domain_distribution = self._calculate_domain_distribution(top_themes)
-        
-        # Generate insights
-        insights = self._generate_strengths_insights(top_themes, domain_distribution)
-        
-        result = {
-            "top_themes": top_themes,
-            "theme_descriptions": {theme: self.theme_descriptions.get(theme, {}) for theme in top_themes},
-            "domain_distribution": domain_distribution,
-            "dominant_domain": max(domain_distribution, key=domain_distribution.get),
-            "insights": insights,
-            "team_contributions": self._get_team_contributions(top_themes),
-            "development_suggestions": self._get_development_suggestions(top_themes),
-            "partnership_opportunities": self._get_partnership_opportunities(top_themes),
-            "potential_blind_spots": self._identify_blind_spots(top_themes),
-            "confidence": self.calculate_confidence(raw_data),
-            "processed_at": datetime.utcnow().isoformat()
-        }
-        
-        return result
-    
-    def _determine_top_themes(self, raw_data: Dict[str, Any]) -> List[str]:
-        """Determine top themes from raw assessment scores"""
-        # Mock implementation - would use actual scoring algorithm
-        theme_scores = {}
-        
-        for theme in self.all_themes:
-            # Generate mock scores based on some questions
-            theme_scores[theme] = np.random.beta(2, 3)  # Skewed toward lower scores
-        
-        # Sort by score and return top 5
-        sorted_themes = sorted(theme_scores.items(), key=lambda x: x[1], reverse=True)
-        return [theme for theme, score in sorted_themes[:5]]
-    
-    def _calculate_domain_distribution(self, top_themes: List[str]) -> Dict[str, int]:
-        """Calculate distribution of themes across domains"""
-        domain_counts = {
-            'Executing': 0,
-            'Influencing': 0,
-            'Relationship Building': 0,
-            'Strategic Thinking': 0
-        }
-        
-        for theme in top_themes:
-            domain = self.theme_domains.get(theme, 'Unknown')
-            if domain in domain_counts:
-                domain_counts[domain] += 1
-        
-        return domain_counts
-    
-    def _generate_strengths_insights(self, top_themes: List[str], domain_distribution: Dict[str, int]) -> List[str]:
-        """Generate insights based on strengths profile"""
-        insights = []
-        
-        # Domain-based insights
-        dominant_domain = max(domain_distribution, key=domain_distribution.get)
-        insights.append(f"Your strengths are primarily in {dominant_domain}, indicating natural talent in this area.")
-        
-        # Check for balance
-        max_count = max(domain_distribution.values())
-        if max_count >= 3:
-            insights.append("Your strengths are concentrated in one domain, suggesting specialized expertise.")
-        else:
-            insights.append("Your strengths span multiple domains, indicating versatility.")
-        
-        # Specific theme combinations
-        if 'Strategic' in top_themes and 'Achiever' in top_themes:
-            insights.append("The combination of Strategic and Achiever makes you a powerful goal-oriented planner.")
-        
-        if 'Communication' in top_themes and 'Empathy' in top_themes:
-            insights.append("Your Communication and Empathy strengths make you an exceptional team connector.")
-        
-        return insights
-    
-    def _get_team_contributions(self, top_themes: List[str]) -> List[str]:
-        """Get specific team contributions based on strengths"""
+    def _get_team_contribution(self, themes: List[str]) -> List[str]:
+        """Determine how this person contributes to team"""
         contributions = []
         
-        theme_contributions = {
-            'Achiever': 'Driving projects to completion',
-            'Strategic': 'Providing strategic direction and planning',
-            'Communication': 'Facilitating clear team communication',
-            'Empathy': 'Understanding and supporting team members',
-            'Learner': 'Bringing new knowledge and insights',
-            'Analytical': 'Providing data-driven analysis',
-            'Developer': 'Growing and mentoring team members',
-            'Harmony': 'Maintaining team cohesion and reducing conflict',
-            'Ideation': 'Generating creative solutions and ideas',
-            'Responsibility': 'Ensuring follow-through and accountability'
-        }
+        if 'Strategic' in themes:
+            contributions.append("Strategic planning and direction")
+        if 'Activator' in themes:
+            contributions.append("Getting things started and moving")
+        if 'Learner' in themes:
+            contributions.append("Continuous learning and improvement")
         
-        for theme in top_themes:
-            if theme in theme_contributions:
-                contributions.append(theme_contributions[theme])
-        
-        return contributions
+        return contributions if contributions else ["Unique perspective and skills"]
     
-    def _get_development_suggestions(self, top_themes: List[str]) -> List[str]:
-        """Get development suggestions based on top themes"""
-        suggestions = []
-        
-        # Domain-specific suggestions
-        domain_counts = self._calculate_domain_distribution(top_themes)
-        
-        if domain_counts.get('Executing', 0) >= 2:
-            suggestions.append("Focus on leveraging your execution strengths in high-impact projects")
-        
-        if domain_counts.get('Influencing', 0) >= 2:
-            suggestions.append("Seek leadership opportunities to utilize your influencing talents")
-        
-        if domain_counts.get('Relationship Building', 0) >= 2:
-            suggestions.append("Take on mentoring or team development roles")
-        
-        if domain_counts.get('Strategic Thinking', 0) >= 2:
-            suggestions.append("Contribute to strategic planning and analysis initiatives")
-        
-        # Theme-specific suggestions
-        if 'Learner' in top_themes:
-            suggestions.append("Pursue continuous learning opportunities and share knowledge with others")
-        
-        if 'Strategic' in top_themes:
-            suggestions.append("Lead strategic planning sessions and scenario analysis")
-        
-        return suggestions
-    
-    def _get_partnership_opportunities(self, top_themes: List[str]) -> List[str]:
-        """Identify partnership opportunities with complementary strengths"""
-        partnerships = []
-        
-        domain_counts = self._calculate_domain_distribution(top_themes)
-        
-        # Identify missing or weak domains
-        weak_domains = [domain for domain, count in domain_counts.items() if count == 0]
-        
-        for weak_domain in weak_domains:
-            if weak_domain == 'Executing':
-                partnerships.append("Partner with strong Executors like Achiever, Discipline, or Focus")
-            elif weak_domain == 'Influencing':
-                partnerships.append("Collaborate with Influencers like Command, Communication, or Woo")
-            elif weak_domain == 'Relationship Building':
-                partnerships.append("Work with Relationship Builders like Empathy, Harmony, or Developer")
-            elif weak_domain == 'Strategic Thinking':
-                partnerships.append("Team up with Strategic Thinkers like Analytical, Strategic, or Futuristic")
-        
-        return partnerships
-    
-    def _identify_blind_spots(self, top_themes: List[str]) -> List[str]:
-        """Identify potential blind spots based on strengths profile"""
-        blind_spots = []
-        
-        domain_counts = self._calculate_domain_distribution(top_themes)
-        
-        # Domain-based blind spots
-        if domain_counts.get('Relationship Building', 0) == 0:
-            blind_spots.append("May overlook team dynamics and individual needs")
-        
-        if domain_counts.get('Strategic Thinking', 0) == 0:
-            blind_spots.append("Might miss long-term implications or alternative approaches")
-        
-        if domain_counts.get('Executing', 0) == 0:
-            blind_spots.append("Could struggle with follow-through and implementation")
-        
-        if domain_counts.get('Influencing', 0) == 0:
-            blind_spots.append("May have difficulty persuading others or driving change")
-        
-        # Theme-specific blind spots
-        if 'Harmony' in top_themes and 'Command' not in top_themes:
-            blind_spots.append("May avoid necessary conflicts or difficult conversations")
-        
-        return blind_spots
+    def _get_development_suggestions(self, themes: List[str]) -> List[str]:
+        """Get development suggestions based on themes"""
+        return [
+            f"Develop your {themes[0]} theme further",
+            "Find ways to use your strengths in new situations",
+            "Partner with others who have complementary strengths"
+        ]
 
 
-class SocialStylesProcessor(AssessmentProcessor):
-    """Process Social Styles assessment"""
-    
-    def __init__(self):
-        self.styles = {
-            'analytical': {
-                'name': 'Analytical',
-                'description': 'Task-focused and introverted',
-                'characteristics': ['Systematic', 'Logical', 'Thorough', 'Cautious']
-            },
-            'driver': {
-                'name': 'Driver',
-                'description': 'Task-focused and extroverted',
-                'characteristics': ['Results-oriented', 'Fast-paced', 'Direct', 'Decisive']
-            },
-            'amiable': {
-                'name': 'Amiable',
-                'description': 'People-focused and introverted',
-                'characteristics': ['Cooperative', 'Patient', 'Loyal', 'Supportive']
-            },
-            'expressive': {
-                'name': 'Expressive',
-                'description': 'People-focused and extroverted',
-                'characteristics': ['Enthusiastic', 'Animated', 'Intuitive', 'Persuasive']
-            }
-        }
-    
-    def validate_input(self, raw_data: Dict[str, Any]) -> bool:
-        """Validate Social Styles assessment input"""
-        if not isinstance(raw_data, dict):
-            return False
-        
-        # Need minimum questions for assessment
-        if len(raw_data) < 8:
-            return False
-        
-        return True
+class SocialStylesProcessor(PersonalityFrameworkProcessor):
+    """Process Social Styles assessment results"""
     
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process Social Styles assessment data"""
-        if not self.validate_input(raw_data):
-            raise ValueError("Invalid Social Styles assessment data")
-        
-        # Calculate assertiveness and responsiveness scores
-        assertiveness, responsiveness = self._calculate_dimensions(raw_data)
-        
-        # Determine social style
-        social_style = self._determine_social_style(assertiveness, responsiveness)
-        
-        # Calculate confidence
-        confidence = self.calculate_confidence(raw_data)
-        
-        result = {
-            "social_style": social_style,
-            "style_name": self.styles[social_style]['name'],
-            "description": self.styles[social_style]['description'],
-            "characteristics": self.styles[social_style]['characteristics'],
-            "assertiveness": assertiveness,
-            "responsiveness": responsiveness,
-            "confidence": confidence,
-            "communication_preferences": self._get_communication_preferences(social_style),
-            "work_environment": self._get_work_environment_preferences(social_style),
-            "team_dynamics": self._get_team_dynamics(social_style),
-            "stress_behaviors": self._get_stress_behaviors(social_style),
-            "development_tips": self._get_development_tips(social_style),
-            "compatibility_matrix": self._get_compatibility_with_others(social_style),
-            "processed_at": datetime.utcnow().isoformat()
-        }
-        
-        return result
-    
-    def _calculate_dimensions(self, raw_data: Dict[str, Any]) -> tuple:
-        """Calculate assertiveness and responsiveness dimensions"""
-        assertiveness_questions = []
-        responsiveness_questions = []
-        
-        # Split questions between dimensions (simplified)
-        for i, (question, answer) in enumerate(raw_data.items()):
-            if answer is None:
-                continue
+        """Process raw Social Styles data into standardized format"""
+        try:
+            style = raw_data.get('style', 'Analytical').title()
+            assertiveness = raw_data.get('assertiveness', 0.5)
+            responsiveness = raw_data.get('responsiveness', 0.5)
             
-            if i % 2 == 0:  # Even questions for assertiveness
-                assertiveness_questions.append(answer)
-            else:  # Odd questions for responsiveness
-                responsiveness_questions.append(answer)
-        
-        # Calculate averages (normalize to 0-1 scale)
-        assertiveness = np.mean(assertiveness_questions) / 5.0 if assertiveness_questions else 0.5
-        responsiveness = np.mean(responsiveness_questions) / 5.0 if responsiveness_questions else 0.5
-        
-        return assertiveness, responsiveness
+            return {
+                'style': style,
+                'assertiveness': assertiveness,
+                'responsiveness': responsiveness,
+                'confidence': raw_data.get('confidence', 0.8),
+                'description': self._get_style_description(style),
+                'communication_preferences': self._get_communication_preferences(style),
+                'interaction_tips': self._get_interaction_tips(style),
+                'backup_behavior': self._get_backup_behavior(style)
+            }
+            
+        except Exception as e:
+            return self._fallback_result('social_styles', str(e))
     
-    def _determine_social_style(self, assertiveness: float, responsiveness: float) -> str:
-        """Determine social style based on dimensions"""
-        if assertiveness >= 0.5 and responsiveness >= 0.5:
-            return 'expressive'
-        elif assertiveness >= 0.5 and responsiveness < 0.5:
-            return 'driver'
-        elif assertiveness < 0.5 and responsiveness >= 0.5:
-            return 'amiable'
-        else:
-            return 'analytical'
+    def _get_style_description(self, style: str) -> str:
+        """Get description for social style"""
+        descriptions = {
+            'Driver': 'Results-oriented, decisive, and direct',
+            'Expressive': 'People-oriented, enthusiastic, and spontaneous',
+            'Amiable': 'Relationship-focused, supportive, and cooperative',
+            'Analytical': 'Task-oriented, methodical, and precise'
+        }
+        return descriptions.get(style, 'Unknown style')
     
-    def _get_communication_preferences(self, style: str) -> Dict[str, str]:
-        """Get communication preferences for each style"""
+    def _get_communication_preferences(self, style: str) -> List[str]:
+        """Get communication preferences for style"""
         preferences = {
-            'analytical': {
-                'pace': 'Slower, thoughtful',
-                'information': 'Detailed, factual',
-                'decision_making': 'Data-driven, deliberate',
-                'feedback': 'Specific, constructive'
-            },
-            'driver': {
-                'pace': 'Fast, direct',
-                'information': 'Bottom-line, efficient',
-                'decision_making': 'Quick, results-focused',
-                'feedback': 'Brief, action-oriented'
-            },
-            'amiable': {
-                'pace': 'Steady, patient',
-                'information': 'Personal, relational',
-                'decision_making': 'Consensus-building',
-                'feedback': 'Supportive, encouraging'
-            },
-            'expressive': {
-                'pace': 'Enthusiastic, animated',
-                'information': 'Big picture, inspiring',
-                'decision_making': 'Intuitive, flexible',
-                'feedback': 'Positive, motivational'
-            }
+            'Driver': ['Direct communication', 'Bottom-line focus', 'Time efficiency'],
+            'Expressive': ['Enthusiastic interaction', 'Big picture focus', 'Social connection'],
+            'Amiable': ['Supportive tone', 'Personal consideration', 'Consensus building'],
+            'Analytical': ['Detailed information', 'Logical structure', 'Data-driven discussion']
         }
-        return preferences.get(style, {})
+        return preferences.get(style, ['Clear communication'])
     
-    def _get_work_environment_preferences(self, style: str) -> List[str]:
-        """Get work environment preferences"""
-        environments = {
-            'analytical': ['Organized workspace', 'Minimal interruptions', 'Access to information'],
-            'driver': ['Efficient setup', 'Results-focused atmosphere', 'Authority and control'],
-            'amiable': ['Collaborative space', 'Stable team environment', 'Supportive culture'],
-            'expressive': ['Dynamic environment', 'Social interaction', 'Creative freedom']
-        }
-        return environments.get(style, [])
-    
-    def _get_team_dynamics(self, style: str) -> Dict[str, str]:
-        """Get team dynamics information"""
-        dynamics = {
-            'analytical': {
-                'role': 'Quality controller and analyst',
-                'contribution': 'Thorough analysis and risk assessment',
-                'needs': 'Time to process and detailed information'
-            },
-            'driver': {
-                'role': 'Results-oriented leader',
-                'contribution': 'Goal achievement and efficiency',
-                'needs': 'Clear objectives and authority'
-            },
-            'amiable': {
-                'role': 'Team harmonizer and supporter',
-                'contribution': 'Stability and cooperation',
-                'needs': 'Security and appreciation'
-            },
-            'expressive': {
-                'role': 'Team motivator and innovator',
-                'contribution': 'Energy and creative ideas',
-                'needs': 'Recognition and variety'
-            }
-        }
-        return dynamics.get(style, {})
-    
-    def _get_stress_behaviors(self, style: str) -> List[str]:
-        """Get stress behaviors for each style"""
-        stress_behaviors = {
-            'analytical': ['Over-analyzing', 'Procrastination', 'Withdrawal', 'Criticism'],
-            'driver': ['Impatience', 'Controlling behavior', 'Insensitivity', 'Autocratic decisions'],
-            'amiable': ['Avoiding decisions', 'Submissiveness', 'Resentment', 'Passive-aggressive behavior'],
-            'expressive': ['Disorganization', 'Impulsiveness', 'Emotional outbursts', 'Attacking others']
-        }
-        return stress_behaviors.get(style, [])
-    
-    def _get_development_tips(self, style: str) -> List[str]:
-        """Get development tips for each style"""
+    def _get_interaction_tips(self, style: str) -> List[str]:
+        """Get tips for interacting with this style"""
         tips = {
-            'analytical': [
-                'Practice making decisions with incomplete information',
-                'Work on expressing ideas more assertively',
-                'Develop comfort with interpersonal relationships'
-            ],
-            'driver': [
-                'Practice active listening and patience',
-                'Consider impact on others when making decisions',
-                'Develop empathy and relationship skills'
-            ],
-            'amiable': [
-                'Practice assertiveness and saying no when appropriate',
-                'Work on initiating change and expressing opinions',
-                'Develop comfort with conflict resolution'
-            ],
-            'expressive': [
-                'Focus on follow-through and attention to detail',
-                'Practice organized planning and time management',
-                'Work on listening skills and controlling emotions'
-            ]
+            'Driver': ['Be brief and direct', 'Focus on results', 'Avoid small talk'],
+            'Expressive': ['Be enthusiastic', 'Allow for interaction', 'Focus on big picture'],
+            'Amiable': ['Be patient and supportive', 'Build relationship first', 'Avoid pressure'],
+            'Analytical': ['Provide detailed information', 'Be logical', 'Allow processing time']
         }
-        return tips.get(style, [])
+        return tips.get(style, ['Adapt communication style'])
     
-    def _get_compatibility_with_others(self, style: str) -> Dict[str, str]:
-        """Get compatibility information with other styles"""
-        compatibility = {
-            'analytical': {
-                'analytical': 'High - Similar approaches to work and decisions',
-                'driver': 'Medium - Appreciate efficiency but may clash on pace',
-                'amiable': 'Medium - Both cautious but different focuses',
-                'expressive': 'Low - Very different paces and approaches'
-            },
-            'driver': {
-                'analytical': 'Medium - Value thoroughness but impatient with pace',
-                'driver': 'Medium - Similar goals but may compete',
-                'amiable': 'Medium - Complement each other but different paces',
-                'expressive': 'High - Both assertive and action-oriented'
-            },
-            'amiable': {
-                'analytical': 'Medium - Both thoughtful but different focuses',
-                'driver': 'Medium - Complement skills but different paces',
-                'amiable': 'High - Similar values and approaches',
-                'expressive': 'Medium - Both people-focused but different energy'
-            },
-            'expressive': {
-                'analytical': 'Low - Very different communication and decision styles',
-                'driver': 'High - Both assertive and results-oriented',
-                'amiable': 'Medium - Both people-focused but different assertiveness',
-                'expressive': 'Medium - Similar energy but may compete for attention'
-            }
+    def _get_backup_behavior(self, style: str) -> str:
+        """Get backup behavior under stress"""
+        backups = {
+            'Driver': 'Autocratic - becomes controlling and demanding',
+            'Expressive': 'Attacking - becomes aggressive and critical',
+            'Amiable': 'Acquiescing - becomes overly accommodating',
+            'Analytical': 'Avoiding - withdraws and becomes indecisive'
         }
-        return compatibility.get(style, {})# assessment_processors.py - Personality Assessment Processing
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
-import numpy as np
-import logging
-from datetime import datetime
-
-logger = logging.getLogger(__name__)
-
-class AssessmentProcessor(ABC):
-    """Base class for all personality assessment processors"""
-    
-    @abstractmethod
-    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process raw assessment data into standardized results"""
-        pass
-    
-    @abstractmethod
-    def validate_input(self, raw_data: Dict[str, Any]) -> bool:
-        """Validate input data format and completeness"""
-        pass
-    
-    def calculate_confidence(self, raw_data: Dict[str, Any]) -> float:
-        """Calculate confidence score for the assessment"""
-        # Default implementation based on completion rate
-        if not raw_data:
-            return 0.0
-        
-        total_questions = len(raw_data)
-        answered_questions = sum(1 for v in raw_data.values() if v is not None)
-        
-        completion_rate = answered_questions / total_questions if total_questions > 0 else 0
-        return min(1.0, completion_rate * 0.9)  # Max 0.9 for complete answers
+        return backups.get(style, 'Stress response varies')
 
 
-class EnneagramProcessor(AssessmentProcessor):
-    """Process Enneagram personality assessments"""
-    
-    def __init__(self):
-        self.type_descriptions = {
-            1: {"name": "The Perfectionist", "motivation": "Integrity and improvement"},
-            2: {"name": "The Helper", "motivation": "Love and connection"},
-            3: {"name": "The Achiever", "motivation": "Success and admiration"},
-            4: {"name": "The Individualist", "motivation": "Identity and significance"},
-            5: {"name": "The Investigator", "motivation": "Knowledge and understanding"},
-            6: {"name": "The Loyalist", "motivation": "Security and support"},
-            7: {"name": "The Enthusiast", "motivation": "Satisfaction and freedom"},
-            8: {"name": "The Challenger", "motivation": "Control and self-protection"},
-            9: {"name": "The Peacemaker", "motivation": "Peace and harmony"}
-        }
-        
-        # Mapping questions to types (simplified example)
-        self.question_type_mapping = self._create_question_mapping()
-    
-    def _create_question_mapping(self) -> Dict[str, int]:
-        """Create mapping between questions and Enneagram types"""
-        # This would be based on validated Enneagram questionnaires
-        return {
-            "q1": 1, "q2": 2, "q3": 3, "q4": 4, "q5": 5,
-            "q6": 6, "q7": 7, "q8": 8, "q9": 9,
-            "q10": 1, "q11": 2, "q12": 3, "q13": 4, "q14": 5,
-            "q15": 6, "q16": 7, "q17": 8, "q18": 9,
-            # Add more questions for better accuracy
-        }
-    
-    def validate_input(self, raw_data: Dict[str, Any]) -> bool:
-        """Validate Enneagram assessment input"""
-        if not isinstance(raw_data, dict):
-            return False
-        
-        # Check for minimum number of questions
-        if len(raw_data) < 18:  # Minimum for basic assessment
-            logger.warning("Insufficient questions for reliable Enneagram assessment")
-            return False
-        
-        # Validate answer format (should be 1-5 scale)
-        for key, value in raw_data.items():
-            if value is not None and not (1 <= value <= 5):
-                logger.warning(f"Invalid answer value {value} for question {key}")
-                return False
-        
-        return True
-    
-    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process Enneagram assessment data"""
-        if not self.validate_input(raw_data):
-            raise ValueError("Invalid Enneagram assessment data")
-        
-        # Calculate scores for each type
-        type_scores = {i: 0.0 for i in range(1, 10)}
-        question_count = {i: 0 for i in range(1, 10)}
-        
-        for question, answer in raw_data.items():
-            if answer is not None and question in self.question_type_mapping:
-                enneagram_type = self.question_type_mapping[question]
-                type_scores[enneagram_type] += answer
-                question_count[enneagram_type] += 1
-        
-        # Calculate average scores
-        for etype in type_scores:
-            if question_count[etype] > 0:
-                type_scores[etype] = type_scores[etype] / question_count[etype]
-        
-        # Determine primary type
-        primary_type = max(type_scores, key=type_scores.get)
-        primary_score = type_scores[primary_type]
-        
-        # Determine wing (adjacent type with highest score)
-        adjacent_types = self._get_adjacent_types(primary_type)
-        wing_scores = {t: type_scores[t] for t in adjacent_types}
-        wing_type = max(wing_scores, key=wing_scores.get) if wing_scores else None
-        
-        # Calculate confidence
-        confidence = self.calculate_confidence(raw_data)
-        
-        # Adjust confidence based on score separation
-        score_separation = primary_score - sorted(type_scores.values())[-2]
-        if score_separation > 0.5:
-            confidence = min(1.0, confidence + 0.1)
-        elif score_separation < 0.2:
-            confidence = max(0.3, confidence - 0.1)
-        
-        result = {
-            "type": primary_type,
-            "type_name": self.type_descriptions[primary_type]["name"],
-            "motivation": self.type_descriptions[primary_type]["motivation"],
-            "wing": f"{primary_type}w{wing_type}" if wing_type else None,
-            "all_scores": type_scores,
-            "confidence": confidence,
-            "interpretation": self._generate_interpretation(primary_type, wing_type),
-            "strengths": self._get_type_strengths(primary_type),
-            "challenges": self._get_type_challenges(primary_type),
-            "work_style": self._get_work_style(primary_type),
-            "processed_at": datetime.utcnow().isoformat()
-        }
-        
-        return result
-    
-    def _get_adjacent_types(self, primary_type: int) -> List[int]:
-        """Get adjacent types for wing determination"""
-        if primary_type == 1:
-            return [9, 2]
-        elif primary_type == 9:
-            return [8, 1]
-        else:
-            return [primary_type - 1, primary_type + 1]
-    
-    def _generate_interpretation(self, primary_type: int, wing_type: Optional[int]) -> str:
-        """Generate interpretation text"""
-        base_text = f"Primary type {primary_type} ({self.type_descriptions[primary_type]['name']})"
-        if wing_type:
-            base_text += f" with {wing_type} wing"
-        return base_text
-    
-    def _get_type_strengths(self, etype: int) -> List[str]:
-        """Get strengths for each type"""
-        strengths_map = {
-            1: ["Detail-oriented", "High standards", "Organized", "Principled"],
-            2: ["Empathetic", "Supportive", "Interpersonally skilled", "Generous"],
-            3: ["Goal-oriented", "Efficient", "Adaptable", "Confident"],
-            4: ["Creative", "Emotionally aware", "Authentic", "Intuitive"],
-            5: ["Analytical", "Independent", "Observant", "Innovative"],
-            6: ["Loyal", "Responsible", "Trustworthy", "Prepared"],
-            7: ["Enthusiastic", "Versatile", "Optimistic", "Quick thinking"],
-            8: ["Decisive", "Self-confident", "Energetic", "Protective"],
-            9: ["Peaceful", "Accepting", "Supportive", "Stable"]
-        }
-        return strengths_map.get(etype, [])
-    
-    def _get_type_challenges(self, etype: int) -> List[str]:
-        """Get challenges for each type"""
-        challenges_map = {
-            1: ["Perfectionism", "Criticism", "Rigidity", "Resentment"],
-            2: ["People-pleasing", "Neglecting own needs", "Manipulation", "Pride"],
-            3: ["Image focus", "Workaholism", "Avoiding failure", "Superficiality"],
-            4: ["Moodiness", "Self-absorption", "Envy", "Melancholy"],
-            5: ["Isolation", "Detachment", "Hoarding resources", "Cynicism"],
-            6: ["Anxiety", "Doubt", "Suspicion", "Reactivity"],
-            7: ["Impulsiveness", "Avoiding pain", "Scattered focus", "Superficiality"],
-            8: ["Intensity", "Controlling", "Impatience", "Confrontational"],
-            9: ["Inaction", "Avoiding conflict", "Stubbornness", "Neglecting priorities"]
-        }
-        return challenges_map.get(etype, [])
-    
-    def _get_work_style(self, etype: int) -> Dict[str, Any]:
-        """Get work style preferences for each type"""
-        work_styles = {
-            1: {
-                "preferred_environment": "Structured and organized",
-                "communication": "Direct and precise",
-                "decision_making": "Thorough analysis",
-                "team_role": "Quality assurance, process improvement"
-            },
-            2: {
-                "preferred_environment": "Collaborative and supportive",
-                "communication": "Warm and personal",
-                "decision_making": "Considers impact on others",
-                "team_role": "Team support, relationship building"
-            },
-            3: {
-                "preferred_environment": "Goal-oriented and competitive",
-                "communication": "Efficient and results-focused",
-                "decision_making": "Quick and pragmatic",
-                "team_role": "Project leadership, goal achievement"
-            },
-            # Add more types...
-        }
-        return work_styles.get(etype, {})
-
-
-class MBTIProcessor(AssessmentProcessor):
-    """Process MBTI personality assessments"""
-    
-    def __init__(self):
-        self.dimensions = {
-            'E_I': 'Extraversion vs Introversion',
-            'S_N': 'Sensing vs Intuition',
-            'T_F': 'Thinking vs Feeling',
-            'J_P': 'Judging vs Perceiving'
-        }
-        
-        self.type_descriptions = self._create_type_descriptions()
-        self.cognitive_functions = self._create_cognitive_functions_map()
-    
-    def _create_type_descriptions(self) -> Dict[str, Dict[str, str]]:
-        """Create detailed descriptions for all 16 MBTI types"""
-        return {
-            'INTJ': {
-                'name': 'The Architect',
-                'description': 'Imaginative and strategic thinkers, with a plan for everything.',
-                'key_traits': ['Strategic', 'Independent', 'Determined', 'Insightful']
-            },
-            'INTP': {
-                'name': 'The Thinker',
-                'description': 'Innovative inventors with an unquenchable thirst for knowledge.',
-                'key_traits': ['Logical', 'Flexible', 'Creative', 'Independent']
-            },
-            'ENTJ': {
-                'name': 'The Commander',
-                'description': 'Bold, imaginative and strong-willed leaders.',
-                'key_traits': ['Efficient', 'Energetic', 'Self-confident', 'Strong-willed']
-            },
-            'ENTP': {
-                'name': 'The Debater',
-                'description': 'Smart and curious thinkers who cannot resist an intellectual challenge.',
-                'key_traits': ['Quick', 'Ingenious', 'Stimulating', 'Alert']
-            },
-            # Add all 16 types...
-        }
-    
-    def _create_cognitive_functions_map(self) -> Dict[str, List[str]]:
-        """Map MBTI types to their cognitive function stacks"""
-        return {
-            'INTJ': ['Ni', 'Te', 'Fi', 'Se'],
-            'INTP': ['Ti', 'Ne', 'Si', 'Fe'],
-            'ENTJ': ['Te', 'Ni', 'Se', 'Fi'],
-            'ENTP': ['Ne', 'Ti', 'Fe', 'Si'],
-            'INFJ': ['Ni', 'Fe', 'Ti', 'Se'],
-            'INFP': ['Fi', 'Ne', 'Si', 'Te'],
-            'ENFJ': ['Fe', 'Ni', 'Se', 'Ti'],
-            'ENFP': ['Ne', 'Fi', 'Te', 'Si'],
-            'ISTJ': ['Si', 'Te', 'Fi', 'Ne'],
-            'ISFJ': ['Si', 'Fe', 'Ti', 'Ne'],
-            'ESTJ': ['Te', 'Si', 'Ne', 'Fi'],
-            'ESFJ': ['Fe', 'Si', 'Ne', 'Ti'],
-            'ISTP': ['Ti', 'Se', 'Ni', 'Fe'],
-            'ISFP': ['Fi', 'Se', 'Ni', 'Te'],
-            'ESTP': ['Se', 'Ti', 'Fe', 'Ni'],
-            'ESFP': ['Se', 'Fi', 'Te', 'Ni']
-        }
-    
-    def validate_input(self, raw_data: Dict[str, Any]) -> bool:
-        """Validate MBTI assessment input"""
-        if not isinstance(raw_data, dict):
-            return False
-        
-        # Should have questions for all 4 dimensions
-        required_questions = 20  # Minimum for basic MBTI
-        if len(raw_data) < required_questions:
-            return False
-        
-        # Validate answer format
-        for key, value in raw_data.items():
-            if value is not None and not isinstance(value, (int, float, str)):
-                return False
-        
-        return True
-    
-    def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process MBTI assessment data"""
-        if not self.validate_input(raw_data):
-            raise ValueError("Invalid MBTI assessment data")
-        
-        # Calculate dimension scores
-        dimension_scores = self._calculate_dimension_scores(raw_data)
-        
-        # Determine MBTI type
-        mbti_type = self._determine_type(dimension_scores)
-        
-        # Calculate confidence
-        confidence = self._calculate_mbti_confidence(dimension_scores, raw_data)
-        
-        # Get cognitive functions
-        cognitive_functions = self.cognitive_functions.get(mbti_type, [])
-        
-        result = {
-            "type": mbti_type,
-            "type_name": self.type_descriptions.get(mbti_type, {}).get('name', ''),
-            "description": self.type_descriptions.get(mbti_type, {}).get('description', ''),
-            "key_traits": self.type_descriptions.get(mbti_type, {}).get('key_traits', []),
-            "dimension_scores": dimension_scores,
-            "cognitive_functions": cognitive_functions,
-            "confidence": confidence,
-            "strengths": self._get_type_strengths(mbti_type),
-            "development_areas": self._get_development_areas(mbti_type),
-            "communication_style": self._get_communication_style(mbti_type),
-            "leadership_style": self._get_leadership_style(mbti_type),
-            "team_contribution": self._get_team_contribution(mbti_type),
-            "stress_indicators": self._get_stress_indicators(mbti_type),
-            "processed_at": datetime.utcnow().isoformat()
-        }
-        
-        return result
-    
-    def _calculate_dimension_scores(self, raw_data: Dict[str, Any]) -> Dict[str, float]:
-        """Calculate scores for each MBTI dimension"""
-        # Simplified scoring - in production, use validated question mappings
-        scores = {
-            'E': 0, 'I': 0,  # Extraversion vs Introversion
-            'S': 0, 'N': 0,  # Sensing vs Intuition
-            'T': 0, 'F': 0,  # Thinking vs Feeling
-            'J': 0, 'P': 0   # Judging vs Perceiving
-        }
-        
-        question_count = len(raw_data)
-        
-        # Mock calculation - distribute questions across dimensions
-        for i, (question, answer) in enumerate(raw_data.items()):
-            if answer is None:
-                continue
-            
-            # Convert answer to numeric if string
-            if isinstance(answer, str):
-                try:
-                    answer = float(answer)
-                except ValueError:
-                    continue
-            
-            # Assign questions to dimensions cyclically
-            dimension_index

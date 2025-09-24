@@ -36,16 +36,16 @@ services:
       timeout: 10s
       retries: 3
 
-  # FastAPI Backend
-  backend:
+  # FastAPI app
+  app:
     build:
-      context: ./backend
+      context: ./app
       dockerfile: Dockerfile
-    container_name: psychsync_backend
+    container_name: psychsync_app
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://psychsync_user@localhost/psychsync_db
+      - DATABASE_URL=postgresql+asyncpg://psychsync_user:password@localhost/psychsync_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - SECRET_KEY=your-secret-key-here
@@ -56,7 +56,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./backend:/app
+      - ./app:/app
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -75,7 +75,7 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:8000
     depends_on:
-      - backend
+      - app
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -93,7 +93,7 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl
     depends_on:
       - frontend
-      - backend
+      - app
 
 volumes:
   postgres_data:
@@ -104,7 +104,7 @@ networks:
     name: psychsync_network
 
 ---
-# backend/Dockerfile - Backend Container
+# app/Dockerfile - app Container
 FROM python:3.11-slim
 
 # Set working directory
@@ -141,7 +141,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 ---
-# backend/requirements.txt - Python Dependencies
+# app/requirements.txt - Python Dependencies
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 sqlalchemy==2.0.23
@@ -293,8 +293,8 @@ http {
     limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
     limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
 
-    upstream backend {
-        server backend:8000;
+    upstream app {
+        server app:8000;
     }
 
     upstream frontend {
@@ -332,7 +332,7 @@ http {
         location /api/ {
             limit_req zone=api burst=20 nodelay;
             
-            proxy_pass http://backend/;
+            proxy_pass http://app/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -359,7 +359,7 @@ http {
         # Auth routes with stricter rate limiting
         location /auth/login {
             limit_req zone=login burst=5 nodelay;
-            proxy_pass http://backend/auth/login;
+            proxy_pass http://app/auth/login;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -368,7 +368,7 @@ http {
 
         # WebSocket support
         location /ws/ {
-            proxy_pass http://backend/ws/;
+            proxy_pass http://app/ws/;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
@@ -400,7 +400,7 @@ http {
         # Health check
         location /health {
             access_log off;
-            proxy_pass http://backend/health;
+            proxy_pass http://app/health;
         }
     }
 }
@@ -552,25 +552,25 @@ spec:
       storage: 1Gi
 
 ---
-# kubernetes/backend.yaml - Backend Deployment
+# kubernetes/app.yaml - app Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: app
   namespace: psychsync
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: backend
+      app: app
   template:
     metadata:
       labels:
-        app: backend
+        app: app
     spec:
       containers:
-      - name: backend
-        image: psychsync/backend:latest
+      - name: app
+        image: psychsync/app:latest
         ports:
         - containerPort: 8000
         env:
@@ -612,11 +612,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend-service
+  name: app-service
   namespace: psychsync
 spec:
   selector:
-    app: backend
+    app: app
   ports:
   - port: 8000
     targetPort: 8000
@@ -690,21 +690,21 @@ spec:
       paths:
       - path: /api
         pathType: Prefix
-        backend:
+        app:
           service:
-            name: backend-service
+            name: app-service
             port:
               number: 8000
       - path: /ws
         pathType: Prefix
-        backend:
+        app:
           service:
-            name: backend-service
+            name: app-service
             port:
               number: 8000
       - path: /
         pathType: Prefix
-        backend:
+        app:
           service:
             name: frontend-service
             port:
@@ -781,17 +781,17 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install backend dependencies
+    - name: Install app dependencies
       run: |
-        cd backend
+        cd app
         pip install -r requirements.txt
 
-    - name: Run backend tests
+    - name: Run app tests
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        DATABASE_URL: postgresql+asyncpg://psychsync_user:password@localhost/psychsync_db
         REDIS_HOST: localhost
       run: |
-        cd backend
+        cd app
         pytest
 
     - name: Set up Node.js
@@ -830,22 +830,22 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Extract metadata
-      id: meta-backend
+      id: meta-app
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/app
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha
 
-    - name: Build and push backend image
+    - name: Build and push app image
       uses: docker/build-push-action@v5
       with:
-        context: ./backend
+        context: ./app
         push: true
-        tags: ${{ steps.meta-backend.outputs.tags }}
-        labels: ${{ steps.meta-backend.outputs.labels }}
+        tags: ${{ steps.meta-app.outputs.tags }}
+        labels: ${{ steps.meta-app.outputs.labels }}
 
     - name: Extract metadata
       id: meta-frontend
@@ -883,7 +883,7 @@ jobs:
         echo "$KUBE_CONFIG_DATA" | base64 --decode > kubeconfig
         export KUBECONFIG=kubeconfig
         kubectl apply -f kubernetes/
-        kubectl rollout restart deployment/backend -n psychsync
+        kubectl rollout restart deployment/app -n psychsync
         kubectl rollout restart deployment/frontend -n psychsync
 
 ---
@@ -902,9 +902,9 @@ alerting:
           - alertmanager:9093
 
 scrape_configs:
-  - job_name: 'psychsync-backend'
+  - job_name: 'psychsync-app'
     static_configs:
-      - targets: ['backend:8000']
+      - targets: ['app:8000']
     metrics_path: /metrics
     scrape_interval: 30s
 
@@ -937,7 +937,7 @@ echo "📝 Creating environment files..."
 
 cat > .env << EOF
 # Database
-DATABASE_URL=postgresql://psychsync:password@localhost:5432/psychsync_db
+DATABASE_URL=postgresql+asyncpg://psychsync_user:password@localhost/psychsync_db
 POSTGRES_DB=psychsync_db
 POSTGRES_USER=psychsync
 POSTGRES_PASSWORD=password
@@ -946,7 +946,7 @@ POSTGRES_PASSWORD=password
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# Backend
+# app
 SECRET_KEY=$(openssl rand -hex 32)
 ENVIRONMENT=development
 JWT_SECRET_KEY=$(openssl rand -hex 32)
@@ -960,9 +960,9 @@ OPENAI_API_KEY=your-openai-api-key-here
 HUGGINGFACE_API_KEY=your-huggingface-api-key-here
 EOF
 
-# Backend setup
-echo "🐍 Setting up backend..."
-cd backend
+# app setup
+echo "🐍 Setting up app..."
+cd app
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -984,13 +984,13 @@ sleep 10
 
 # Run database migrations
 echo "🗄️ Running database migrations..."
-cd backend
+cd app
 source venv/bin/activate
 alembic upgrade head
 cd ..
 
 echo "✅ Setup complete! You can now start the application:"
-echo "Backend: cd backend && source venv/bin/activate && uvicorn main:app --reload"
+echo "app: cd app && source venv/bin/activate && uvicorn main:app --reload"
 echo "Frontend: cd frontend && npm start"
 echo "Or use: docker-compose up"
 
@@ -1004,12 +1004,12 @@ echo "🚀 Deploying PsychSync AI to production..."
 
 # Build and tag images
 echo "🏗️ Building Docker images..."
-docker build -t psychsync/backend:latest ./backend
+docker build -t psychsync/app:latest ./app
 docker build -t psychsync/frontend:latest ./frontend
 
 # Push to registry
 echo "📤 Pushing images to registry..."
-docker push psychsync/backend:latest
+docker push psychsync/app:latest
 docker push psychsync/frontend:latest
 
 # Apply Kubernetes manifests
@@ -1018,18 +1018,18 @@ kubectl apply -f kubernetes/namespace.yaml
 kubectl apply -f kubernetes/secrets.yaml
 kubectl apply -f kubernetes/postgres.yaml
 kubectl apply -f kubernetes/redis.yaml
-kubectl apply -f kubernetes/backend.yaml
+kubectl apply -f kubernetes/app.yaml
 kubectl apply -f kubernetes/frontend.yaml
 kubectl apply -f kubernetes/ingress.yaml
 
 # Wait for rollout
 echo "⏳ Waiting for deployment to complete..."
-kubectl rollout status deployment/backend -n psychsync
+kubectl rollout status deployment/app -n psychsync
 kubectl rollout status deployment/frontend -n psychsync
 
 # Run database migrations
 echo "🗄️ Running database migrations..."
-kubectl exec -n psychsync deployment/backend -- alembic upgrade head
+kubectl exec -n psychsync deployment/app -- alembic upgrade head
 
 echo "✅ Deployment complete!"
 echo "🌐 Application available at: https://psychsync.ai"

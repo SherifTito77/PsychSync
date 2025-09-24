@@ -1,0 +1,62 @@
+Work Item Type,Title,Parent,Description,Effort,Assigned To,Iteration Path,ID,P  arent
+Epic,Foundation & Planning,,Establish technical foundation,,,Saas-sphyco_code,6,
+Feature,Project Setup & Architecture,6,"Repository, CI/CD, DB design",,,Saas-sphyco_code,6,Foundation & Planning
+Feature,Authentication & User Management,6,"JWT login, registration, reset",,,Saas-sphyco_code,6,Foundation & Planning
+Epic,Core Features Development,,Core SaaS platform features,,,Saas-sphyco_code,7,
+Feature,Team Management,7,"Team CRUD, membership, permissions",,,Saas-sphyco_code,7,Core Features Development
+User Story,CRUD Teams,7,"As a user, I want to create, update, delete teams.",16h,app Dev 2,Saas-sphyco_code,7,Team Management
+Task,Create team endpoints,7,POST/PUT/DELETE teams,8h,app Dev 2,Saas-sphyco_code,7,CRUD Teams
+Task,Team listing & filtering,7,GET teams,8h,app Dev 2,Saas-sphyco_code,7,CRUD Teams
+Feature,Assessment Framework,7,"Framework CRUD, question engine",,,Saas-sphyco_code,7,Core Features Development
+User Story,Assessment Framework CRUD,7,"As an admin, I want to manage assessment frameworks.",18h,app Dev 3,Saas-sphyco_code,7,Assessment Framework
+Task,Create assessment models,7,DB models & schema,6h,app Dev 3,Saas-sphyco_code,7,Assessment Framework CRUD
+Task,Implement CRUD operations,7,Framework endpoints,12h,app Dev 3,Saas-sphyco_code,7,Assessment Framework CRUD
+Feature,Results & Analytics,7,"Scoring engine, results visualization",,,Saas-sphyco_code,7,Core Features Development
+User Story,Scoring Engine,7,"As a data scientist, I want to calculate MBTI/Big Five/DISC scores.",24h,Data Scientist,Saas-sphyco_code,7,Results & Analytics
+Task,MBTI scoring,7,Implement MBTI logic,8h,Data Scientist,Saas-sphyco_code,7,Scoring Engine
+Task,Big Five scoring,7,Implement Big Five logic,8h,Data Scientist,Saas-sphyco_code,7,Scoring Engine
+Task,DISC scoring,7,Implement DISC logic,8h,Data Scientist,Saas-sphyco_code,7,Scoring Engine
+Feature,Analytics Dashboard,7,"Metrics calculation, dashboard UI",,,Saas-sphyco_code,7,Core Features Development
+User Story,Dashboard UI,7,"As a manager, I want to view analytics on a dashboard.",18h,Frontend Lead,Saas-sphyco_code,7,Analytics Dashboard
+Task,Build dashboard layout,7,Create dashboard shell,6h,Frontend Lead,Saas-sphyco_code,7,Dashboard UI
+Task,Create metric cards,7,Add charts,6h,Frontend Lead,Saas-sphyco_code,7,Dashboard UI
+Task,Responsive design,7,Make mobile-ready,6h,Frontend Lead,Saas-sphyco_code,7,Dashboard UI
+Feature,Team Optimization Engine,7,AI-based recommendations,,,Saas-sphyco_code,7,Core Features Development
+User Story,Recommendation Engine,7,"As a manager, I want AI recommendations for team composition.",24h,ML Engineer,Saas-sphyco_code,7,Team Optimization Engine
+Task,Compatibility analysis,7,Build personality compatibility,12h,ML Engineer,Saas-sphyco_code,7,Recommendation Engine
+Task,Role assignment suggestions,7,Recommend team roles,12h,ML Engineer,Saas-sphyco_code,7,Recommendation Engine
+Epic,Enhancements & Integrations,,"Extra features, integrations, security",,,Saas-sphyco_code,8,
+Feature,Third-Party Integrations,8,"Slack, Teams, Email, Calendar",,,Saas-sphyco_code,8,Enhancements & Integrations
+User Story,Slack Integration,8,"As a user, I want Slack notifications for team insights.",20h,app Dev 3,Saas-sphyco_code,8,Third-Party Integrations
+Task,Build Slack bot,8,Bot API,10h,app Dev 3,Saas-sphyco_code,8,Slack Integration
+Task,Implement slash commands,8,Slack commands,10h,app Dev 3,Saas-sphyco_code,8,Slack Integration
+Feature,Mobile & PWA Support,8,"Responsive UI, offline",,,Saas-sphyco_code,8,Enhancements & Integrations
+User Story,Mobile Responsive UI,8,"As a user, I want to use the platform on mobile devices.",24h,Frontend Dev 3,Saas-sphyco_code,8,Mobile & PWA Support
+Task,Optimize components for mobile,8,CSS adjustments,12h,Frontend Dev 3,Saas-sphyco_code,8,Mobile Responsive UI
+Task,Touch-friendly UI,8,Add gestures,12h,Frontend Dev 3,Saas-sphyco_code,8,Mobile Responsive UI
+Feature,Security & Compliance,8,"GDPR, SOC2, SSO",,,Saas-sphyco_code,8,Enhancements & Integrations
+User Story,GDPR Compliance,8,"As an org, we must meet GDPR compliance.",20h,app Lead,Saas-sphyco_code,8,Security & Compliance
+Task,Data export,8,User data export API,10h,app Lead,Saas-sphyco_code,8,GDPR Compliance
+Task,Data deletion workflow,8,Right-to-erasure,10h,app Lead,Saas-sphyco_code,8,GDPR Compliance
+Epic,Testing & QA,,"Automated tests, manual QA, performance",,,Saas-sphyco_code,9,
+Feature,Automated Testing,9,"Unit, integration, E2E",,,Saas-sphyco_code,9,Testing & QA
+User Story,app Unit Tests,9,"As a app dev, I want 90% coverage.",32h,app Team,Saas-sphyco_code,9,Automated Testing
+Task,Write unit tests,9,Pytest unit tests,16h,app Team,Saas-sphyco_code,9,app Unit Tests
+Task,Integration tests,9,Test endpoints,16h,app Team,Saas-sphyco_code,9,app Unit Tests
+Feature,Manual QA & UAT,9,Functional & usability testing,,,Saas-sphyco_code,9,Testing & QA
+User Story,Usability Testing,9,"As a QA, I want to test with beta users.",24h,QA Team,Saas-sphyco_code,9,Manual QA & UAT
+Task,Accessibility audits,9,WCAG compliance,12h,QA Team,Saas-sphyco_code,9,Usability Testing
+Task,Beta user feedback,9,Collect input,12h,QA Team,Saas-sphyco_code,9,Usability Testing
+Epic,Deployment & Launch,,"Production setup, beta, launch",,,Saas-sphyco_code,10,
+Feature,Production Deployment,10,"Infra, DB, security setup",,,Saas-sphyco_code,10,Deployment & Launch
+User Story,Infrastructure Deployment,10,"As a DevOps lead, I want production infra configured.",24h,DevOps Lead,Saas-sphyco_code,10,Production Deployment
+Task,K8s cluster setup,10,Prod cluster,12h,DevOps Lead,Saas-sphyco_code,10,Infrastructure Deployment
+Task,Monitoring & logging,10,Prometheus/Grafana,12h,DevOps Lead,Saas-sphyco_code,10,Infrastructure Deployment
+Feature,Launch Preparation,10,"Docs, marketing, regression tests",,,Saas-sphyco_code,10,Deployment & Launch
+User Story,Documentation Completion,10,"As a technical writer, I want docs ready before launch.",24h,Technical Writer,Saas-sphyco_code,10,Launch Preparation
+Task,API documentation,10,Swagger docs,12h,Technical Writer,Saas-sphyco_code,10,Documentation Completion
+Task,Deployment guides,10,Ops guides,12h,Technical Writer,Saas-sphyco_code,10,Documentation Completion
+Feature,Launch Execution,10,"Go-live activities, monitoring",,,Saas-sphyco_code,10,Deployment & Launch
+User Story,Go-Live,10,"As a team, we want to execute the launch smoothly.",40h,All Teams,Saas-sphyco_code,10,Launch Execution
+Task,Deploy to prod,10,Final release,20h,DevOps Lead,Saas-sphyco_code,10,Go-Live
+Task,Monitor system performance,10,Post-launch monitoring,20h,DevOps Lead,Saas-sphyco_code,10,Go-Live

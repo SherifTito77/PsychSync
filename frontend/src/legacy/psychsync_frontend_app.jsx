@@ -163,7 +163,7 @@ export const TeamProvider = ({ children }) => {
       // Mock data - replace with actual API call
       const mockTeams = [
         { id: 1, name: 'Frontend Team', status: 'active', description: 'Web development team' },
-        { id: 2, name: 'Backend Team', status: 'active', description: 'API development team' },
+        { id: 2, name: 'app Team', status: 'active', description: 'API development team' },
         { id: 3, name: 'QA Team', status: 'inactive', description: 'Quality assurance team' }
       ];
       setTeams(mockTeams);

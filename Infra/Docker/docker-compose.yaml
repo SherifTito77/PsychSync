@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    env_file:
+      - app/.env   # okay for local dev only
+    ports:
+      - "8000:8000"
+

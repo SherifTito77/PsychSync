@@ -1,9 +1,9 @@
 # PsychSync Project
 
-Backend: Flask + SQLAlchemy  
+app: Flask + SQLAlchemy  
 Frontend: Vite
 
 ## Folder Structure
 
-- backend/: Python backend
+- app/: Python app
 - frontend/: Vite frontend
