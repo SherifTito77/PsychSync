@@ -1,27 +1,27 @@
 // ===== ENUMS =====
 
 export enum UserRole {
-  ADMIN = 'admin',
-  MANAGER = 'manager',
-  MEMBER = 'member'
+  ADMIN = "admin",
+  MANAGER = "manager",
+  MEMBER = "member",
 }
 
 export enum TeamStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  ARCHIVED = 'archived'
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  ARCHIVED = "archived",
 }
 
 export enum NotificationType {
-  SUCCESS = 'success',
-  ERROR = 'error',
-  WARNING = 'warning',
-  INFO = 'info'
+  SUCCESS = "success",
+  ERROR = "error",
+  WARNING = "warning",
+  INFO = "info",
 }
 
 // ===== UTILITY TYPES =====
 
-export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
+export type LoadingState = "idle" | "loading" | "success" | "error";
 
 export type FormErrors<T> = {
   [K in keyof T]?: string;

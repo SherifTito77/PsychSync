@@ -5,12 +5,15 @@ from .users import router as users_router
 from .organizations import router as organizations_router
 from .auth import router as auth_router
 from .teams import router as teams_router
+from app.api.v1 import auth, users
+
 
 api_router = APIRouter()
 api_router.include_router(users_router, prefix="/users", tags=["users"])
 api_router.include_router(organizations_router, prefix="/organizations", tags=["organizations"])
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(teams_router, prefix="/teams", tags=["teams"])
+api_router.include_router(users.router, prefix="/users", tags=["users"])
 
 
 # # app/api/v1/api.py

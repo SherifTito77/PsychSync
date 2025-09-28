@@ -1,322 +1,66 @@
+// // App.tsx - Complete PsychSync SaaS Application
 
-// App.tsx - Main React Application
-import React, { useState, useEffect, createContext, useContext } from 'react';
+// App.tsx - Complete PsychSync SaaS Application with Modular Structure
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Types
-import { 
-  User, 
-  Team, 
-  Notification, 
-  ApiResponse, 
-  RegisterFormData, 
-  DashboardData 
-} from './types';
+// Context Providers
+import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { TeamProvider } from './contexts/TeamContext';
 
-import { 
-  AuthContextType, 
-  NotificationContextType, 
-  TeamContextType 
-} from './types/contexts';
+// Hooks
+import { useAuth } from './contexts/AuthContext';
+import { useNotification } from './contexts/NotificationContext';
 
-import { 
-  LoadingSpinnerProps, 
-  HeaderProps, 
-  SidebarProps, 
-  MenuItem,
-  ButtonProps 
-} from './types/components';
+// Pages
+import Login from '/Users/sheriftito/Downloads/psychsync/frontend/src/pages/Login';
+import Register from '/Users/sheriftito/Downloads/psychsync/frontend/src/pages/Register';
+import Dashboard from './pages/Dashboard';
 
 // Components
-import { LoadingSpinner } from './components/LoadingSpinner';
-import { Button } from './components/Button';
+import LoadingSpinner from './components/LoadingSpinner';
+import Button from './components/Button';
 
-// ===== CONTEXTS =====
+// Types
+import { HeaderProps, SidebarProps, MenuItem } from './types/components';
 
-// AuthContext
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async (): Promise<void> => {
-    try {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        // Simulate API call - replace with actual API
-        const userData: User = { 
-          id: 1, 
-          name: 'Demo User', 
-          email: 'demo@example.com' 
-        };
-        setUser(userData);
-      }
-    } catch (error) {
-      localStorage.removeItem('authToken');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string): Promise<ApiResponse> => {
-    try {
-      // Simulate API call - replace with actual API
-      const mockResponse = {
-        access_token: 'mock-token-' + Date.now(),
-        user: { id: 1, name: 'Demo User', email: email }
-      };
-      
-      localStorage.setItem('authToken', mockResponse.access_token);
-      setUser(mockResponse.user);
-      
-      return { success: true };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Login failed' 
-      };
-    }
-  };
-
-  const register = async (userData: RegisterFormData): Promise<ApiResponse> => {
-    try {
-      // Simulate API call - replace with actual API
-      const response = { id: Date.now(), ...userData };
-      return { success: true, data: response };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Registration failed' 
-      };
-    }
-  };
-
-  const logout = (): void => {
-    localStorage.removeItem('authToken');
-    setUser(null);
-  };
-
-  const value: AuthContextType = {
-    user,
-    isLoading,
-    login,
-    register,
-    logout
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-// NotificationContext
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
-
-export const useNotification = (): NotificationContextType => {
-  const context = useContext(NotificationContext);
-  if (!context) {
-    throw new Error('useNotification must be used within a NotificationProvider');
-  }
-  return context;
-};
-
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-
-  const showNotification = (
-    message: string, 
-    type: Notification['type'] = 'info', 
-    duration: number = 5000
-  ): void => {
-    const id = Date.now();
-    const notification: Notification = {
-      id,
-      message,
-      type,
-      duration
-    };
-
-    setNotifications(prev => [...prev, notification]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        removeNotification(id);
-      }, duration);
-    }
-  };
-
-  const removeNotification = (id: number): void => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
-  };
-
-  const value: NotificationContextType = {
-    notifications,
-    showNotification,
-    removeNotification
-  };
-
-  return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
-  );
-};
-
-// TeamContext
-const TeamContext = createContext<TeamContextType | undefined>(undefined);
-
-export const useTeam = (): TeamContextType => {
-  const context = useContext(TeamContext);
-  if (!context) {
-    throw new Error('useTeam must be used within a TeamProvider');
-  }
-  return context;
-};
-
-export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const { showNotification } = useNotification();
-
-  const fetchTeams = async (): Promise<void> => {
-    setLoading(true);
-    try {
-      // Mock data - replace with actual API call
-      const mockTeams: Team[] = [
-        { id: 1, name: 'Frontend Team', status: 'active', description: 'Web development team' },
-        { id: 2, name: 'Backend Team', status: 'active', description: 'API development team' },
-        { id: 3, name: 'QA Team', status: 'inactive', description: 'Quality assurance team' }
-      ];
-      setTeams(mockTeams);
-    } catch (error) {
-      showNotification('Failed to fetch teams', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createTeam = async (teamData: Omit<Team, 'id'>): Promise<ApiResponse<Team>> => {
-    try {
-      const newTeam: Team = { 
-        id: Date.now(), 
-        ...teamData, 
-        status: 'active' 
-      };
-      setTeams(prev => [...prev, newTeam]);
-      showNotification('Team created successfully', 'success');
-      return { success: true, data: newTeam };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create team';
-      showNotification(errorMessage, 'error');
-      return { success: false, error: errorMessage };
-    }
-  };
-
-  const updateTeam = async (teamId: number, updateData: Partial<Team>): Promise<ApiResponse<Team>> => {
-    try {
-      const updatedTeam: Team = { ...updateData, id: teamId } as Team;
-      setTeams(prev => prev.map(team => 
-        team.id === teamId ? { ...team, ...updatedTeam } : team
-      ));
-      if (currentTeam && currentTeam.id === teamId) {
-        setCurrentTeam({ ...currentTeam, ...updatedTeam });
-      }
-      showNotification('Team updated successfully', 'success');
-      return { success: true, data: updatedTeam };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update team';
-      showNotification(errorMessage, 'error');
-      return { success: false, error: errorMessage };
-    }
-  };
-
-  const deleteTeam = async (teamId: number): Promise<ApiResponse> => {
-    try {
-      setTeams(prev => prev.filter(team => team.id !== teamId));
-      if (currentTeam && currentTeam.id === teamId) {
-        setCurrentTeam(null);
-      }
-      showNotification('Team deleted successfully', 'success');
-      return { success: true };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete team';
-      showNotification(errorMessage, 'error');
-      return { success: false, error: errorMessage };
-    }
-  };
-
-  const selectTeam = (team: Team): void => {
-    setCurrentTeam(team);
-  };
-
-  const value: TeamContextType = {
-    teams,
-    currentTeam,
-    loading,
-    fetchTeams,
-    createTeam,
-    updateTeam,
-    deleteTeam,
-    selectTeam
-  };
-
-  return (
-    <TeamContext.Provider value={value}>
-      {children}
-    </TeamContext.Provider>
-  );
-};
-
-// ===== COMPONENTS =====
+// ===== LAYOUT COMPONENTS =====
 
 // NotificationContainer Component
 const NotificationContainer: React.FC = () => {
   const { notifications, removeNotification } = useNotification();
 
-  const getNotificationStyles = (type: Notification['type']): string => {
-    const baseStyles = 'mb-4 p-4 rounded-md shadow-md';
+  const getNotificationStyles = (type: string): string => {
+    const baseStyles = 'mb-4 p-4 rounded-lg shadow-lg transition-all duration-300 transform';
     switch (type) {
       case 'success':
-        return `${baseStyles} bg-green-100 border-green-500 text-green-700`;
+        return `${baseStyles} bg-green-50 border-l-4 border-green-400 text-green-800`;
       case 'error':
-        return `${baseStyles} bg-red-100 border-red-500 text-red-700`;
+        return `${baseStyles} bg-red-50 border-l-4 border-red-400 text-red-800`;
       case 'warning':
-        return `${baseStyles} bg-yellow-100 border-yellow-500 text-yellow-700`;
+        return `${baseStyles} bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800`;
       default:
-        return `${baseStyles} bg-blue-100 border-blue-500 text-blue-700`;
+        return `${baseStyles} bg-blue-50 border-l-4 border-blue-400 text-blue-800`;
     }
   };
 
   if (notifications.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-sm">
+    <div className="fixed top-4 right-4 z-50 max-w-sm space-y-2">
       {notifications.map((notification) => (
         <div
           key={notification.id}
           className={getNotificationStyles(notification.type)}
         >
-          <div className="flex justify-between items-center">
-            <span>{notification.message}</span>
+          <div className="flex justify-between items-start">
+            <span className="flex-1 text-sm font-medium">
+              {notification.message}
+            </span>
             <button
               onClick={() => removeNotification(notification.id)}
-              className="ml-2 text-lg leading-none"
+              className="ml-2 text-lg leading-none opacity-70 hover:opacity-100"
             >
               ×
             </button>
@@ -332,23 +76,25 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   const { user, logout } = useAuth();
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <button
-            onClick={onMenuToggle}
-            className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          >
-            ☰
-          </button>
-          <h1 className="ml-4 text-xl font-semibold text-gray-900">PsychSync</h1>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">Welcome, {user?.name}</span>
-          <Button onClick={logout} className="bg-red-600 hover:bg-red-700">
-            Logout
-          </Button>
+    <header className="bg-white shadow-sm border-b border-gray-200">
+      <div className="px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <button
+              onClick={onMenuToggle}
+              className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+            >
+              ☰
+            </button>
+            <h1 className="ml-4 text-xl font-semibold text-gray-900">PsychSync</h1>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600">Welcome, {user?.name}</span>
+            <Button onClick={logout} variant="danger">
+              Logout
+            </Button>
+          </div>
         </div>
       </div>
     </header>
@@ -367,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   ];
 
   return (
-    <div className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-all duration-300 z-40 ${
+    <aside className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-all duration-300 z-40 ${
       isOpen ? 'w-64' : 'w-16'
     }`}>
       <div className="p-4">
@@ -388,318 +134,83 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           </a>
         ))}
       </nav>
-    </div>
+    </aside>
   );
 };
 
-// Login Component
-const Login: React.FC = () => {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const { login } = useAuth();
-  const { showNotification } = useNotification();
+// ===== PLACEHOLDER PAGES =====
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    setLoading(true);
-
-    const result = await login(email, password);
-    
-    if (!result.success) {
-      showNotification(result.error || 'Login failed', 'error');
-    }
-    
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6">Login to PsychSync</h2>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-          
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-          
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full"
-          >
-            {loading ? <LoadingSpinner size="small" /> : 'Login'}
-          </Button>
-        </form>
-        
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <a href="/register" className="text-blue-600 hover:text-blue-500">
-            Register here
-          </a>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Register Component
-const Register: React.FC = () => {
-  const [formData, setFormData] = useState<RegisterFormData>({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [loading, setLoading] = useState<boolean>(false);
-  const { register } = useAuth();
-  const { showNotification } = useNotification();
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      showNotification('Passwords do not match', 'error');
-      return;
-    }
-
-    setLoading(true);
-    const result = await register(formData);
-    
-    if (result.success) {
-      showNotification('Registration successful! Please login.', 'success');
-    } else {
-      showNotification(result.error || 'Registration failed', 'error');
-    }
-    
-    setLoading(false);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6">Register for PsychSync</h2>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name
-            </label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-          
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          </div>
-          
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full"
-          >
-            {loading ? <LoadingSpinner size="small" /> : 'Register'}
-          </Button>
-        </form>
-        
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <a href="/login" className="text-blue-600 hover:text-blue-500">
-            Login here
-          </a>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-// Dashboard Component
-const Dashboard: React.FC = () => {
-  const { user } = useAuth();
-  const { teams } = useTeam();
-  const [dashboardData, setDashboardData] = useState<DashboardData>({
-    totalTeams: 0,
-    totalAssessments: 0,
-    avgCompatibility: 0.85,
-    predictedVelocity: 42
-  });
-
-  useEffect(() => {
-    // Mock dashboard data
-    setDashboardData({
-      totalTeams: teams.length,
-      totalAssessments: 12,
-      avgCompatibility: 0.85,
-      predictedVelocity: 42
-    });
-  }, [teams]);
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back, {user?.name}!
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Here's what's happening with your teams today.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Teams</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.totalTeams}</p>
-            </div>
-            <div className="text-3xl">👥</div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Assessments</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.totalAssessments}</p>
-            </div>
-            <div className="text-3xl">📊</div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Avg Compatibility</p>
-              <p className="text-2xl font-bold text-gray-900">{Math.round(dashboardData.avgCompatibility * 100)}%</p>
-            </div>
-            <div className="text-3xl">🤝</div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Predicted Velocity</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.predictedVelocity} SP</p>
-            </div>
-            <div className="text-3xl">⚡</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Placeholder Components
 const TeamManagement: React.FC = () => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Management</h2>
-    <p className="text-gray-600">Team management functionality coming soon...</p>
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+    <div className="max-w-md mx-auto">
+      <div className="text-4xl mb-4">👥</div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Management</h2>
+      <p className="text-gray-600 mb-6">
+        Comprehensive team management features are coming soon. You'll be able
+        to create, edit, and organize your teams here.
+      </p>
+      <Button>Get Notified When Ready</Button>
+    </div>
   </div>
 );
 
 const AssessmentCenter: React.FC = () => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <h2 className="text-2xl font-bold text-gray-900 mb-4">Assessment Center</h2>
-    <p className="text-gray-600">Assessment center functionality coming soon...</p>
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+    <div className="max-w-md mx-auto">
+      <div className="text-4xl mb-4">📋</div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Assessment Center</h2>
+      <p className="text-gray-600 mb-6">
+        Psychological assessments including MBTI, Big Five, and DISC are being
+        integrated. Stay tuned for comprehensive personality profiling.
+      </p>
+      <Button>Get Notified When Ready</Button>
+    </div>
   </div>
 );
 
 const TeamOptimizer: React.FC = () => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Optimizer</h2>
-    <p className="text-gray-600">Team optimizer functionality coming soon...</p>
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+    <div className="max-w-md mx-auto">
+      <div className="text-4xl mb-4">⚡</div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">AI Team Optimizer</h2>
+      <p className="text-gray-600 mb-6">
+        Advanced AI algorithms will analyze team dynamics and provide
+        optimization recommendations. Machine learning models are in development.
+      </p>
+      <Button>Get Notified When Ready</Button>
+    </div>
   </div>
 );
 
 const Analytics: React.FC = () => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <h2 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h2>
-    <p className="text-gray-600">Analytics functionality coming soon...</p>
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+    <div className="max-w-md mx-auto">
+      <div className="text-4xl mb-4">📈</div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Advanced Analytics</h2>
+      <p className="text-gray-600 mb-6">
+        Detailed analytics dashboards with behavioral trends, performance
+        metrics, and predictive insights are being developed.
+      </p>
+      <Button>Get Notified When Ready</Button>
+    </div>
   </div>
 );
 
 const Settings: React.FC = () => (
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-    <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
-    <p className="text-gray-600">Settings functionality coming soon...</p>
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+    <div className="max-w-md mx-auto">
+      <div className="text-4xl mb-4">⚙️</div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
+      <p className="text-gray-600 mb-6">
+        User preferences, account settings, and system configurations will be
+        available here.
+      </p>
+      <Button>Get Notified When Ready</Button>
+    </div>
   </div>
 );
 
-// ===== MAIN APP =====
+// ===== MAIN APP COMPONENTS =====
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -707,21 +218,22 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="large" />
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <LoadingSpinner size="large" />
+          <p className="mt-4 text-gray-600">Loading PsychSync...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
     );
   }
 
@@ -753,6 +265,8 @@ const AppContent: React.FC = () => {
   );
 };
 
+// ===== MAIN APP =====
+
 const App: React.FC = () => {
   return (
     <AuthProvider>
@@ -772,150 +286,173 @@ const App: React.FC = () => {
 export default App;
 
 
+// import React, { useState, useEffect, createContext, useContext } from "react";
+// import {
+//   BrowserRouter as Router,
+//   Routes,
+//   Route,
+//   Navigate,
+// } from "react-router-dom";
 
-// // App.js - Main React Application
+// // Types
+// import {
+//   User,
+//   Team,
+//   Notification,
+//   ApiResponse,
+//   RegisterFormData,
+//   DashboardData,
+// } from "./types";
 
-// import React, { useState } from 'react';
-// import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-// import { AuthProvider } from './contexts/AuthContext';
-// // ... other imports with proper types
+// import {
+//   AuthContextType,
+//   NotificationContextType,
+//   TeamContextType,
+// } from "./types/contexts";
 
-// // import React from 'react';
-// // import PsychSyncApp1 from './psychsyncApp1'; // make sure the filename matches exactly
+// import { HeaderProps, SidebarProps, MenuItem } from "./types/components";
 
-// // function App() {
-// //   return <PsychSyncApp1 />;
-  
-// // }
+// // Components
+// // import  LoadingSpinner  from "./components/LoadingSpinner";
+// // import Button from "./components/Button";
 
-// function App() {
-//   return (
-//     <div style={{ padding: "200px" }}>
-//       <h1></h1>
-//       <p><PsychSyncApp1 /></p>
-//     </div>
-//   );
-// }
-
-
-
-
-// import React, { useState, useEffect, createContext, useContext } from 'react';
-// import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// import LoadingSpinner from "./components/LoadingSpinner";
+// import Button from "./components/Button";
 
 // // ===== CONTEXTS =====
 
 // // AuthContext
-// const AuthContext = createContext();
+// const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// export const useAuth = () => {
+// export const useAuth = (): AuthContextType => {
 //   const context = useContext(AuthContext);
 //   if (!context) {
-//     throw new Error('useAuth must be used within an AuthProvider');
+//     throw new Error("useAuth must be used within an AuthProvider");
 //   }
 //   return context;
 // };
 
-// export const AuthProvider = ({ children }) => {
-//   const [user, setUser] = useState(null);
-//   const [isLoading, setIsLoading] = useState(true);
+// export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+//   children,
+// }) => {
+//   const [user, setUser] = useState<User | null>(null);
+//   const [isLoading, setIsLoading] = useState<boolean>(true);
 
 //   useEffect(() => {
 //     checkAuthStatus();
 //   }, []);
 
-//   const checkAuthStatus = async () => {
+//   const checkAuthStatus = async (): Promise<void> => {
 //     try {
-//       const token = localStorage.getItem('authToken');
+//       const token = localStorage.getItem("authToken");
 //       if (token) {
 //         // Simulate API call - replace with actual API
-//         const userData = { id: 1, name: 'Demo User', email: 'demo@example.com' };
+//         const userData: User = {
+//           id: 1,
+//           name: "Demo User",
+//           email: "demo@example.com",
+//         };
 //         setUser(userData);
 //       }
 //     } catch (error) {
-//       localStorage.removeItem('authToken');
+//       localStorage.removeItem("authToken");
 //     } finally {
 //       setIsLoading(false);
 //     }
 //   };
 
-//   const login = async (email, password) => {
+//   const login = async (
+//     email: string,
+//     password: string,
+//   ): Promise<ApiResponse> => {
 //     try {
+//       setIsLoading(true);
 //       // Simulate API call - replace with actual API
 //       const mockResponse = {
-//         access_token: 'mock-token-' + Date.now(),
-//         user: { id: 1, name: 'Demo User', email: email }
+//         access_token: "mock-token-" + Date.now(),
+//         user: { id: 1, name: "Demo User", email: email },
 //       };
-      
-//       localStorage.setItem('authToken', mockResponse.access_token);
+
+//       localStorage.setItem("authToken", mockResponse.access_token);
 //       setUser(mockResponse.user);
-      
+
 //       return { success: true };
 //     } catch (error) {
-//       return { 
-//         success: false, 
-//         error: error.message || 'Login failed' 
+//       return {
+//         success: false,
+//         error: error instanceof Error ? error.message : "Login failed",
 //       };
+//     } finally {
+//       setIsLoading(false);
 //     }
 //   };
 
-//   const register = async (userData) => {
+//   const register = async (userData: RegisterFormData): Promise<ApiResponse> => {
 //     try {
+//       setIsLoading(true);
 //       // Simulate API call - replace with actual API
 //       const response = { id: Date.now(), ...userData };
 //       return { success: true, data: response };
 //     } catch (error) {
-//       return { 
-//         success: false, 
-//         error: error.message || 'Registration failed' 
+//       return {
+//         success: false,
+//         error: error instanceof Error ? error.message : "Registration failed",
 //       };
+//     } finally {
+//       setIsLoading(false);
 //     }
 //   };
 
-//   const logout = () => {
-//     localStorage.removeItem('authToken');
+//   const logout = (): void => {
+//     localStorage.removeItem("authToken");
 //     setUser(null);
 //   };
 
-//   const value = {
+//   const value: AuthContextType = {
 //     user,
 //     isLoading,
 //     login,
 //     register,
-//     logout
+//     logout,
 //   };
 
-//   return (
-//     <AuthContext.Provider value={value}>
-//       {children}
-//     </AuthContext.Provider>
-//   );
+//   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 // };
 
 // // NotificationContext
-// const NotificationContext = createContext();
+// const NotificationContext = createContext<NotificationContextType | undefined>(
+//   undefined,
+// );
 
-// export const useNotification = () => {
+// export const useNotification = (): NotificationContextType => {
 //   const context = useContext(NotificationContext);
 //   if (!context) {
-//     throw new Error('useNotification must be used within a NotificationProvider');
+//     throw new Error(
+//       "useNotification must be used within a NotificationProvider",
+//     );
 //   }
 //   return context;
 // };
 
-// export const NotificationProvider = ({ children }) => {
-//   const [notifications, setNotifications] = useState([]);
+// export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
+//   children,
+// }) => {
+//   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-//   const showNotification = (message, type = 'info', duration = 5000) => {
+//   const showNotification = (
+//     message: string,
+//     type: Notification["type"] = "info",
+//     duration: number = 5000,
+//   ): void => {
 //     const id = Date.now();
-//     const notification = {
+//     const notification: Notification = {
 //       id,
 //       message,
 //       type,
-//       duration
+//       duration,
 //     };
 
-//     setNotifications(prev => [...prev, notification]);
+//     setNotifications((prev) => [...prev, notification]);
 
 //     if (duration > 0) {
 //       setTimeout(() => {
@@ -924,14 +461,14 @@ export default App;
 //     }
 //   };
 
-//   const removeNotification = (id) => {
-//     setNotifications(prev => prev.filter(notif => notif.id !== id));
+//   const removeNotification = (id: number): void => {
+//     setNotifications((prev) => prev.filter((notif) => notif.id !== id));
 //   };
 
-//   const value = {
+//   const value: NotificationContextType = {
 //     notifications,
 //     showNotification,
-//     removeNotification
+//     removeNotification,
 //   };
 
 //   return (
@@ -942,151 +479,171 @@ export default App;
 // };
 
 // // TeamContext
-// const TeamContext = createContext();
+// const TeamContext = createContext<TeamContextType | undefined>(undefined);
 
-// export const useTeam = () => {
+// export const useTeam = (): TeamContextType => {
 //   const context = useContext(TeamContext);
 //   if (!context) {
-//     throw new Error('useTeam must be used within a TeamProvider');
+//     throw new Error("useTeam must be used within a TeamProvider");
 //   }
 //   return context;
 // };
 
-// export const TeamProvider = ({ children }) => {
-//   const [teams, setTeams] = useState([]);
-//   const [currentTeam, setCurrentTeam] = useState(null);
-//   const [loading, setLoading] = useState(false);
+// export const TeamProvider: React.FC<{ children: React.ReactNode }> = ({
+//   children,
+// }) => {
+//   const [teams, setTeams] = useState<Team[]>([]);
+//   const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
+//   const [loading, setLoading] = useState<boolean>(false);
 //   const { showNotification } = useNotification();
 
-//   const fetchTeams = async () => {
+//   const fetchTeams = async (): Promise<void> => {
 //     setLoading(true);
 //     try {
 //       // Mock data - replace with actual API call
-//       const mockTeams = [
-//         { id: 1, name: 'Frontend Team', status: 'active', description: 'Web development team' },
-//         { id: 2, name: 'app Team', status: 'active', description: 'API development team' },
-//         { id: 3, name: 'QA Team', status: 'inactive', description: 'Quality assurance team' }
+//       const mockTeams: Team[] = [
+//         {
+//           id: 1,
+//           name: "Frontend Team",
+//           status: "active",
+//           description: "Web development team",
+//         },
+//         {
+//           id: 2,
+//           name: "Backend Team",
+//           status: "active",
+//           description: "API development team",
+//         },
+//         {
+//           id: 3,
+//           name: "QA Team",
+//           status: "inactive",
+//           description: "Quality assurance team",
+//         },
 //       ];
 //       setTeams(mockTeams);
 //     } catch (error) {
-//       showNotification('Failed to fetch teams', 'error');
+//       showNotification("Failed to fetch teams", "error");
 //     } finally {
 //       setLoading(false);
 //     }
 //   };
 
-//   const createTeam = async (teamData) => {
+//   const createTeam = async (
+//     teamData: Omit<Team, "id">,
+//   ): Promise<ApiResponse<Team>> => {
 //     try {
-//       const newTeam = { id: Date.now(), ...teamData, status: 'active' };
-//       setTeams(prev => [...prev, newTeam]);
-//       showNotification('Team created successfully', 'success');
-//       return { success: true, team: newTeam };
+//       const newTeam: Team = {
+//         id: Date.now(),
+//         ...teamData,
+//         status: "active",
+//       };
+//       setTeams((prev) => [...prev, newTeam]);
+//       showNotification("Team created successfully", "success");
+//       return { success: true, data: newTeam };
 //     } catch (error) {
-//       showNotification('Failed to create team', 'error');
-//       return { success: false, error: error.message };
+//       const errorMessage =
+//         error instanceof Error ? error.message : "Failed to create team";
+//       showNotification(errorMessage, "error");
+//       return { success: false, error: errorMessage };
 //     }
 //   };
 
-//   const updateTeam = async (teamId, updateData) => {
+//   const updateTeam = async (
+//     teamId: number,
+//     updateData: Partial<Team>,
+//   ): Promise<ApiResponse<Team>> => {
 //     try {
-//       const updatedTeam = { ...updateData, id: teamId };
-//       setTeams(prev => prev.map(team => 
-//         team.id === teamId ? { ...team, ...updatedTeam } : team
-//       ));
+//       const updatedTeam: Team = { ...updateData, id: teamId } as Team;
+//       setTeams((prev) =>
+//         prev.map((team) =>
+//           team.id === teamId ? { ...team, ...updatedTeam } : team,
+//         ),
+//       );
 //       if (currentTeam && currentTeam.id === teamId) {
 //         setCurrentTeam({ ...currentTeam, ...updatedTeam });
 //       }
-//       showNotification('Team updated successfully', 'success');
-//       return { success: true, team: updatedTeam };
+//       showNotification("Team updated successfully", "success");
+//       return { success: true, data: updatedTeam };
 //     } catch (error) {
-//       showNotification('Failed to update team', 'error');
-//       return { success: false, error: error.message };
+//       const errorMessage =
+//         error instanceof Error ? error.message : "Failed to update team";
+//       showNotification(errorMessage, "error");
+//       return { success: false, error: errorMessage };
 //     }
 //   };
 
-//   const deleteTeam = async (teamId) => {
+//   const deleteTeam = async (teamId: number): Promise<ApiResponse> => {
 //     try {
-//       setTeams(prev => prev.filter(team => team.id !== teamId));
+//       setTeams((prev) => prev.filter((team) => team.id !== teamId));
 //       if (currentTeam && currentTeam.id === teamId) {
 //         setCurrentTeam(null);
 //       }
-//       showNotification('Team deleted successfully', 'success');
+//       showNotification("Team deleted successfully", "success");
 //       return { success: true };
 //     } catch (error) {
-//       showNotification('Failed to delete team', 'error');
-//       return { success: false, error: error.message };
+//       const errorMessage =
+//         error instanceof Error ? error.message : "Failed to delete team";
+//       showNotification(errorMessage, "error");
+//       return { success: false, error: errorMessage };
 //     }
 //   };
 
-//   const selectTeam = (team) => {
+//   const selectTeam = (team: Team): void => {
 //     setCurrentTeam(team);
 //   };
 
-//   const value = {
+//   const value: TeamContextType = {
 //     teams,
 //     currentTeam,
 //     loading,
 //     fetchTeams,
 //     createTeam,
-//     updateTeam,
-//     deleteTeam,
-//     selectTeam
+//     updateTeam, // ensure teamId is number
+//     deleteTeam, // ensure teamId is number
+//     selectTeam,
 //   };
 
-//   return (
-//     <TeamContext.Provider value={value}>
-//       {children}
-//     </TeamContext.Provider>
-//   );
+//   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 // };
 
 // // ===== COMPONENTS =====
 
-// // LoadingSpinner Component
-// const LoadingSpinner = ({ size = 'medium' }) => {
-//   const sizeClasses = {
-//     small: 'h-4 w-4',
-//     medium: 'h-8 w-8',
-//     large: 'h-12 w-12'
-//   };
-
-//   return (
-//     <div className={`animate-spin rounded-full border-b-2 border-blue-600 ${sizeClasses[size]}`} />
-//   );
-// };
-
 // // NotificationContainer Component
-// const NotificationContainer = () => {
+// const NotificationContainer: React.FC = () => {
 //   const { notifications, removeNotification } = useNotification();
 
-//   const getNotificationStyles = (type) => {
-//     const baseStyles = 'mb-4 p-4 rounded-md shadow-md';
+//   const getNotificationStyles = (type: Notification["type"]): string => {
+//     const baseStyles =
+//       "mb-4 p-4 rounded-lg shadow-lg transition-all duration-300 transform";
 //     switch (type) {
-//       case 'success':
-//         return `${baseStyles} bg-green-100 border-green-500 text-green-700`;
-//       case 'error':
-//         return `${baseStyles} bg-red-100 border-red-500 text-red-700`;
-//       case 'warning':
-//         return `${baseStyles} bg-yellow-100 border-yellow-500 text-yellow-700`;
+//       case "success":
+//         return `${baseStyles} bg-green-50 border-l-4 border-green-400 text-green-800`;
+//       case "error":
+//         return `${baseStyles} bg-red-50 border-l-4 border-red-400 text-red-800`;
+//       case "warning":
+//         return `${baseStyles} bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800`;
 //       default:
-//         return `${baseStyles} bg-blue-100 border-blue-500 text-blue-700`;
+//         return `${baseStyles} bg-blue-50 border-l-4 border-blue-400 text-blue-800`;
 //     }
 //   };
 
 //   if (notifications.length === 0) return null;
 
 //   return (
-//     <div className="fixed top-4 right-4 z-50 max-w-sm">
-//       {notifications.map((notification) => (
+//     <div className="fixed top-4 right-4 z-50 max-w-sm space-y-2">
+//       {notifications.map((notification: Notification) => (
 //         <div
 //           key={notification.id}
 //           className={getNotificationStyles(notification.type)}
 //         >
-//           <div className="flex justify-between items-center">
-//             <span>{notification.message}</span>
+//           <div className="flex justify-between items-start">
+//             <span className="flex-1 text-sm font-medium">
+//               {notification.message}
+//             </span>
 //             <button
 //               onClick={() => removeNotification(notification.id)}
-//               className="ml-2 text-lg leading-none"
+//               className="ml-2 text-lg leading-none opacity-70 hover:opacity-100"
 //             >
 //               ×
 //             </button>
@@ -1097,45 +654,32 @@ export default App;
 //   );
 // };
 
-// // Button Component
-// const Button = ({ children, onClick, className = '', disabled = false, ...props }) => {
-//   const baseStyles = 'px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
-//   const defaultStyles = 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed';
-  
-//   return (
-//     <button
-//       onClick={onClick}
-//       disabled={disabled}
-//       className={`${baseStyles} ${defaultStyles} ${className}`}
-//       {...props}
-//     >
-//       {children}
-//     </button>
-//   );
-// };
-
 // // Header Component
-// const Header = ({ onMenuToggle }) => {
+// const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
 //   const { user, logout } = useAuth();
 
 //   return (
-//     <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-//       <div className="flex items-center justify-between">
-//         <div className="flex items-center">
-//           <button
-//             onClick={onMenuToggle}
-//             className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-//           >
-//             ☰
-//           </button>
-//           <h1 className="ml-4 text-xl font-semibold text-gray-900">PsychSync</h1>
-//         </div>
-        
-//         <div className="flex items-center space-x-4">
-//           <span className="text-sm text-gray-600">Welcome, {user?.name}</span>
-//           <Button onClick={logout} className="bg-red-600 hover:bg-red-700">
-//             Logout
-//           </Button>
+//     <header className="bg-white shadow-sm border-b border-gray-200">
+//       <div className="px-6 py-4">
+//         <div className="flex items-center justify-between">
+//           <div className="flex items-center">
+//             <button
+//               onClick={onMenuToggle}
+//               className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+//             >
+//               ☰
+//             </button>
+//             <h1 className="ml-4 text-xl font-semibold text-gray-900">
+//               PsychSync
+//             </h1>
+//           </div>
+
+//           <div className="flex items-center space-x-4">
+//             <span className="text-sm text-gray-600">Welcome, {user?.name}</span>
+//             <Button onClick={logout} variant="danger">
+//               Logout
+//             </Button>
+//           </div>
 //         </div>
 //       </div>
 //     </header>
@@ -1143,26 +687,30 @@ export default App;
 // };
 
 // // Sidebar Component
-// const Sidebar = ({ isOpen, onToggle }) => {
-//   const menuItems = [
-//     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
-//     { name: 'Teams', path: '/teams', icon: '👥' },
-//     { name: 'Assessments', path: '/assessments', icon: '📋' },
-//     { name: 'Optimizer', path: '/optimizer', icon: '⚡' },
-//     { name: 'Analytics', path: '/analytics', icon: '📈' },
-//     { name: 'Settings', path: '/settings', icon: '⚙️' }
+// const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
+//   const menuItems: MenuItem[] = [
+//     { name: "Dashboard", path: "/dashboard", icon: "📊" },
+//     { name: "Teams", path: "/teams", icon: "👥" },
+//     { name: "Assessments", path: "/assessments", icon: "📋" },
+//     { name: "Optimizer", path: "/optimizer", icon: "⚡" },
+//     { name: "Analytics", path: "/analytics", icon: "📈" },
+//     { name: "Settings", path: "/settings", icon: "⚙️" },
 //   ];
 
 //   return (
-//     <div className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-all duration-300 z-40 ${
-//       isOpen ? 'w-64' : 'w-16'
-//     }`}>
+//     <aside
+//       className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-all duration-300 z-40 ${
+//         isOpen ? "w-64" : "w-16"
+//       }`}
+//     >
 //       <div className="p-4">
-//         <div className={`flex items-center ${isOpen ? 'justify-between' : 'justify-center'}`}>
+//         <div
+//           className={`flex items-center ${isOpen ? "justify-between" : "justify-center"}`}
+//         >
 //           {isOpen && <span className="text-lg font-semibold">PsychSync</span>}
 //         </div>
 //       </div>
-      
+
 //       <nav className="mt-8">
 //         {menuItems.map((item) => (
 //           <a
@@ -1175,51 +723,57 @@ export default App;
 //           </a>
 //         ))}
 //       </nav>
-//     </div>
+//     </aside>
 //   );
 // };
 
 // // Login Component
-// const Login = () => {
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [loading, setLoading] = useState(false);
+// const Login: React.FC = () => {
+//   const [email, setEmail] = useState<string>("");
+//   const [password, setPassword] = useState<string>("");
+//   const [loading, setLoading] = useState<boolean>(false);
 //   const { login } = useAuth();
 //   const { showNotification } = useNotification();
 
-//   const handleSubmit = async (e) => {
+//   const handleSubmit = async (
+//     e: React.FormEvent<HTMLFormElement>,
+//   ): Promise<void> => {
 //     e.preventDefault();
 //     setLoading(true);
 
 //     const result = await login(email, password);
-    
+
 //     if (!result.success) {
-//       showNotification(result.error, 'error');
+//       showNotification(result.error || "Login failed", "error");
 //     }
-    
+
 //     setLoading(false);
 //   };
 
 //   return (
-//     <div className="min-h-screen flex items-center justify-center">
+//     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
 //       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-//         <h2 className="text-2xl font-bold text-center mb-6">Login to PsychSync</h2>
-        
-//         <form onSubmit={handleSubmit}>
-//           <div className="mb-4">
+//         <div className="text-center mb-8">
+//           <h2 className="text-3xl font-bold text-gray-900">PsychSync</h2>
+//           <p className="text-gray-600 mt-2">Sign in to your account</p>
+//         </div>
+
+//         <form onSubmit={handleSubmit} className="space-y-6">
+//           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-2">
-//               Email
+//               Email Address
 //             </label>
 //             <input
 //               type="email"
 //               value={email}
 //               onChange={(e) => setEmail(e.target.value)}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+//               placeholder="your@email.com"
 //               required
 //             />
 //           </div>
-          
-//           <div className="mb-6">
+
+//           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-2">
 //               Password
 //             </label>
@@ -1227,24 +781,24 @@ export default App;
 //               type="password"
 //               value={password}
 //               onChange={(e) => setPassword(e.target.value)}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+//               placeholder="••••••••"
 //               required
 //             />
 //           </div>
-          
-//           <Button
-//             type="submit"
-//             disabled={loading}
-//             className="w-full"
-//           >
-//             {loading ? <LoadingSpinner size="small" /> : 'Login'}
+
+//           <Button type="submit" disabled={loading} className="w-full">
+//             {loading ? <LoadingSpinner size="small" /> : "Sign In"}
 //           </Button>
 //         </form>
-        
-//         <p className="mt-4 text-center text-sm text-gray-600">
-//           Don't have an account?{' '}
-//           <a href="/register" className="text-blue-600 hover:text-blue-500">
-//             Register here
+
+//         <p className="mt-6 text-center text-sm text-gray-600">
+//           Don't have an account?{" "}
+//           <a
+//             href="/register"
+//             className="text-blue-600 hover:text-blue-500 font-medium"
+//           >
+//             Create one here
 //           </a>
 //         </p>
 //       </div>
@@ -1253,79 +807,93 @@ export default App;
 // };
 
 // // Register Component
-// const Register = () => {
-//   const [formData, setFormData] = useState({
-//     name: '',
-//     email: '',
-//     password: '',
-//     confirmPassword: ''
+// const Register: React.FC = () => {
+//   const [formData, setFormData] = useState<RegisterFormData>({
+//     name: "",
+//     email: "",
+//     password: "",
+//     confirmPassword: "",
 //   });
-//   const [loading, setLoading] = useState(false);
+//   const [loading, setLoading] = useState<boolean>(false);
 //   const { register } = useAuth();
 //   const { showNotification } = useNotification();
 
-//   const handleSubmit = async (e) => {
+//   const handleSubmit = async (
+//     e: React.FormEvent<HTMLFormElement>,
+//   ): Promise<void> => {
 //     e.preventDefault();
-    
+
 //     if (formData.password !== formData.confirmPassword) {
-//       showNotification('Passwords do not match', 'error');
+//       showNotification("Passwords do not match", "error");
+//       return;
+//     }
+
+//     if (formData.password.length < 8) {
+//       showNotification("Password must be at least 8 characters long", "error");
 //       return;
 //     }
 
 //     setLoading(true);
 //     const result = await register(formData);
-    
+
 //     if (result.success) {
-//       showNotification('Registration successful! Please login.', 'success');
+//       showNotification("Registration successful! Please login.", "success");
+//       // Reset form
+//       setFormData({ name: "", email: "", password: "", confirmPassword: "" });
 //     } else {
-//       showNotification(result.error, 'error');
+//       showNotification(result.error || "Registration failed", "error");
 //     }
-    
+
 //     setLoading(false);
 //   };
 
-//   const handleChange = (e) => {
-//     setFormData(prev => ({
+//   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+//     setFormData((prev) => ({
 //       ...prev,
-//       [e.target.name]: e.target.value
+//       [e.target.name]: e.target.value,
 //     }));
 //   };
 
 //   return (
-//     <div className="min-h-screen flex items-center justify-center">
+//     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
 //       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-//         <h2 className="text-2xl font-bold text-center mb-6">Register for PsychSync</h2>
-        
-//         <form onSubmit={handleSubmit}>
-//           <div className="mb-4">
+//         <div className="text-center mb-8">
+//           <h2 className="text-3xl font-bold text-gray-900">Join PsychSync</h2>
+//           <p className="text-gray-600 mt-2">Create your account</p>
+//         </div>
+
+//         <form onSubmit={handleSubmit} className="space-y-6">
+//           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-2">
-//               Name
+//               Full Name
 //             </label>
 //             <input
 //               type="text"
 //               name="name"
 //               value={formData.name}
 //               onChange={handleChange}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+//               placeholder="John Doe"
 //               required
 //             />
 //           </div>
-          
-//           <div className="mb-4">
+
+//           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-2">
-//               Email
+//               Email Address
 //             </label>
 //             <input
 //               type="email"
 //               name="email"
 //               value={formData.email}
 //               onChange={handleChange}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+//               placeholder="your@email.com"
 //               required
 //             />
 //           </div>
-          
-//           <div className="mb-4">
+
+//           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-2">
 //               Password
 //             </label>
@@ -1334,12 +902,13 @@ export default App;
 //               name="password"
 //               value={formData.password}
 //               onChange={handleChange}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+//               placeholder="••••••••"
 //               required
 //             />
 //           </div>
-          
-//           <div className="mb-6">
+
+//           <div>
 //             <label className="block text-sm font-medium text-gray-700 mb-2">
 //               Confirm Password
 //             </label>
@@ -1348,24 +917,24 @@ export default App;
 //               name="confirmPassword"
 //               value={formData.confirmPassword}
 //               onChange={handleChange}
-//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+//               placeholder="••••••••"
 //               required
 //             />
 //           </div>
-          
-//           <Button
-//             type="submit"
-//             disabled={loading}
-//             className="w-full"
-//           >
-//             {loading ? <LoadingSpinner size="small" /> : 'Register'}
+
+//           <Button type="submit" disabled={loading} className="w-full">
+//             {loading ? <LoadingSpinner size="small" /> : "Create Account"}
 //           </Button>
 //         </form>
-        
-//         <p className="mt-4 text-center text-sm text-gray-600">
-//           Already have an account?{' '}
-//           <a href="/login" className="text-blue-600 hover:text-blue-500">
-//             Login here
+
+//         <p className="mt-6 text-center text-sm text-gray-600">
+//           Already have an account?{" "}
+//           <a
+//             href="/login"
+//             className="text-blue-600 hover:text-blue-500 font-medium"
+//           >
+//             Sign in here
 //           </a>
 //         </p>
 //       </div>
@@ -1374,15 +943,19 @@ export default App;
 // };
 
 // // Dashboard Component
-// const Dashboard = () => {
+// const Dashboard: React.FC = () => {
 //   const { user } = useAuth();
-//   const { teams } = useTeam();
-//   const [dashboardData, setDashboardData] = useState({
+//   const { teams, fetchTeams } = useTeam();
+//   const [dashboardData, setDashboardData] = useState<DashboardData>({
 //     totalTeams: 0,
 //     totalAssessments: 0,
 //     avgCompatibility: 0.85,
-//     predictedVelocity: 42
+//     predictedVelocity: 42,
 //   });
+
+//   useEffect(() => {
+//     fetchTeams();
+//   }, []);
 
 //   useEffect(() => {
 //     // Mock dashboard data
@@ -1390,59 +963,106 @@ export default App;
 //       totalTeams: teams.length,
 //       totalAssessments: 12,
 //       avgCompatibility: 0.85,
-//       predictedVelocity: 42
+//       predictedVelocity: 42,
 //     });
 //   }, [teams]);
 
+//   const statCards = [
+//     {
+//       title: "Total Teams",
+//       value: dashboardData.totalTeams,
+//       icon: "👥",
+//       color: "bg-blue-500",
+//     },
+//     {
+//       title: "Assessments",
+//       value: dashboardData.totalAssessments,
+//       icon: "📊",
+//       color: "bg-green-500",
+//     },
+//     {
+//       title: "Avg Compatibility",
+//       value: `${Math.round(dashboardData.avgCompatibility * 100)}%`,
+//       icon: "🤝",
+//       color: "bg-purple-500",
+//     },
+//     {
+//       title: "Predicted Velocity",
+//       value: `${dashboardData.predictedVelocity} SP`,
+//       icon: "⚡",
+//       color: "bg-yellow-500",
+//     },
+//   ];
+
 //   return (
-//     <div className="space-y-6">
+//     <div className="space-y-8">
+//       {/* Welcome Section */}
 //       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//         <h1 className="text-2xl font-bold text-gray-900">
+//         <h1 className="text-3xl font-bold text-gray-900">
 //           Welcome back, {user?.name}!
 //         </h1>
-//         <p className="text-gray-600 mt-1">
-//           Here's what's happening with your teams today.
+//         <p className="text-gray-600 mt-2">
+//           Here's an overview of your team optimization platform.
 //         </p>
 //       </div>
 
+//       {/* Stats Grid */}
 //       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <div className="flex items-center justify-between">
-//             <div>
-//               <p className="text-sm font-medium text-gray-600">Total Teams</p>
-//               <p className="text-2xl font-bold text-gray-900">{dashboardData.totalTeams}</p>
+//         {statCards.map((card, index) => (
+//           <div
+//             key={index}
+//             className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+//           >
+//             <div className="flex items-center justify-between">
+//               <div>
+//                 <p className="text-sm font-medium text-gray-600">
+//                   {card.title}
+//                 </p>
+//                 <p className="text-2xl font-bold text-gray-900 mt-1">
+//                   {card.value}
+//                 </p>
+//               </div>
+//               <div className={`p-3 rounded-lg ${card.color} bg-opacity-10`}>
+//                 <span className="text-2xl">{card.icon}</span>
+//               </div>
 //             </div>
-//             <div className="text-3xl">👥</div>
 //           </div>
+//         ))}
+//       </div>
+
+//       {/* Quick Actions */}
+//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+//         <h2 className="text-xl font-semibold text-gray-900 mb-4">
+//           Quick Actions
+//         </h2>
+//         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+//           <Button className="justify-center">Create New Team</Button>
+//           <Button className="justify-center" variant="secondary">
+//             Run Assessment
+//           </Button>
+//           <Button className="justify-center" variant="secondary">
+//             Optimize Teams
+//           </Button>
 //         </div>
-        
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <div className="flex items-center justify-between">
-//             <div>
-//               <p className="text-sm font-medium text-gray-600">Assessments</p>
-//               <p className="text-2xl font-bold text-gray-900">{dashboardData.totalAssessments}</p>
-//             </div>
-//             <div className="text-3xl">📊</div>
+//       </div>
+
+//       {/* Recent Activity */}
+//       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+//         <h2 className="text-xl font-semibold text-gray-900 mb-4">
+//           Recent Activity
+//         </h2>
+//         <div className="space-y-3">
+//           <div className="flex items-center text-sm text-gray-600">
+//             <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
+//             Team "Frontend Squad" completed MBTI assessment
 //           </div>
-//         </div>
-        
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <div className="flex items-center justify-between">
-//             <div>
-//               <p className="text-sm font-medium text-gray-600">Avg Compatibility</p>
-//               <p className="text-2xl font-bold text-gray-900">{Math.round(dashboardData.avgCompatibility * 100)}%</p>
-//             </div>
-//             <div className="text-3xl">🤝</div>
+//           <div className="flex items-center text-sm text-gray-600">
+//             <span className="w-2 h-2 bg-blue-400 rounded-full mr-3"></span>
+//             New optimization suggestion for "Backend Team"
 //           </div>
-//         </div>
-        
-//         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//           <div className="flex items-center justify-between">
-//             <div>
-//               <p className="text-sm font-medium text-gray-600">Predicted Velocity</p>
-//               <p className="text-2xl font-bold text-gray-900">{dashboardData.predictedVelocity} SP</p>
-//             </div>
-//             <div className="text-3xl">⚡</div>
+//           <div className="flex items-center text-sm text-gray-600">
+//             <span className="w-2 h-2 bg-purple-400 rounded-full mr-3"></span>
+//             Analytics report generated for Q4 2024
 //           </div>
 //         </div>
 //       </div>
@@ -1450,77 +1070,125 @@ export default App;
 //   );
 // };
 
-// // Placeholder Components
-// const TeamManagement = () => (
-//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//     <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Management</h2>
-//     <p className="text-gray-600">Team management functionality coming soon...</p>
+// // Placeholder Components for future development
+// const TeamManagement: React.FC = () => (
+//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+//     <div className="max-w-md mx-auto">
+//       <div className="text-4xl mb-4">👥</div>
+//       <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Management</h2>
+//       <p className="text-gray-600 mb-6">
+//         Comprehensive team management features are coming soon. You'll be able
+//         to create, edit, and organize your teams here.
+//       </p>
+//       <Button>Get Notified When Ready</Button>
+//     </div>
 //   </div>
 // );
 
-// const AssessmentCenter = () => (
-//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//     <h2 className="text-2xl font-bold text-gray-900 mb-4">Assessment Center</h2>
-//     <p className="text-gray-600">Assessment center functionality coming soon...</p>
+// const AssessmentCenter: React.FC = () => (
+//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+//     <div className="max-w-md mx-auto">
+//       <div className="text-4xl mb-4">📋</div>
+//       <h2 className="text-2xl font-bold text-gray-900 mb-4">
+//         Assessment Center
+//       </h2>
+//       <p className="text-gray-600 mb-6">
+//         Psychological assessments including MBTI, Big Five, and DISC are being
+//         integrated. Stay tuned for comprehensive personality profiling.
+//       </p>
+//       <Button>Get Notified When Ready</Button>
+//     </div>
 //   </div>
 // );
 
-// const TeamOptimizer = () => (
-//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//     <h2 className="text-2xl font-bold text-gray-900 mb-4">Team Optimizer</h2>
-//     <p className="text-gray-600">Team optimizer functionality coming soon...</p>
+// const TeamOptimizer: React.FC = () => (
+//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+//     <div className="max-w-md mx-auto">
+//       <div className="text-4xl mb-4">⚡</div>
+//       <h2 className="text-2xl font-bold text-gray-900 mb-4">
+//         AI Team Optimizer
+//       </h2>
+//       <p className="text-gray-600 mb-6">
+//         Advanced AI algorithms will analyze team dynamics and provide
+//         optimization recommendations. Machine learning models are in
+//         development.
+//       </p>
+//       <Button>Get Notified When Ready</Button>
+//     </div>
 //   </div>
 // );
 
-// const Analytics = () => (
-//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//     <h2 className="text-2xl font-bold text-gray-900 mb-4">Analytics</h2>
-//     <p className="text-gray-600">Analytics functionality coming soon...</p>
+// const Analytics: React.FC = () => (
+//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+//     <div className="max-w-md mx-auto">
+//       <div className="text-4xl mb-4">📈</div>
+//       <h2 className="text-2xl font-bold text-gray-900 mb-4">
+//         Advanced Analytics
+//       </h2>
+//       <p className="text-gray-600 mb-6">
+//         Detailed analytics dashboards with behavioral trends, performance
+//         metrics, and predictive insights are being developed.
+//       </p>
+//       <Button>Get Notified When Ready</Button>
+//     </div>
 //   </div>
 // );
 
-// const Settings = () => (
-//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-//     <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
-//     <p className="text-gray-600">Settings functionality coming soon...</p>
+// const Settings: React.FC = () => (
+//   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+//     <div className="max-w-md mx-auto">
+//       <div className="text-4xl mb-4">⚙️</div>
+//       <h2 className="text-2xl font-bold text-gray-900 mb-4">Settings</h2>
+//       <p className="text-gray-600 mb-6">
+//         User preferences, account settings, and system configurations will be
+//         available here.
+//       </p>
+//       <Button>Get Notified When Ready</Button>
+//     </div>
 //   </div>
 // );
 
-// // ===== MAIN APP =====
+// // ===== MAIN APP COMPONENTS =====
 
-// function AppContent() {
+// const AppContent: React.FC = () => {
 //   const { user, isLoading } = useAuth();
-//   const [sidebarOpen, setSidebarOpen] = useState(true);
+//   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
 //   if (isLoading) {
 //     return (
-//       <div className="flex items-center justify-center min-h-screen">
-//         <LoadingSpinner size="large" />
+//       <div className="flex items-center justify-center min-h-screen bg-gray-50">
+//         <div className="text-center">
+//           <LoadingSpinner size="large" />
+//           <p className="mt-4 text-gray-600">Loading PsychSync...</p>
+//         </div>
 //       </div>
 //     );
 //   }
 
 //   if (!user) {
 //     return (
-//       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-//         <Routes>
-//           <Route path="/login" element={<Login />} />
-//           <Route path="/register" element={<Register />} />
-//           <Route path="*" element={<Navigate to="/login" replace />} />
-//         </Routes>
-//       </div>
+//       <Routes>
+//         <Route path="/login" element={<Login />} />
+//         <Route path="/register" element={<Register />} />
+//         <Route path="*" element={<Navigate to="/login" replace />} />
+//       </Routes>
 //     );
 //   }
 
 //   return (
 //     <div className="flex min-h-screen bg-gray-50">
-//       <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-      
-//       <div className={`flex-1 flex flex-col transition-all duration-300 ${
-//         sidebarOpen ? 'ml-64' : 'ml-16'
-//       }`}>
+//       <Sidebar
+//         isOpen={sidebarOpen}
+//         onToggle={() => setSidebarOpen(!sidebarOpen)}
+//       />
+
+//       <div
+//         className={`flex-1 flex flex-col transition-all duration-300 ${
+//           sidebarOpen ? "ml-64" : "ml-16"
+//         }`}
+//       >
 //         <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-        
+
 //         <main className="flex-1 p-6 overflow-auto">
 //           <Routes>
 //             <Route path="/" element={<Dashboard />} />
@@ -1534,13 +1202,15 @@ export default App;
 //           </Routes>
 //         </main>
 //       </div>
-      
+
 //       <NotificationContainer />
 //     </div>
 //   );
-// }
+// };
 
-// function App() {
+// // ===== MAIN APP =====
+
+// const App: React.FC = () => {
 //   return (
 //     <AuthProvider>
 //       <NotificationProvider>
@@ -1554,48 +1224,6 @@ export default App;
 //       </NotificationProvider>
 //     </AuthProvider>
 //   );
-// }
+// };
 
 // export default App;
-
-
-// // import { useState } from 'react'
-// // import reactLogo from './assets/react.svg'
-// // import viteLogo from '/vite.svg'
-// // import './App.css'
-
-// // function App() {
-// //   const [count, setCount] = useState(0)
-
-// //   return (
-// //     <>
-// //       <div>
-// //         <a href="https://vite.dev" target="_blank">
-// //           <img src={viteLogo} className="logo" alt="Vite logo" />
-// //         </a>
-// //         <a href="https://react.dev" target="_blank">
-// //           <img src={reactLogo} className="logo react" alt="React logo" />
-// //         </a>
-// //       </div>
-// //       <h1>Vite + React</h1>
-// //       <div className="card">
-// //         <button onClick={() => setCount((count) => count + 1)}>
-// //           count is {count}
-// //         </button>
-// //         <p>
-// //           Edit <code>src/App.jsx</code> and save to test HMR
-// //         </p>
-// //       </div>
-// //       <p className="read-the-docs">
-// //         Click on the Vite and React logos to learn more
-// //       </p>
-// //     </>
-// //   )
-// // }
-
-// // export default App
-
-
-
-
-

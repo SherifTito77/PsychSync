@@ -18,14 +18,6 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Redis connection
-redis_client = redis.Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", 6379)),
-    db=0,
-    decode_responses=True
-)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting PsychSync AI app...")
@@ -33,6 +25,7 @@ async def lifespan(app: FastAPI):
     await set_key("welcome", "Hello, PsychSync!")
     yield
     logger.info("Shutting down PsychSync AI app...")
+
 
 app = FastAPI(
     title="PsychSync AI API",
@@ -43,6 +36,33 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+
+
+# Initialize Redis connection
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=0,
+    decode_responses=True
+)
+
+
+# In your main.py, replace the startup event with:
+@app.on_event("startup")
+async def startup_event():
+    try:
+        # Don't create tables here in async context
+        print("Starting PsychSync AI app...")
+        # Remove any database table creation from here
+    except Exception as e:
+        print(f"Startup error: {e}")
+
+
+
+
+
+
+
 
 # CORS middleware
 app.add_middleware(
