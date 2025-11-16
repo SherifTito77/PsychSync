@@ -16,7 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Teams', path: '/teams', icon: '👥' },
     { name: 'Assessments', path: '/assessments', icon: '📋' },
-    { name: 'Optimizer', path: '/optimizer', icon: '⚡' },
+    { name: 'Team Optimizer', path: '/team-optimizer', icon: '⚡' },
     { name: 'Analytics', path: '/analytics', icon: '📈' },
     { name: 'Settings', path: '/settings', icon: '⚙️' }
   ];

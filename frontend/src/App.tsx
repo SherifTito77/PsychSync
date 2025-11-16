@@ -20,6 +20,7 @@ const TakeAssessment = createLazyComponent(() => import('./pages/TakeAssessment'
 const ResponseResults = createLazyComponent(() => import('./pages/ResponseResults'), <div>Loading Results...</div>, 'ResponseResults');
 const MyResponses = createLazyComponent(() => import('./pages/MyResponses'), <div>Loading Responses...</div>, 'MyResponses');
 const TemplateBrowser = createLazyComponent(() => import('./pages/TemplateBrowser'), <div>Loading Templates...</div>, 'TemplateBrowser');
+const TeamOptimizer = createLazyComponent(() => import('./pages/TeamOptimizer'), <div>Loading Team Optimizer...</div>, 'TeamOptimizer');
 const AssessmentStartPage = createLazyComponent(() => import("@/pages/assessments/AssessmentStartPage"), <div>Loading Assessment...</div>, 'AssessmentStartPage');
 const AssessmentResultsPage = createLazyComponent(() => import("@/pages/assessments/AssessmentResultsPage"), <div>Loading Results...</div>, 'AssessmentResultsPage');
 const AssessmentRoutes = createLazyComponent(() => import("@/routes/AssessmentRoutes"), <div>Loading Assessment Routes...</div>, 'AssessmentRoutes');
@@ -62,6 +63,7 @@ const App: React.FC = memo(() => {
           <Route path="/analytics" element={<RequireAuth><DashboardLayout><Analytics /></DashboardLayout></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/templates" element={<RequireAuth><DashboardLayout><TemplateBrowser /></DashboardLayout></RequireAuth>} />
+          <Route path="/team-optimizer" element={<RequireAuth><DashboardLayout><TeamOptimizer /></DashboardLayout></RequireAuth>} />
           <Route path="/assessments/:id/start" element={<AssessmentStartPage />} />
           <Route path="/assessments/:id/results" element={<AssessmentResultsPage />} />
           <Route path="/assessments/:id/continue" element={<AssessmentStartPage />} />
