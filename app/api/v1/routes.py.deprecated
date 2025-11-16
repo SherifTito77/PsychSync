@@ -1,0 +1,70 @@
+# app/api/v1/routes.py
+
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
+# Import core endpoint routers that should exist
+from app.api.v1.endpoints import (
+    auth,
+    users,
+    assessments,
+    teams,
+    health,
+)
+
+# Try to import optional endpoints, but don't fail if they don't exist
+try:
+    from app.api.v1.endpoints import admin
+except ImportError:
+    admin = None
+
+try:
+    from app.api.v1.endpoints import organizations
+except ImportError:
+    organizations = None
+
+try:
+    from app.api.v1.endpoints import responses
+except ImportError:
+    responses = None
+
+try:
+    from app.api.v1.endpoints import templates
+except ImportError:
+    templates = None
+
+# Create a single, main APIRouter for the v1 version of your API.
+api_router = APIRouter(
+    prefix="/api/v1",
+    tags=["Core V1"]
+)
+
+# Include auth endpoints WITHOUT additional prefix
+# This makes them available at /api/v1/token, /api/v1/register, etc.
+api_router.include_router(auth.router, tags=["Auth"])
+
+# Include core endpoints
+api_router.include_router(users.router, prefix="/users", tags=["Users"])
+api_router.include_router(assessments.router, prefix="/assessments", tags=["Assessments"])
+api_router.include_router(teams.router, prefix="/teams", tags=["Teams"])
+
+# Include optional endpoints if they exist
+if responses:
+    api_router.include_router(responses.router, prefix="/responses", tags=["Responses"])
+if templates:
+    api_router.include_router(templates.router, prefix="/templates", tags=["Templates"])
+if admin:
+    api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+if organizations:
+    api_router.include_router(organizations.router, prefix="/organizations", tags=["Organizations"])
+
+# Include utility endpoints
+api_router.include_router(health.router, prefix="/health", tags=["Health"])
+
+# Direct endpoint on this router
+@api_router.get("/health")
+async def health_check():
+    """
+    A general health check for the v1 API.
+    """
+    return JSONResponse(content={"status": "ok", "version": "v1"}, status_code=200)

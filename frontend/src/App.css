@@ -1,8 +1,21 @@
 #root {
-  max-width: 1280px;
+  width: 100%;
+  min-height: 100vh;
+  display: block;
+}
+
+/* Ensure the main app takes full width and centers content properly */
+#root > div {
+  width: 100%;
+}
+
+/* Add global page styling for all routes */
+.route-container {
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 0 1rem;
+  min-height: calc(100vh - 200px);
 }
 
 .logo {
@@ -51,6 +64,7 @@
 }
 
 .app-container {
-  padding-left: 200px; /* adds space on the left */
-  /* or use padding: 20px; to add space all around */
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }

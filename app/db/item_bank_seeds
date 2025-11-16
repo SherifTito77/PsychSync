@@ -1,0 +1,589 @@
+{
+  "depression_item_bank": {
+    "name": "Depression Severity Scale (CAT)",
+    "description": "Computerized Adaptive Test for measuring depression severity based on DSM-5 criteria",
+    "construct": "Depression",
+    "irt_model": "2PL",
+    "version": "1.0",
+    "calibration_info": {
+      "sample_size": 500,
+      "population": "Adult clinical and community sample",
+      "calibration_date": "2024-01-15",
+      "software": "mirt (R package)"
+    },
+    "items": [
+      {
+        "item_id": "DEP_001",
+        "question_text": "Little interest or pleasure in doing things",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -2.1,
+        "discrimination": 1.52,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Anhedonia",
+        "tags": ["core_symptom", "phq9_item1"]
+      },
+      {
+        "item_id": "DEP_002",
+        "question_text": "Feeling down, depressed, or hopeless",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -1.8,
+        "discrimination": 1.87,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Mood",
+        "tags": ["core_symptom", "phq9_item2"]
+      },
+      {
+        "item_id": "DEP_003",
+        "question_text": "Trouble falling or staying asleep, or sleeping too much",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -1.3,
+        "discrimination": 1.28,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Sleep Disturbance",
+        "tags": ["somatic", "phq9_item3"]
+      },
+      {
+        "item_id": "DEP_004",
+        "question_text": "Feeling tired or having little energy",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -1.0,
+        "discrimination": 1.43,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Energy/Fatigue",
+        "tags": ["somatic", "phq9_item4"]
+      },
+      {
+        "item_id": "DEP_005",
+        "question_text": "Poor appetite or overeating",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -0.6,
+        "discrimination": 1.19,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Appetite",
+        "tags": ["somatic", "phq9_item5"]
+      },
+      {
+        "item_id": "DEP_006",
+        "question_text": "Feeling bad about yourself or that you are a failure",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": 0.0,
+        "discrimination": 1.72,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Self-Worth",
+        "tags": ["cognitive", "phq9_item6"]
+      },
+      {
+        "item_id": "DEP_007",
+        "question_text": "Trouble concentrating on things",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": 0.3,
+        "discrimination": 1.45,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Concentration",
+        "tags": ["cognitive", "phq9_item7"]
+      },
+      {
+        "item_id": "DEP_008",
+        "question_text": "Moving or speaking so slowly that others noticed",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": 0.8,
+        "discrimination": 1.31,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Psychomotor",
+        "tags": ["behavioral", "phq9_item8"]
+      },
+      {
+        "item_id": "DEP_009",
+        "question_text": "Thoughts that you would be better off dead",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": 1.5,
+        "discrimination": 2.03,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Suicidality",
+        "tags": ["safety", "phq9_item9"]
+      },
+      {
+        "item_id": "DEP_010",
+        "question_text": "I feel empty inside",
+        "response_type": "binary",
+        "response_options": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "difficulty": 0.2,
+        "discrimination": 1.65,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Mood",
+        "tags": ["supplemental"]
+      },
+      {
+        "item_id": "DEP_011",
+        "question_text": "Nothing seems to make me happy anymore",
+        "response_type": "binary",
+        "response_options": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "difficulty": -0.3,
+        "discrimination": 1.78,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Anhedonia",
+        "tags": ["supplemental"]
+      },
+      {
+        "item_id": "DEP_012",
+        "question_text": "I have been crying more than usual",
+        "response_type": "binary",
+        "response_options": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "difficulty": 0.5,
+        "discrimination": 1.42,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Emotional Expression",
+        "tags": ["supplemental"]
+      }
+    ]
+  },
+  "anxiety_item_bank": {
+    "name": "Generalized Anxiety Scale (CAT)",
+    "description": "Computerized Adaptive Test for measuring generalized anxiety severity",
+    "construct": "Anxiety",
+    "irt_model": "2PL",
+    "version": "1.0",
+    "calibration_info": {
+      "sample_size": 450,
+      "population": "Adult clinical and community sample",
+      "calibration_date": "2024-02-01",
+      "software": "flexMIRT"
+    },
+    "items": [
+      {
+        "item_id": "ANX_001",
+        "question_text": "Feeling nervous, anxious, or on edge",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -1.9,
+        "discrimination": 1.68,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "General Anxiety",
+        "tags": ["core_symptom", "gad7_item1"]
+      },
+      {
+        "item_id": "ANX_002",
+        "question_text": "Not being able to stop or control worrying",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -1.2,
+        "discrimination": 1.92,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Worry Control",
+        "tags": ["core_symptom", "gad7_item2"]
+      },
+      {
+        "item_id": "ANX_003",
+        "question_text": "Worrying too much about different things",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -0.8,
+        "discrimination": 1.75,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Excessive Worry",
+        "tags": ["core_symptom", "gad7_item3"]
+      },
+      {
+        "item_id": "ANX_004",
+        "question_text": "Trouble relaxing",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": -0.4,
+        "discrimination": 1.53,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Tension",
+        "tags": ["somatic", "gad7_item4"]
+      },
+      {
+        "item_id": "ANX_005",
+        "question_text": "Being so restless that it's hard to sit still",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": 0.2,
+        "discrimination": 1.48,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Restlessness",
+        "tags": ["somatic", "gad7_item5"]
+      },
+      {
+        "item_id": "ANX_006",
+        "question_text": "Becoming easily annoyed or irritable",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": 0.1,
+        "discrimination": 1.38,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Irritability",
+        "tags": ["emotional", "gad7_item6"]
+      },
+      {
+        "item_id": "ANX_007",
+        "question_text": "Feeling afraid as if something awful might happen",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "Several days",
+          "2": "More than half the days",
+          "3": "Nearly every day"
+        },
+        "difficulty": 0.7,
+        "discrimination": 1.84,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Anticipatory Anxiety",
+        "tags": ["cognitive", "gad7_item7"]
+      },
+      {
+        "item_id": "ANX_008",
+        "question_text": "My heart pounds or races",
+        "response_type": "binary",
+        "response_options": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "difficulty": 0.4,
+        "discrimination": 1.62,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Physical Symptoms",
+        "tags": ["somatic", "supplemental"]
+      },
+      {
+        "item_id": "ANX_009",
+        "question_text": "I have difficulty breathing or feel short of breath",
+        "response_type": "binary",
+        "response_options": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "difficulty": 0.9,
+        "discrimination": 1.71,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Physical Symptoms",
+        "tags": ["somatic", "supplemental"]
+      },
+      {
+        "item_id": "ANX_010",
+        "question_text": "I feel dizzy or lightheaded",
+        "response_type": "binary",
+        "response_options": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "difficulty": 1.1,
+        "discrimination": 1.45,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Physical Symptoms",
+        "tags": ["somatic", "supplemental"]
+      }
+    ]
+  },
+  "ptsd_item_bank": {
+    "name": "PTSD Symptom Scale (CAT)",
+    "description": "Computerized Adaptive Test for PTSD based on DSM-5 clusters",
+    "construct": "PTSD",
+    "irt_model": "2PL",
+    "version": "1.0",
+    "calibration_info": {
+      "sample_size": 380,
+      "population": "Trauma-exposed veterans and civilians",
+      "calibration_date": "2024-03-10",
+      "software": "mirt (R package)"
+    },
+    "items": [
+      {
+        "item_id": "PTSD_001",
+        "question_text": "Repeated, disturbing memories of the stressful experience",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": -1.5,
+        "discrimination": 1.88,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Intrusion",
+        "tags": ["cluster_b", "intrusive_memories"]
+      },
+      {
+        "item_id": "PTSD_002",
+        "question_text": "Repeated, disturbing dreams of the stressful experience",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": -0.8,
+        "discrimination": 1.65,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Intrusion",
+        "tags": ["cluster_b", "nightmares"]
+      },
+      {
+        "item_id": "PTSD_003",
+        "question_text": "Avoiding memories, thoughts, or feelings related to the trauma",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": -1.0,
+        "discrimination": 1.72,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Avoidance",
+        "tags": ["cluster_c", "internal_avoidance"]
+      },
+      {
+        "item_id": "PTSD_004",
+        "question_text": "Avoiding external reminders of the trauma (people, places, activities)",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": -0.5,
+        "discrimination": 1.58,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Avoidance",
+        "tags": ["cluster_c", "external_avoidance"]
+      },
+      {
+        "item_id": "PTSD_005",
+        "question_text": "Loss of interest in activities you used to enjoy",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": 0.0,
+        "discrimination": 1.45,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Negative Alterations",
+        "tags": ["cluster_d", "anhedonia"]
+      },
+      {
+        "item_id": "PTSD_006",
+        "question_text": "Feeling distant or cut off from other people",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": 0.3,
+        "discrimination": 1.67,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Negative Alterations",
+        "tags": ["cluster_d", "detachment"]
+      },
+      {
+        "item_id": "PTSD_007",
+        "question_text": "Being 'super alert' or watchful or on guard",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": -0.2,
+        "discrimination": 1.53,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Arousal/Reactivity",
+        "tags": ["cluster_e", "hypervigilance"]
+      },
+      {
+        "item_id": "PTSD_008",
+        "question_text": "Feeling jumpy or easily startled",
+        "response_type": "likert",
+        "response_options": {
+          "0": "Not at all",
+          "1": "A little bit",
+          "2": "Moderately",
+          "3": "Quite a bit",
+          "4": "Extremely"
+        },
+        "difficulty": 0.1,
+        "discrimination": 1.48,
+        "guessing": 0.0,
+        "model": "2PL",
+        "content_domain": "Arousal/Reactivity",
+        "tags": ["cluster_e", "startle_response"]
+      }
+    ]
+  },
+  "scoring_guidelines": {
+    "theta_interpretation": {
+      "very_low": {
+        "range": [-4.0, -1.5],
+        "label": "Minimal/No Symptoms",
+        "description": "Symptom level well below clinical threshold"
+      },
+      "low": {
+        "range": [-1.5, -0.5],
+        "label": "Mild Symptoms",
+        "description": "Some symptoms present but below clinical concern"
+      },
+      "average": {
+        "range": [-0.5, 0.5],
+        "label": "Moderate Symptoms",
+        "description": "Clinical attention warranted"
+      },
+      "high": {
+        "range": [0.5, 1.5],
+        "label": "Moderately Severe Symptoms",
+        "description": "Active treatment recommended"
+      },
+      "very_high": {
+        "range": [1.5, 4.0],
+        "label": "Severe Symptoms",
+        "description": "Intensive treatment indicated"
+      }
+    },
+    "reliability_standards": {
+      "excellent": "> 0.90",
+      "good": "0.80 - 0.89",
+      "acceptable": "0.70 - 0.79",
+      "questionable": "0.60 - 0.69",
+      "poor": "< 0.60"
+    }
+  }
+}

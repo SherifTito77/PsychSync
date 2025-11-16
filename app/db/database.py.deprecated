@@ -1,0 +1,58 @@
+# app/db/database.py
+from sqlalchemy import create_engine
+# from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
+
+from sqlalchemy.orm import sessionmaker
+from app.core.config import settings
+
+# Convert async URL to sync (remove +asyncpg)
+DATABASE_URL = settings.DATABASE_URL.replace('postgresql+asyncpg://', 'postgresql://')
+
+# Create synchronous SQLAlchemy engine
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    echo=False
+)
+
+# Session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base class for models
+Base = declarative_base()
+
+# Dependency for FastAPI
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Initialize database
+def init_db():
+    """Create all database tables"""
+    try:
+        # Import all models to register them with Base
+        from app.db.models import (
+            User, Organization, Team, TeamMember, 
+            Assessment, Prediction
+        )
+        
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created successfully")
+        
+        # Show created tables
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        print(f"📋 Tables created: {', '.join(tables)}")
+        
+    except Exception as e:
+        print(f"❌ Error creating database tables: {e}")
+        import traceback
+        traceback.print_exc()
+        raise

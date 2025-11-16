@@ -6,7 +6,7 @@ class AuditLog(Base):
    __tablename__ = "audit_logs"
    id = sa.Column(UUID(as_uuid=True), primary_key=True,
    server_default=sa.text("gen_random_uuid()"))
-   org_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('organizations.id',
+   organization_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('organizations.id',
    ondelete='CASCADE'), nullable=False)
    actor_user_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('users.id',
    ondelete='SET NULL'), nullable=True)

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Unavailable - PsychSync AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 60px 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .error-code {
+            font-size: 120px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #1a202c;
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        p {
+            color: #4a5568;
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .status-message {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+            border-radius: 8px;
+        }
+
+        .status-message h3 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .status-message p {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .features {
+            margin: 40px 0;
+            text-align: left;
+        }
+
+        .feature-card {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            color: #2d3748;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .feature-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-card li {
+            padding: 5px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #4a5568;
+        }
+
+        .feature-card li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f7fafc;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            color: #718096;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 40px 20px;
+            }
+
+            .error-code {
+                font-size: 80px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-code">503</div>
+        <h1>Service Temporarily Unavailable</h1>
+        <p>We're performing scheduled maintenance to make PsychSync AI even better. We'll be back shortly!</p>
+
+        <div class="status-message">
+            <h3>🔧 Maintenance in Progress</h3>
+            <p>Our team is working hard to improve your experience. Expected downtime: 15-30 minutes.</p>
+        </div>
+
+        <div class="features">
+            <div class="feature-card">
+                <span class="feature-icon">🧠</span>
+                <h3>Multi-Framework Assessments</h3>
+                <p>Take comprehensive personality assessments including MBTI, Big Five, Enneagram, and more.</p>
+                <ul>
+                    <li>Science-backed assessments</li>
+                    <li>15-minute completion time</li>
+                    <li>Instant results with insights</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">🤖</span>
+                <h3>AI-Powered Team Optimization</h3>
+                <p>Machine learning algorithms analyze team composition and suggest optimal configurations.</p>
+                <ul>
+                    <li>Compatibility scoring</li>
+                    <li>Conflict prediction</li>
+                    <li>Role recommendations</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">📊</span>
+                <h3>Real-Time Analytics Dashboard</h3>
+                <p>Visualize team dynamics, track progress, and identify trends with beautiful, interactive charts.</p>
+                <ul>
+                    <li>Live team metrics</li>
+                    <li>Historical trend analysis</li>
+                    <li>Customizable reports</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">🔮</span>
+                <h3>Predictive Performance Analytics</h3>
+                <p>AI predicts team velocity, conflict probability, and satisfaction scores.</p>
+                <ul>
+                    <li>Performance forecasting</li>
+                    <li>Risk assessment</li>
+                    <li>Actionable recommendations</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <a href="javascript:location.reload()" class="btn btn-primary">Refresh Page</a>
+            <a href="https://status.psychsync.ai" class="btn btn-secondary">Check Status</a>
+        </div>
+
+        <div class="footer">
+            <p><strong>PsychSync AI</strong> - Behavioral Analytics for High-Performance Teams</p>
+            <p>Need immediate assistance? Contact us at <a href="mailto:support@psychsync.ai" style="color: #667eea;">support@psychsync.ai</a></p>
+        </div>
+    </div>
+</body>
+</html>

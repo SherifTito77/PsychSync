@@ -19,6 +19,32 @@ coverage.xml
 *.cover
 *.log
 
+# Large AI Models and Data
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.safetensors
+*.bin
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.pb
+
+# Model Datasets
+data/
+datasets/
+models/
+checkpoints/
+mlruns/
+wandb/
+
+# Virtual Environment (ensure it's excluded)
+.venv/
+venv/
+
 # Environment variables
 .env
 .env.local
@@ -59,3 +85,36 @@ yarn-error.log*
 *.db
 *.sqlite
 *.sqlite3
+
+
+# System and runtime files
+fail2ban_run/
+*.pid
+*.log
+
+# Development Scripts (optional - remove if you want them in repo)
+# scripts/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.temp
+
+# SSL Certificates (keep them local)
+*.crt
+*.key
+*.pem
+certs/
+
+# Local development
+logs/
+uploads/
+backups/
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE specific
+.vscode/settings.json
+.idea/workspace.xml

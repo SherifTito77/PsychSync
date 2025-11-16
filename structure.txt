@@ -1,0 +1,231 @@
+app
+├── __init__.py
+├── __pycache__
+│   ├── __init__.cpython-311.pyc
+│   ├── __init__.cpython-312.pyc
+│   ├── main.cpython-311.pyc
+│   └── main.cpython-312.pyc
+├── alembic
+│   ├── README
+│   ├── __pycache__
+│   ├── env.py
+│   ├── script.py.mako
+│   └── versions
+│       ├── 3da94cd742b9_initial_tables.py
+│       ├── 75b3153ac394_init.py
+│       └── __pycache__
+├── alembic.ini
+├── alembic_backup
+│   ├── 1env.py
+│   ├── 2env.py
+│   ├── __pycache__
+│   ├── env.py
+│   └── versions
+│       ├── 0001_extensions_triggers.py
+│       ├── 0002_core_tables.py
+│       ├── 0003_add_feature_x.py
+│       ├── 0004_modify_scores.py
+│       ├── 002_core_tables--Enable extensions.sql
+│       ├── INSERT INTO roles (scope, code) VALUES.sql
+│       └── __pycache__
+├── api
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-311.pyc
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── deps.cpython-311.pyc
+│   │   └── deps.cpython-312.pyc
+│   ├── api_router.py
+│   ├── dependencies
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   └── auth.py
+│   ├── deps.py
+│   ├── routes
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   ├── assessments.py
+│   │   ├── auth.py
+│   │   ├── organizations.py
+│   │   ├── teams.py
+│   │   └── users.py
+│   └── v1
+│       ├── __init__.py
+│       ├── __pycache__
+│       ├── api.py
+│       ├── archive
+│       ├── auth.py
+│       ├── auth.py.py
+│       ├── deps.py
+│       ├── endpoints
+│       ├── organizations.py
+│       ├── routes.py
+│       ├── teams.py
+│       └── users.py
+├── core
+│   ├──  __init__.py
+│   ├── __pycache__
+│   │   ├── cache.cpython-311.pyc
+│   │   ├── cache.cpython-312.pyc
+│   │   ├── config.cpython-311.pyc
+│   │   ├── config.cpython-312.pyc
+│   │   ├── security.cpython-311.pyc
+│   │   └── security.cpython-312.pyc
+│   ├── auth.py
+│   ├── cache.py
+│   ├── config.py
+│   ├── database.py
+│   ├── extraredis.py
+│   └── security.py
+├── create_db.py
+├── crud
+│   ├── organization.py
+│   └── user.py
+├── data
+├── db
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-311.pyc
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── base.cpython-311.pyc
+│   │   ├── base.cpython-312.pyc
+│   │   ├── database.cpython-311.pyc
+│   │   ├── database.cpython-312.pyc
+│   │   ├── session.cpython-311.pyc
+│   │   └── session.cpython-312.pyc
+│   ├── archive
+│   │   ├── data
+│   │   └── legacy
+│   ├── base.py
+│   ├── database.py
+│   ├── init_db.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   ├── archive
+│   │   ├── assessment.py
+│   │   ├── audit_log.py
+│   │   ├── base_models.py
+│   │   ├── framework.py
+│   │   ├── invitation.py
+│   │   ├── org_member.py
+│   │   ├── organization.py
+│   │   ├── prediction.py
+│   │   ├── question.py
+│   │   ├── question_option.py
+│   │   ├── response.py
+│   │   ├── role.py
+│   │   ├── score.py
+│   │   ├── team.py
+│   │   ├── team_member.py
+│   │   └── user.py
+│   └── session.py
+├── init_db.py
+├── main.py
+├── middleware
+│   ├── __init__.py
+│   ├── __pycache__
+│   ├── auth_middleware.py
+│   └── token_decode.py
+├── requirements.txt
+├── routes
+├── schemas
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-311.pyc
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── assessment.cpython-311.pyc
+│   │   ├── assessment.cpython-312.pyc
+│   │   ├── auth.cpython-311.pyc
+│   │   ├── auth.cpython-312.pyc
+│   │   ├── behavioral_insight.cpython-311.pyc
+│   │   ├── behavioral_insight.cpython-312.pyc
+│   │   ├── organization.cpython-311.pyc
+│   │   ├── organization.cpython-312.pyc
+│   │   ├── prediction.cpython-311.pyc
+│   │   ├── prediction.cpython-312.pyc
+│   │   ├── team.cpython-311.pyc
+│   │   ├── team.cpython-312.pyc
+│   │   ├── team_optimization.cpython-311.pyc
+│   │   ├── team_optimization.cpython-312.pyc
+│   │   ├── user.cpython-311.pyc
+│   │   └── user.cpython-312.pyc
+│   ├── assessment.py
+│   ├── auth.py
+│   ├── behavioral_insight.py
+│   ├── organization.py
+│   ├── prediction.py
+│   ├── team.py
+│   ├── team_optimization.py
+│   ├── token.py
+│   ├── user.py
+│   ├── user_service.py
+│   └── user_service.py.py
+├── services
+│   ├── __pycache__
+│   │   ├── user_service.cpython-311.pyc
+│   │   └── user_service.cpython-312.pyc
+│   ├── auth_service.py
+│   └── user_service.py
+└── tests
+    ├──  __init__.py.py
+    ├── __pycache__
+    │   └── test_security.cpython-312-pytest-8.3.3.pyc
+    └── test_security.py
+frontend
+├── README.md
+├── dist
+│   ├── assets
+│   │   └── index-NKWppgk1.js
+│   ├── index.html
+│   └── vite.svg
+├── docs
+│   └── frontend_setup.md
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── public
+│   └── vite.svg
+├── src
+│   ├── App.css
+│   ├── App.tsx
+│   ├── assets
+│   │   └── react.svg
+│   ├── components
+│   │   ├── NavBar.tsx
+│   │   ├── RequireAuth.tsx
+│   │   ├── Untitled-1.md
+│   │   ├── common
+│   │   └── layout
+│   ├── contexts
+│   │   ├── AuthContext.tsx
+│   │   ├── NotificationContext.tsx
+│   │   └── TeamContext.tsx
+│   ├── index.css
+│   ├── legacy
+│   ├── main.tsx
+│   ├── pages
+│   │   ├── Assessments.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── Login.tsx
+│   │   ├── Register.tsx
+│   │   └── Teams.tsx
+│   ├── services
+│   │   ├── api.ts
+│   │   └── authService.ts
+│   ├── tests
+│   │   ├── app.test.tsx
+│   │   ├── components
+│   │   └── setup.ts
+│   ├── types
+│   │   ├── components.ts
+│   │   ├── contexts.ts
+│   │   ├── index.ts
+│   │   └── utils.ts
+│   └── vite-env.d.ts
+├── tsconfig.json
+├── vite.config.ts
+└── vitest.config.ts
+
+58 directories, 171 files

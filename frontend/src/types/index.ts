@@ -1,318 +1,173 @@
-// // // // src/types/index.ts
-
-// src/types/index.ts - Fixed type definitions
-
+// src/types/index.ts - Main Type Definitions
+// --- User & Authentication Types ---
+// This interface should match your backend's UserOut schema
 export interface User {
-  id: number;
-  name: string;
+  id: string; // Changed from number to string (UUID)
   email: string;
-  createdAt?: string;
-  updatedAt?: string;
-  role?: 'admin' | 'manager' | 'member';
+  full_name: string; // Changed from 'name' to 'full_name'
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  avatar_url?: string;
+  // Optional fields for future-proofing, as they are not in the current backend schema
+  is_verified?: boolean;
+  role?: 'user' | 'admin' | 'super_admin';
 }
-
-export interface Team {
-  id: number;
-  name: string;
-  status: 'active' | 'inactive' | 'archived'; // Added status property
-  description: string;
-  createdAt?: string;
-  updatedAt?: string;
-  memberCount?: number;
-  ownerId?: number;
+// Data sent to the login API endpoint
+export interface LoginCredentials {
+  email: string;
+  password: string;
 }
-
-export interface Notification {
-  id: number;
-  message: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  duration: number;
-  createdAt?: string;
-  isRead?: boolean;
+// Data for the login form UI (can include extra fields)
+export interface LoginFormData extends LoginCredentials {
+  rememberMe?: boolean;
 }
-
+// Data sent to the registration API endpoint
+export interface RegisterData {
+  email: string;
+  full_name: string; // Changed from 'name' to match backend
+  password: string;
+}
+// Data for the registration form UI
+export interface RegisterFormData extends RegisterData {
+  confirmPassword: string;
+}
+// Response from the login endpoint
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+export interface PasswordChangeData {
+  current_password: string;
+  new_password: string;
+}
+// --- API & General Types ---
+// Generic API response wrapper
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
-  error?: string; // Added error property
-  message?: string;
+  error?: string;
 }
-
-export interface LoginResponse {
-  access_token: string;
-  user: User;
-  expires_in?: number;
+// For handling validation errors from the backend
+export interface ValidationError {
+  field: string;
+  message: string;
 }
-
+// --- Team Types ---
+// Note: If your backend uses UUIDs for teams, change 'id' to 'string'
+export interface Team {
+  id: number;
+  name: string;
+  status: 'active' | 'inactive';
+  description: string;
+}
+// --- Dashboard & Analytics Types ---
 export interface DashboardData {
   totalTeams: number;
   totalAssessments: number;
   avgCompatibility: number;
   predictedVelocity: number;
 }
-
-export interface LoginFormData {
-  email: string;
-  password: string;
+export interface PersonalityProfile {
+  openness: number;
+  conscientiousness: number;
+  extraversion: number;
+  agreeableness: number;
+  neuroticism: number;
+  leadership_potential?: number;
+  collaboration_index?: number;
+  stress_tolerance?: number;
+  adaptability?: number;
+  communication_style?: string;
+  work_preferences?: string[];
 }
-
-export interface RegisterFormData {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
+// --- Assessment Types ---
+export interface AssessmentResult {
+  id: string;
+  framework: string;
+  results: Record<string, any>;
+  confidence: number;
+  created_at: string;
 }
-
-export interface TeamFormData {
-  name: string;
+// --- Notification Types ---
+export interface Notification {
+  id: number;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  duration: number;
+}
+// --- Admin Types ---
+export interface AdminUserUpdate {
+  is_active?: boolean;
+  role?: 'user' | 'admin' | 'super_admin';
+}
+// --- Anonymous Feedback Types ---
+export interface AnonymousFeedbackSubmission {
+  organization_id: string;
+  feedback_type: string;
+  category: string;
   description: string;
-  status?: 'active' | 'inactive';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  target_type?: string;
+  target_id?: string;
+  evidence_urls?: string[];
+  incident_date?: string;
 }
-
-// // src/types/index.ts
-
-// export interface User {
-//   id: number;
-//   name: string;
-//   email: string;
-//   // Add other fields if needed
-// }
-
-// export interface RegisterFormData {
-//   name: string;
-//   email: string;
-//   password: string;
-//   confirmPassword: string;
-// }
-
-// export interface ApiResponse<T = any> {
-//   success: boolean;
-//   data?: T;
-//   message?: string;
-// }
-
-// // Rename custom Notification to avoid conflict with browser Notification
-// export interface AppNotification {
-//   id: string;
-//   message: string;
-//   type: "success" | "error" | "info";
-//   duration?: number;
-// }
-
-// // Team type
-// export interface Team {
-//   id: number;
-//   name: string;
-//   members: User[];
-//   createdAt: string;
-// }
-
-
-
-// // export interface User {
-// //   id: number;
-// //   name: string;
-// //   email: string;
-// //   createdAt?: string;
-// //   updatedAt?: string;
-// //   role?: "admin" | "manager" | "member";
-// // }
-
-// // export interface Team {
-// //   id: number;
-// //   name: string;
-// //   status: "active" | "inactive" | "archived";
-// //   description: string;
-// //   createdAt?: string;
-// //   updatedAt?: string;
-// // }
-
-// // export interface Notification {
-// //   id: number;
-// //   message: string;
-// //   type: "success" | "error" | "warning" | "info";
-// //   duration: number;
-// // }
-
-// // export interface ApiResponse<T = any> {
-// //   success: boolean;
-// //   data?: T;
-// //   error?: string;
-// // }
-
-// // export interface RegisterFormData {
-// //   name: string;
-// //   email: string;
-// //   password: string;
-// //   confirmPassword: string;
-// // }
-
-// // export interface DashboardData {
-// //   totalTeams: number;
-// //   totalAssessments: number;
-// //   avgCompatibility: number;
-// //   predictedVelocity: number;
-// // }
-
-// // export interface LoginFormData {
-// //   email: string;
-// //   password: string;
-// // }
-
-// // // // types/index.ts
-// // export interface AppNotification {
-// //   id: string;
-// //   message: string;
-// //   type: "success" | "error" | "info";
-// //   duration?: number;
-// // }
-
-// // // // types/contexts.ts
-// // notifications: AppNotification[];
-// // // // setNotifications: React.Dispatch<React.SetStateAction<AppNotification[]>>;
-
-// // // // For context providers
-// // // export interface AuthProviderProps {
-// // //   children: React.ReactNode;
-// // // }
-
-// // // export interface AuthContextType {
-// // //   user: User | null;
-// // //   setUser: React.Dispatch<React.SetStateAction<User | null>>;
-// // //   isLoading: boolean;
-// // //   login: (email: string, password: string) => Promise<ApiResponse<any>>;
-// // //   register: (userData: RegisterFormData) => Promise<ApiResponse<any>>;
-// // //   logout: () => void;
-// // // }
-
-// // // export interface TeamContextType {
-// // //   teams: Team[];
-// // //   selectedTeam: Team | null;
-// // //   loading: boolean;
-// // //   fetchTeams: () => Promise<void>;
-// // //   createTeam: (teamData: Partial<Team>) => Promise<ApiResponse<Team>>;
-// // //   updateTeam: (id: number, teamData: Partial<Team>) => Promise<ApiResponse<Team>>; // ensure id is number
-// // //   deleteTeam: (id: number) => Promise<ApiResponse<null>>; // ensure id is number
-// // //   selectTeam: (team: Team | null) => void;
-// // // }
-
-// // // export interface NotificationContextType {
-// // //   notifications: AppNotification[];
-// // //   addNotification: (notification: Omit<AppNotification, "id">) => void;
-// // //   removeNotification: (id: string) => void;
-// // // }
-
-// // // // ===== Component Props ===== 
-
-
-// // // // ===== Core Models =====
-// // // export interface User {
-// // //   id: number; // enforce consistency
-// // //   name: string;
-// // //   email: string;
-// // // }
-
-// // // export interface Team {
-// // //   id: number;
-// // //   name: string;
-// // //   description: string; // ✅ required field
-// // //   status: "active" | "inactive" | "archived";
-// // // }
-
-// // // export interface Notification {
-// // //   id: string;
-// // //   message: string;
-// // //   type: "success" | "error" | "info";
-// // // }
-
-// // // export interface ApiResponse<T = any> {
-// // //   success: boolean;
-// // //   data?: T;
-// // //   error?: string;
-// // // }
-
-// // // // ===== Form Data =====
-// // // export interface RegisterFormData {
-// // //   name: string;
-// // //   email: string;
-// // //   password: string;
-// // // }
-
-// // // export interface LoginFormData {
-// // //   email: string;
-// // //   password: string;
-// // // }
-
-// // // // // ===== CORE ENTITY INTERFACES =====
-
-// // // // export interface User {
-// // // //   id: number;
-// // // //   name: string;
-// // // //   email: string;
-// // // //   createdAt?: string;
-// // // //   updatedAt?: string;
-// // // //   role?: 'admin' | 'manager' | 'member';
-// // // //   profilePicture?: string;
-// // // // }
-
-// // // // export interface Team {
-// // // //   id: number;
-// // // //   name: string;
-// // // //   status: 'active' | 'inactive' | 'archived';
-// // // //   description: string;
-// // // //   createdAt?: string;
-// // // //   updatedAt?: string;
-// // // //   memberCount?: number;
-// // // //   ownerId?: number;
-// // // // }
-
-// // // // export interface Notification {
-// // // //   id: number;
-// // // //   message: string;
-// // // //   type: 'success' | 'error' | 'warning' | 'info';
-// // // //   duration: number;
-// // // //   createdAt?: string;
-// // // //   isRead?: boolean;
-// // // // }
-
-// // // // // ===== API RESPONSE INTERFACES =====
-
-// // // // export interface ApiResponse<T = any> {
-// // // //   success: boolean;
-// // // //   data?: T;
-// // // //   error?: string;
-// // // //   message?: string;
-// // // // }
-
-// // // // export interface LoginResponse {
-// // // //   access_token: string;
-// // // //   user: User;
-// // // //   expires_in?: number;
-// // // // }
-
-// // // // export interface DashboardData {
-// // // //   totalTeams: number;
-// // // //   totalAssessments: number;
-// // // //   avgCompatibility: number;
-// // // //   predictedVelocity: number;
-// // // // }
-
-// // // // // ===== FORM DATA INTERFACES =====
-
-// // // // export interface LoginFormData {
-// // // //   email: string;
-// // // //   password: string;
-// // // // }
-
-// // // // export interface RegisterFormData {
-// // // //   name: string;
-// // // //   email: string;
-// // // //   password: string;
-// // // //   confirmPassword: string;
-// // // // }
-
-// // // // export interface TeamFormData {
-// // // //   name: string;
-// // // //   description: string;
-// // // //   status?: 'active' | 'inactive';
-// // // // }
+export interface FeedbackSubmissionResult {
+  success: boolean;
+  tracking_id?: string;
+  message?: string;
+  error?: string;
+  alternatives?: string[];
+}
+export interface AnonymousFeedbackStatus {
+  tracking_id: string;
+  status: 'pending' | 'under_review' | 'investigating' | 'resolved' | 'closed';
+  severity: string;
+  category: string;
+  created_at: string;
+  last_updated: string;
+  hr_notes?: string;
+  resolution_details?: string;
+  estimated_resolution?: string;
+  follow_ups_allowed: boolean;
+  anonymous_follow_ups: number;
+}
+export interface FeedbackFollowUp {
+  tracking_id: string;
+  message: string;
+  evidence_urls?: string[];
+}
+export interface FeedbackAnalytics {
+  total_submissions: number;
+  submissions_by_category: Record<string, number>;
+  submissions_by_severity: Record<string, number>;
+  resolution_rate: number;
+  average_resolution_time: number;
+  pending_count: number;
+  critical_count: number;
+  monthly_trends: Array<{
+    month: string;
+    submissions: number;
+    resolved: number;
+  }>;
+}
+export interface HRFeedbackItem {
+  id: string;
+  tracking_id: string;
+  status: string;
+  severity: string;
+  category: string;
+  description: string;
+  created_at: string;
+  last_updated: string;
+  target_type?: string;
+  incident_date?: string;
+  evidence_urls?: string[];
+  follow_ups_count: number;
+  resolution_details?: string;
+  hr_notes?: string;
+  assigned_hr?: string;
+  priority_score: number;
+}

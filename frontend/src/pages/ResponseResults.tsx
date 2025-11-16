@@ -1,0 +1,241 @@
+// frontend/src/pages/ResponseResults.tsx
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  responseService,
+  ResponseWithScore,
+} from '../services/responseService';
+import { assessmentService, AssessmentWithSections } from '../services/assessmentService';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+const ResponseResults: React.FC = () => {
+  const { responseId } = useParams<{ responseId: string }>();
+  const navigate = useNavigate();
+  const [response, setResponse] = useState<ResponseWithScore | null>(null);
+  const [assessment, setAssessment] = useState<AssessmentWithSections | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    loadResults();
+  }, [responseId]);
+  const loadResults = async () => {
+    if (!responseId) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const responseData = await responseService.getResponse(parseInt(responseId));
+      setResponse(responseData);
+      const assessmentData = await assessmentService.getAssessment(
+        responseData.assessment_id
+      );
+      setAssessment(assessmentData);
+    } catch (error: any) {
+      setError(error.response?.data?.detail || 'Failed to load results');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
+  if (error || !response || !assessment) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+        <div className="max-w-md w-full">
+          <div className="rounded-md bg-red-50 p-4">
+            <p className="text-sm text-red-800">{error || 'Results not found'}</p>
+          </div>
+          <button
+            onClick={() => navigate('/assessments')}
+            className="mt-4 w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            Back to Assessments
+          </button>
+        </div>
+      </div>
+    );
+  }
+  const score = response.score;
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Success Header */}
+        <div className="bg-white shadow rounded-lg mb-6 overflow-hidden">
+          <div className="bg-green-600 px-6 py-8 text-center">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+              <svg
+                className="h-10 w-10 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-white">Assessment Complete!</h1>
+            <p className="mt-2 text-green-100">
+              Thank you for completing {assessment.title}
+            </p>
+          </div>
+          {/* Completion Details */}
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-gray-500">Completed On</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {new Date(response.submitted_at!).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Time Taken</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {response.time_taken
+                    ? formatDuration(response.time_taken)
+                    : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Questions Answered</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {Object.keys(response.responses).length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Score Results */}
+        {score && (
+          <div className="bg-white shadow rounded-lg mb-6">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Your Results</h2>
+            </div>
+            <div className="px-6 py-6">
+              {/* Score Display */}
+              <div className="text-center mb-8">
+                <div className="inline-block">
+                  <div className="relative">
+                    <svg className="transform -rotate-90 w-40 h-40">
+                      <circle
+                        cx="80"
+                        cy="80"
+                        r="70"
+                        stroke="#e5e7eb"
+                        strokeWidth="12"
+                        fill="none"
+                      />
+                      <circle
+                        cx="80"
+                        cy="80"
+                        r="70"
+                        stroke="#4f46e5"
+                        strokeWidth="12"
+                        fill="none"
+                        strokeDasharray={`${
+                          2 * Math.PI * 70 * (score.percentage_score || 0) / 100
+                        } ${2 * Math.PI * 70}`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold text-indigo-600">
+                          {score.percentage_score?.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-gray-500">Score</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Score Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500">Total Score</p>
+                  <p className="mt-1 text-2xl font-semibold text-gray-900">
+                    {score.total_score?.toFixed(2)} / {score.max_possible_score?.toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-500">Percentage</p>
+                  <p className="mt-1 text-2xl font-semibold text-gray-900">
+                    {score.percentage_score?.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+              {/* Interpretation */}
+              {score.interpretation && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-blue-900 mb-2">
+                    Interpretation
+                  </h3>
+                  <p className="text-sm text-blue-800">{score.interpretation}</p>
+                </div>
+              )}
+              {/* Subscale Scores */}
+              {score.subscale_scores && Object.keys(score.subscale_scores).length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Subscale Scores
+                  </h3>
+                  <div className="space-y-3">
+                    {Object.entries(score.subscale_scores).map(([name, value]) => (
+                      <div key={name}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium text-gray-700">{name}</span>
+                          <span className="text-gray-500">{value}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-indigo-600 h-2 rounded-full"
+                            style={{ width: `${(value / 100) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Actions */}
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              to="/assessments"
+              className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-center"
+            >
+              Browse More Assessments
+            </Link>
+            <Link
+              to="/responses/my-responses"
+              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-center"
+            >
+              View All My Responses
+            </Link>
+            <button
+              onClick={() => window.print()}
+              className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Print Results
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+export default ResponseResults;

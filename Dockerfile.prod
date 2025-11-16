@@ -1,0 +1,360 @@
+
+
+# =========================
+# Stage 1: Builder
+# =========================
+FROM python:3.12-slim as builder
+
+WORKDIR /app
+
+# Install build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first
+COPY app/requirements.txt .
+
+# Install into virtualenv
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip \
+    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt gunicorn uvicorn
+
+# =========================
+# Stage 2: Production Runner
+# =========================
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copy venv from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install only runtime packages
+RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy app source
+COPY app /app/app
+COPY app/alembic /app/alembic
+COPY app/alembic.ini /app/
+
+# Expose production port
+EXPOSE 8000
+
+# Gunicorn (with Uvicorn workers) for production
+CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+
+# # Use official Python image
+# # FROM python:3.12-slim-bookworm
+
+# FROM python:3.12-slim-bullseye
+
+# RUN apt-get update && apt-get dist-upgrade -y \
+#     && apt-get install -y --no-install-recommends gcc postgresql-client \
+#     && rm -rf /var/lib/apt/lists/*
+
+# # Security: Update all packages to latest versions
+# RUN apt-get update && \
+#     apt-get upgrade -y && \
+#     apt-get install -y --no-install-recommends gcc postgresql-client && \
+#     rm -rf /var/lib/apt/lists/*
+    
+# # Set working directory
+# WORKDIR /app
+
+# # Update system and install required packages
+# RUN apt-get update && apt-get upgrade -y && \
+#     apt-get install -y gcc postgresql-client && \
+#     rm -rf /var/lib/apt/lists/*
+
+# # Copy Python requirements
+# COPY app/requirements.txt .
+
+# # Install dependencies + Gunicorn
+# RUN pip install --upgrade pip && pip install -r requirements.txt && pip install gunicorn uvicorn
+
+# # Copy app code and Alembic
+# COPY app /app/app
+# COPY app/alembic /app/alembic
+# COPY app/alembic.ini /app/
+
+# # Expose production port
+# EXPOSE 8000
+
+# # Run app with Gunicorn for production
+# CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+
+
+
+# # # Use official Python image
+# # FROM python:3.10-slim-bookworm 
+
+# # # Set working directory in the container
+# # WORKDIR /app
+
+# # RUN apt-get update && apt-get upgrade -y && apt-get install -y gcc postgresql-client && rm -rf /var/lib/apt/lists/*
+
+
+# # # Install system dependencies (Postgres client, gcc)
+# # RUN apt-get update && apt-get install -y \
+# #     gcc \
+# #     postgresql-client \
+# #     && rm -rf /var/lib/apt/lists/*
+
+# # # Copy requirements from app folder
+# # COPY app/requirements.txt .
+
+# # # Install Python dependencies
+# # RUN pip install --upgrade pip && pip install -r requirements.txt && pip install gunicorn uvicorn
+
+# # # Copy the app code
+# # COPY app /app/app
+
+# # # Copy Alembic migrations and config
+# # COPY app/alembic /app/alembic
+# # COPY app/alembic.ini /app/
+
+# # # Expose port for production
+# # EXPOSE 8000
+
+# # # Command to run the app
+# # CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+
+
+
+# # # FROM python:3.11-slim-bookworm
+
+
+# # # WORKDIR /app
+
+# # # ENV PYTHONDONTWRITEBYTECODE=1 \
+# # #     PYTHONUNBUFFERED=1 \
+# # #     PIP_NO_CACHE_DIR=1
+
+# # # RUN apt-get update && apt-get install -y \
+# # #     gcc \
+# # #     postgresql-client \
+# # #     && rm -rf /var/lib/apt/lists/*
+
+# # # COPY requirements.txt .
+# # # RUN pip install --upgrade pip && pip install -r requirements.txt && pip install gunicorn uvicorn
+
+# # # COPY ./app /app/app
+# # # COPY ./alembic /app/alembic
+# # # COPY ./alembic.ini /app/
+
+# # # RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# # # USER appuser
+
+# # # EXPOSE 8000
+
+# # # CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+
+
+
+# # # FROM python:3.11-alpine
+
+# # # WORKDIR /app
+
+# # # ENV PYTHONDONTWRITEBYTECODE=1 \
+# # #     PYTHONUNBUFFERED=1 \
+# # #     PIP_NO_CACHE_DIR=1
+
+# # # RUN apk update && apk add --no-cache \
+# # #     gcc \
+# # #     musl-dev \
+# # #     libpq \
+# # #     postgresql-dev \
+# # #     && pip install --upgrade pip
+
+# # # COPY requirements.txt .
+# # # RUN pip install -r requirements.txt && pip install gunicorn uvicorn
+
+# # # COPY ./app /app/app
+# # # COPY ./alembic /app/alembic
+# # # COPY ./alembic.ini /app/
+
+# # # RUN adduser -D appuser && chown -R appuser /app
+# # # USER appuser
+
+# # # EXPOSE 8000
+
+# # # CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+
+
+
+
+# # # # Builder
+# # # FROM gcr.io/distroless/python3.11
+
+# # # # FROM python:3.12-slim AS builder
+# # # WORKDIR /app
+# # # RUN apt-get update && apt-get install -y gcc build-essential libpq-dev
+# # # COPY requirements.txt .
+# # # RUN pip install --upgrade pip && pip install --user -r requirements.txt
+
+# # # # Runtime
+# # # FROM gcr.io/distroless/python3.11
+
+# # # WORKDIR /app
+# # # ENV PATH=/home/appuser/.local/bin:$PATH \
+# # #     PYTHONDONTWRITEBYTECODE=1 \
+# # #     PYTHONUNBUFFERED=1
+# # # RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
+# # #     && rm -rf /var/lib/apt/lists/*
+# # # COPY --from=builder /root/.local /home/appuser/.local
+# # # COPY ./app /app/app
+# # # COPY ./alembic /app/alembic
+# # # COPY ./alembic.ini /app/alembic.ini
+# # # RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# # # USER appuser
+# # # EXPOSE 8000
+# # # CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+
+
+# # # # FROM gcr.io/distroless/python3.11
+
+
+# # # # # ------------------ Stage 1: Build ------------------
+# # # # FROM python:3.11-slim AS builder
+
+# # # # WORKDIR /app
+
+# # # # RUN apt-get update && apt-get install -y --no-install-recommends \
+# # # #     gcc \
+# # # #     build-essential \
+# # # #     libpq-dev \
+# # # #     && rm -rf /var/lib/apt/lists/*
+
+# # # # COPY requirements.txt .
+# # # # RUN pip install --upgrade pip && pip install --user -r requirements.txt
+
+# # # # # ------------------ Stage 2: Runtime ------------------
+# # # # FROM python:3.11-slim
+
+# # # # WORKDIR /app
+
+# # # # # Environment
+# # # # ENV PYTHONDONTWRITEBYTECODE=1 \
+# # # #     PYTHONUNBUFFERED=1 \
+# # # #     PIP_NO_CACHE_DIR=1 \
+# # # #     PATH=/home/appuser/.local/bin:$PATH
+
+# # # # RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
+
+# # # #     # Only install postgresql-client at runtime
+# # # # RUN apt-get update && apt-get install -y --no-install-recommends \
+# # # #     postgresql-client \
+# # # #     && rm -rf /var/lib/apt/lists/*
+
+# # # # # Copy installed dependencies from builder
+# # # # COPY --from=builder /root/.local /home/appuser/.local
+
+# # # # # Copy code
+# # # # COPY ./app /app/app
+# # # # COPY ./alembic /app/alembic
+# # # # COPY ./alembic.ini /app/alembic.ini
+
+# # # # # Non-root user
+# # # # RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# # # # USER appuser
+
+
+
+# # # # EXPOSE 8000
+
+# # # # CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+
+
+# # # # # # FROM python:3.11-slim-bullseye
+
+
+
+# # # # # # WORKDIR /app
+
+# # # # # # # Environment
+# # # # # # ENV PYTHONDONTWRITEBYTECODE=1 \
+# # # # # #     PYTHONUNBUFFERED=1 \
+# # # # # #     PIP_NO_CACHE_DIR=1
+
+# # # # # # # Dependencies
+# # # # # # RUN apt-get update && apt-get install -y \
+# # # # # #     gcc \
+# # # # # #     postgresql-client \
+# # # # # #     && rm -rf /var/lib/apt/lists/*
+
+# # # # # # COPY requirements.txt .
+# # # # # # RUN pip install --upgrade pip && \
+# # # # # #     pip install -r requirements.txt && \
+# # # # # #     pip install gunicorn uvicorn
+
+# # # # # # # Copy code
+# # # # # # COPY ./app /app/app
+# # # # # # COPY ./alembic /app/alembic
+# # # # # # COPY ./alembic.ini /app/alembic.ini
+
+# # # # # # # Optional: create non-root user
+# # # # # # RUN useradd -m -u 1000 appuser && \
+# # # # # #     chown -R appuser:appuser /app
+# # # # # # USER appuser
+
+# # # # # # # Expose port
+# # # # # # EXPOSE 8000
+
+# # # # # # # Command to run the app
+# # # # # # CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--access-logfile", "/var/log/psychsync/access.log", "--error-logfile", "/var/log/psychsync/error.log"]
+
+# # # # # # RUN apt-get update && apt-get install -y --no-install-recommends \
+# # # # # #       build-essential \
+# # # # # #       libpq-dev \
+# # # # # #    && rm -rf /var/lib/apt/lists/*
+# # # # # # # ------------------ Previous version below ------------------
+# # # # # # # # Use an official Python runtime as a parent image
+
+
+
+# # # # # # # FROM python:3.11-slim
+
+# # # # # # # WORKDIR /app
+
+# # # # # # # ENV PYTHONDONTWRITEBYTECODE=1 \
+# # # # # # #     PYTHONUNBUFFERED=1 \
+# # # # # # #     PIP_NO_CACHE_DIR=1
+
+# # # # # # # RUN apt-get update && apt-get install -y \
+# # # # # # #     gcc \
+# # # # # # #     postgresql-client \
+# # # # # # #     && rm -rf /var/lib/apt/lists/*
+
+# # # # # # # COPY requirements.txt .
+# # # # # # # RUN pip install --upgrade pip && \
+# # # # # # #     pip install -r requirements.txt && \
+# # # # # # #     pip install gunicorn
+
+# # # # # # # COPY ./app /app/app
+# # # # # # # COPY ./alembic /app/alembic
+# # # # # # # COPY ./alembic.ini /app/alembic.ini
+
+# # # # # # # RUN useradd -m -u 1000 appuser && \
+# # # # # # #     chown -R appuser:appuser /app
+
+# # # # # # # USER appuser
+
+# # # # # # # EXPOSE 8000
+
+# # # # # # # CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorkingDirectory=/home/psychsync/psychsync
+# # # # # # # Environment="PATH=/home/psychsync/psychsync/venv/bin"
+# # # # # # # ExecStart=/home/psychsync/psychsync/venv/bin/gunicorn app.main:app \
+# # # # # # #     -w 4 \
+# # # # # # #     -k uvicorn.workers.UvicornWorker \
+# # # # # # #     -b 0.0.0.0:8000 \
+# # # # # # #     --access-logfile /var/log/psychsync/access.log \
+# # # # # # #     --error-logfile /var/log/psychsync/error.log
+# # # # # # # Restart=always
+
+# # # # # # # [Install]
+# # # # # # # WantedBy=multi-user.target
+

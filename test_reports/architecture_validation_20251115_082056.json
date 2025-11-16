@@ -1,0 +1,58 @@
+{
+  "test_suite": "Architecture Validation",
+  "timestamp": "2025-11-15T01:20:56.489286+00:00",
+  "summary": {
+    "total_tests": 4,
+    "passed": 1,
+    "failed": 3,
+    "warnings": 0,
+    "success_rate": 25.0,
+    "total_execution_time": 18.750174283981323
+  },
+  "test_results": [
+    {
+      "test_name": "Layer Separation",
+      "status": "FAIL",
+      "details": "Test execution failed: 'imports'",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": null,
+      "execution_time": 18.016551971435547
+    },
+    {
+      "test_name": "Dependency Injection",
+      "status": "FAIL",
+      "details": "Test execution failed: 'functions'",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": null,
+      "execution_time": 0.002790212631225586
+    },
+    {
+      "test_name": "Async/Sync Consistency",
+      "status": "FAIL",
+      "details": "Test execution failed: 'async_functions'",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": null,
+      "execution_time": 0.7287790775299072
+    },
+    {
+      "test_name": "Architecture Pattern Compliance",
+      "status": "PASS",
+      "details": "Excellent architecture compliance: 100.0%",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": null,
+      "execution_time": 0.0020530223846435547
+    }
+  ],
+  "recommendations": [
+    "CRITICAL: Fix all failed architecture tests before production deployment",
+    "Implement comprehensive automated testing in CI/CD pipeline",
+    "Consider using dependency injection framework (FastAPI Depends)",
+    "Standardize async patterns throughout the application",
+    "Document architectural decisions and patterns"
+  ],
+  "architecture_grade": "F"
+}

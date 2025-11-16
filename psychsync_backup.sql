@@ -67,7 +67,7 @@ ALTER TABLE public.assessments OWNER TO psychsync_user;
 
 CREATE TABLE public.audit_logs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    org_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
     actor_user_id uuid,
     action text NOT NULL,
     entity text NOT NULL,
@@ -100,7 +100,7 @@ ALTER TABLE public.frameworks OWNER TO psychsync_user;
 
 CREATE TABLE public.invitations (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    org_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
     email public.citext NOT NULL,
     token text NOT NULL,
     expires_at timestamp with time zone NOT NULL,
@@ -117,7 +117,7 @@ ALTER TABLE public.invitations OWNER TO psychsync_user;
 CREATE TABLE public.org_members (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
-    org_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
     role text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -238,7 +238,7 @@ ALTER TABLE public.team_members OWNER TO psychsync_user;
 
 CREATE TABLE public.teams (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    org_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
     name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -286,7 +286,7 @@ COPY public.assessments (id, user_id, score, created_at) FROM stdin;
 -- Data for Name: audit_logs; Type: TABLE DATA; Schema: public; Owner: psychsync_user
 --
 
-COPY public.audit_logs (id, org_id, actor_user_id, action, entity, entity_id, meta, created_at) FROM stdin;
+COPY public.audit_logs (id, organization_id, actor_user_id, action, entity, entity_id, meta, created_at) FROM stdin;
 \.
 
 
@@ -302,7 +302,7 @@ COPY public.frameworks (id, name, description, created_at, updated_at) FROM stdi
 -- Data for Name: invitations; Type: TABLE DATA; Schema: public; Owner: psychsync_user
 --
 
-COPY public.invitations (id, org_id, email, token, expires_at, accepted_at) FROM stdin;
+COPY public.invitations (id, organization_id, email, token, expires_at, accepted_at) FROM stdin;
 \.
 
 
@@ -310,7 +310,7 @@ COPY public.invitations (id, org_id, email, token, expires_at, accepted_at) FROM
 -- Data for Name: org_members; Type: TABLE DATA; Schema: public; Owner: psychsync_user
 --
 
-COPY public.org_members (id, user_id, org_id, role, created_at) FROM stdin;
+COPY public.org_members (id, user_id, organization_id, role, created_at) FROM stdin;
 \.
 
 
@@ -374,7 +374,7 @@ COPY public.team_members (id, user_id, team_id, role, created_at, updated_at) FR
 -- Data for Name: teams; Type: TABLE DATA; Schema: public; Owner: psychsync_user
 --
 
-COPY public.teams (id, org_id, name, created_at) FROM stdin;
+COPY public.teams (id, organization_id, name, created_at) FROM stdin;
 \.
 
 
@@ -571,27 +571,27 @@ ALTER TABLE ONLY public.audit_logs
 
 
 --
--- Name: audit_logs audit_logs_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
+-- Name: audit_logs audit_logs_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
 --
 
 ALTER TABLE ONLY public.audit_logs
-    ADD CONSTRAINT audit_logs_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+    ADD CONSTRAINT audit_logs_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
 
 
 --
--- Name: invitations invitations_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
+-- Name: invitations invitations_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
 --
 
 ALTER TABLE ONLY public.invitations
-    ADD CONSTRAINT invitations_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+    ADD CONSTRAINT invitations_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
 
 
 --
--- Name: org_members org_members_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
+-- Name: org_members org_members_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
 --
 
 ALTER TABLE ONLY public.org_members
-    ADD CONSTRAINT org_members_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id);
+    ADD CONSTRAINT org_members_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
 
 
 --
@@ -659,11 +659,11 @@ ALTER TABLE ONLY public.team_members
 
 
 --
--- Name: teams teams_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
+-- Name: teams teams_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: psychsync_user
 --
 
 ALTER TABLE ONLY public.teams
-    ADD CONSTRAINT teams_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id);
+    ADD CONSTRAINT teams_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
 
 
 --

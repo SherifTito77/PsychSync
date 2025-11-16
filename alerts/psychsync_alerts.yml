@@ -1,0 +1,296 @@
+# PsychSync Alert Rules for Prometheus
+# These alerts notify you of critical issues in your application
+
+groups:
+  # ============================================
+  # APPLICATION HEALTH ALERTS
+  # ============================================
+  - name: psychsync_application
+    interval: 30s
+    rules:
+      - alert: PsychSyncAPIDown
+        expr: up{job="psychsync-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: psychsync-api
+        annotations:
+          summary: "PsychSync API is down"
+          description: "The PsychSync API has been down for more than 2 minutes on {{ $labels.instance }}"
+          runbook: "Check application logs and container status"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: psychsync-api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          action: "Check application logs for exceptions"
+
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: psychsync-api
+        annotations:
+          summary: "Slow API response times"
+          description: "95th percentile response time is {{ $value }}s on {{ $labels.instance }}"
+          action: "Check database queries and external service calls"
+
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / node_memory_MemTotal_bytes) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: psychsync-api
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          action: "Check for memory leaks or increase resources"
+
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: psychsync-api
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+  # ============================================
+  # DATABASE ALERTS
+  # ============================================
+  - name: psychsync_database
+    interval: 30s
+    rules:
+      - alert: PostgreSQLDown
+        expr: up{job="postgresql"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database has been down for more than 2 minutes"
+          action: "Immediate attention required - data access is blocked"
+
+      - alert: HighDatabaseConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "High number of database connections"
+          description: "Database has {{ $value }} active connections"
+          action: "Check for connection leaks in application"
+
+      - alert: DatabaseSlowQueries
+        expr: rate(pg_stat_statements_mean_exec_time_seconds[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: postgresql
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time is {{ $value }}s"
+          action: "Review slow query log and optimize queries"
+
+      - alert: DatabaseDiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/var/lib/postgresql"} / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: "Database disk space critically low"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+          action: "Free up space or increase storage immediately"
+
+  # ============================================
+  # REDIS CACHE ALERTS
+  # ============================================
+  - name: psychsync_cache
+    interval: 30s
+    rules:
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis has been down for more than 2 minutes"
+          action: "Application will work but performance will degrade"
+
+      - alert: RedisHighMemoryUsage
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis is using {{ $value | humanizePercentage }} of available memory"
+          action: "Consider eviction policy or increase memory"
+
+      - alert: RedisConnectionsHigh
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "High number of Redis connections"
+          description: "Redis has {{ $value }} connected clients"
+
+  # ============================================
+  # SYSTEM RESOURCE ALERTS
+  # ============================================
+  - name: psychsync_system
+    interval: 30s
+    rules:
+      - alert: HostOutOfMemory
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "Host is running out of memory"
+          description: "Node memory is filling up (< 10% available)"
+          action: "Identify memory-hungry processes"
+
+      - alert: HostOutOfDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "Host is running out of disk space"
+          description: "Disk space is filling up (< 10% available)"
+          action: "Clean up old logs or increase storage"
+
+      - alert: HostHighCPULoad
+        expr: node_load15 / count(node_cpu_seconds_total{mode="idle"}) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "Host CPU load is high"
+          description: "CPU load is {{ $value }}"
+
+  # ============================================
+  # ENDPOINT HEALTH ALERTS
+  # ============================================
+  - name: psychsync_endpoints
+    interval: 1m
+    rules:
+      - alert: EndpointDown
+        expr: probe_success{job="blackbox"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: endpoint
+        annotations:
+          summary: "Endpoint is down"
+          description: "{{ $labels.instance }} has been down for more than 3 minutes"
+          action: "Check service availability and network connectivity"
+
+      - alert: EndpointSlowResponse
+        expr: probe_duration_seconds > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: endpoint
+        annotations:
+          summary: "Endpoint is responding slowly"
+          description: "{{ $labels.instance }} response time is {{ $value }}s"
+
+      - alert: SSLCertificateExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 7
+        for: 1h
+        labels:
+          severity: warning
+          service: ssl
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+          action: "Renew SSL certificate"
+
+  # ============================================
+  # BACKGROUND TASKS ALERTS (Celery)
+  # ============================================
+  - name: psychsync_workers
+    interval: 30s
+    rules:
+      - alert: CeleryWorkersDown
+        expr: up{job="celery"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "Celery workers are down"
+          description: "Background task processing is stopped"
+          action: "Restart Celery workers"
+
+      - alert: CeleryQueueBacklog
+        expr: celery_queue_length > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "Celery queue has a large backlog"
+          description: "Queue has {{ $value }} pending tasks"
+          action: "Add more workers or investigate slow tasks"
+
+  # ============================================
+  # BUSINESS METRICS ALERTS
+  # ============================================
+  - name: psychsync_business
+    interval: 5m
+    rules:
+      - alert: HighFailedLoginRate
+        expr: rate(auth_failed_login_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "High rate of failed login attempts"
+          description: "{{ $value }} failed logins per second"
+          action: "Possible brute force attack - check security logs"
+
+      - alert: NoUserSignups
+        expr: increase(user_registrations_total[1h]) == 0 and hour() > 8 and hour() < 22
+        for: 2h
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "No user signups in the last 2 hours"
+          description: "During business hours, no new users have registered"
+          action: "Check signup flow and marketing campaigns"
+
+      - alert: HighAssessmentFailureRate
+        expr: rate(assessment_failed_total[10m]) / rate(assessment_total[10m]) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: "High rate of assessment failures"
+          description: "{{ $value | humanizePercentage }} of assessments are failing"
+          action: "Check assessment service and user feedback"
+
+          
