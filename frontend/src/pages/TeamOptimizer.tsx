@@ -197,7 +197,7 @@ const TeamOptimizer: React.FC = () => {
         existing_team_id: null
       });
 
-      setOptimization(response.data);
+      setOptimization(response.data as OptimizationResult);
       showNotification('Team optimization completed successfully!', 'success');
 
     } catch (err: any) {
@@ -513,7 +513,13 @@ const TeamOptimizer: React.FC = () => {
                           }}
                         />
                         <button
-                          onClick={() => addSkill(member.id, (e.target as HTMLInputElement).value)}
+                          onClick={(e) => {
+                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                            if (input && input.value.trim()) {
+                              addSkill(member.id, input.value.trim());
+                              input.value = '';
+                            }
+                          }}
                           className="px-3 py-1 bg-indigo-600 text-white rounded-r-md text-sm hover:bg-indigo-700"
                         >
                           +
