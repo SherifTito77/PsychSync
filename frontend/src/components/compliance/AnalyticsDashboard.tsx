@@ -172,6 +172,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ classNam
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <MetricCard
+          title="Compliance Score"
           value={analytics.overview.totalComplianceScore}
           unit="%"
           trend={analytics.overview.trend}
@@ -180,21 +181,25 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ classNam
           color="blue"
         />
         <MetricCard
+          title="Total Employees"
           value={analytics.overview.totalEmployees}
           icon={<Users className="w-6 h-6" />}
           color="green"
         />
         <MetricCard
+          title="Completed Training"
           value={analytics.overview.completedTraining}
           icon={<FileText className="w-6 h-6" />}
           color="purple"
         />
         <MetricCard
+          title="Pending Feedback"
           value={analytics.overview.pendingFeedback}
           icon={<AlertTriangle className="w-6 h-6" />}
           color="orange"
         />
         <MetricCard
+          title="Critical Issues"
           value={analytics.overview.criticalIssues}
           icon={<AlertTriangle className="w-6 h-6" />}
           color="red"

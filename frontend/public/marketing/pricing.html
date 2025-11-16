@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing  PsychSync</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        header { background: #2563eb; color: white; padding: 1rem 0; }
+        header h1 { font-size: 2rem; font-weight: 700; }
+        nav { float: right; }
+        nav a { color: white; text-decoration: none; margin-left: 2rem; }
+        .hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4rem 0; text-align: center; }
+        .hero h1 { font-size: 2.5rem; margin-bottom: 1rem; font-weight: 700; }
+        .pricing { padding: 4rem 0; background: #f8fafc; }
+        .pricing h2 { text-align: center; font-size: 2.5rem; margin-bottom: 3rem; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; max-width: 1000px; margin: 0 auto; }
+        .pricing-card { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; transition: transform 0.3s; }
+        .pricing-card:hover { transform: translateY(-5px); }
+        .pricing-card.featured { border: 2px solid #2563eb; transform: scale(1.05); }
+        .plan-name { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #1e293b; }
+        .plan-price { font-size: 3rem; font-weight: 700; color: #2563eb; margin-bottom: 0.5rem; }
+        .plan-price span { font-size: 1rem; color: #64748b; }
+        .plan-description { color: #64748b; margin-bottom: 2rem; }
+        .plan-features { list-style: none; margin-bottom: 2rem; }
+        .plan-features li { padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0; }
+        .plan-features li::before { content: ""; color: #10b981; font-weight: bold; margin-right: 0.5rem; }
+        .btn { display: inline-block; width: 100%; text-align: center; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: background 0.3s; border: none; cursor: pointer; }
+        .btn:hover { background: #1d4ed8; }
+        .btn.secondary { background: transparent; border: 2px solid #2563eb; color: #2563eb; }
+        .btn.secondary:hover { background: #2563eb; color: white; }
+        footer { background: #1e293b; color: white; padding: 2rem 0; text-align: center; }
+        .clearfix::after { content: ""; display: table; clear: both; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container clearfix">
+            <h1>PsychSync</h1>
+            <nav>
+                <a href="landing.html">Home</a>
+                <a href="#features">Features</a>
+                <a href="#" style="color: white; text-decoration: none;">Pricing</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Simple, Transparent Pricing</h1>
+            <p>Choose the plan that fits your team's needs. Start with our free tier and upgrade as you grow.</p>
+        </div>
+    </section>
+
+    <section class="pricing">
+        <div class="container">
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3 class="plan-name">Free</h3>
+                    <div class="plan-price">$0<span>/month</span></div>
+                    <p class="plan-description">Perfect for small teams getting started</p>
+                    <ul class="plan-features">
+                        <li>Up to 5 team members</li>
+                        <li>Basic personality assessments</li>
+                        <li>Simple team optimization</li>
+                        <li>Email support</li>
+                        <li>Basic analytics dashboard</li>
+                    </ul>
+                    <button class="btn secondary">Get Started</button>
+                </div>
+
+                <div class="pricing-card featured">
+                    <h3 class="plan-name">Pro</h3>
+                    <div class="plan-price">$49<span>/month</span></div>
+                    <p class="plan-description">For growing teams that need advanced features</p>
+                    <ul class="plan-features">
+                        <li>Up to 50 team members</li>
+                        <li>All assessment frameworks</li>
+                        <li>Advanced team optimization</li>
+                        <li>Priority support</li>
+                        <li>Advanced analytics & insights</li>
+                        <li>Custom assessment creation</li>
+                        <li>Integration with 3rd party tools</li>
+                    </ul>
+                    <button class="btn">Start Free Trial</button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3 class="plan-name">Enterprise</h3>
+                    <div class="plan-price">Custom</div>
+                    <p class="plan-description">For large organizations with custom needs</p>
+                    <ul class="plan-features">
+                        <li>Unlimited team members</li>
+                        <li>Everything in Pro plus:</li>
+                        <li>Custom assessment frameworks</li>
+                        <li>Dedicated account manager</li>
+                        <li>24/7 phone support</li>
+                        <li>Advanced security features</li>
+                        <li>Custom integrations</li>
+                        <li>On-premise deployment option</li>
+                    </ul>
+                    <button class="btn secondary">Contact Sales</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 PsychSync. All rights reserved.</p>
+            <p>
+                <a href="/legal/privacy.html" style="color: white; margin: 0 1rem;">Privacy Policy</a>
+                <a href="/legal/terms.html" style="color: white; margin: 0 1rem;">Terms of Service</a>
+                <a href="/help/contact.html" style="color: white; margin: 0 1rem;">Contact Us</a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -161,27 +161,28 @@ export const AnonymousFeedbackReview: React.FC<AnonymousFeedbackReviewProps> = (
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard
+          title="Total Feedback"
           value={stats.total}
           icon={<MessageSquare className="w-6 h-6" />}
           color="blue"
         />
         <StatsCard
+          title="Critical Issues"
           value={stats.critical}
           icon={<AlertTriangle className="w-6 h-6" />}
           color="red"
-          sub
         />
         <StatsCard
+          title="High Priority"
           value={stats.high}
           icon={<Scale className="w-6 h-6" />}
           color="orange"
-          sub
         />
         <StatsCard
+          title="Pending Review"
           value={stats.pending}
           icon={<Clock className="w-6 h-6" />}
           color="yellow"
-          sub
         />
       </div>
       {/* Filters */}

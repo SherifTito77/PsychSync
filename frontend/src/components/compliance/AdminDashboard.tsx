@@ -169,7 +169,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
     ));
     showNotification(`User ${action}d successfully`, 'success');
   };
-  const getSeverityColor = (severity: Alert['severity']) => {
+  const getSeverityColor = (severity: Alert['severity']): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (severity) {
       case 'critical': return 'red';
       case 'high': return 'orange';
@@ -178,7 +178,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
       default: return 'gray';
     }
   };
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (status) {
       case 'healthy': case 'active': case 'success': return 'green';
       case 'warning': case 'pending': return 'yellow';
@@ -270,6 +270,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
             {/* Key Metrics Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <MetricCard
+                title="Total Users"
                 value={metrics.totalUsers}
                 icon={<Users className="w-5 h-5" />}
                 color="blue"
@@ -277,6 +278,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
                 trendDirection="up"
               />
               <MetricCard
+                title="Active Users"
                 value={metrics.activeUsers}
                 icon={<Activity className="w-5 h-5" />}
                 color="green"
@@ -284,6 +286,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
                 trendDirection="up"
               />
               <MetricCard
+                title="Compliance Score"
                 value={metrics.complianceScore}
                 unit="%"
                 icon={<Shield className="w-5 h-5" />}
@@ -292,6 +295,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
                 trendDirection="up"
               />
               <MetricCard
+                title="Uptime"
                 value={metrics.uptime}
                 unit="%"
                 icon={<Monitor className="w-5 h-5" />}
@@ -503,6 +507,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
           {/* System Information */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <SystemInfoCard
+              title="System Information"
               icon={<Monitor className="w-8 h-8" />}
               items={[
                 { label: 'Version', value: '2.1.0' },
@@ -513,6 +518,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
               ]}
             />
             <SystemInfoCard
+              title="Database Information"
               icon={<Database className="w-8 h-8" />}
               items={[
                 { label: 'Type', value: 'PostgreSQL' },
@@ -523,6 +529,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
               ]}
             />
             <SystemInfoCard
+              title="Performance Metrics"
               icon={<HardDrive className="w-8 h-8" />}
               items={[
                 { label: 'CPU Usage', value: '45%' },
@@ -533,6 +540,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
               ]}
             />
             <SystemInfoCard
+              title="Security Information"
               icon={<Lock className="w-8 h-8" />}
               items={[
                 { label: 'SSL Certificate', value: 'Valid until 2024-12-31' },
@@ -571,21 +579,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
           {/* Alert Statistics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
+              title="Open Alerts"
               value={alerts.filter(a => a.status === 'open').length}
               icon={<AlertTriangle className="w-5 h-5" />}
               color="red"
             />
             <StatCard
+              title="Critical"
               value={alerts.filter(a => a.severity === 'critical').length}
               icon={<AlertCircle className="w-5 h-5" />}
               color="red"
             />
             <StatCard
+              title="Acknowledged"
               value={alerts.filter(a => a.status === 'acknowledged').length}
               icon={<Eye className="w-5 h-5" />}
               color="yellow"
             />
             <StatCard
+              title="Resolved"
               value={alerts.filter(a => a.status === 'resolved').length}
               icon={<CheckCircle className="w-5 h-5" />}
               color="green"
@@ -876,7 +888,7 @@ const UserRow: React.FC<UserRowProps> = ({ user, onAction, getRoleIcon, getStatu
 interface AlertCardProps {
   alert: Alert;
   onResolve: () => void;
-  getSeverityColor: (severity: Alert['severity']) => string;
+  getSeverityColor: (severity: Alert['severity']) => 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow';
 }
 const AlertCard: React.FC<AlertCardProps> = ({ alert, onResolve, getSeverityColor }) => {
   return (

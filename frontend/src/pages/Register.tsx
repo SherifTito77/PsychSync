@@ -187,10 +187,10 @@ const Register: React.FC = () => {
               </label>
               <input
                 id="name"
-                name="name"
+                name="full_name"
                 type="text"
                 required
-                value={formData.name}
+                value={formData.full_name}
                 onChange={handleChange}
                 disabled={isLoading}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"

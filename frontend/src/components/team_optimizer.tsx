@@ -289,18 +289,22 @@ const TeamOptimizer: React.FC = () => {
           {/* Score Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <ScoreCard
+              title="Overall Score"
               score={optimizedTeam.overall_score}
               color="blue"
             />
             <ScoreCard
+              title="Compatibility"
               score={optimizedTeam.compatibility_score}
               color="green"
             />
             <ScoreCard
+              title="Skill Coverage"
               score={optimizedTeam.skill_coverage_score}
               color="purple"
             />
             <ScoreCard
+              title="Diversity"
               score={optimizedTeam.diversity_score}
               color="orange"
             />

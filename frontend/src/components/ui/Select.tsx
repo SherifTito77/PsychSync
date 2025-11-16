@@ -3,6 +3,7 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
   label?: string;
   error?: string;
   helperText?: string;
+  placeholder?: string;
   options?: { value: string; label: string }[];
   onValueChange?: (value: string) => void;
   children?: React.ReactNode;
@@ -11,6 +12,7 @@ export const Select: React.FC<SelectProps> = ({
   label,
   error,
   helperText,
+  placeholder,
   options,
   onValueChange,
   children,

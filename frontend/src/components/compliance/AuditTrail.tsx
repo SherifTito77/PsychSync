@@ -18,6 +18,7 @@ import {
   TrendingDown,
   BarChart3,
   FileSearch,
+  Info,
   Lock,
   Database,
   Globe,
@@ -436,16 +437,19 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ className = '' }) => {
               color="blue"
             />
             <StatCard
+              title="In Progress"
               value={investigations.filter(i => i.status === 'in_progress').length}
               icon={<RefreshCw className="w-5 h-5" />}
               color="yellow"
             />
             <StatCard
+              title="Critical"
               value={investigations.filter(i => i.severity === 'critical').length}
               icon={<AlertTriangle className="w-5 h-5" />}
               color="red"
             />
             <StatCard
+              title="Resolved"
               value={investigations.filter(i => i.status === 'closed').length}
               icon={<CheckCircle className="w-5 h-5" />}
               color="green"
@@ -702,7 +706,7 @@ interface StatCardProps {
   title: string;
   value: number;
   icon: React.ReactNode;
-  color: 'blue' | 'green' | 'yellow' | 'red' | 'purple';
+  color: 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'orange';
   change?: number;
   trend?: 'up' | 'down';
 }
@@ -713,7 +717,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, change, 
       green: 'bg-green-100 text-green-600',
       yellow: 'bg-yellow-100 text-yellow-600',
       red: 'bg-red-100 text-red-600',
-      purple: 'bg-purple-100 text-purple-600'
+      purple: 'bg-purple-100 text-purple-600',
+      orange: 'bg-orange-100 text-orange-600'
     };
     return colors[color as keyof typeof colors] || colors.blue;
   };
@@ -782,21 +787,25 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ events, investi
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
+          title="Total Events"
           value={totalEvents}
           icon={<Activity className="w-5 h-5" />}
           color="blue"
         />
         <StatCard
+          title="Security Events"
           value={securityEvents}
           icon={<Shield className="w-5 h-5" />}
           color="red"
         />
         <StatCard
+          title="Failed Logins"
           value={failedLogins}
           icon={<XCircle className="w-5 h-5" />}
           color="orange"
         />
         <StatCard
+          title="Critical Events"
           value={criticalEvents}
           icon={<AlertTriangle className="w-5 h-5" />}
           color="red"

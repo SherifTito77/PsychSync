@@ -98,15 +98,12 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
     setError(null);
     try {
       const feedbackResponse = await anonymousFeedbackService.getFeedbackForReview({
-        organization_id: organizationId,
         ...filters,
       });
       setFeedbackData(feedbackResponse);
       // Load statistics
       try {
-        const statsResponse = await anonymousFeedbackService.getFeedbackStatistics({
-          organization_id: organizationId,
-        });
+        const statsResponse = await anonymousFeedbackService.getFeedbackStatistics(organizationId);
         setStatistics(statsResponse);
       } catch (statsErr) {
         console.error('Failed to load statistics:', statsErr);
@@ -153,7 +150,7 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
       setUpdateDialogOpen(false);
       setSelectedFeedback(null);
       setUpdateForm({
-        new_status: '',
+        new_status: 'pending_review',
         internal_notes: '',
         public_notes: '',
         actions_taken: '',
@@ -443,7 +440,7 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
                       </TableCell>
                       <TableCell>
                         <Dialog open={updateDialogOpen && selectedFeedback?.id === feedback.id}>
-                          <DialogTrigger asChild>
+                          <DialogTrigger>
                             <Button
                               variant="outline"
                               size="sm"
@@ -502,7 +499,7 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
                                     </label>
                                     <Select
                                       value={updateForm.new_status}
-                                      onValueChange={(value) => setUpdateForm(prev => ({ ...prev, new_status: value }))}
+                                      onValueChange={(value) => setUpdateForm(prev => ({ ...prev, new_status: value as 'investigating' | 'resolved' | 'closed' | 'pending_review' | 'requires_more_info' | 'escalated' }))}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder="Select new status" />

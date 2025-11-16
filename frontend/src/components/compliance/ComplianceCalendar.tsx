@@ -153,7 +153,7 @@ export const ComplianceCalendar: React.FC<ComplianceCalendarProps> = ({ classNam
     switch (type) {
       case 'training': return <GraduationCap className="w-4 h-4" />;
       case 'audit': return <ClipboardList className="w-4 h-4" />;
-      case 'deadline': return <Clock3 className="w-4 h-4" />;
+      case 'deadline': return <Clock className="w-4 h-4" />;
       case 'meeting': return <Users className="w-4 h-4" />;
       case 'reminder': return <Bell className="w-4 h-4" />;
       case 'certification': return <Award className="w-4 h-4" />;
@@ -240,16 +240,19 @@ export const ComplianceCalendar: React.FC<ComplianceCalendarProps> = ({ classNam
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
+          title="Scheduled"
           value={events.filter(e => e.status === 'scheduled').length}
           icon={<CalendarIcon className="w-5 h-5" />}
           color="blue"
         />
         <StatCard
+          title="Overdue"
           value={events.filter(e => e.status === 'overdue').length}
           icon={<AlertTriangle className="w-5 h-5" />}
           color="red"
         />
         <StatCard
+          title="This Week"
           value={events.filter(e => {
             const eventDate = new Date(e.startDate);
             const now = new Date();
@@ -260,6 +263,7 @@ export const ComplianceCalendar: React.FC<ComplianceCalendarProps> = ({ classNam
           color="purple"
         />
         <StatCard
+          title="Completed"
           value={events.filter(e => e.status === 'completed').length}
           icon={<CheckCircle className="w-5 h-5" />}
           color="green"
