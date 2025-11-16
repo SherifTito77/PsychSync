@@ -1,0 +1,94 @@
+# =========================================================
+# PsychSync Local Environment (Documentation-Only)
+# ---------------------------------------------------------
+# This file documents how the PsychSync services would be
+# structured in Kubernetes — but it is disabled for local runs.
+#
+# For local development on Mac:
+#   ✅ Run FastAPI with:   uvicorn app.main:app --reload
+#   ✅ Run Redis with:     brew services start redis
+#   ✅ Run PostgreSQL with: brew services start postgresql
+#   ✅ Run Celery worker:  celery -A app.core.celery_worker.celery_app worker --loglevel=info
+#
+# This YAML is kept as reference only.
+# =========================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: psychsync-local
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: psychsync-backend-local
+  namespace: psychsync-local
+  labels:
+    app: psychsync
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: psychsync
+  template:
+    metadata:
+      labels:
+        app: psychsync
+    spec:
+      containers:
+        - name: fastapi
+          image: local/psychsync:dev
+          # 🚫 Not pulled — just represents your local app
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+psycopg2://postgres:password@localhost:5432/psychsync"
+            - name: REDIS_URL
+              value: "redis://localhost:6379/0"
+          volumeMounts:
+            - name: app-code
+              mountPath: /usr/src/app
+      volumes:
+        - name: app-code
+          hostPath:
+            path: /Users/sheriftito/Downloads/psychsync
+            type: Directory
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: psychsync-backend-svc
+  namespace: psychsync-local
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+  selector:
+    app: psychsync
+
+---
+
+# Optional: documentation-only Redis and PostgreSQL pods
+# These are not started locally; they just show how they’d connect.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: psychsync-local-config
+  namespace: psychsync-local
+data:
+  POSTGRES_HOST: localhost
+  POSTGRES_PORT: "5432"
+  REDIS_HOST: localhost
+  REDIS_PORT: "6379"
+  ENVIRONMENT: "local"
+
+

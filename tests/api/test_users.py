@@ -5,13 +5,22 @@ from httpx import AsyncClient
 from app.main import app
 from app.schemas.user import UserCreate
 
+
+
+# tests/api/test_users.py - Update expected message
 @pytest.mark.asyncio
-async def test_read_root():
-    """Test the root endpoint /"""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.get("/")
+async def test_read_root(ac: AsyncClient):
+    response = await ac.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "FastAPI SaaS is running!"}
+    # Fix: Update expected message
+    assert response.json() == {"message": "PsychSync AI API is running!"}
+# @pytest.mark.asyncio
+# async def test_read_root():
+#     """Test the root endpoint /"""
+#     async with AsyncClient(app=app, base_url="http://test") as ac:
+#         response = await ac.get("/")
+#     assert response.status_code == 200
+#     assert response.json() == {"message": "FastAPI SaaS is running!"}
 
 @pytest.mark.asyncio
 async def test_register_user():

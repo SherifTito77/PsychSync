@@ -1,0 +1,59 @@
+{
+  "test_suite": "Architecture Validation",
+  "timestamp": "2025-11-14T11:25:59.412771+00:00",
+  "summary": {
+    "total_tests": 4,
+    "passed": 2,
+    "failed": 2,
+    "warnings": 0,
+    "success_rate": 50.0,
+    "total_execution_time": 1.060253620147705
+  },
+  "test_results": [
+    {
+      "test_name": "Layer Separation",
+      "status": "FAIL",
+      "details": "Test execution failed: not enough values to unpack (expected 3, got 2)",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": null,
+      "execution_time": 0.0010251998901367188
+    },
+    {
+      "test_name": "Dependency Injection Validation",
+      "status": "PASS",
+      "details": "Found 8 good DI patterns, no anti-patterns in 6 files",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": null,
+      "execution_time": 0.06411123275756836
+    },
+    {
+      "test_name": "Async/Sync Consistency",
+      "status": "FAIL",
+      "details": "Found 25 files with mixed async/sync, 164 improper async usages",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": "Standardize async patterns and fix improper usage",
+      "execution_time": 0.993847131729126
+    },
+    {
+      "test_name": "Architecture Pattern Compliance",
+      "status": "PASS",
+      "details": "Excellent architecture compliance: 100.0%",
+      "file_path": null,
+      "line_number": null,
+      "suggestion": null,
+      "execution_time": 0.0012700557708740234
+    }
+  ],
+  "recommendations": [
+    "CRITICAL: Fix all failed architecture tests before production deployment",
+    "- Standardize async patterns and fix improper usage",
+    "Implement comprehensive automated testing in CI/CD pipeline",
+    "Consider using dependency injection framework (FastAPI Depends)",
+    "Standardize async patterns throughout the application",
+    "Document architectural decisions and patterns"
+  ],
+  "architecture_grade": "F"
+}

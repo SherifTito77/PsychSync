@@ -1,6 +1,0 @@
-Work Item Type,Title,Description,Effort,Assigned To,Iteration Path,ID
-Epic,Foundation & Planning,Establish technical foundation,,,Saas-sphyco_code,6
-Epic,Core Features Development,Core SaaS platform features,,,Saas-sphyco_code,7
-Epic,Enhancements & Integrations,"Extra features, integrations, security",,,Saas-sphyco_code,8
-Epic,Testing & QA,"Automated tests, manual QA, performance",,,Saas-sphyco_code,9
-Epic,Deployment & Launch,"Production setup, beta, launch",,,Saas-sphyco_code,10

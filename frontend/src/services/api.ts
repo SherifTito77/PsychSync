@@ -1,194 +1,61 @@
-
-// src/services/api.ts
-import { User, Team, ApiResponse, LoginFormData, RegisterFormData } from '../types';
-
-// Get API URL from environment variables
+// // // // // // src/services/api.ts
+// frontend/src/services/api.ts
+import axios from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-class ApiClient {
-  private baseURL: string;
-
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
-    const token = localStorage.getItem('authToken');
-
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-      const data = await response.json();
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: data.message || `HTTP ${response.status}: ${response.statusText}`,
-        };
-      }
-
-      return {
-        success: true,
-        data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error occurred',
-      };
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+// Request interceptor - add auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-  }
-
-  // Authentication endpoints
-  async login(credentials: LoginFormData): Promise<ApiResponse<{ access_token: string; user: User }>> {
-    // Mock implementation - replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return {
-      success: true,
-      data: {
-        access_token: 'mock-token-' + Date.now(),
-        user: {
-          id: 1,
-          name: 'Demo User',
-          email: credentials.email,
-        },
-      },
-    };
-
-    // Real implementation (uncomment when backend is ready):
-    // return this.request<{ access_token: string; user: User }>('/auth/login', {
-    //   method: 'POST',
-    //   body: JSON.stringify(credentials),
-    // });
-  }
-
-  async register(userData: RegisterFormData): Promise<ApiResponse<User>> {
-    // Mock implementation - replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return {
-      success: true,
-      data: {
-        id: Date.now(),
-        name: userData.name,
-        email: userData.email,
-      },
-    };
-
-    // Real implementation (uncomment when backend is ready):
-    // return this.request<User>('/auth/register', {
-    //   method: 'POST',
-    //   body: JSON.stringify(userData),
-    // });
-  }
-
-  async refreshToken(): Promise<ApiResponse<{ access_token: string }>> {
-    return this.request<{ access_token: string }>('/auth/refresh', {
-      method: 'POST',
-    });
-  }
-
-  // Team endpoints
-  async getTeams(): Promise<ApiResponse<Team[]>> {
-    // Mock implementation - replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: [
-        { id: 1, name: 'Frontend Team', status: 'active', description: 'Web development team' },
-        { id: 2, name: 'Backend Team', status: 'active', description: 'API development team' },
-        { id: 3, name: 'QA Team', status: 'inactive', description: 'Quality assurance team' },
-      ],
-    };
-
-    // Real implementation (uncomment when backend is ready):
-    // return this.request<Team[]>('/teams');
-  }
-
-  async createTeam(teamData: Omit<Team, 'id'>): Promise<ApiResponse<Team>> {
-    // Mock implementation - replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        id: Date.now(),
-        ...teamData,
-        status: 'active',
-      },
-    };
-
-    // Real implementation (uncomment when backend is ready):
-    // return this.request<Team>('/teams', {
-    //   method: 'POST',
-    //   body: JSON.stringify(teamData),
-    // });
-  }
-
-  async updateTeam(teamId: number, updateData: Partial<Team>): Promise<ApiResponse<Team>> {
-    // Mock implementation - replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return {
-      success: true,
-      data: {
-        ...updateData,
-        id: teamId,
-      } as Team,
-    };
-
-    // Real implementation (uncomment when backend is ready):
-    // return this.request<Team>(`/teams/${teamId}`, {
-    //   method: 'PUT',
-    //   body: JSON.stringify(updateData),
-    // });
-  }
-
-  async deleteTeam(teamId: number): Promise<ApiResponse<void>> {
-    // Mock implementation - replace with actual API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    return { success: true };
-
-    // Real implementation (uncomment when backend is ready):
-    // return this.request<void>(`/teams/${teamId}`, {
-    //   method: 'DELETE',
-    // });
-  }
-
-  // Health check endpoint
-  async healthCheck(): Promise<ApiResponse<{ status: string; version: string }>> {
-    return this.request<{ status: string; version: string }>('/health');
-  }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
 }
-
-// Export singleton instance
-export const apiClient = new ApiClient(API_BASE_URL);
-
-// Export individual service functions for convenience
-export const authService = {
-  login: (credentials: LoginFormData) => apiClient.login(credentials),
-  register: (userData: RegisterFormData) => apiClient.register(userData),
-  refreshToken: () => apiClient.refreshToken(),
-};
-
-export const teamService = {
-  getTeams: () => apiClient.getTeams(),
-  createTeam: (teamData: Omit<Team, 'id'>) => apiClient.createTeam(teamData),
-  updateTeam: (teamId: number, updateData: Partial<Team>) => apiClient.updateTeam(teamId, updateData),
-  deleteTeam: (teamId: number) => apiClient.deleteTeam(teamId),
-};
+// Response interceptor - handle token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    // If error is 401 and we haven't retried yet
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          // Try to refresh token
+          const response = await axios.post<TokenResponse>(`${API_BASE_URL}/auth/refresh`, {}, {
+            headers: { Authorization: `Bearer ${refreshToken}` }
+          });
+          const { access_token, refresh_token } = response.data;
+          localStorage.setItem('access_token', access_token);
+          localStorage.setItem('refresh_token', refresh_token);
+          // Retry original request with new token
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        // Refresh failed, clear tokens and redirect to login
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+export default api;

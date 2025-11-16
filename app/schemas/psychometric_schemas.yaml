@@ -1,0 +1,65 @@
+
+# ============================================================================
+# FILE 11: app/schemas/psychometric_schemas.py
+# Pydantic schemas for psychometric data
+# ============================================================================
+
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+
+class SessionAnalysisResponse(BaseModel):
+    client_id: str
+    session_id: str
+    session_date: str
+    sentiment_analysis: Dict
+    emotion_analysis: Dict
+    psycholinguistic_markers: Dict
+    linguistic_features: Dict
+    key_insights: List[str]
+    red_flags: List[Dict]
+    analyzed_at: str
+
+class ProgressReportResponse(BaseModel):
+    client_id: str
+    report_period: Dict[str, str]
+    session_count: int
+    trend_analysis: Dict
+    cyclical_patterns: Dict
+    emotional_state: Dict
+    anomalies: Dict
+    progress_level: str
+    recommendations: List[str]
+    generated_at: str
+
+class AssessmentResultResponse(BaseModel):
+    client_id: str
+    assessment_type: str
+    raw_scores: Dict
+    interpreted_results: Dict
+    insights: List[str]
+    metadata: Dict
+    completed_at: str
+
+class PsychometricInsight(BaseModel):
+    insight_type: str
+    severity: str
+    description: str
+    recommendations: Optional[List[str]] = None
+    confidence: float
+
+class EmotionalStateSnapshot(BaseModel):
+    timestamp: datetime
+    dominant_emotion: str
+    emotion_scores: Dict[str, float]
+    stability_score: float
+    risk_indicators: List[str]
+
+class TrendAnalysis(BaseModel):
+    direction: str
+    strength: float
+    confidence: float
+    statistical_significance: bool
+    interpretation: str
+
+

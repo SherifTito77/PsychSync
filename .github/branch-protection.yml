@@ -1,0 +1,43 @@
+# GitHub Branch Protection Rules
+# Apply these settings in GitHub repository settings
+
+# Main Branch Protection
+main:
+  required_status_checks:
+    strict: true
+    contexts:
+      - "Backend Tests (3.9)"
+      - "Backend Tests (3.10)"
+      - "Backend Tests (3.11)"
+      - "Backend Tests (3.12)"
+      - "Frontend Tests"
+      - "Lint Code"
+
+  enforce_admins: true
+  required_pull_request_reviews:
+    required_approving_review_count: 1
+    dismiss_stale_reviews: true
+    require_code_owner_reviews: true
+
+  restrictions: null
+  allow_force_pushes: false
+  allow_deletions: false
+
+# Develop Branch Protection
+develop:
+  required_status_checks:
+    strict: true
+    contexts:
+      - "Backend Tests (3.11)"
+      - "Frontend Tests"
+      - "Lint Code"
+
+  enforce_admins: false
+  required_pull_request_reviews:
+    required_approving_review_count: 1
+    dismiss_stale_reviews: false
+    require_code_owner_reviews: false
+
+  restrictions: null
+  allow_force_pushes: true
+  allow_deletions: false

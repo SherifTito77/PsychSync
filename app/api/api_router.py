@@ -3,7 +3,7 @@
 # app/api/api_router.py
 from fastapi import APIRouter
 from app.api import users, organizations, teams, assessments, predictions, optimization, insights
-
+from fastapi.middleware.cors import CORSMiddleware
 api_router = APIRouter()
 
 # Attach all sub-routers here

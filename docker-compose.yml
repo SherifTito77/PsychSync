@@ -1,0 +1,62 @@
+version: "3.9"
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: psychsync-backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./app:/app/app      # Mount app folder for hot reload
+    env_file:
+      - .env.dev
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - psychsync-network
+    environment:
+      - PYTHONPATH=/app
+
+  db:
+    image: postgres:15-alpine
+    container_name: psychsync-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-psychsync_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-psychsync_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - psychsync-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-psychsync_user} -d ${DB_NAME:-psychsync_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: psychsync-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - psychsync-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+
+networks:
+  psychsync-network:
+    driver: bridge

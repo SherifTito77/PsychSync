@@ -1,0 +1,108 @@
+
+
+# app/db/session.py
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from app.core.config import settings
+
+# Use asyncpg for async PostgreSQL access
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=False, future=True)
+
+# Factory for async sessions
+AsyncSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+    autocommit=False,
+)
+
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
+
+
+
+
+# """ File Path: app/db/session.py
+# Database session configuration - FIXED for sync operation
+# """
+# from sqlalchemy import create_engine
+# from sqlalchemy.orm import sessionmaker, Session
+# from typing import Generator
+# from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+# from app.core.config import settings
+
+# SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://username:password@localhost:5432/psychsync"
+
+# engine = create_async_engine(
+#     SQLALCHEMY_DATABASE_URL,
+#     echo=False,
+#     future=True,
+# )
+
+# # Async session factory
+# AsyncSessionLocal = sessionmaker(
+#     bind=engine,
+#     class_=AsyncSession,
+#     expire_on_commit=False,
+#     autoflush=False,
+#     autocommit=False,
+# )
+
+# # =================================================================
+# # SYNCHRONOUS ENGINE (for FastAPI with standard psycopg2)
+# # =================================================================
+
+# # Create synchronous engine
+# engine = create_engine(
+#     settings.DATABASE_URL,
+#     pool_pre_ping=True,
+#     pool_size=10,
+#     max_overflow=20,
+#     pool_recycle=3600,
+#     echo=settings.ENVIRONMENT == "development"
+# )
+
+# # Create session factory
+# SessionLocal = sessionmaker(
+#     autocommit=False,
+#     autoflush=False,
+#     bind=engine
+# )
+
+# # =================================================================
+# # DEPENDENCY FOR FASTAPI
+# # =================================================================
+
+# def get_db() -> Generator[Session, None, None]:
+#     """
+#     Database session dependency for FastAPI
+    
+#     Usage:
+#         from fastapi import Depends
+#         from sqlalchemy.orm import Session
+        
+#         @app.get("/items")
+#         def get_items(db: Session = Depends(get_db)):
+#             return db.query(Item).all()
+#     """
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     except Exception:
+#         db.rollback()  # Rollback on error
+#         raise
+#     finally:
+#         db.close()
+
+# # =================================================================
+# # CLEANUP (for testing/shutdown)
+# # =================================================================
+
+# def close_db_connection():
+#     """Dispose of the engine connection pool"""
+#     engine.dispose()

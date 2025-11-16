@@ -1,0 +1,71 @@
+# #app/api/dependencies/auth.py
+
+from typing import Optional
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+from jose import jwt, JWTError
+from app.db.session import get_db
+from app.core.config import settings
+from pydantic import BaseModel
+# from app.api.dependencies.auth import fake_users_db
+
+
+
+security = HTTPBearer()
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+# filepath: /Users/sheriftito/Downloads/psychsync/app/api/dependencies/auth.py
+
+fake_users_db = {
+    "testuser@example.com": {
+        "email": "testuser@example.com",
+        "name": "Test User",
+        "is_active": True
+    }
+}
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        token = credentials.credentials
+        print(f"Received token: {token[:20]}...")  # Debug
+        
+        payload = jwt.decode(
+            token, 
+            settings.SECRET_KEY, 
+            algorithms=[settings.ALGORITHM]
+        )
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+            
+        # Return user data - replace with actual database query
+        return {
+            "email": username, 
+            "name": "Test User", 
+            "id": 1, 
+            "is_active": True
+        }
+        
+    except JWTError as e:
+        print(f"JWT Error: {e}")
+        raise credentials_exception
+
+async def get_current_active_user(current_user = Depends(get_current_user)):
+    if not current_user.get("is_active"):
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user

@@ -3,14 +3,14 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from app.core.database import get_async_db
 from app.db.models.team import Team
 from app.schemas import TeamCreate, TeamResponse
 
 router = APIRouter()
 
 @router.post("/", response_model=TeamResponse)
-async def create_team(team: TeamCreate, db: Session = Depends(get_db)):
+async def create_team(team: TeamCreate, db: Session = Depends(get_async_db)):
     db_team = Team(
         name=team.name,
         description=team.description,
@@ -18,8 +18,8 @@ async def create_team(team: TeamCreate, db: Session = Depends(get_db)):
         team_type=team.team_type
     )
     db.add(db_team)
-    db.commit()
-    db.refresh(db_team)
+        await db.commit()
+    await db.refresh(db_team)
     return TeamResponse.from_orm(db_team)
 
 @router.get("/", response_model=list[TeamResponse])

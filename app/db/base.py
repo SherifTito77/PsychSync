@@ -1,14 +1,14 @@
 # app/db/base.py
-from sqlalchemy.orm import DeclarativeBase
+"""
+DEPRECATED - Use app.core.database.Base instead
+This file kept for backward compatibility during migration
+"""
 
-# from sqlalchemy.orm import declarative_base
-# Base = declarative_base()
+# Import the authoritative Base from core.database
+from app.core.database import Base
 
-
-# Central declarative base class
-class Base(DeclarativeBase):
-    """Base for all ORM models. Alembic will import Base.metadata."""
-    pass
+# Legacy alias for backward compatibility
+DeclarativeBase = type(Base)
 
 
 

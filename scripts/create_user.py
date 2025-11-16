@@ -1,33 +1,43 @@
-#scripts/create_user.py   - Script to create a user in the database
+import sys
+from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.core.database import AsyncSessionLocal
+from app.db.models.user import User
 import asyncio
-from app.db.session import async_session
-from app.db.models.user import User  # adjust import if your User model is elsewhere
-from app.db.schemas.user import UserCreate  # your Pydantic schema
-from app.core.security import get_password_hash  # if you have password hashing
+from app.core.security import get_password_hash
 
 async def main():
-    async with async_session() as session:
-        async with session.begin():
-            # Replace with your details
-            user_data = UserCreate(
-                email="test@example.com",
-                password="Test1234",
-                full_name="Test User"
-            )
-            
-            # Hash password
-            hashed_password = get_password_hash(user_data.password)
-            
-            user = User(
-                email=user_data.email,
-                hashed_password=hashed_password,
-                full_name=user_data.full_name
-            )
-            
-            session.add(user)
+    # Create async session
+    async with AsyncSessionLocal() as db:
+        try:
+            # Check if user exists
+            from sqlalchemy import select
+            result = await db.execute(select(User).where(User.email == "admin@example.com"))
+            existing = result.scalar_one_or_none()
 
-        await session.commit()
-        print("User created successfully!")
+            if existing:
+                print("✅ User already exists")
+                return
+
+            # Create user
+            user = User(
+                email="admin@example.com",
+                full_name="Admin User",
+                password_hash=get_password_hash("admin123"),
+                is_active=True
+            )
+
+            db.add(user)
+            await db.commit()
+
+            print("✅ Created user: admin@example.com / admin123")
+
+        except Exception as e:
+            print(f"❌ Error creating user: {e}")
+            await db.rollback()
 
 if __name__ == "__main__":
     asyncio.run(main())

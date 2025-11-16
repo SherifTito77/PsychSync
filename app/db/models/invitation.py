@@ -6,7 +6,7 @@ class Invitation(Base):
     __tablename__ = "invitations"
     id = sa.Column(UUID(as_uuid=True), primary_key=True,
     server_default=sa.text("gen_random_uuid()"))
-    org_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('organizations.id',
+    organization_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('organizations.id',
     ondelete='CASCADE'), nullable=False)
     email = sa.Column(CITEXT, nullable=False)
     token = sa.Column(sa.Text, nullable=False, unique=True)

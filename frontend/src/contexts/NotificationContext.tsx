@@ -1,10 +1,13 @@
-// src/contexts/NotificationContext.tsx
-import React, { createContext, useContext, useState } from 'react';
-import { NotificationContextType } from '../types/contexts';
+// // src/contexts/NotificationContext.tsx
+// src/contexts/NotificationContext.tsx - Notification Management Context
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Notification } from '../types';
-
+interface NotificationContextType {
+  notifications: Notification[];
+  showNotification: (message: string, type?: Notification['type'], duration?: number) => void;
+  removeNotification: (id: number) => void;
+}
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
-
 export const useNotification = (): NotificationContextType => {
   const context = useContext(NotificationContext);
   if (!context) {
@@ -12,10 +15,11 @@ export const useNotification = (): NotificationContextType => {
   }
   return context;
 };
-
-export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface NotificationProviderProps {
+  children: ReactNode;
+}
+export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-
   const showNotification = (
     message: string,
     type: Notification['type'] = 'info',
@@ -26,28 +30,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       id,
       message,
       type,
-      duration
+      duration,
     };
-
-    setNotifications(prev => [...prev, notification]);
-
+    setNotifications((prev) => [...prev, notification]);
     if (duration > 0) {
       setTimeout(() => {
         removeNotification(id);
       }, duration);
     }
   };
-
   const removeNotification = (id: number): void => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
+    setNotifications((prev) => prev.filter((notif) => notif.id !== id));
   };
-
   const value: NotificationContextType = {
     notifications,
     showNotification,
-    removeNotification
+    removeNotification,
   };
-
   return (
     <NotificationContext.Provider value={value}>
       {children}

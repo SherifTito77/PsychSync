@@ -16,7 +16,7 @@ class OrgMember(Base):
         sa.ForeignKey("users.id"),
         nullable=False
     )
-    org_id = sa.Column(
+    organization_id = sa.Column(
         UUID(as_uuid=True),
         sa.ForeignKey("organizations.id"),
         nullable=False
@@ -53,7 +53,7 @@ class OrgMember(Base):
 #         sa.ForeignKey("users.id"),
 #         nullable=False
 #     )
-#     org_id = sa.Column(
+#     organization_id = sa.Column(
 #         UUID(as_uuid=True),
 #         sa.ForeignKey("organizations.id"),
 #         nullable=False
@@ -83,8 +83,8 @@ class OrgMember(Base):
 
 
 # # id = sa.Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()"))
-# # org_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
+# # organization_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False)
 # # user_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 # # role_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey('roles.id'), nullable=False)
 # # created_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
-# # __table_args__ = (sa.UniqueConstraint('org_id', 'user_id', name='uq_org_user'),)
+# # __table_args__ = (sa.UniqueConstraint('organization_id', 'user_id', name='uq_org_user'),)

@@ -1,0 +1,188 @@
+# docker-compose.free.yml - Cost-Free Localhost Development Environment
+# Uses only open-source tools and services
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Free)
+  db:
+    image: postgres:15-alpine
+    container_name: psychsync_free_db
+    environment:
+      POSTGRES_DB: psychsync_db
+      POSTGRES_USER: psychsync_user
+      POSTGRES_PASSWORD: psychsync_password_123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_free:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+
+  # Redis Cache (Free)
+  redis:
+    image: redis:7-alpine
+    container_name: psychsync_free_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_free:/data
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # FastAPI Backend (Free Python)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.free
+    container_name: psychsync_free_backend
+    environment:
+      DATABASE_URL: postgresql://psychsync_user:psychsync_password_123@db:5432/psychsync_db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: free-dev-secret-key-change-in-production-psychsync-2024
+      ENVIRONMENT: development
+      DEBUG: true
+      EMAIL_ENCRYPTION_KEY: your-fernet-key-here-generate-with-python
+      ENABLE_NLP_PROCESSING: true
+      NLP_ENGINE: free  # Use free NLP models
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./ai:/app/ai
+      - ./requirements.txt:/app/requirements.txt
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker (Free for background tasks)
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.free
+    container_name: psychsync_free_celery_worker
+    environment:
+      DATABASE_URL: postgresql://psychsync_user:psychsync_password_123@db:5432/psychsync_db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: free-dev-secret-key-change-in-production-psychsync-2024
+      ENVIRONMENT: development
+      DEBUG: true
+      EMAIL_ENCRYPTION_KEY: your-fernet-key-here-generate-with-python
+      ENABLE_NLP_PROCESSING: true
+      NLP_ENGINE: free
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - ./app:/app/app
+      - ./ai:/app/ai
+      - ./requirements.txt:/app/requirements.txt
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+    command: celery -A app.core.celery worker --loglevel=info --concurrency=2
+
+  # Celery Beat Scheduler (Free for periodic tasks)
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.free
+    container_name: psychsync_free_celery_beat
+    environment:
+      DATABASE_URL: postgresql://psychsync_user:psychsync_password_123@db:5432/psychsync_db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: free-dev-secret-key-change-in-production-psychsync-2024
+      ENVIRONMENT: development
+      DEBUG: true
+      EMAIL_ENCRYPTION_KEY: your-fernet-key-here-generate-with-python
+      ENABLE_NLP_PROCESSING: true
+      NLP_ENGINE: free
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - ./app:/app/app
+      - ./ai:/app/ai
+      - ./requirements.txt:/app/requirements.txt
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+    command: celery -A app.core.celery beat --loglevel=info
+
+  # Frontend (Free React/Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.free
+    container_name: psychsync_free_frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+      VITE_ENVIRONMENT: development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/package.json:/app/package.json
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+
+  # pgAdmin (Free PostgreSQL Management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: psychsync_free_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@psychsync.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data_free:/var/lib/pgadmin
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+
+  # Redis Commander (Free Redis Management)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: psychsync_free_redis_commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - psychsync_free_network
+
+volumes:
+  postgres_data_free:
+  redis_data_free:
+  pgadmin_data_free:
+
+networks:
+  psychsync_free_network:
+    driver: bridge
