@@ -47,7 +47,8 @@
       "Bash(./scripts/fix-typescript-errors.sh:*)",
       "Bash(git commit:*)",
       "Bash(npm test:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ]
   },
   "outputStyle": "Learning"
