@@ -1,0 +1,203 @@
+{
+  "gdpr_compliance_summary": {
+    "total_tests": 5,
+    "passed": 0,
+    "failed": 3,
+    "warnings": 0,
+    "errors": 0,
+    "critical": 2,
+    "skipped": 0,
+    "overall_status": "CRITICAL_VIOLATION",
+    "average_compliance_score": 5.0,
+    "execution_time": 85.22231721878052,
+    "legal_risk_level": "HIGH"
+  },
+  "gdpr_test_results": [
+    {
+      "scenario_id": "gdpr_data_portability",
+      "scenario_type": "data_portability",
+      "result": "fail",
+      "execution_time": 20.09795594215393,
+      "compliance_score": 0,
+      "error_message": null,
+      "violation_details": "Export format JSON failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Export format CSV failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Response time exceeds compliance threshold: 0.00s; No machine-readable format available",
+      "legal_basis_verified": true,
+      "data_access_points": [
+        "/api/v1/users/gdpr_user_001/export"
+      ],
+      "consent_records": {
+        "data_export": {
+          "granted": true,
+          "timestamp": "2025-12-13T11:24:43.918390"
+        }
+      },
+      "deletion_timeline": null,
+      "anonymization_verified": false,
+      "recommendations": [
+        "Implement missing export formats",
+        "Fix data completeness issues",
+        "Optimize export API performance",
+        "Ensure GDPR Article 20 compliance"
+      ],
+      "timestamp": "2025-12-13T11:24:43.918484"
+    },
+    {
+      "scenario_id": "right_to_erasure_30_days",
+      "scenario_type": "right_to_erasure",
+      "result": "critical",
+      "execution_time": 30.05397605895996,
+      "compliance_score": 0,
+      "error_message": null,
+      "violation_details": "Deletion request API error: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Identity verification test failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Partial deletion test failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)",
+      "legal_basis_verified": true,
+      "data_access_points": [
+        "/api/v1/users/gdpr_user_002/request-deletion"
+      ],
+      "consent_records": {},
+      "deletion_timeline": null,
+      "anonymization_verified": false,
+      "recommendations": [
+        "Implement proper deletion request handling",
+        "Add identity verification requirements",
+        "Document 30-day compliance procedures",
+        "URGENT: Fix GDPR Article 17 compliance"
+      ],
+      "timestamp": "2025-12-13T11:25:13.972750"
+    },
+    {
+      "scenario_id": "cookie_consent_rules",
+      "scenario_type": "cookie_consent",
+      "result": "fail",
+      "execution_time": 30.18828320503235,
+      "compliance_score": 0,
+      "error_message": null,
+      "violation_details": "Insufficient cookie consent elements detected; Granular consent test failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Consent recording test failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Pre-consent blocking test failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)",
+      "legal_basis_verified": true,
+      "data_access_points": [],
+      "consent_records": {
+        "cookie_consent": {
+          "granular_options": true,
+          "recording_enabled": true,
+          "pre_consent_blocking": true,
+          "last_tested": "2025-12-13T11:25:44.161137"
+        }
+      },
+      "deletion_timeline": null,
+      "anonymization_verified": false,
+      "recommendations": [
+        "Implement proper cookie consent banner",
+        "Add granular consent categories",
+        "Fix consent recording system",
+        "Implement pre-consent blocking"
+      ],
+      "timestamp": "2025-12-13T11:25:44.161181"
+    },
+    {
+      "scenario_id": "psychometric_profile_export",
+      "scenario_type": "profile_export",
+      "result": "fail",
+      "execution_time": 1.739501953125,
+      "compliance_score": 0,
+      "error_message": null,
+      "violation_details": "Psychometric profile export failed: HTTP 404",
+      "legal_basis_verified": true,
+      "data_access_points": [
+        "/api/v1/users/gdpr_user_001/psychometric-profile/export"
+      ],
+      "consent_records": {},
+      "deletion_timeline": null,
+      "anonymization_verified": false,
+      "recommendations": [
+        "Fix psychometric profile export functionality",
+        "Ensure all required data components are included",
+        "Implement data accuracy validation",
+        "Add proper export metadata"
+      ],
+      "timestamp": "2025-12-13T11:25:45.900755"
+    },
+    {
+      "scenario_id": "data_anonymization_after_deletion",
+      "scenario_type": "data_anonymization",
+      "result": "critical",
+      "execution_time": 3.1426000595092773,
+      "compliance_score": 25,
+      "error_message": null,
+      "violation_details": "Anonymization API failed: HTTP 404; Data check API not available; Data retention policy not accessible",
+      "legal_basis_verified": true,
+      "data_access_points": [
+        "/api/v1/admin/anonymize-user-data",
+        "/api/v1/users/gdpr_user_002/data-check"
+      ],
+      "consent_records": {},
+      "deletion_timeline": null,
+      "anonymization_verified": false,
+      "recommendations": [
+        "URGENT: Implement proper data anonymization",
+        "Fix pseudonymization processes",
+        "Document retention policies",
+        "Ensure complete sensitive data removal"
+      ],
+      "timestamp": "2025-12-13T11:25:49.043521"
+    }
+  ],
+  "compliance_gaps": {
+    "critical_violations": [
+      "GDPRTestResult(scenario_id='right_to_erasure_30_days', scenario_type=<GDPRTestScenario.RIGHT_TO_ERASURE: 'right_to_erasure'>, result=<TestResult.CRITICAL: 'critical'>, execution_time=30.05397605895996, compliance_score=0, error_message=None, violation_details=\"Deletion request API error: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Identity verification test failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10); Partial deletion test failed: HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=10)\", data_access_points=['/api/v1/users/gdpr_user_002/request-deletion'], legal_basis_verified=True, consent_records={}, deletion_timeline=None, anonymization_verified=False, recommendations=['Implement proper deletion request handling', 'Add identity verification requirements', 'Document 30-day compliance procedures', 'URGENT: Fix GDPR Article 17 compliance'], timestamp=datetime.datetime(2025, 12, 13, 11, 25, 13, 972750))",
+      "GDPRTestResult(scenario_id='data_anonymization_after_deletion', scenario_type=<GDPRTestScenario.DATA_ANONYMIZATION: 'data_anonymization'>, result=<TestResult.CRITICAL: 'critical'>, execution_time=3.1426000595092773, compliance_score=25, error_message=None, violation_details='Anonymization API failed: HTTP 404; Data check API not available; Data retention policy not accessible', data_access_points=['/api/v1/admin/anonymize-user-data', '/api/v1/users/gdpr_user_002/data-check'], legal_basis_verified=True, consent_records={}, deletion_timeline=None, anonymization_verified=False, recommendations=['URGENT: Implement proper data anonymization', 'Fix pseudonymization processes', 'Document retention policies', 'Ensure complete sensitive data removal'], timestamp=datetime.datetime(2025, 12, 13, 11, 25, 49, 43521))"
+    ],
+    "compliance_warnings": [],
+    "legal_recommendations": [
+      "URGENT: Implement proper data anonymization",
+      "URGENT: Fix GDPR Article 17 compliance"
+    ],
+    "improvement_areas": [
+      "Implement proper cookie consent banner",
+      "Fix pseudonymization processes",
+      "Document retention policies",
+      "Implement pre-consent blocking",
+      "Ensure GDPR Article 20 compliance",
+      "Fix psychometric profile export functionality",
+      "Add identity verification requirements",
+      "Ensure all required data components are included",
+      "Ensure complete sensitive data removal",
+      "Fix data completeness issues",
+      "Add proper export metadata",
+      "Implement data accuracy validation",
+      "Implement missing export formats",
+      "Add granular consent categories",
+      "Fix consent recording system",
+      "Optimize export API performance",
+      "Document 30-day compliance procedures",
+      "Implement proper deletion request handling"
+    ]
+  },
+  "gdpr_articles_assessed": [
+    {
+      "article": "Article 15 - Right of Access",
+      "status": "Assessed via data portability tests",
+      "compliant": false
+    },
+    {
+      "article": "Article 16 - Right to Rectification",
+      "status": "Assessed via profile export tests",
+      "compliant": true
+    },
+    {
+      "article": "Article 17 - Right to Erasure",
+      "status": "Assessed via deletion request tests",
+      "compliant": false
+    },
+    {
+      "article": "Article 20 - Right to Data Portability",
+      "status": "Assessed via data export tests",
+      "compliant": true
+    },
+    {
+      "article": "Article 5(1)(b) - Data Minimisation",
+      "status": "Assessed via anonymization tests",
+      "compliant": false
+    }
+  ],
+  "timestamp": "2025-12-13T11:25:49.043982",
+  "report_type": "GDPR_COMPLIANCE_ASSESSMENT"
+}

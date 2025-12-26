@@ -18,6 +18,10 @@ RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
     pip install uvicorn
 
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 # Copy app code and Alembic
 COPY app /app/app
 COPY app/alembic /app/alembic

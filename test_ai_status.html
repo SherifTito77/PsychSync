@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Status Test</title>
+</head>
+<body>
+    <h1>AI Engine Status Test</h1>
+    <button onclick="testAIStatus()">Test AI Status</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAIStatus() {
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/personality-assessments/frameworks');
+                const data = await response.json();
+
+                if (data.frameworks && Object.keys(data.frameworks).length > 0) {
+                    document.getElementById('result').innerHTML = `
+                        <h2 style="color: green;">✅ AI Engine Operational</h2>
+                        <p>Available frameworks: ${Object.keys(data.frameworks).length}</p>
+                        <ul>
+                            ${Object.keys(data.frameworks).map(f => `<li>${f}</li>`).join('')}
+                        </ul>
+                    `;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <h2 style="color: red;">❌ AI Engine Unavailable</h2>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h2 style="color: red;">❌ AI Engine Error</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -19,6 +19,11 @@ RUN npm run build
 # Install serve for production
 RUN npm install -g serve
 
+# Create non-root user
+RUN useradd -m -u 1000 nodeuser && chown -R nodeuser:nodeuser /app
+USER nodeuser
+
+
 # Expose port
 EXPOSE 5173
 

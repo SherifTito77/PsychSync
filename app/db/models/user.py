@@ -1,9 +1,17 @@
 # app/db/models/user.py
-from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Index
+from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Index, Enum, ARRAY
 from sqlalchemy.dialects.postgresql import UUID, CITEXT, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.db.base import Base
+from enum import Enum as PyEnum
+from app.core.database import Base
+
+
+class UserRole(PyEnum):
+    """User role enumeration"""
+    ADMIN = "ADMIN"
+    USER = "USER"
+    TEAM_LEAD = "TEAM_LEAD"
 
 
 class User(Base):
@@ -19,6 +27,7 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     full_name = Column(Text, nullable=True)
     avatar_url = Column(Text, nullable=True)
+    role = Column(Enum(UserRole), nullable=False, default=UserRole.USER)
     is_active = Column(Boolean, nullable=False, server_default='true')
 
     # Additional fields for comprehensive user management
@@ -38,7 +47,12 @@ class User(Base):
     # Password reset
     password_reset_token = Column(Text, nullable=True)
     password_reset_expires = Column(DateTime(timezone=True), nullable=True)
-    
+
+    # Two-Factor Authentication (2FA)
+    two_factor_enabled = Column(Boolean, nullable=False, server_default='false')
+    two_factor_secret = Column(String(255), nullable=True)  # TOTP secret
+    two_factor_recovery_codes = Column(ARRAY(String), nullable=True)  # Backup recovery codes
+
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
@@ -52,9 +66,10 @@ class User(Base):
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     
-    # Foreign keys - temporarily removed constraint
+    # Foreign keys
     organization_id = Column(
         UUID(as_uuid=True),
+        ForeignKey('organizations.id'),  # Add foreign key constraint
         nullable=True,  # Make nullable if not all users have orgs
         index=True  # Add index for performance
     )
@@ -67,8 +82,8 @@ class User(Base):
     #     lazy="dynamic"
     # )
 
-    # Organization relationship - temporarily commented out to avoid circular import
-    # organization = relationship("Organization", back_populates="users", lazy="joined")
+    # Organization relationship - properly configured
+    organization = relationship("Organization", back_populates="users", lazy="joined")
 
     # Define table indexes for performance
     __table_args__ = (
@@ -79,8 +94,28 @@ class User(Base):
     )
 
     # Other relationships (add as needed)
-    # assessments_created = relationship("Assessment", back_populates="created_by")
-    # team_memberships = relationship("TeamMember", back_populates="user")
+    assessments_created = relationship("Assessment", back_populates="created_by")
+    teams_created = relationship("Team", back_populates="created_by")
+    team_memberships = relationship("TeamMember", back_populates="user")
+    responses = relationship("Response", back_populates="user")
+
+    # Intervention relationships
+    created_interventions = relationship("Intervention", back_populates="created_by_user")
+    intervention_participations = relationship("InterventionParticipant", back_populates="user")
+    pre_intervention_measurements = relationship("PreInterventionMeasurement", back_populates="user")
+    post_intervention_measurements = relationship("PostInterventionMeasurement", back_populates="user")
+
+    # Growth trajectory relationships
+    growth_trajectories = relationship("GrowthTrajectory", back_populates="user")
+    growth_potential_analyses = relationship("GrowthPotentialAnalysis", back_populates="user")
+
+    # Employee Safety relationships
+    reported_incidents = relationship("SafetyIncident", foreign_keys="SafetyIncident.reporter_id", back_populates="reporter")
+    involved_incidents = relationship("SafetyIncident", foreign_keys="SafetyIncident.affected_user_id", back_populates="affected_user")
+    investigated_incidents = relationship("SafetyIncident", foreign_keys="SafetyIncident.investigator_id", back_populates="investigator")
+    wellness_assessments = relationship("WellnessAssessment", back_populates="user")
+    wellness_alerts = relationship("WellnessAlert", back_populates="user")
+    safety_training_completions = relationship("SafetyTrainingCompletion", back_populates="user")
 
     # Email Analysis Relationships - Temporarily disabled due to missing tables
     # email_connections = relationship("EmailConnection", back_populates="user", cascade="all, delete-orphan")

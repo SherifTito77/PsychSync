@@ -1,10 +1,24 @@
+
+# TODO(human): Add audit logging calls to security-critical endpoints
+# Example:
+# await audit_logger.log_event(
+#     action=AuditAction.AUTHENTICATE,
+#     user_id=str(user.id),
+#     details={"email": user.email, "success": True}
+# )
+
 from typing import List, Optional
+
+from app.api.v1.deps import get_current_user
+
+from app.middleware.rate_limiter import check_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_active_superuser
 from app.schemas.user import UserOut as UserSchema
 from app.db.models.user import User as UserModel
+from app.core.audit_logging import audit_logger, AuditAction
 # Temporarily disabled due to syntax issues after async conversion
 # from app.services.user_service import get_users_by_organization, delete_user, restore_user, get_all_users
 
@@ -28,6 +42,8 @@ async def get_all_users(db, skip=0, limit=100, is_active=None):
 router = APIRouter()
 
 # All endpoints in this file require a superuser
+
+@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
 @router.get("/users", response_model=List[UserSchema])
 def list_all_users(
     db: Session = Depends(get_db),
@@ -57,17 +73,19 @@ def soft_delete_user(
     success = delete_user(db, user_id=user_id, hard_delete=False)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=sta
+@check_rate_limit(identifier="public", endpoint_type="public")
+tus.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     return {"message": "User deactivated successfully"}
 
 
-@router.post("/users/{user_id}/restore", status_code=status.HTTP_200_OK)
+@router.post("/users/{user_id}/restore", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
 def restore_user_endpoint(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_superuser)
+    current_user: UserModel = Depends(get_current_active_, dependencies=[Depends(get_current_user)]superuser)
 ):
     """
     Restore a soft-deleted user. Requires superuser privileges.
@@ -80,4 +98,4 @@ def restore_user_endpoint(
         )
     return {"message": "User restored successfully"}
 
-# You would also add endpoints for managing organizations, teams, assessments, etc. here.
+# You would also add endpoints for managing organizations, teams, assessments, etc. here., dependencies=[Depends(get_current_user)]

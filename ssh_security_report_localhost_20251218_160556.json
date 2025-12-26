@@ -1,0 +1,48 @@
+{
+  "scan_time": "2025-12-18T16:05:56.937787",
+  "target": "localhost:22",
+  "connectivity_test": false,
+  "configuration_analysis": {
+    "config_file_found": true,
+    "security_settings": {
+      "PasswordAuthentication": "yes",
+      "PubkeyAuthentication": "yes",
+      "PermitEmptyPasswords": "no",
+      "X11Forwarding": "no",
+      "MaxAuthTries": "6",
+      "LoginGraceTime": "2",
+      "ClientAliveInterval": "0",
+      "Port": "22"
+    },
+    "vulnerabilities": [
+      "INSECURE Password authentication: yes - Should be no",
+      "INSECURE LoginGraceTime: 2s (should be 30-60s)",
+      "INSECURE ClientAliveInterval: 0s (should be 300-900s)",
+      "DEFAULT SSH PORT: Using port 22 - Consider changing to non-standard port"
+    ],
+    "hardening_score": 55
+  },
+  "brute_force_test": {},
+  "security_recommendations": [
+    "SSH port not accessible - No services exposed on port 22",
+    "\u2022 Change default SSH port from 22 to a non-standard port (e.g., 2222, 2022)",
+    "\u2022 Disable root login: PermitRootLogin no",
+    "\u2022 Disable password authentication: PasswordAuthentication no",
+    "\u2022 Require public key authentication only: PubkeyAuthentication yes",
+    "\u2022 Disable empty passwords: PermitEmptyPasswords no",
+    "\u2022 Set maximum authentication attempts: MaxAuthTries 3-6",
+    "\u2022 Set reasonable login timeout: LoginGraceTime 30-60",
+    "\u2022 Enable client keep-alive: ClientAliveInterval 600",
+    "\u2022 Disable X11 forwarding if not needed: X11Forwarding no",
+    "\u2022 Limit SSH users to specific groups if possible",
+    "\u2022 Install and configure fail2ban for SSH protection",
+    "\u2022 Configure automatic IP blocking for failed attempts",
+    "\u2022 Implement connection rate limiting at firewall level",
+    "\u2022 Use IP whitelisting for SSH access",
+    "\u2022 Consider VPN access for administrative SSH",
+    "\u2022 Monitor authentication logs regularly",
+    "\u2022 Set up alerts for suspicious login patterns",
+    "\u2022 Use SSH keys with strong passphrases",
+    "\u2022 Implement account lockout policies"
+  ]
+}

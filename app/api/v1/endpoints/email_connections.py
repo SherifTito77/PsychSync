@@ -5,6 +5,8 @@ OAuth integration and email connection management
 """
 
 from typing import List, Dict, Any, Optional
+
+from app.middleware.rate_limiter import check_rate_limit
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -79,6 +81,8 @@ class EmailSyncResponse(BaseModel):
     error_message: Optional[str] = None
 
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/connect/oauth-url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
     provider: EmailProvider,
@@ -105,7 +109,9 @@ async def get_oauth_url(
         logger.error(f"Error generating OAuth URL: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate OAuth authorization URL"
+            
+@check_rate_limit(identifier="public", endpoint_type="public")
+detail="Failed to generate OAuth authorization URL"
         )
 
 
@@ -141,7 +147,9 @@ async def handle_oauth_callback(
     except Exception as e:
         logger.error(f"Error handling OAuth callback: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        
+@check_rate_limit(identifier="public", endpoint_type="public")
+    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to complete OAuth authentication"
         )
 
@@ -349,7 +357,7 @@ async def sync_emails(
         )
 
 
-@router.delete("/{connection_id}", response_model=Dict[str, str])
+@router.delete("/{connection_id}", response_model=Dict[str, str], dependencies=[Depends(get_current_user)])
 async def disconnect_email(
     connection_id: str,
     current_user: User = Depends(get_current_user),

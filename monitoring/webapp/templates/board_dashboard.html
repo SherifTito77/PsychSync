@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Board Dashboard - PsychSync</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .header-subtitle {
+            color: #94a3b8;
+            margin-top: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .header-info {
+            display: flex;
+            gap: 2rem;
+            text-align: right;
+        }
+
+        .header-info .meeting-date {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .header-info .next-meeting {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .executive-summary {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .summary-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .summary-card {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .summary-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #3b82f6;
+            margin-bottom: 0.75rem;
+        }
+
+        .summary-card p {
+            color: #64748b;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .kpi-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-metric {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-title {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .kpi-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .kpi-change {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .kpi-change.positive {
+            color: #16a34a;
+        }
+
+        .kpi-change.negative {
+            color: #dc2626;
+        }
+
+        .section {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+        }
+
+        .strategic-initiatives {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .initiative-card {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .initiative-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .initiative-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .initiative-roi {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #16a34a;
+        }
+
+        .initiative-description {
+            color: #64748b;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .initiative-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .progress-container {
+            margin-top: 1rem;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-on-track {
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        }
+
+        .progress-at-risk {
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .progress-delayed {
+            background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .governance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .governance-metric {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .governance-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3b82f6;
+            margin-bottom: 0.5rem;
+        }
+
+        .governance-label {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .decision-items {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .decision-item {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .decision-item:last-child {
+            border-bottom: none;
+        }
+
+        .decision-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .decision-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .decision-impact {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #16a34a;
+        }
+
+        .decision-description {
+            color: #64748b;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .decision-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .approve-button {
+            background: #dcfce7;
+            color: #16a34a;
+            border: 1px solid #16a34a;
+        }
+
+        .approve-button:hover {
+            background: #bbf7d0;
+        }
+
+        .discuss-button {
+            background: #fef3c7;
+            color: #d97706;
+            border: 1px solid #d97706;
+        }
+
+        .discuss-button:hover {
+            background: #fde68a;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s ease;
+        }
+
+        .tab:hover {
+            background: #f8fafc;
+        }
+
+        .tab.active {
+            background: white;
+            color: #3b82f6;
+            border: 1px solid #e2e8f0;
+            border-bottom: 1px solid white;
+            margin-bottom: -2px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 1rem;
+        }
+
+        .action-panel {
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .action-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .action-description {
+            font-size: 1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .action-button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .primary-action {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 1rem 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .primary-action:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .header-info {
+                text-align: center;
+            }
+
+            .summary-grid,
+            .kpi-overview,
+            .governance-metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>Board Dashboard</h1>
+                <div class="header-subtitle">Strategic oversight and governance intelligence</div>
+            </div>
+            <div class="header-info">
+                <div class="meeting-date">Q4 2024 Board Meeting</div>
+                <div class="next-meeting">Next: December 15, 2024</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Executive Summary -->
+        <div class="executive-summary">
+            <h2 class="summary-title">Executive Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3>📈 Strategic Performance</h3>
+                    <p>Exceptional 400% year-over-year growth with strong product-market fit indicated by 115% NRR and 68% competitive win rate. Premium services scaling achieving 70% gross margins.</p>
+                </div>
+                <div class="summary-card">
+                    <h3>🎯 Market Positioning</h3>
+                    <p>Establishing leadership in HR behavioral intelligence with 0.8% market share growing to 2.5% target. Scientific differentiation provides strong competitive moat and premium positioning.</p>
+                </div>
+                <div class="summary-card">
+                    <h3>💰 Financial Health</h3>
+                    <p>Strong financial foundation with 82% gross margin, $2.7M ARR growing to $13.5M target. Healthy unit economics with 16.8x LTV:CAC ratio and 24-month runway.</p>
+                </div>
+                <div class="summary-card">
+                    <h3>🏆 Strategic Priorities</h3>
+                    <p>Scale enterprise sales, accelerate international expansion, develop advanced AI capabilities, and prepare for Series B financing. Focus on maintaining growth momentum while building sustainable competitive advantages.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Performance Indicators -->
+        <div class="kpi-overview">
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Annual Recurring Revenue</div>
+                    <div class="kpi-badge badge-success">On Track</div>
+                </div>
+                <div class="kpi-value">$13.5M</div>
+                <div class="kpi-change positive">↑ 400% YoY growth</div>
+            </div>
+
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Net Revenue Retention</div>
+                    <div class="kpi-badge badge-success">Healthy</div>
+                </div>
+                <div class="kpi-value">115%</div>
+                <div class="kpi-change positive">↑ 7% vs target 140%</div>
+            </div>
+
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Gross Margin</div>
+                    <div class="kpi-badge badge-warning">Improving</div>
+                </div>
+                <div class="kpi-value">82%</div>
+                <div class="kpi-change positive">↑ 3% vs target 85%</div>
+            </div>
+
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Market Share</div>
+                    <div class="kpi-badge badge-success">Growing</div>
+                </div>
+                <div class="kpi-value">0.8%</div>
+                <div class="kpi-change positive">↑ 0.3% toward 2.5% target</div>
+            </div>
+
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Win Rate vs Competitors</div>
+                    <div class="kpi-badge badge-success">Strong</div>
+                </div>
+                <div class="kpi-value">68%</div>
+                <div class="kpi-change positive">↑ 16% vs target 75%</div>
+            </div>
+
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Customer Satisfaction</div>
+                    <div class="kpi-badge badge-success">Excellent</div>
+                </div>
+                <div class="kpi-value">4.5/5</div>
+                <div class="kpi-change positive">↑ 0.3 toward 4.7 target</div>
+            </div>
+
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Customer Acquisition Cost</div>
+                    <div class="kpi-badge badge-success">Optimized</div>
+                </div>
+                <div class="kpi-value">$2,500</div>
+                <div class="kpi-change positive">↓ 22% improvement</div>
+            </div>
+
+            <div class="kpi-metric">
+                <div class="kpi-header">
+                    <div class="kpi-title">Services Utilization</div>
+                    <div class="kpi-badge badge-success">Expanding</div>
+                </div>
+                <div class="kpi-value">75%</div>
+                <div class="kpi-change positive">↑ 7% toward 85% target</div>
+            </div>
+        </div>
+
+        <!-- Tabbed Content -->
+        <div class="tab-container">
+            <button class="tab active" onclick="showTab('initiatives')">Strategic Initiatives</button>
+            <button class="tab" onclick="showTab('governance')">Governance</button>
+            <button class="tab" onclick="showTab('decisions')">Board Decisions</button>
+            <button class="tab" onclick="showTab('performance')">Performance</button>
+        </div>
+
+        <!-- Strategic Initiatives Tab -->
+        <div id="initiatives" class="tab-content active">
+            <div class="section">
+                <h2 class="section-title">Strategic Initiatives Progress</h2>
+                <div class="strategic-initiatives">
+                    <div class="initiative-card">
+                        <div class="initiative-header">
+                            <h3 class="initiative-title">Enterprise Pricing Realignment</h3>
+                            <div class="initiative-roi">7.0x ROI</div>
+                        </div>
+                        <div class="initiative-description">
+                            Increase enterprise-tier pricing to reflect true market value and premium positioning with 54% price increase and 46% net revenue lift.
+                        </div>
+                        <div class="initiative-metrics">
+                            <div class="metric">
+                                <div class="metric-label">Progress</div>
+                                <div class="metric-value">65%</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Impact</div>
+                                <div class="metric-value">$3.5M ARR</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Timeline</div>
+                                <div class="metric-value">2 months</div>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Completion</span>
+                                <span>65% Complete</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-on-track" style="width: 65%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="initiative-card">
+                        <div class="initiative-header">
+                            <h3 class="initiative-title">Multi-Department Expansion</h3>
+                            <div class="initiative-roi">3.3x ROI</div>
+                        </div>
+                        <div class="initiative-description">
+                            Develop systematic playbook for expanding from pilot teams to entire organizations with 40% target expansion rate and $2.5M ARR impact.
+                        </div>
+                        <div class="initiative-metrics">
+                            <div class="metric">
+                                <div class="metric-label">Progress</div>
+                                <div class="metric-value">45%</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Impact</div>
+                                <div class="metric-value">$2.5M ARR</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Timeline</div>
+                                <div class="metric-value">3 months</div>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Completion</span>
+                                <span>45% Complete</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-on-track" style="width: 45%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="initiative-card">
+                        <div class="initiative-header">
+                            <h3 class="initiative-title">Premium Services Scale-Up</h3>
+                            <div class="initiative-roi">16.0x ROI</div>
+                        </div>
+                        <div class="initiative-description">
+                            Scale high-margin intervention services to achieve 70% gross margin contribution and $4M services revenue target for diversification.
+                        </div>
+                        <div class="initiative-metrics">
+                            <div class="metric">
+                                <div class="metric-label">Progress</div>
+                                <div class="metric-value">30%</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Impact</div>
+                                <div class="metric-value">$4M ARR</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Timeline</div>
+                                <div class="metric-value">4 months</div>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Status</span>
+                                <span>At Risk</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-at-risk" style="width: 30%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="initiative-card">
+                        <div class="initiative-header">
+                            <h3 class="initiative-title">AI-Powered Churn Prediction</h3>
+                            <div class="initiative-roi">11.4x ROI</div>
+                        </div>
+                        <div class="initiative-description">
+                            Develop ML model to predict customer churn with 85% accuracy and protect $1.2M ARR through proactive interventions and retention.
+                        </div>
+                        <div class="initiative-metrics">
+                            <div class="metric">
+                                <div class="metric-label">Progress</div>
+                                <div class="metric-value">20%</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Impact</div>
+                                <div class="metric-value">$1.2M ARR</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-label">Timeline</div>
+                                <div class="metric-value">5 months</div>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Status</span>
+                                <span>Delayed</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill progress-delayed" style="width: 20%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Governance Tab -->
+        <div id="governance" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Governance Metrics</h2>
+                <div class="governance-metrics">
+                    <div class="governance-metric">
+                        <div class="governance-value">95%</div>
+                        <div class="governance-label">Board Meeting Attendance</div>
+                    </div>
+                    <div class="governance-metric">
+                        <div class="governance-value">8.2</div>
+                        <div class="governance-label">Board Effectiveness Score</div>
+                    </div>
+                    <div class="governance-metric">
+                        <div class="governance-value">100%</div>
+                        <div class="governance-label">Compliance Rating</div>
+                    </div>
+                    <div class="governance-metric">
+                        <div class="governance-value">7</div>
+                        <div class="governance-value">Board Members</div>
+                        <div class="governance-label">Total Directors</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Board Decisions Tab -->
+        <div id="decisions" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Board Decision Items</h2>
+                <div class="decision-items">
+                    <div class="decision-item">
+                        <div class="decision-header">
+                            <h3 class="decision-title">Q4 2024 Budget Approval</h3>
+                            <div class="decision-impact">$750K Impact</div>
+                        </div>
+                        <div class="decision-description">
+                            Approve Q4 2024 budget allocation with strategic focus on enterprise sales expansion (35%), customer success scaling (20%), and international market development (25%).
+                        </div>
+                        <div class="decision-actions">
+                            <button class="action-button approve-button">Approve</button>
+                            <button class="action-button discuss-button">Discuss</button>
+                            <button class="action-button discuss-button">Request Changes</button>
+                        </div>
+                    </div>
+
+                    <div class="decision-item">
+                        <div class="decision-header">
+                            <h3 class="decision-title">Series B Financing Authorization</h3>
+                            <div class="decision-impact">$15M Impact</div>
+                        </div>
+                        <div class="decision-description">
+                            Authorize pursuit of Series B financing round to support international expansion and AI development. Target raise of $15M at 8x ARR multiple with lead investor term sheet under negotiation.
+                        </div>
+                        <div class="decision-actions">
+                            <button class="action-button approve-button">Authorize</button>
+                            <button class="action-button discuss-button">Review Terms</button>
+                            <button class="action-button discuss-button">Delay Decision</button>
+                        </div>
+                    </div>
+
+                    <div class="decision-item">
+                        <div class="decision-header">
+                            <h3 class="decision-title">UK Market Expansion</h3>
+                            <div class="decision-impact">$2M Revenue</div>
+                        </div>
+                        <div class="decision-description">
+                            Approve expansion into UK market with Phase 1 budget of $500K. Establish London office and hire 5-person local team. Target 10 enterprise customers within 6 months.
+                        </div>
+                        <div class="decision-actions">
+                            <button class="action-button approve-button">Approve Phase 1</button>
+                            <button class="action-button discuss-button">Modify Plan</button>
+                            <button class="action-button discuss-button">Postpone</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div id="performance" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Quarterly Performance Analysis</h2>
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Panel -->
+        <div class="action-panel">
+            <h2 class="action-title">Board Strategic Oversight</h2>
+            <p class="action-description">
+                Effective board governance requires continuous oversight of strategic initiatives, financial performance, and risk management to ensure sustainable growth and stakeholder value creation.
+            </p>
+            <div class="action-button-group">
+                <button class="primary-action" onclick="scheduleBoardMeeting()">
+                    Schedule Board Meeting
+                </button>
+                <button class="primary-action" onclick="reviewStrategicPlan()">
+                    Review Strategic Plan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        function showTab(tabName) {
+            // Hide all tab content
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // Remove active class from all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Initialize performance chart
+        function initializePerformanceChart() {
+            const ctx = document.getElementById('performanceChart');
+            if (!ctx) return; // Only initialize if on Performance tab
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+                    datasets: [{
+                        label: 'Actual Revenue',
+                        data: [2700000, 4900000, 8600000, 13500000],
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 2
+                    }, {
+                        label: 'Target Revenue',
+                        data: [3200000, 6000000, 9500000, 13500000],
+                        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                        borderColor: '#10b981',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD',
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0
+                                    }).format(context.raw);
+                                    return label + ': ' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Interactive functions
+        function scheduleBoardMeeting() {
+            console.log('Scheduling board meeting...');
+            // Implementation would open meeting scheduling
+        }
+
+        function reviewStrategicPlan() {
+            console.log('Reviewing strategic plan...');
+            // Implementation would open strategic plan review
+        }
+
+        // Initialize charts when Performance tab is clicked
+        document.addEventListener('DOMContentLoaded', function() {
+            // Charts will be initialized when Performance tab is activated
+        });
+
+        // Initialize performance chart when Performance tab is shown
+        function showPerformanceChart() {
+            setTimeout(() => {
+                initializePerformanceChart();
+            }, 100);
+        }
+
+        // Modify the showTab function to handle Performance tab
+        const originalShowTab = showTab;
+        showTab = function(tabName) {
+            originalShowTab.call(this, tabName);
+            if (tabName === 'performance') {
+                showPerformanceChart();
+            }
+        };
+    </script>
+</body>
+</html>

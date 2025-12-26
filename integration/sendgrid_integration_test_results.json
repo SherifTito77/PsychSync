@@ -1,0 +1,182 @@
+{
+  "summary": {
+    "total_tests": 7,
+    "successful_tests": 7,
+    "success_rate": 100.0,
+    "average_response_time": 0.12032577650887626
+  },
+  "test_results": [
+    {
+      "name": "Single Email Sending",
+      "success": true,
+      "response_time": 0.15402603149414062,
+      "details": {
+        "status_code": 202,
+        "email_count": 1,
+        "api_response": {
+          "message": "Email sent successfully"
+        }
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:22:10.990811"
+    },
+    {
+      "name": "Bulk Email Sending (100 recipients)",
+      "success": true,
+      "response_time": 0.1629948616027832,
+      "details": {
+        "status_code": 202,
+        "recipient_count": 100,
+        "emails_per_second": 613.5162729466832,
+        "api_response": {
+          "message": "Email sent successfully"
+        }
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:22:11.154000"
+    },
+    {
+      "name": "Template Email Sending",
+      "success": true,
+      "response_time": 0.1514577865600586,
+      "details": {
+        "status_code": 202,
+        "template_id": "d-template-123456789",
+        "dynamic_data_keys": [
+          "user_name",
+          "assessment_type",
+          "completion_date",
+          "results_link"
+        ],
+        "api_response": {
+          "message": "Email sent successfully"
+        }
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:22:11.305550"
+    },
+    {
+      "name": "Error Handling",
+      "success": true,
+      "response_time": 0,
+      "details": {
+        "total_tests": 4,
+        "successful_tests": 4,
+        "test_results": [
+          {
+            "email": "invalid@example",
+            "success": true,
+            "status_code": 400,
+            "expected": "Invalid email address"
+          },
+          {
+            "email": "bounced@example.com",
+            "success": true,
+            "status_code": 422,
+            "expected": "Email address has bounced"
+          },
+          {
+            "email": "blocked@example.com",
+            "success": true,
+            "status_code": 403,
+            "expected": "Email address is blocked"
+          },
+          {
+            "email": "valid@example.com",
+            "success": true,
+            "status_code": 202,
+            "expected": "success"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:22:11.910462"
+    },
+    {
+      "name": "Rate Limiting",
+      "success": true,
+      "response_time": 0.17345380783081055,
+      "details": {
+        "total_emails": 500,
+        "successful_sends": 500,
+        "emails_per_second_actual": 2882.611839157244,
+        "success_rate": 100.0,
+        "test_duration": 0.17345380783081055
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:22:12.092431"
+    },
+    {
+      "name": "Email Attachments",
+      "success": true,
+      "response_time": 0.15034794807434082,
+      "details": {
+        "status_code": 202,
+        "attachment_count": 1,
+        "attachment_types": [
+          "application/pdf"
+        ],
+        "api_response": {
+          "message": "Email sent successfully"
+        }
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:22:12.242847"
+    },
+    {
+      "name": "Webhook Integration",
+      "success": true,
+      "response_time": 0.05,
+      "details": {
+        "total_events": 5,
+        "processed_events": 5,
+        "event_types": [
+          "delivered",
+          "bounced",
+          "unsubscribed",
+          "opened",
+          "clicked"
+        ],
+        "events": [
+          {
+            "event_type": "delivered",
+            "email": "delivered@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 16:22:12.254565"
+          },
+          {
+            "event_type": "opened",
+            "email": "opened@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 16:22:12.272856"
+          },
+          {
+            "event_type": "clicked",
+            "email": "clicked@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 16:22:12.285135"
+          },
+          {
+            "event_type": "bounced",
+            "email": "bounced@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 16:22:12.296685"
+          },
+          {
+            "event_type": "unsubscribed",
+            "email": "unsubscribed@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 16:22:12.308064"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:22:12.308090"
+    }
+  ],
+  "mock_service_stats": {
+    "emails_sent": 501,
+    "api_calls": 501,
+    "average_response_time": 0.15463326315204065
+  }
+}

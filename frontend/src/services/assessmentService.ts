@@ -111,7 +111,7 @@ export const assessmentService = {
     status?: string
   ): Promise<Assessment[]> {
     const response = await api.get<{ assessments: Assessment[]; total: number }>(
-      '/assessments',
+      '/assessments-minimal',
       {
         params: { category, status },
       }

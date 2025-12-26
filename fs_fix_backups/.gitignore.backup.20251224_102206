@@ -1,0 +1,307 @@
+# PsychSync AI Enterprise - Comprehensive Git Ignore File
+
+# ===== PYTHON DEPENDENCIES =====
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+
+# ===== BACKUP FILES (Security Risk) =====
+*.backup
+*.bak
+*.old
+*.orig
+*~
+*.swp
+*.tmp
+*.save
+.DS_Store
+Thumbs.db
+
+# ===== SECURITY AND SENSITIVE DATA =====
+# Environment variables and secrets
+.env
+.env.local
+.env.development
+.env.staging
+.env.test
+.env.production
+secrets/
+.ansible_vault
+
+# Private keys and certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+certs/
+ssl/
+
+# Database credentials and configs
+config/secrets.yml
+config/production.yml
+config/database.yml
+
+# Cloud provider credentials
+.aws/
+gcloud-service-key.json
+service-account.json
+azure.json
+
+# ===== DATABASE =====
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+
+# PostgreSQL and MySQL dump files
+*.dump
+*.sql
+backup_*.sql
+
+# Redis dump file
+dump.rdb
+
+# ===== IDE SPECIFIC =====
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+
+# ===== FRONTEND =====
+# Node.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build artifacts
+dist/
+build/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# ===== CI/CD =====
+# GitHub Actions temp files
+.github/workflows/temp/
+*.tmp
+workflow-temp/
+
+# ===== LOGS AND MONITORING =====
+logs/
+log/
+app.log
+debug.log
+error.log
+access.log
+audit.log
+
+# ===== OS SPECIFIC =====
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ===== LARGE FILES =====
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.mkv
+datasets/
+large-files/
+
+# Large AI Models and Data
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.safetensors
+*.bin
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.pb
+
+# Model Datasets
+data/
+datasets/
+models/
+checkpoints/
+mlruns/
+wandb/
+
+# Virtual Environment (ensure it's excluded)
+.venv/
+venv/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+frontend/dist/
+frontend/build/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+
+# System and runtime files
+fail2ban_run/
+*.pid
+*.log
+
+# Development Scripts (optional - remove if you want them in repo)
+# scripts/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.temp
+
+# SSL Certificates (keep them local)
+*.crt
+*.key
+*.pem
+certs/
+
+# Local development
+logs/
+uploads/
+backups/
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE specific
+.vscode/settings.json
+.idea/workspace.xml
+
+# Security: Exclude sensitive files
+.env.*
+
+# Security: Exclude sensitive files
+.env.*.local
+
+# Security: Exclude sensitive files
+secrets.yaml
+
+
+# ========================
+# Security - Sensitive Files
+# ========================
+# Environment files
+.env
+.env.*
+.env.local
+.env.*.local
+# Private keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+# Kubernetes secrets
+secrets.yaml
+secrets.yml
+*-secret.yaml
+*-secret.yml
+# Database backups
+*.sql
+*.sql.gz
+*.sql.enc
+# System files
+.DS_Store
+Thumbs.db
+# Backup files
+*.backup
+*.bak
+*~
+# Log files with sensitive data
+*.log
+logs/
+# SSL certificates
+*.crt
+*.csr
+# AWS/GCP credentials
+.aws/credentials
+gcloud-credentials.json
+# Service account keys
+*-service-account.json
+*-sa-key.json

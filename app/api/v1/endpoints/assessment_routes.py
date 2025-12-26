@@ -8,6 +8,8 @@ File: app/api/routes/assessment_routes.py
 """
 
 from fastapi import APIRouter, HTTPException, status, Depends
+
+from app.middleware.rate_limiter import check_rate_limit
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -17,7 +19,7 @@ import uuid
 from app.assessments.scoring_engine import ScoringEngine
 
 # Initialize router
-router = APIRouter(prefix="/api/v1/assessments", tags=["Assessments"])
+router = APIRouter(prefix="/assessments", tags=["Assessments"])
 
 # Initialize scoring engine
 scorer = ScoringEngine()
@@ -79,6 +81,8 @@ class AssessmentResultResponse(BaseModel):
 # Assessment Catalog Endpoints
 # ============================================================================
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.get("/catalog", response_model=List[AssessmentListItem])
 async def get_assessment_catalog(
     category: Optional[str] = None,
@@ -180,7 +184,9 @@ async def get_assessment_catalog(
         search_lower = search.lower()
         catalog = [
             a for a in catalog 
-            if search_lower in a["name"].lower() or search_lower in a["acronym"].lower()
+            if search_lower in a["name"].lower() or search_lo
+@check_rate_limit(identifier="public", endpoint_type="public")
+wer in a["acronym"].lower()
         ]
     
     return catalog
@@ -216,7 +222,9 @@ async def get_assessment_details(assessment_id: str):
     return details
 
 
-# ============================================================================
+# ===================================================================
+@check_rate_limit(identifier="public", endpoint_type="public")
+=========
 # Assessment Administration Endpoints
 # ============================================================================
 

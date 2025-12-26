@@ -30,9 +30,11 @@ export class PerformanceMonitor {
     if (typeof window === 'undefined' || !window.performance) return;
     // First Contentful Paint
     this.observePerformanceEntry('paint', (entries) => {
-      const fcpEntry = entries.find(entry => entry.name === 'first-contentful-paint');
-      if (fcpEntry) {
-        this.metrics.fcp = fcpEntry.startTime;
+      for (const entry of entries.getEntries()) {
+        if (entry.name === 'first-contentful-paint') {
+          this.metrics.fcp = entry.startTime;
+          break;
+        }
       }
     });
     // Largest Contentful Paint
@@ -91,7 +93,7 @@ export class PerformanceMonitor {
       }
     });
   }
-  private observePerformanceEntry(type: string, callback: (entries: PerformanceEntryList) => void) {
+  private observePerformanceEntry(type: string, callback: (entries: PerformanceObserverEntryList) => void) {
     try {
       const observer = new PerformanceObserver(callback);
       observer.observe({ entryTypes: [type] });
@@ -148,7 +150,7 @@ export class PerformanceMonitor {
 // =============================================================================
 export class ResourceOptimizer {
   private static preloadedResources = new Set<string>();
-  static preloadResource(url: string, type: 'image' | 'font' | 'script' | 'style' = 'fetch') {
+  static preloadResource(url: string, type: 'image' | 'font' | 'script' | 'style' = 'script') {
     if (this.preloadedResources.has(url)) return;
     const link = document.createElement('link');
     link.rel = 'preload';

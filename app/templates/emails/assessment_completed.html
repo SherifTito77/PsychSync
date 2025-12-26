@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Your Assessment Results Are Ready! 📊</h2>
+
+<p>Hi {{ user_name }},</p>
+
+<p>Congratulations on completing the <strong>{{ assessment_name }}</strong> assessment! Your results provide valuable insights into your personality and how you work best with others.</p>
+
+{% if personality_type %}
+<div style="text-align: center; margin: 30px 0;">
+    <div style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 40px; border-radius: 12px;">
+        <div style="font-size: 48px; margin-bottom: 10px;">🎯</div>
+        <div style="font-size: 24px; font-weight: bold;">{{ personality_type }}</div>
+        {% if personality_description %}
+        <div style="font-size: 16px; opacity: 0.9; margin-top: 5px;">{{ personality_description }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<h3>Your Key Insights</h3>
+
+{% if trait_scores %}
+<div class="stats-grid">
+    {% for trait, score in trait_scores.items() %}
+    <div class="stat-box">
+        <div class="stat-number">{{ score }}%</div>
+        <div class="stat-label">{{ trait|title }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if strengths %}
+<div class="feature-list">
+    <h4>💪 Your Strengths:</h4>
+    <ul>
+        {% for strength in strengths %}
+        <li>{{ strength }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if development_areas %}
+<div class="feature-list" style="background: #fef3c7; border-left-color: #f59e0b;">
+    <h4>🎯 Development Areas:</h4>
+    <ul>
+        {% for area in development_areas %}
+        <li>{{ area }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<h3>What's Next?</h3>
+
+<div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <h4>🚀 Take Action on Your Insights:</h4>
+    <ol>
+        <li><strong>Share with Your Team:</strong> Help your colleagues understand how to work best with you</li>
+        <li><strong>Team Analysis:</strong> See how your personality fits with your current team</li>
+        <li><strong>Set Goals:</strong> Use your insights to identify personal development opportunities</li>
+        <li><strong>Optimize Teams:</strong> Find the perfect role for you in new project teams</li>
+    </ol>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ results_url }}" class="button">View Full Results</a>
+    <a href="{{ team_analysis_url }}" class="button secondary">Team Analysis</a>
+</div>
+
+<h3>📚 Learn More About Your Type</h3>
+
+<p>Understanding your personality type can help you:</p>
+<ul>
+    <li><strong>Improve Communication:</strong> Adapt your style to work better with different personality types</li>
+    <li><strong>Career Development:</strong> Choose roles that align with your natural strengths</li>
+    <li><strong>Team Dynamics:</strong> Contribute more effectively to team success</li>
+    <li><strong>Personal Growth:</strong> Develop areas that may need attention</li>
+</ul>
+
+{% if recommendations %}
+<div class="success-box">
+    <h4>💡 Personalized Recommendations:</h4>
+    {% for recommendation in recommendations %}
+    <p>{{ recommendation }}</p>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0;">
+    <h4>🔒 Your Privacy Matters</h4>
+    <p>Your assessment results are private and secure. You can choose who to share them with and can update your privacy settings anytime in your account.</p>
+    <p style="margin-top: 10px;">
+        <a href="{{ privacy_settings_url }}" style="color: #2563eb; text-decoration: none;">Manage Privacy Settings →</a>
+    </p>
+</div>
+
+<p>Thank you for taking the time to complete this assessment. Self-awareness is the first step toward personal and professional growth!</p>
+
+<p style="margin-top: 30px;">
+    Best regards,<br>
+    The PsychSync Team
+</p>
+
+<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+<p style="font-size: 14px; color: #64748b;">
+    <strong>P.S.</strong> Want to take another assessment? Explore our full library of personality frameworks in your dashboard to get even more insights!
+</p>
+{% endblock %}

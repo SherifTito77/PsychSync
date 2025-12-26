@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear PsychSync Cache</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+            width: 100%;
+        }
+        button:hover { background: #c82333; }
+        .success { background: #28a745; }
+        .success:hover { background: #218838; }
+        .info { background: #17a2b8; }
+        .info:hover { background: #138496; }
+        .alert {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🧹 PsychSync Cache Cleaner</h1>
+        <p>This tool will completely clear all cached PsychSync data from your browser.</p>
+
+        <div class="alert">
+            <strong>⚠️ Important:</strong> After clearing cache, go to <strong>http://localhost:5174</strong> (NOT 5173!)
+        </div>
+
+        <button onclick="clearAllCache()">🗑️ Clear All Cache & Storage</button>
+        <button onclick="unregisterServiceWorkers()" class="info">🔧 Unregister Service Workers</button>
+        <button onclick="goToCorrectPort()" class="success">✅ Go to App (Port 5174)</button>
+    </div>
+
+    <div class="card">
+        <h2>Manual Steps (if automatic doesn't work):</h2>
+        <ol>
+            <li>Open Chrome DevTools (F12)</li>
+            <li>Go to "Application" tab</li>
+            <li>Click "Clear storage" → "Clear site data"</li>
+            <li>Go to "Service Workers" → Unregister all</li>
+            <li>Close DevTools</li>
+            <li>Go to: <strong>http://localhost:5174</strong></li>
+        </ol>
+    </div>
+
+    <script>
+        function clearAllCache() {
+            console.log('Clearing all cache...');
+
+            // Clear localStorage
+            localStorage.clear();
+
+            // Clear sessionStorage
+            sessionStorage.clear();
+
+            // Clear IndexedDB
+            if ('indexedDB' in window) {
+                indexedDB.databases().then(databases => {
+                    databases.forEach(database => {
+                        indexedDB.deleteDatabase(database.name);
+                    });
+                });
+            }
+
+            // Clear caches
+            if ('caches' in window) {
+                caches.keys().then(cacheNames => {
+                    return Promise.all(
+                        cacheNames.map(cacheName => {
+                            console.log('Deleting cache:', cacheName);
+                            return caches.delete(cacheName);
+                        })
+                    );
+                });
+            }
+
+            alert('All cache cleared! 🧹\n\nNow go to: http://localhost:5174');
+        }
+
+        function unregisterServiceWorkers() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    registrations.forEach(registration => {
+                        console.log('Unregistering service worker:', registration);
+                        registration.unregister();
+                    });
+                });
+            }
+            alert('Service workers unregistered! 🔧\n\nNow go to: http://localhost:5174');
+        }
+
+        function goToCorrectPort() {
+            // Open the correct port in a new window
+            window.open('http://localhost:5174/dashboard', '_blank');
+        }
+
+        // Auto-clear on load
+        window.addEventListener('load', () => {
+            console.log('Cache cleaner loaded - ready to clear!');
+        });
+    </script>
+</body>
+</html>

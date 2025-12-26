@@ -1,5 +1,9 @@
 # api/optimizer_endpoints.py
 from fastapi import APIRouter, HTTPException, Depends, Query
+
+from app.api.v1.deps import get_current_user
+
+from app.middleware.rate_limiter import check_rate_limit
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import date
@@ -80,6 +84,8 @@ class OptimizationResponse(BaseModel):
 # API ENDPOINTS
 # =================================================================
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/optimize", response_model=OptimizationResponse)
 async def optimize_lineups(request: OptimizationRequest):
     """
@@ -221,7 +227,9 @@ async def optimize_lineups(request: OptimizationRequest):
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+        raise HTTPExcept
+@check_rate_limit(identifier="public", endpoint_type="public")
+ion(status_code=500, detail=f"Optimization failed: {str(e)}")
 
 
 @router.post("/analyze-player-pool")
@@ -330,13 +338,15 @@ async def analyze_player_pool(players: List[PlayerInput]):
                 'min': round(min(scores), 2),
                 'max': round(max(scores), 2)
             }
-        }
+  
+@check_rate_limit(identifier="public", endpoint_type="public")
+      }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e, dependencies=[Depends(get_current_user)])}")
 
 
-@router.post("/compare-lineups")
+@router.post("/compare-lineups", dependencies=[Depends(get_current_user)])
 async def compare_lineups(lineups: List[List[int]], player_pool: List[PlayerInput]):
     """
     Compare multiple lineups side by side

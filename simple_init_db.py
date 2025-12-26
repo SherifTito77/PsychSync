@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""
+Simple database initialization using psql commands
+"""
+
+import subprocess
+import sys
+import os
+
+def run_command(cmd, description):
+    """Run a database command"""
+    print(f"🔧 {description}...")
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"✅ {description} completed")
+        else:
+            print(f"❌ {description} failed: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"❌ {description} error: {e}")
+        return False
+    return True
+
+def main():
+    """Initialize database schema"""
+
+    commands = [
+        ('psql -d psychsync_db -c "CREATE TABLE IF NOT EXISTS users (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), email VARCHAR(255) UNIQUE NOT NULL, username VARCHAR(100), full_name VARCHAR(255), is_active BOOLEAN DEFAULT true, is_superuser BOOLEAN DEFAULT false, hashed_password VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"', "Create users table"),
+
+        ('psql -d psychsync_db -c "CREATE TABLE IF NOT EXISTS organizations (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), name VARCHAR(255) NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"', "Create organizations table"),
+
+        ('psql -d psychsync_db -c "CREATE TABLE IF NOT EXISTS teams (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), name VARCHAR(255) NOT NULL, organization_id UUID REFERENCES organizations(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"', "Create teams table"),
+
+        ('psql -d psychsync_db -c "CREATE TABLE IF NOT EXISTS team_members (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), team_id UUID REFERENCES teams(id), user_id UUID REFERENCES users(id), role VARCHAR(50) DEFAULT \'member\', is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"', "Create team_members table"),
+
+        ('psql -d psychsync_db -c "CREATE TABLE IF NOT EXISTS assessments (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), title VARCHAR(255) NOT NULL, description TEXT, assessment_type VARCHAR(100), organization_id UUID REFERENCES organizations(id), is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"', "Create assessments table"),
+
+        ('psql -d psychsync_db -c "CREATE TABLE IF NOT EXISTS assessment_responses (id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), user_id UUID REFERENCES users(id), assessment_id UUID REFERENCES assessments(id), response_data JSONB, total_score DECIMAL(5,2), completed_at TIMESTAMP, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"', "Create assessment_responses table"),
+
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);"', "Create users email index"),
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);"', "Create users active index"),
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_teams_org ON teams(organization_id);"', "Create teams organization index"),
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);"', "Create team_members team index"),
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id);"', "Create team_members user index"),
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_assessments_org ON assessments(organization_id);"', "Create assessments organization index"),
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_assessment_responses_user ON assessment_responses(user_id);"', "Create assessment_responses user index"),
+        ('psql -d psychsync_db -c "CREATE INDEX IF NOT EXISTS idx_assessment_responses_assessment ON assessment_responses(assessment_id);"', "Create assessment_responses assessment index"),
+    ]
+
+    # Insert test data
+    test_data_commands = [
+        ('psql -d psychsync_db -c "INSERT INTO organizations (id, name, description) VALUES (\'550e8400-e29b-41d4-a716-446655440001\', \'Test Organization\', \'Test organization for optimization\'), (\'550e8400-e29b-41d4-a716-446655440002\', \'Demo Organization\', \'Demo organization\') ON CONFLICT (id) DO NOTHING;"', "Insert test organizations"),
+
+        ('psql -d psychsync_db -c "INSERT INTO users (id, email, username, full_name, is_active) VALUES (\'550e8400-e29b-41d4-a716-446655440003\', \'admin@example.com\', \'admin\', \'Admin User\', true), (\'550e8400-e29b-41d4-a716-446655440004\', \'test@example.com\', \'test\', \'Test User\', true) ON CONFLICT (email) DO NOTHING;"', "Insert test users"),
+
+        ('psql -d psychsync_db -c "INSERT INTO teams (id, name, organization_id) VALUES (\'550e8400-e29b-41d4-a716-446655440005\', \'Test Team\', \'550e8400-e29b-41d4-a716-446655440001\'), (\'550e8400-e29b-41d4-a716-446655440006\', \'Demo Team\', \'550e8400-e29b-41d4-a716-446655440002\') ON CONFLICT (id) DO NOTHING;"', "Insert test teams"),
+
+        ('psql -d psychsync_db -c "INSERT INTO team_members (team_id, user_id, role) VALUES (\'550e8400-e29b-41d4-a716-446655440005\', \'550e8400-e29b-41d4-a716-446655440003\', \'admin\'), (\'550e8400-e29b-41d4-a716-446655440006\', \'550e8400-e29b-41d4-a716-446655440004\', \'member\') ON CONFLICT DO NOTHING;"', "Insert team memberships"),
+
+        ('psql -d psychsync_db -c "INSERT INTO assessments (id, title, description, assessment_type, organization_id) VALUES (\'550e8400-e29b-41d4-a716-446655440007\', \'Test Assessment\', \'Test assessment for optimization\', \'BIG_FIVE\', \'550e8400-e29b-41d4-a716-446655440001\'), (\'550e8400-e29b-41d4-a716-446655440008\', \'Demo Assessment\', \'Demo assessment\', \'MBTI\', \'550e8400-e29b-41d4-a716-446655440002\') ON CONFLICT (id) DO NOTHING;"', "Insert test assessments"),
+    ]
+
+    print("🚀 Initializing database schema...")
+
+    success = True
+    for cmd, desc in commands:
+        if not run_command(cmd, desc):
+            success = False
+
+    if success:
+        print("\n📊 Inserting test data...")
+        for cmd, desc in test_data_commands:
+            if not run_command(cmd, desc):
+                success = False
+
+    if success:
+        print("\n🎉 Database initialization completed successfully!")
+        print("\n🔍 Verification:")
+        run_command("psql -d psychsync_db -c \"SELECT COUNT(*) as users_count FROM users;\"", "Verify users table")
+        run_command("psql -d psychsync_db -c \"SELECT COUNT(*) as orgs_count FROM organizations;\"", "Verify organizations table")
+        run_command("psql -d psychsync_db -c \"SELECT COUNT(*) as teams_count FROM teams;\"", "Verify teams table")
+    else:
+        print("\n💥 Database initialization failed!")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

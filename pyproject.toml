@@ -1,0 +1,28 @@
+[tool.pytest]
+addopts = "--strict-markers"
+testpaths = ["tests"]
+python_files = ["tests.py", "test_*.py", "*_test.py"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/tests/*",
+    "*/migrations/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/site-packages/*",
+    "*/conftest.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:  # pragma: no cover",
+    "if TYPE_CHECKING:  # pragma: no cover",
+    "class .*\\bProtocol\\b:  # pragma: no cover",
+    "@(abc\\.)?abstractmethod"
+]

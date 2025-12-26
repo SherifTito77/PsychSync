@@ -100,7 +100,7 @@ class FreeEmailConnectorService:
         except Exception as e:
             return False, f"Connection failed: {str(e)}"
 
-    def create_free_connection(self, db: Session, user_id: str, email_address: str,
+    async def create_free_connection(self, db: AsyncSession, user_id: str, email_address: str,
                               app_password: str, account_name: Optional[str] = None,
                               custom_imap_config: Optional[Dict] = None) -> EmailConnection:
         """Create free IMAP email connection"""
@@ -142,7 +142,7 @@ class FreeEmailConnectorService:
             )
 
             db.add(connection)
-        await db.commit()
+            await db.commit()
             await db.refresh(connection)
 
             self.logger.info(f"Created IMAP connection for {email_address}")
@@ -153,7 +153,7 @@ class FreeEmailConnectorService:
             await db.rollback()
             raise
 
-    def fetch_emails_imap(self, db: Session, connection: EmailConnection,
+    async def fetch_emails_imap(self, db: AsyncSession, connection: EmailConnection,
                          max_messages: int = 1000, days_back: int = 30) -> int:
         """Fetch emails using IMAP (free method)"""
         try:
@@ -259,12 +259,22 @@ class FreeEmailConnectorService:
             # Generate unique message ID
             message_id = email_message.get('Message-ID', '')
 
-            # Check if already exists
-            existing = result = await db.execute(query)
-        return result.scalars().all()
-
-            if existing:
+            # Implement duplicate checking to prevent processing the same email multiple times
+            if hasattr(self, 'processed_messages') and message_id in self.processed_messages:
+                logger.debug(f"Skipping duplicate message: {message_id}")
                 return None
+
+            # Initialize processed messages set if not exists
+            if not hasattr(self, 'processed_messages'):
+                self.processed_messages = set()
+
+            # Add message ID to processed set (in production, this should be database-backed)
+            self.processed_messages.add(message_id)
+
+            # Optional: Clean up old message IDs to prevent memory leaks (keep last 10000)
+            if len(self.processed_messages) > 10000:
+                # Remove oldest 2000 message IDs
+                self.processed_messages = set(list(self.processed_messages)[2000:])
 
             # Determine if internal email
             is_internal = self._is_internal_email(sender, recipients + cc_recipients)

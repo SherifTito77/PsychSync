@@ -328,7 +328,7 @@ const Settings: React.FC = () => {
                       <label key={key} className="flex items-center">
                         <input
                           type="checkbox"
-                          checked={settings.preferences[key as keyof SettingsData['preferences'] as boolean]}
+                          checked={Boolean(settings.preferences[key as keyof SettingsData['preferences']])}
                           onChange={(e) => handlePreferenceChange(key as keyof SettingsData['preferences'], e.target.checked)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />

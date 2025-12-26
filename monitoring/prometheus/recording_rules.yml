@@ -1,0 +1,253 @@
+# PsychSync Enterprise Recording Rules
+# Advanced metric calculations and aggregations for better monitoring
+
+groups:
+- name: psychsync_api_metrics
+  interval: 30s
+  rules:
+  # API Performance Recording Rules
+  - record: psychsync:api:request_rate:5m
+    expr: rate(http_requests_total[5m])
+
+  - record: psychsync:api:error_rate:5m
+    expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])
+
+  - record: psychsync:api:p95_response_time:5m
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+
+  - record: psychsync:api:p99_response_time:5m
+    expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
+
+  - record: psychsync:api:average_response_time:5m
+    expr: rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])
+
+  # API Endpoint Specific Metrics
+  - record: psychsync:api:endpoint_request_rate:5m
+    expr: sum by (endpoint) (rate(http_requests_total[5m]))
+
+  - record: psychsync:api:endpoint_error_rate:5m
+    expr: sum by (endpoint) (rate(http_requests_total{status=~"5.."}[5m])) / sum by (endpoint) (rate(http_requests_total[5m]))
+
+  - record: psychsync:api:endpoint_p95_response_time:5m
+    expr: sum by (endpoint) (histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])))
+
+  # User and Session Metrics
+  - record: psychsync:api:active_users:5m
+    expr: count(distinct(user_id))
+
+  - record: psychsync:api:new_sessions:5m
+    expr: increase(sessions_created_total[5m])
+
+  - record: psychsync:api:session_duration_avg:5m
+    expr: increase(session_duration_seconds_sum[5m]) / increase(session_duration_seconds_count[5m])
+
+- name: psychsync_frontend_metrics
+  interval: 30s
+  rules:
+  # Frontend Performance Recording Rules
+  - record: psychsync:frontend:page_view_rate:5m
+    expr: rate(frontend_page_views_total[5m])
+
+  - record: psychsync:frontend:error_rate:5m
+    expr: rate(frontend_javascript_errors_total[5m])
+
+  - record: psychsync:frontend:p95_load_time:5m
+    expr: histogram_quantile(0.95, rate(frontend_page_load_time_seconds_bucket[5m]))
+
+  - record: psychsync:frontend:bounce_rate:5m
+    expr: rate(frontend_single_page_sessions_total[5m]) / rate(frontend_sessions_total[5m])
+
+  # User Interaction Metrics
+  - record: psychsync:frontend:user_engagement_score:5m
+    expr: (rate(frontend_page_views_total[5m]) * 0.3 + rate(frontend_assessments_started_total[5m]) * 0.5 + rate(frontend_team_activities_total[5m]) * 0.2)
+
+  - record: psychsync:frontend:assessment_completion_rate:5m
+    expr: rate(frontend_assessments_completed_total[5m]) / rate(frontend_assessments_started_total[5m])
+
+- name: psychsync_database_metrics
+  interval: 30s
+  rules:
+  # PostgreSQL Performance Recording Rules
+  - record: psychsync:db:connection_utilization:5m
+    expr: pg_stat_activity_count / pg_settings_max_connections
+
+  - record: psychsync:db:query_rate:5m
+    expr: rate(pg_stat_statements_calls[5m])
+
+  - record: psychsync:db:average_query_time:5m
+    expr: rate(pg_stat_statements_total_time_seconds[5m]) / rate(pg_stat_statements_calls[5m])
+
+  - record: psychsync:db:slow_query_rate:5m
+    expr: rate(pg_stat_statements_calls_total{mean_time_seconds > 1.0}[5m])
+
+  - record: psychsync:db:deadlock_rate:5m
+    expr: increase(pg_stat_database_deadlocks[5m])
+
+  # Database Size and Growth
+  - record: psychsync:db:size_gb:5m
+    expr: pg_database_size_bytes / 1024 / 1024 / 1024
+
+  - record: psychsync:db:growth_rate_per_hour:5m
+    expr: rate(pg_database_size_bytes[1h]) / 1024 / 1024 / 1024
+
+  # Table-specific metrics
+  - record: psychsync:db:table_size_mb:5m
+    expr: pg_stat_user_tables_size_bytes / 1024 / 1024
+
+  - record: psychsync:db:index_utilization:5m
+    expr: pg_stat_user_indexes_idx_scan / (pg_stat_user_indexes_idx_scan + pg_stat_user_indexes_idx_tup_read)
+
+- name: psychsync_redis_metrics
+  interval: 30s
+  rules:
+  # Redis Performance Recording Rules
+  - record: psychsync:redis:memory_utilization:5m
+    expr: redis_memory_used_bytes / redis_memory_max_bytes
+
+  - record: psychsync:redis:hit_rate:5m
+    expr: rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
+
+  - record: psychsync:redis:operations_per_second:5m
+    expr: rate(redis_commands_processed_total[5m])
+
+  - record: psychsync:redis:eviction_rate:5m
+    expr: rate(redis_evicted_keys_total[5m])
+
+- name: psychsync_stripe_metrics
+  interval: 60s
+  rules:
+  # Stripe Performance Recording Rules
+  - record: psychsync:stripe:success_rate:5m
+    expr: rate(stripe_requests_successful_total[5m]) / rate(stripe_requests_total[5m])
+
+  - record: psychsync:stripe:average_response_time:5m
+    expr: rate(stripe_request_duration_seconds_sum[5m]) / rate(stripe_request_duration_seconds_count[5m])
+
+  - record: psychsync:stripe:payment_success_rate:5m
+    expr: rate(stripe_payments_successful_total[5m]) / rate(stripe_payments_total[5m])
+
+  - record: psychsync:stripe:revenue_per_minute:5m
+    expr: rate(stripe_revenue_cents_total[5m]) / 100
+
+  - record: psychsync:stripe:webhook_processing_rate:5m
+    expr: rate(stripe_webhooks_processed_total[5m])
+
+  # Business metrics from Stripe
+  - record: psychsync:stripe:revenue_per_hour:5m
+    expr: increase(stripe_revenue_cents_total[1h]) / 100
+
+  - record: psychsync:stripe:active_subscriptions:5m
+    expr: stripe_subscriptions_active_count
+
+  - record: psychsync:stripe:mrr:5m
+    expr: stripe_monthly_recurring_revenue_cents / 100
+
+- name: psychsync_infrastructure_metrics
+  interval: 60s
+  rules:
+  # System Performance Recording Rules
+  - record: psychsync:node:cpu_utilization:5m
+    expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+  - record: psychsync:node:memory_utilization:5m
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+  - record: psychsync:node:disk_utilization:5m
+    expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100
+
+  - record: psychsync:node:disk_io_utilization:5m
+    expr: rate(node_disk_io_time_seconds_total[5m]) * 100
+
+  # Network metrics
+  - record: psychsync:node:network_receive_rate:5m
+    expr: rate(node_network_receive_bytes_total[5m])
+
+  - record: psychsync:node:network_transmit_rate:5m
+    expr: rate(node_network_transmit_bytes_total[5m])
+
+- name: psychsync_business_metrics
+  interval: 300s
+  rules:
+  # Business KPI Recording Rules
+  - record: psychsync:business:user_growth_rate_per_day:5m
+    expr: increase(user_registrations_total[24h])
+
+  - record: psychsync:business:active_users_daily:5m
+    expr: count_distinct_over_time(user_active[24h])
+
+  - record: psychsync:business:assessments_completed_per_hour:5m
+    expr: increase(assessments_completed_total[1h])
+
+  - record: psychsync:business:conversion_rate_registration_to_assessment:5m
+    expr: rate(assessments_started_total[1h]) / rate(user_registrations_total[1h])
+
+  - record: psychsync:business:average_assessment_score:5m
+    expr: increase(assessment_score_sum_total[1h]) / increase(assessment_score_count_total[1h])
+
+  # Team and Organization Metrics
+  - record: psychsync:business:teams_created_per_day:5m
+    expr: increase(teams_created_total[24h])
+
+  - record: psychsync:business:organizations_created_per_day:5m
+    expr: increase(organizations_created_total[24h])
+
+  - record: psychsync:business:team_members_per_team_average:5m
+    expr: team_members_total_count / teams_total_count
+
+  # Revenue Metrics
+  - record: psychsync:business:revenue_per_day:5m
+    expr: increase(revenue_total[24h])
+
+  - record: psychsync:business:revenue_per_active_user_daily:5m
+    expr: increase(revenue_total[24h]) / count_distinct_over_time(user_active[24h])
+
+  - record: psychsync:business:subscription_churn_rate_daily:5m
+    expr: rate(subscriptions_canceled_total[24h]) / rate(subscriptions_created_total[24h])
+
+- name: psychsync_security_metrics
+  interval: 60s
+  rules:
+  # Security Recording Rules
+  - record: psychsync:security:failed_login_rate:5m
+    expr: rate(login_attempts_failed_total[5m])
+
+  - record: psychsync:security:suspicious_activity_rate:5m
+    expr: rate(suspicious_requests_total[5m])
+
+  - record: psychsync:security:unauthorized_api_rate:5m
+    expr: rate(http_requests_total{status="401"}[5m])
+
+  - record: psychsync:security:forbidden_api_rate:5m
+    expr: rate(http_requests_total{status="403"}[5m])
+
+- name: psychsync_slo_metrics
+  interval: 300s
+  rules:
+  # Service Level Objective Recording Rules
+  - record: psychsync:slo:api_availability:30d
+    expr: sum(rate(http_requests_total{status!~"5.."}[30d])) / sum(rate(http_requests_total[30d]))
+
+  - record: psychsync:slo:api_response_time_p99:30d
+    expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[30d]))
+
+  - record: psychsync:slo:frontend_availability:30d
+    expr: sum(rate(frontend_requests_total{status!~"5.."}[30d])) / sum(rate(frontend_requests_total[30d]))
+
+  - record: psychsync:slo:database_availability:30d
+    expr: up{job="postgresql-exporter"}
+
+- name: psychsync_capacity_planning
+  interval: 3600s
+  rules:
+  # Capacity Planning Recording Rules
+  - record: psychsync:capacity:disk_growth_prediction:7d
+    expr: predict_linear(node_filesystem_size_bytes - node_filesystem_avail_bytes[6h], 7*24*3600)
+
+  - record: psychsync:capacity:memory_growth_prediction:7d
+    expr: predict_linear((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)[6h], 7*24*3600)
+
+  - record: psychsync:capacity:cpu_growth_prediction:7d
+    expr: predict_linear(rate(node_cpu_seconds_total{mode!="idle"}[6h]), 7*24*3600)
+
+  - record: psychsync:capacity:db_size_growth_prediction:30d
+    expr: predict_linear(pg_database_size_bytes[24h], 30*24*3600)

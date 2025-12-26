@@ -1,0 +1,1352 @@
+[
+  {
+    "id": 1,
+    "question_text": "At parties, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Talk to many people, including strangers",
+        "value": "E"
+      },
+      {
+        "text": "Talk to a few people you know well",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "question_text": "After a long week, do you prefer to:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Go out with friends to socialize",
+        "value": "E"
+      },
+      {
+        "text": "Stay home with a book or movie",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "question_text": "When solving a problem, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Talk it through with others",
+        "value": "E"
+      },
+      {
+        "text": "Think it through by yourself",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "question_text": "In meetings, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Speak up and participate actively",
+        "value": "E"
+      },
+      {
+        "text": "Listen and process before speaking",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "question_text": "At work, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Enjoy working in teams and brainstorming with others",
+        "value": "E"
+      },
+      {
+        "text": "Prefer working independently and concentrating deeply",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "question_text": "When you're stressed, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Seek out people to talk to",
+        "value": "E"
+      },
+      {
+        "text": "Need quiet time alone to recharge",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "question_text": "In a new city, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Make friends and explore social scene",
+        "value": "E"
+      },
+      {
+        "text": "Explore museums and parks alone",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "question_text": "Do you get your energy from:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Being around people and activities",
+        "value": "E"
+      },
+      {
+        "text": "Quiet reflection and solitude",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "question_text": "When making decisions, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Seek input from others first",
+        "value": "E"
+      },
+      {
+        "text": "Think it through privately first",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "question_text": "In group projects, do you prefer:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Leading discussions and collaboration",
+        "value": "E"
+      },
+      {
+        "text": "Working independently on your portion",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "question_text": "When learning, do you prefer:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Group discussions and study sessions",
+        "value": "E"
+      },
+      {
+        "text": "Individual research and reading",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "question_text": "At social gatherings, do you typically:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Circulate and meet many people",
+        "value": "E"
+      },
+      {
+        "text": "Find a few people for deep conversation",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "question_text": "When traveling, do you prefer:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Group tours and shared experiences",
+        "value": "E"
+      },
+      {
+        "text": "Solo exploration and reflection",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "question_text": "When faced with a challenge, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Brainstorm with others",
+        "value": "E"
+      },
+      {
+        "text": "Research and analyze alone",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "question_text": "Do you prefer work environments that are:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Collaborative and interactive",
+        "value": "E"
+      },
+      {
+        "text": "Quiet and focused",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "question_text": "When celebrating achievements, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Share news with many people",
+        "value": "E"
+      },
+      {
+        "text": "Celebrate privately with close friends",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "question_text": "In conversations, do you tend to:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Think out loud",
+        "value": "E"
+      },
+      {
+        "text": "Process internally before speaking",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "question_text": "When networking, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Approach strangers easily",
+        "value": "E"
+      },
+      {
+        "text": "Prefer introductions through others",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 19,
+    "question_text": "In brainstorming sessions, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Build on others' ideas immediately",
+        "value": "E"
+      },
+      {
+        "text": "Reflect before contributing",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 20,
+    "question_text": "When dining out, do you prefer:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Lively restaurants with ambiance",
+        "value": "E"
+      },
+      {
+        "text": "Quiet, intimate settings",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 21,
+    "question_text": "Do you consider yourself more:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Outgoing and expressive",
+        "value": "E"
+      },
+      {
+        "text": "Reserved and thoughtful",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 22,
+    "question_text": "In team sports, do you prefer:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Collaborative team play",
+        "value": "E"
+      },
+      {
+        "text": "Individual performance roles",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 23,
+    "question_text": "When giving presentations, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Engage with the audience",
+        "value": "E"
+      },
+      {
+        "text": "Focus on the content",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 24,
+    "question_text": "In casual conversations, do you:",
+    "dimension": "E-I",
+    "options": [
+      {
+        "text": "Initiate discussions with strangers",
+        "value": "E"
+      },
+      {
+        "text": "Wait for others to approach",
+        "value": "I"
+      }
+    ]
+  },
+  {
+    "id": 25,
+    "question_text": "Do you prefer to:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Focus on the real world and practical matters",
+        "value": "S"
+      },
+      {
+        "text": "Imagine possibilities and think about abstract concepts",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 26,
+    "question_text": "When learning something new, do you:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Prefer step-by-step instructions with concrete examples",
+        "value": "S"
+      },
+      {
+        "text": "Like to understand the overall concept first",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 27,
+    "question_text": "When reading, do you prefer:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Factual information and practical guides",
+        "value": "S"
+      },
+      {
+        "text": "Theoretical concepts and symbolic meanings",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 28,
+    "question_text": "At work, do you focus more on:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "What is actual and present",
+        "value": "S"
+      },
+      {
+        "text": "What could be possible",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 29,
+    "question_text": "When someone explains something, do you prefer:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Specific details and step-by-step process",
+        "value": "S"
+      },
+      {
+        "text": "The big picture and underlying principles",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "question_text": "Do you trust more:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Past experience and concrete data",
+        "value": "S"
+      },
+      {
+        "text": "Your intuition and future possibilities",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 31,
+    "question_text": "When making a purchase, do you focus on:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Practical features and proven reliability",
+        "value": "S"
+      },
+      {
+        "text": "How it could enhance your future lifestyle",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 32,
+    "question_text": "In problem-solving, do you:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Use proven methods and facts",
+        "value": "S"
+      },
+      {
+        "text": "Explore innovative approaches",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 33,
+    "question_text": "When planning, do you focus on:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Realistic, immediate needs",
+        "value": "S"
+      },
+      {
+        "text": "Long-term possibilities",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "question_text": "Do you prefer information that is:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Concrete and specific",
+        "value": "S"
+      },
+      {
+        "text": "Abstract and conceptual",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 35,
+    "question_text": "When analyzing situations, do you:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Focus on what actually happened",
+        "value": "S"
+      },
+      {
+        "text": "Consider what might have been",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 36,
+    "question_text": "In presentations, do you prefer:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Data, facts, and examples",
+        "value": "S"
+      },
+      {
+        "text": "Concepts and future possibilities",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 37,
+    "question_text": "When giving feedback, do you:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Provide specific, observable examples",
+        "value": "S"
+      },
+      {
+        "text": "Discuss potential and possibilities",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 38,
+    "question_text": "Do you notice more:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Specific details and facts",
+        "value": "S"
+      },
+      {
+        "text": "Patterns and connections",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 39,
+    "question_text": "When making career choices, do you consider:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Practical benefits and stability",
+        "value": "S"
+      },
+      {
+        "text": "Growth potential and meaning",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 40,
+    "question_text": "In relationships, do you value:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Shared experiences and realities",
+        "value": "S"
+      },
+      {
+        "text": "Intellectual and emotional connections",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 41,
+    "question_text": "When facing uncertainty, do you:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Seek concrete information",
+        "value": "S"
+      },
+      {
+        "text": "Trust your intuition",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 42,
+    "question_text": "Do you prefer art that is:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Realistic and representational",
+        "value": "S"
+      },
+      {
+        "text": "Abstract and symbolic",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 43,
+    "question_text": "When learning history, do you prefer:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Specific dates, events, and facts",
+        "value": "S"
+      },
+      {
+        "text": "Themes, patterns, and meanings",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 44,
+    "question_text": "In debates, do you focus on:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Factual accuracy and evidence",
+        "value": "S"
+      },
+      {
+        "text": "Conceptual validity and possibilities",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 45,
+    "question_text": "When traveling, do you prefer:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Detailed itineraries with specific activities",
+        "value": "S"
+      },
+      {
+        "text": "Flexible plans that allow for discovery",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 46,
+    "question_text": "When solving puzzles, do you prefer:",
+    "dimension": "S-N",
+    "options": [
+      {
+        "text": "Logic-based challenges",
+        "value": "S"
+      },
+      {
+        "text": "Creative problem-solving",
+        "value": "N"
+      }
+    ]
+  },
+  {
+    "id": 47,
+    "question_text": "When making decisions, do you:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Rely on logic and objective analysis",
+        "value": "T"
+      },
+      {
+        "text": "Consider how it will affect people involved",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 48,
+    "question_text": "When giving feedback, do you:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Focus on facts and logical improvements",
+        "value": "T"
+      },
+      {
+        "text": "Consider feelings and how to deliver it gently",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 49,
+    "question_text": "In a disagreement, do you focus more on:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Finding the logical truth",
+        "value": "T"
+      },
+      {
+        "text": "Maintaining harmony in relationships",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 50,
+    "question_text": "When evaluating a job offer, do you prioritize:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Objective criteria like salary and advancement",
+        "value": "T"
+      },
+      {
+        "text": "Company culture and your gut feeling",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 51,
+    "question_text": "Do you make decisions based on:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Universal principles and fairness",
+        "value": "T"
+      },
+      {
+        "text": "Individual circumstances and relationships",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 52,
+    "question_text": "When someone asks for advice, do you:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Give direct, analytical solutions",
+        "value": "T"
+      },
+      {
+        "text": "Offer emotional support and understanding",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 53,
+    "question_text": "In group discussions, do you value more:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Logical analysis and objective truth",
+        "value": "T"
+      },
+      {
+        "text": "Consensus and everyone's feelings",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 54,
+    "question_text": "Do you admire people more for being:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Consistently logical and fair",
+        "value": "T"
+      },
+      {
+        "text": "Compassionate and understanding",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 55,
+    "question_text": "When mediating conflicts, do you:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Focus on finding the logical solution",
+        "value": "T"
+      },
+      {
+        "text": "Consider everyone's emotional needs",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 56,
+    "question_text": "In hiring decisions, do you prioritize:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Skills and qualifications",
+        "value": "T"
+      },
+      {
+        "text": "Cultural fit and personality",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 57,
+    "question_text": "When setting goals, do you focus on:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Achievement and success metrics",
+        "value": "T"
+      },
+      {
+        "text": "Personal growth and fulfillment",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 58,
+    "question_text": "Do you believe justice should be:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Consistent and impartial",
+        "value": "T"
+      },
+      {
+        "text": "Compassionate and contextual",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 59,
+    "question_text": "When evaluating arguments, do you look for:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Logical consistency and evidence",
+        "value": "T"
+      },
+      {
+        "text": "Emotional authenticity and sincerity",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 60,
+    "question_text": "In leadership, do you prioritize:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Efficiency and results",
+        "value": "T"
+      },
+      {
+        "text": "Team morale and satisfaction",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 61,
+    "question_text": "When giving compliments, do you:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Acknowledge specific achievements",
+        "value": "T"
+      },
+      {
+        "text": "Express appreciation for character",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 62,
+    "question_text": "Do you prefer to solve problems by:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Analyzing the system",
+        "value": "T"
+      },
+      {
+        "text": "Understanding the people involved",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 63,
+    "question_text": "In ethical dilemmas, do you follow:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Universal moral principles",
+        "value": "T"
+      },
+      {
+        "text": "The impact on relationships",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 64,
+    "question_text": "When receiving criticism, do you:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Analyze the logic and validity",
+        "value": "T"
+      },
+      {
+        "text": "Consider the person's intentions",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 65,
+    "question_text": "Do you value truth more when it's:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Objective and verifiable",
+        "value": "T"
+      },
+      {
+        "text": "Emotionally resonant and meaningful",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 66,
+    "question_text": "In time management, do you prioritize:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Maximum efficiency",
+        "value": "T"
+      },
+      {
+        "text": "Maintaining relationships",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 67,
+    "question_text": "When making rules, do you focus on:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Consistency and fairness",
+        "value": "T"
+      },
+      {
+        "text": "Flexibility and compassion",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 68,
+    "question_text": "Do you believe decisions should be based on:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "Cost-benefit analysis",
+        "value": "T"
+      },
+      {
+        "text": "Human impact assessment",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 69,
+    "question_text": "In negotiations, do you aim for:",
+    "dimension": "T-F",
+    "options": [
+      {
+        "text": "The most logical agreement",
+        "value": "T"
+      },
+      {
+        "text": "A relationship-preserving outcome",
+        "value": "F"
+      }
+    ]
+  },
+  {
+    "id": 70,
+    "question_text": "Do you prefer to:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Plan things in advance and stick to the plan",
+        "value": "J"
+      },
+      {
+        "text": "Be spontaneous and adapt to new situations",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 71,
+    "question_text": "For weekends, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Plan activities and have a schedule",
+        "value": "J"
+      },
+      {
+        "text": "Leave options open and decide spontaneously",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 72,
+    "question_text": "When starting a project, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Create a detailed plan first",
+        "value": "J"
+      },
+      {
+        "text": "Start and figure it out as you go",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 73,
+    "question_text": "How do you feel about deadlines?",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "They help me stay organized and focused",
+        "value": "J"
+      },
+      {
+        "text": "They feel restrictive and I work best when flexible",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 74,
+    "question_text": "When traveling, do you prefer to:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Have a detailed itinerary",
+        "value": "J"
+      },
+      {
+        "text": "Explore freely and be spontaneous",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 75,
+    "question_text": "Do you prefer your work environment to be:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Structured and predictable",
+        "value": "J"
+      },
+      {
+        "text": "Flexible and adaptable",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 76,
+    "question_text": "When making decisions, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Make quick decisions to move forward",
+        "value": "J"
+      },
+      {
+        "text": "Keep options open as long as possible",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 77,
+    "question_text": "In managing tasks, do you prefer:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Completing one thing at a time",
+        "value": "J"
+      },
+      {
+        "text": "Juggling multiple projects",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 78,
+    "question_text": "When shopping, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Make lists and stick to them",
+        "value": "J"
+      },
+      {
+        "text": "Browse and discover new options",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 79,
+    "question_text": "Do you prefer your living space to be:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Organized and tidy",
+        "value": "J"
+      },
+      {
+        "text": "Comfortable and lived-in",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 80,
+    "question_text": "When approaching problems, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Follow established procedures",
+        "value": "J"
+      },
+      {
+        "text": "Try various approaches",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 81,
+    "question_text": "In conversations, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Drive toward conclusions",
+        "value": "J"
+      },
+      {
+        "text": "Explore possibilities and tangents",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 82,
+    "question_text": "When setting boundaries, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Establish clear rules",
+        "value": "J"
+      },
+      {
+        "text": "Keep options flexible",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 83,
+    "question_text": "Do you prefer to finish projects:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Before starting new ones",
+        "value": "J"
+      },
+      {
+        "text": "Even as new ideas emerge",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 84,
+    "question_text": "When managing time, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Stick to schedules religiously",
+        "value": "J"
+      },
+      {
+        "text": "Adapt to changing priorities",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 85,
+    "question_text": "In relationships, do you prefer:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Clear definitions and expectations",
+        "value": "J"
+      },
+      {
+        "text": "Spontaneous development",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 86,
+    "question_text": "When learning, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Follow structured curricula",
+        "value": "J"
+      },
+      {
+        "text": "Explore topics as they interest you",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 87,
+    "question_text": "Do you approach life with:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "A clear plan and direction",
+        "value": "J"
+      },
+      {
+        "text": "Openness to unexpected opportunities",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 88,
+    "question_text": "In social planning, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Organize events in advance",
+        "value": "J"
+      },
+      {
+        "text": "Spontaneously get together",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 89,
+    "question_text": "When working on creative projects, do you:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Work toward a defined outcome",
+        "value": "J"
+      },
+      {
+        "text": "Follow inspiration wherever it leads",
+        "value": "P"
+      }
+    ]
+  },
+  {
+    "id": 90,
+    "question_text": "Do you prefer endings that are:",
+    "dimension": "J-P",
+    "options": [
+      {
+        "text": "Clear and definitive",
+        "value": "J"
+      },
+      {
+        "text": "Open to continuation",
+        "value": "P"
+      }
+    ]
+  }
+]

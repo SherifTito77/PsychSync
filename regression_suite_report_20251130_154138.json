@@ -1,0 +1,552 @@
+{
+  "execution_timestamp": "2025-11-30T15:41:38.272925",
+  "execution_time_seconds": 56.040165185928345,
+  "total_tests": 23,
+  "successful_tests": 0,
+  "failed_tests": 23,
+  "success_rate_percent": 0.0,
+  "health_checks": {
+    "total_services": 5,
+    "healthy_services": 0,
+    "health_rate_percent": 0.0,
+    "details": [
+      {
+        "component": "Basic Health",
+        "status": "error",
+        "response_time_ms": 0,
+        "details": {
+          "error": ""
+        },
+        "dependencies": {},
+        "timestamp": "2025-11-30 15:40:52.475720"
+      },
+      {
+        "component": "Detailed Health",
+        "status": "error",
+        "response_time_ms": 0,
+        "details": {
+          "error": ""
+        },
+        "dependencies": {},
+        "timestamp": "2025-11-30 15:41:02.610590"
+      },
+      {
+        "component": "Database Health",
+        "status": "unhealthy",
+        "response_time_ms": 6811.949014663696,
+        "details": {
+          "success": false,
+          "status": "error",
+          "message": "Not Found",
+          "data": {
+            "path": "http://localhost:8000/api/v1/health/database",
+            "method": "GET"
+          },
+          "errors": [
+            {
+              "code": "HTTP_404",
+              "message": "Not Found"
+            }
+          ],
+          "meta": {}
+        },
+        "dependencies": {},
+        "timestamp": "2025-11-30 15:41:09.422814"
+      },
+      {
+        "component": "Cache Health",
+        "status": "unhealthy",
+        "response_time_ms": 84.07211303710938,
+        "details": {
+          "success": false,
+          "status": "error",
+          "message": "Not Found",
+          "data": {
+            "path": "http://localhost:8000/api/v1/health/cache",
+            "method": "GET"
+          },
+          "errors": [
+            {
+              "code": "HTTP_404",
+              "message": "Not Found"
+            }
+          ],
+          "meta": {}
+        },
+        "dependencies": {},
+        "timestamp": "2025-11-30 15:41:09.507168"
+      },
+      {
+        "component": "Dependencies Health",
+        "status": "unhealthy",
+        "response_time_ms": 71.72179222106934,
+        "details": {
+          "success": false,
+          "status": "error",
+          "message": "Not Found",
+          "data": {
+            "path": "http://localhost:8000/api/v1/health/dependencies",
+            "method": "GET"
+          },
+          "errors": [
+            {
+              "code": "HTTP_404",
+              "message": "Not Found"
+            }
+          ],
+          "meta": {}
+        },
+        "dependencies": {},
+        "timestamp": "2025-11-30 15:41:09.579022"
+      }
+    ]
+  },
+  "category_statistics": {
+    "authentication": {
+      "total": 4,
+      "success": 0,
+      "failed": 4
+    },
+    "user_management": {
+      "total": 3,
+      "success": 0,
+      "failed": 3
+    },
+    "team_management": {
+      "total": 3,
+      "success": 0,
+      "failed": 3
+    },
+    "assessment_system": {
+      "total": 4,
+      "success": 0,
+      "failed": 4
+    },
+    "analytics_reporting": {
+      "total": 4,
+      "success": 0,
+      "failed": 4
+    },
+    "notifications": {
+      "total": 3,
+      "success": 0,
+      "failed": 3
+    },
+    "data_integrity": {
+      "total": 2,
+      "success": 0,
+      "failed": 2
+    }
+  },
+  "performance_metrics": {
+    "average_response_time_ms": 622.3098195117453,
+    "max_response_time_ms": 2310.7693195343018,
+    "min_response_time_ms": 60.835838317871094
+  },
+  "test_results": [
+    {
+      "test_name": "User Registration",
+      "category": "RegressionTestCategory.AUTHENTICATION",
+      "success": false,
+      "response_time_ms": 81.72917366027832,
+      "status_code": 404,
+      "expected_status_code": 201,
+      "data_validated": false,
+      "issues": [
+        "Expected 201, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 196
+      },
+      "timestamp": "2025-11-30 15:41:09.660931"
+    },
+    {
+      "test_name": "User Login",
+      "category": "RegressionTestCategory.AUTHENTICATION",
+      "success": false,
+      "response_time_ms": 82.09705352783203,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 193
+      },
+      "timestamp": "2025-11-30 15:41:09.743125"
+    },
+    {
+      "test_name": "Token Refresh",
+      "category": "RegressionTestCategory.AUTHENTICATION",
+      "success": false,
+      "response_time_ms": 101.61113739013672,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 195
+      },
+      "timestamp": "2025-11-30 15:41:09.844855"
+    },
+    {
+      "test_name": "User Profile Access",
+      "category": "RegressionTestCategory.AUTHENTICATION",
+      "success": false,
+      "response_time_ms": 2310.7693195343018,
+      "status_code": 500,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 500",
+        "Response: {\"success\":false,\"message\":\"Internal server error\",\"request_id\":\"14673db1-f307-418b-ac95-ecfdcd999df"
+      ],
+      "metrics": {
+        "response_size": 134
+      },
+      "timestamp": "2025-11-30 15:41:12.155711"
+    },
+    {
+      "test_name": "User Profile Update",
+      "category": "RegressionTestCategory.USER_MANAGEMENT",
+      "success": false,
+      "response_time_ms": 92.97013282775879,
+      "status_code": 405,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 405",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Method Not Allowed\",\"data\":{\"path\":\"http://localhost:80"
+      ],
+      "metrics": {
+        "response_size": 213
+      },
+      "timestamp": "2025-11-30 15:41:12.248786"
+    },
+    {
+      "test_name": "User Settings Update",
+      "category": "RegressionTestCategory.USER_MANAGEMENT",
+      "success": false,
+      "response_time_ms": 88.74177932739258,
+      "status_code": 405,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 405",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Method Not Allowed\",\"data\":{\"path\":\"http://localhost:80"
+      ],
+      "metrics": {
+        "response_size": 214
+      },
+      "timestamp": "2025-11-30 15:41:12.337621"
+    },
+    {
+      "test_name": "User Preferences",
+      "category": "RegressionTestCategory.USER_MANAGEMENT",
+      "success": false,
+      "response_time_ms": 2105.828046798706,
+      "status_code": 500,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 500",
+        "Response: {\"success\":false,\"message\":\"Internal server error\",\"request_id\":\"4b6f5716-081d-412e-a623-7bd4b1a6682"
+      ],
+      "metrics": {
+        "response_size": 134
+      },
+      "timestamp": "2025-11-30 15:41:14.443612"
+    },
+    {
+      "test_name": "Team Creation",
+      "category": "RegressionTestCategory.TEAM_MANAGEMENT",
+      "success": false,
+      "response_time_ms": 72.52097129821777,
+      "status_code": 405,
+      "expected_status_code": 201,
+      "data_validated": false,
+      "issues": [
+        "Expected 201, got 405",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Method Not Allowed\",\"data\":{\"path\":\"http://localhost:80"
+      ],
+      "metrics": {
+        "response_size": 206
+      },
+      "timestamp": "2025-11-30 15:41:14.516232"
+    },
+    {
+      "test_name": "Team Listing",
+      "category": "RegressionTestCategory.TEAM_MANAGEMENT",
+      "success": false,
+      "response_time_ms": 2082.3709964752197,
+      "status_code": 500,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 500",
+        "Response: {\"success\":false,\"message\":\"Internal server error\",\"request_id\":\"a6b8bcd3-0f53-41d2-8358-2acbcfa19f1"
+      ],
+      "metrics": {
+        "response_size": 133
+      },
+      "timestamp": "2025-11-30 15:41:16.598688"
+    },
+    {
+      "test_name": "Team Member Listing",
+      "category": "RegressionTestCategory.TEAM_MANAGEMENT",
+      "success": false,
+      "response_time_ms": 166.8541431427002,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 208
+      },
+      "timestamp": "2025-11-30 15:41:16.765660"
+    },
+    {
+      "test_name": "Assessment Listing",
+      "category": "RegressionTestCategory.ASSESSMENT_SYSTEM",
+      "success": false,
+      "response_time_ms": 2149.3020057678223,
+      "status_code": 500,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 500",
+        "Response: {\"success\":false,\"message\":\"Internal server error\",\"request_id\":\"8c578570-ff1f-45e5-a58c-85fa6fb04e0"
+      ],
+      "metrics": {
+        "response_size": 133
+      },
+      "timestamp": "2025-11-30 15:41:18.915078"
+    },
+    {
+      "test_name": "Assessment Creation",
+      "category": "RegressionTestCategory.ASSESSMENT_SYSTEM",
+      "success": false,
+      "response_time_ms": 80.52778244018555,
+      "status_code": 405,
+      "expected_status_code": 201,
+      "data_validated": false,
+      "issues": [
+        "Expected 201, got 405",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Method Not Allowed\",\"data\":{\"path\":\"http://localhost:80"
+      ],
+      "metrics": {
+        "response_size": 212
+      },
+      "timestamp": "2025-11-30 15:41:18.995729"
+    },
+    {
+      "test_name": "Assessment Templates",
+      "category": "RegressionTestCategory.ASSESSMENT_SYSTEM",
+      "success": false,
+      "response_time_ms": 2092.1730995178223,
+      "status_code": 500,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 500",
+        "Response: {\"success\":false,\"message\":\"Internal server error\",\"request_id\":\"837d8763-354b-4f77-ab52-bcc6e5e3cca"
+      ],
+      "metrics": {
+        "response_size": 133
+      },
+      "timestamp": "2025-11-30 15:41:21.087992"
+    },
+    {
+      "test_name": "Response Submission",
+      "category": "RegressionTestCategory.ASSESSMENT_SYSTEM",
+      "success": false,
+      "response_time_ms": 77.45909690856934,
+      "status_code": 405,
+      "expected_status_code": 201,
+      "data_validated": false,
+      "issues": [
+        "Expected 201, got 405",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Method Not Allowed\",\"data\":{\"path\":\"http://localhost:80"
+      ],
+      "metrics": {
+        "response_size": 210
+      },
+      "timestamp": "2025-11-30 15:41:21.165536"
+    },
+    {
+      "test_name": "Team Overview Analytics",
+      "category": "RegressionTestCategory.ANALYTICS_REPORTING",
+      "success": false,
+      "response_time_ms": 60.835838317871094,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 205
+      },
+      "timestamp": "2025-11-30 15:41:21.226457"
+    },
+    {
+      "test_name": "Team Performance Analytics",
+      "category": "RegressionTestCategory.ANALYTICS_REPORTING",
+      "success": false,
+      "response_time_ms": 62.32285499572754,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 208
+      },
+      "timestamp": "2025-11-30 15:41:21.288859"
+    },
+    {
+      "test_name": "Personality Distribution",
+      "category": "RegressionTestCategory.ANALYTICS_REPORTING",
+      "success": false,
+      "response_time_ms": 65.12999534606934,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 216
+      },
+      "timestamp": "2025-11-30 15:41:21.354067"
+    },
+    {
+      "test_name": "Time-Based Analytics",
+      "category": "RegressionTestCategory.ANALYTICS_REPORTING",
+      "success": false,
+      "response_time_ms": 64.54873085021973,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 200
+      },
+      "timestamp": "2025-11-30 15:41:21.418713"
+    },
+    {
+      "test_name": "Notification Listing",
+      "category": "RegressionTestCategory.NOTIFICATIONS",
+      "success": false,
+      "response_time_ms": 2086.1330032348633,
+      "status_code": 500,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 500",
+        "Response: {\"success\":false,\"message\":\"Internal server error\",\"request_id\":\"1cd9919d-3b4e-4297-8263-10b679a57ef"
+      ],
+      "metrics": {
+        "response_size": 133
+      },
+      "timestamp": "2025-11-30 15:41:23.504934"
+    },
+    {
+      "test_name": "Notification Creation",
+      "category": "RegressionTestCategory.NOTIFICATIONS",
+      "success": false,
+      "response_time_ms": 75.88791847229004,
+      "status_code": 405,
+      "expected_status_code": 201,
+      "data_validated": false,
+      "issues": [
+        "Expected 201, got 405",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Method Not Allowed\",\"data\":{\"path\":\"http://localhost:80"
+      ],
+      "metrics": {
+        "response_size": 214
+      },
+      "timestamp": "2025-11-30 15:41:23.580910"
+    },
+    {
+      "test_name": "Notification Preferences",
+      "category": "RegressionTestCategory.NOTIFICATIONS",
+      "success": false,
+      "response_time_ms": 91.33195877075195,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 207
+      },
+      "timestamp": "2025-11-30 15:41:23.672345"
+    },
+    {
+      "test_name": "User-Team Consistency",
+      "category": "RegressionTestCategory.DATA_INTEGRITY",
+      "success": false,
+      "response_time_ms": 95.52001953125,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 208
+      },
+      "timestamp": "2025-11-30 15:41:29.028067"
+    },
+    {
+      "test_name": "Assessment-Response Consistency",
+      "category": "RegressionTestCategory.DATA_INTEGRITY",
+      "success": false,
+      "response_time_ms": 126.46079063415527,
+      "status_code": 404,
+      "expected_status_code": 200,
+      "data_validated": false,
+      "issues": [
+        "Expected 200, got 404",
+        "Response: {\"success\":false,\"status\":\"error\",\"message\":\"Not Found\",\"data\":{\"path\":\"http://localhost:8000/api/v1"
+      ],
+      "metrics": {
+        "response_size": 218
+      },
+      "timestamp": "2025-11-30 15:41:29.154626"
+    }
+  ],
+  "critical_issues": [],
+  "deployment_ready": false,
+  "recommendations": [
+    "\u2705 Continue monitoring critical test cases in CI/CD pipeline",
+    "\u2705 Implement automated regression testing for new features",
+    "\u2705 Monitor performance benchmarks and alert on degradation",
+    "\u2705 Maintain comprehensive test coverage across all categories",
+    "\u2705 Regular security audits and penetration testing",
+    "\u2705 Database consistency checks and repair procedures",
+    "\u2705 API versioning and backward compatibility maintenance",
+    "\u2705 Cross-platform compatibility testing with each release",
+    "\u2705 User experience monitoring and feedback collection"
+  ]
+}

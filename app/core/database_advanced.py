@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List, AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import QueuePool, StaticPool
+from sqlalchemy.pool import StaticPool
 from sqlalchemy import text, event, DDL
 from sqlalchemy.engine import Engine
 from app.core.config import settings
@@ -50,12 +50,11 @@ class Base(DeclarativeBase):
 # Create optimized async database engine with advanced settings
 async_engine = create_async_engine(
     settings.get_database_url(async_driver=True),
-    # Advanced pool configuration
-    poolclass=QueuePool,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_pre_ping=settings.DB_POOL_PRE_PING,
-    pool_recycle=settings.DB_POOL_RECYCLE,
+    # Async-compatible pool configuration
+    pool_size=getattr(settings, 'DB_POOL_SIZE', 10),
+    max_overflow=getattr(settings, 'DB_MAX_OVERFLOW', 20),
+    pool_pre_ping=getattr(settings, 'DB_POOL_PRE_PING', True),
+    pool_recycle=getattr(settings, 'DB_POOL_RECYCLE', 3600),
 
     # Connection timeout and retry settings
     pool_timeout=30,  # Wait 30 seconds for connection

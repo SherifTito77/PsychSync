@@ -1,0 +1,277 @@
+{
+  "summary": {
+    "total_tests": 10,
+    "successful_tests": 10,
+    "success_rate": 100.0,
+    "providers_tested": [
+      "Google",
+      "Microsoft"
+    ]
+  },
+  "provider_results": {
+    "Google": {
+      "total_tests": 5,
+      "successful_tests": 5,
+      "success_rate": 100.0,
+      "average_response_time": 0.000686025619506836
+    },
+    "Microsoft": {
+      "total_tests": 5,
+      "successful_tests": 5,
+      "success_rate": 100.0,
+      "average_response_time": 0.0028104782104492188
+    }
+  },
+  "test_results": [
+    {
+      "name": "OAuth Authorization Flow",
+      "provider": "Google",
+      "success": true,
+      "response_time": 3.0994415283203125e-05,
+      "details": {
+        "authorization_code_generated": true,
+        "access_token_received": true,
+        "refresh_token_received": true,
+        "token_type": "Bearer",
+        "expires_in": 3600,
+        "user_profile": {
+          "id": "Google_user_cacc1b6b",
+          "email": "Google_user_cacc1b6b@google.com",
+          "name": "Google User Cacc1B6B",
+          "verified": true
+        }
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.597941"
+    },
+    {
+      "name": "Token Refresh",
+      "provider": "Google",
+      "success": true,
+      "response_time": 1.811981201171875e-05,
+      "details": {
+        "old_token_invalidated": true,
+        "new_access_token_generated": true,
+        "new_refresh_token_generated": true,
+        "new_token_valid": true,
+        "profile_retrieved": true
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.598057"
+    },
+    {
+      "name": "Concurrent Sessions",
+      "provider": "Google",
+      "success": true,
+      "response_time": 0.003381013870239258,
+      "details": {
+        "total_sessions": 50,
+        "successful_sessions": 50,
+        "success_rate": 100.0,
+        "average_session_time": 2.411365509033203e-05,
+        "sessions_per_second": 14788.46343699316,
+        "unique_users": 50
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.601545"
+    },
+    {
+      "name": "Error Handling",
+      "provider": "Google",
+      "success": true,
+      "response_time": 0,
+      "details": {
+        "total_scenarios": 4,
+        "successful_error_handling": 4,
+        "test_results": [
+          {
+            "scenario": "Invalid Authorization Code",
+            "error_handled": true,
+            "response_time": 2.86102294921875e-06,
+            "error_type": "invalid_grant"
+          },
+          {
+            "scenario": "Expired Authorization Code",
+            "error_handled": true,
+            "response_time": 4.792213439941406e-05,
+            "error_type": "invalid_grant"
+          },
+          {
+            "scenario": "Invalid Access Token",
+            "error_handled": true,
+            "response_time": 1.6689300537109375e-06,
+            "error_type": "invalid_token"
+          },
+          {
+            "scenario": "Expired Access Token",
+            "error_handled": true,
+            "response_time": 3.1948089599609375e-05,
+            "error_type": "invalid_token"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.601678"
+    },
+    {
+      "name": "State Parameter Security",
+      "provider": "Google",
+      "success": true,
+      "response_time": 0,
+      "details": {
+        "total_scenarios": 3,
+        "security_checks_passed": 3,
+        "test_results": [
+          {
+            "scenario": "Valid State",
+            "state_valid": true,
+            "expected_success": true,
+            "security_check_passed": true,
+            "response_time": 1.9073486328125e-06
+          },
+          {
+            "scenario": "Invalid State",
+            "state_valid": false,
+            "expected_success": false,
+            "security_check_passed": true,
+            "response_time": 1.1920928955078125e-06
+          },
+          {
+            "scenario": "Missing State",
+            "state_valid": false,
+            "expected_success": false,
+            "security_check_passed": true,
+            "response_time": 0.0
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.601733"
+    },
+    {
+      "name": "OAuth Authorization Flow",
+      "provider": "Microsoft",
+      "success": true,
+      "response_time": 2.0265579223632812e-05,
+      "details": {
+        "authorization_code_generated": true,
+        "access_token_received": true,
+        "refresh_token_received": true,
+        "token_type": "Bearer",
+        "expires_in": 3600,
+        "user_profile": {
+          "id": "Microsoft_user_2a2d44ea",
+          "email": "Microsoft_user_2a2d44ea@microsoft.com",
+          "name": "Microsoft User 2A2D44Ea",
+          "verified": true
+        }
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.602048"
+    },
+    {
+      "name": "Token Refresh",
+      "provider": "Microsoft",
+      "success": true,
+      "response_time": 1.0013580322265625e-05,
+      "details": {
+        "old_token_invalidated": true,
+        "new_access_token_generated": true,
+        "new_refresh_token_generated": true,
+        "new_token_valid": true,
+        "profile_retrieved": true
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.602112"
+    },
+    {
+      "name": "Concurrent Sessions",
+      "provider": "Microsoft",
+      "success": true,
+      "response_time": 0.014022111892700195,
+      "details": {
+        "total_sessions": 50,
+        "successful_sessions": 50,
+        "success_rate": 100.0,
+        "average_session_time": 0.00013620853424072265,
+        "sessions_per_second": 3565.7966776052913,
+        "unique_users": 50
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.616255"
+    },
+    {
+      "name": "Error Handling",
+      "provider": "Microsoft",
+      "success": true,
+      "response_time": 0,
+      "details": {
+        "total_scenarios": 4,
+        "successful_error_handling": 4,
+        "test_results": [
+          {
+            "scenario": "Invalid Authorization Code",
+            "error_handled": true,
+            "response_time": 4.76837158203125e-06,
+            "error_type": "invalid_grant"
+          },
+          {
+            "scenario": "Expired Authorization Code",
+            "error_handled": true,
+            "response_time": 5.2928924560546875e-05,
+            "error_type": "invalid_grant"
+          },
+          {
+            "scenario": "Invalid Access Token",
+            "error_handled": true,
+            "response_time": 1.9073486328125e-06,
+            "error_type": "invalid_token"
+          },
+          {
+            "scenario": "Expired Access Token",
+            "error_handled": true,
+            "response_time": 3.1948089599609375e-05,
+            "error_type": "invalid_token"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.616403"
+    },
+    {
+      "name": "State Parameter Security",
+      "provider": "Microsoft",
+      "success": true,
+      "response_time": 0,
+      "details": {
+        "total_scenarios": 3,
+        "security_checks_passed": 3,
+        "test_results": [
+          {
+            "scenario": "Valid State",
+            "state_valid": true,
+            "expected_success": true,
+            "security_check_passed": true,
+            "response_time": 9.5367431640625e-07
+          },
+          {
+            "scenario": "Invalid State",
+            "state_valid": false,
+            "expected_success": false,
+            "security_check_passed": true,
+            "response_time": 0.0
+          },
+          {
+            "scenario": "Missing State",
+            "state_valid": false,
+            "expected_success": false,
+            "security_check_passed": true,
+            "response_time": 0.0
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:36:37.616458"
+    }
+  ]
+}

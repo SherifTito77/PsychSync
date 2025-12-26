@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Dashboard - PsychSync</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0e27;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+            border-bottom: 2px solid #10b981;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-subtitle {
+            color: #94a3b8;
+            margin-top: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .header-stat {
+            text-align: center;
+        }
+
+        .header-stat .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .header-stat .label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .executive-summary {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .summary-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 1.5rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .summary-card {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border-left: 4px solid #10b981;
+        }
+
+        .summary-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 0.75rem;
+        }
+
+        .summary-card p {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .kpi-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .kpi-title {
+            font-size: 1rem;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .kpi-significance {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .significance-critical {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .significance-important {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .significance-info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #10b981;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .kpi-change {
+            font-weight: 500;
+        }
+
+        .kpi-change.up {
+            color: #10b981;
+        }
+
+        .kpi-change.down {
+            color: #ef4444;
+        }
+
+        .kpi-target {
+            color: #64748b;
+        }
+
+        .initiatives-section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .initiatives-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .initiatives-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .initiatives-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .initiative-card {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+
+        .initiative-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .initiative-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .initiative-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-on-track {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .status-at-risk {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .status-delayed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .initiative-description {
+            color: #94a3b8;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .initiative-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .initiative-metric {
+            text-align: center;
+        }
+
+        .initiative-metric-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+
+        .initiative-metric-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #10b981;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(100, 116, 139, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-on-track {
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        }
+
+        .progress-at-risk {
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .progress-delayed {
+            background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .insights-section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .insights-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 1.5rem;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .insight-card {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .insight-card.high-impact {
+            border-left-color: #ef4444;
+        }
+
+        .insight-card.medium-impact {
+            border-left-color: #f59e0b;
+        }
+
+        .insight-category {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #3b82f6;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .insight-text {
+            color: #f1f5f9;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            line-height: 1.5;
+        }
+
+        .insight-recommendation {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            font-style: italic;
+            line-height: 1.4;
+        }
+
+        .chart-section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 1.5rem;
+        }
+
+        .action-panel {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-top: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .action-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .action-description {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .action-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 1rem 2rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 0.5rem;
+        }
+
+        .action-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .header-stats {
+                gap: 1rem;
+            }
+
+            .summary-grid,
+            .kpi-section,
+            .initiatives-grid,
+            .insights-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>Executive Dashboard</h1>
+                <div class="header-subtitle">Strategic business intelligence and growth analytics</div>
+            </div>
+            <div class="header-stats">
+                <div class="header-stat">
+                    <div class="value">$13.5M</div>
+                    <div class="label">Target ARR</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value">400%</div>
+                    <div class="label">Growth Target</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value">8.2x</div>
+                    <div class="label">ROI</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value">24</div>
+                    <div class="label">Months Runway</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Executive Summary -->
+        <div class="executive-summary">
+            <h2 class="summary-title">Executive Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3>📈 Business Health</h3>
+                    <p>Strong growth trajectory with 400% revenue projection and 8.2x ROI on optimization investments. Net revenue retention at 115% indicates excellent product-market fit.</p>
+                </div>
+                <div class="summary-card">
+                    <h3>🎯 Strategic Priorities</h3>
+                    <p>Enterprise pricing realignment ($3.5M impact), multi-department expansion ($2.5M impact), and premium services scaling ($4M impact) are top priorities for next quarter.</p>
+                </div>
+                <div class="summary-card">
+                    <h3>⚠️ Critical Focus</h3>
+                    <p>Scale premium services delivery, accelerate AI development to maintain competitive advantage, and monitor competitive movements for rapid response.</p>
+                </div>
+                <div class="summary-card">
+                    <h3>🏆 Competitive Position</h3>
+                    <p>Market share of 0.8% growing to 2.5% target. 68% win rate against competitors with scientific differentiation providing strong market positioning.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Performance Indicators -->
+        <div class="kpi-section">
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Annual Recurring Revenue</div>
+                    <div class="kpi-significance significance-critical">Critical</div>
+                </div>
+                <div class="kpi-value">$2.7M</div>
+                <div class="kpi-details">
+                    <span class="kpi-change up">↑ 29% vs target</span>
+                    <span class="kpi-target">Target: $13.5M</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Gross Margin Percentage</div>
+                    <div class="kpi-significance significance-critical">Critical</div>
+                </div>
+                <div class="kpi-value">82%</div>
+                <div class="kpi-details">
+                    <span class="kpi-change up">↑ 3% vs previous</span>
+                    <span class="kpi-target">Target: 85%</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Net Revenue Retention</div>
+                    <div class="kpi-significance significance-critical">Critical</div>
+                </div>
+                <div class="kpi-value">115%</div>
+                <div class="kpi-details">
+                    <span class="kpi-change up">↑ 7% vs previous</span>
+                    <span class="kpi-target">Target: 140%</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Customer Acquisition Cost</div>
+                    <div class="kpi-significance significance-critical">Critical</div>
+                </div>
+                <div class="kpi-value">$2,500</div>
+                <div class="kpi-details">
+                    <span class="kpi-change down">↓ 22% improvement</span>
+                    <span class="kpi-target">Target: $2,000</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Market Share (HR Tech)</div>
+                    <div class="kpi-significance significance-important">Important</div>
+                </div>
+                <div class="kpi-value">0.8%</div>
+                <div class="kpi-details">
+                    <span class="kpi-change up">↑ 0.3% growth</span>
+                    <span class="kpi-target">Target: 2.5%</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Win Rate vs Competitors</div>
+                    <div class="kpi-significance significance-important">Important</div>
+                </div>
+                <div class="kpi-value">68%</div>
+                <div class="kpi-details">
+                    <span class="kpi-change up">↑ 16% improvement</span>
+                    <span class="kpi-target">Target: 75%</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Customer Satisfaction</div>
+                    <div class="kpi-significance significance-important">Important</div>
+                </div>
+                <div class="kpi-value">4.5/5</div>
+                <div class="kpi-details">
+                    <span class="kpi-change up">↑ 0.3 improvement</span>
+                    <span class="kpi-target">Target: 4.7</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-title">Services Utilization</div>
+                    <div class="kpi-significance significance-info">Informational</div>
+                </div>
+                <div class="kpi-value">75%</div>
+                <div class="kpi-details">
+                    <span class="kpi-change up">↑ 7% increase</span>
+                    <span class="kpi-target">Target: 85%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategic Initiatives -->
+        <div class="initiatives-section">
+            <div class="initiatives-header">
+                <h2 class="initiatives-title">Strategic Initiatives</h2>
+            </div>
+            <div class="initiatives-grid">
+                <div class="initiative-card">
+                    <div class="initiative-header">
+                        <h3 class="initiative-title">Enterprise Pricing Realignment</h3>
+                        <div class="initiative-status status-on-track">On Track</div>
+                    </div>
+                    <div class="initiative-description">
+                        Increase enterprise-tier pricing to reflect true market value and premium positioning with 54% price increase.
+                    </div>
+                    <div class="initiative-metrics">
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Progress</div>
+                            <div class="initiative-metric-value">65%</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Impact</div>
+                            <div class="initiative-metric-value">$3.5M ARR</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Timeline</div>
+                            <div class="initiative-metric-value">2 months</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-on-track" style="width: 65%;"></div>
+                    </div>
+                </div>
+
+                <div class="initiative-card">
+                    <div class="initiative-header">
+                        <h3 class="initiative-title">Multi-Department Expansion</h3>
+                        <div class="initiative-status status-on-track">On Track</div>
+                    </div>
+                    <div class="initiative-description">
+                        Develop systematic playbook for expanding from pilot teams to enterprise-wide deployments with 40% target expansion rate.
+                    </div>
+                    <div class="initiative-metrics">
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Progress</div>
+                            <div class="initiative-metric-value">45%</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Impact</div>
+                            <div class="initiative-metric-value">$2.5M ARR</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Timeline</div>
+                            <div class="initiative-metric-value">3 months</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-on-track" style="width: 45%;"></div>
+                    </div>
+                </div>
+
+                <div class="initiative-card">
+                    <div class="initiative-header">
+                        <h3 class="initiative-title">Premium Services Scale-Up</h3>
+                        <div class="initiative-status status-at-risk">At Risk</div>
+                    </div>
+                    <div class="initiative-description">
+                        Scale high-margin intervention services to achieve 70% gross margin contribution and $4M services revenue target.
+                    </div>
+                    <div class="initiative-metrics">
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Progress</div>
+                            <div class="initiative-metric-value">30%</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Impact</div>
+                            <div class="initiative-metric-value">$4M ARR</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Timeline</div>
+                            <div class="initiative-metric-value">4 months</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-at-risk" style="width: 30%;"></div>
+                    </div>
+                </div>
+
+                <div class="initiative-card">
+                    <div class="initiative-header">
+                        <h3 class="initiative-title">AI-Powered Churn Prediction</h3>
+                        <div class="initiative-status status-delayed">Delayed</div>
+                    </div>
+                    <div class="initiative-description">
+                        Develop ML model to predict customer churn with 85% accuracy and protect $1.2M ARR through proactive interventions.
+                    </div>
+                    <div class="initiative-metrics">
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Progress</div>
+                            <div class="initiative-metric-value">20%</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Impact</div>
+                            <div class="initiative-metric-value">$1.2M ARR</div>
+                        </div>
+                        <div class="initiative-metric">
+                            <div class="initiative-metric-label">Timeline</div>
+                            <div class="initiative-metric-value">5 months</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-delayed" style="width: 20%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Intelligence -->
+        <div class="insights-section">
+            <h2 class="insights-title">Market Intelligence</h2>
+            <div class="insights-grid">
+                <div class="insight-card high-impact">
+                    <div class="insight-category">Competitor Movement</div>
+                    <div class="insight-text">Culture Amp launching AI-powered team optimization features</div>
+                    <div class="insight-recommendation">Accelerate AI feature development to maintain differentiation and competitive advantage</div>
+                </div>
+
+                <div class="insight-card medium-impact">
+                    <div class="insight-category">Market Opportunity</div>
+                    <div class="insight-text">Mental health and employee wellbeing spending up 40% post-pandemic</div>
+                    <div class="insight-recommendation">Position behavioral intelligence as mental wellbeing solution for enterprise markets</div>
+                </div>
+
+                <div class="insight-card medium-impact">
+                    <div class="insight-category">Customer Behavior</div>
+                    <div class="insight-text">Customers achieving 2x faster ROI than projected with team optimization</div>
+                    <div class="insight-recommendation">Update case studies and marketing materials with accelerated ROI claims</div>
+                </div>
+
+                <div class="insight-card high-impact">
+                    <div class="insight-category">Pricing Trends</div>
+                    <div class="insight-text">Enterprise HR tech pricing increasing 15% year-over-year</div>
+                    <div class="insight-recommendation">Validate pricing optimization strategy against market data and competitive positioning</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Growth Chart -->
+        <div class="chart-section">
+            <h2 class="insights-title">Revenue Growth Trajectory</h2>
+            <div class="chart-container">
+                <canvas id="revenueTrajectoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Executive Actions -->
+        <div class="action-panel">
+            <h2 class="action-title">Strategic Decision Support</h2>
+            <p class="action-description">
+                Based on current performance and market intelligence, key strategic decisions are required to maintain growth trajectory and competitive advantage.
+            </p>
+            <div>
+                <button class="action-button" onclick="scheduleStrategySession()">
+                    Schedule Strategy Review
+                </button>
+                <button class="action-button" onclick="generateBoardReport()">
+                    Generate Board Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize revenue trajectory chart
+        function initializeRevenueChart() {
+            const ctx = document.getElementById('revenueTrajectoryChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Current', 'Q1', 'Q2', 'Q3', 'Q4', 'Q1 Next Year', 'Q2 Next Year', 'Q3 Next Year', 'Q4 Next Year'],
+                    datasets: [{
+                        label: 'Base Case Projection',
+                        data: [2700000, 3500000, 5000000, 7500000, 9500000, 11250000, 13500000, 16000000, 18500000],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Optimistic Scenario',
+                        data: [2700000, 3800000, 6000000, 9500000, 13500000, 18000000, 22000000, 25000000, 28000000],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        borderDash: [5, 5],
+                        tension: 0.4
+                    }, {
+                        label: 'Target Milestone',
+                        data: [null, null, null, null, null, null, 13500000, null, null],
+                        borderColor: '#f59e0b',
+                        backgroundColor: '#f59e0b',
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        showLine: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#e2e8f0'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const value = new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD',
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0
+                                    }).format(context.raw);
+                                    return label + ': ' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Interactive functions
+        function scheduleStrategySession() {
+            console.log('Scheduling executive strategy session...');
+            // Implementation would open calendar scheduling
+        }
+
+        function generateBoardReport() {
+            console.log('Generating board-level report...');
+            // Implementation would generate comprehensive board report
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeRevenueChart();
+        });
+    </script>
+</body>
+</html>

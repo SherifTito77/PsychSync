@@ -180,7 +180,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ className = '' }) => {
     ));
     showNotification('Investigation assigned successfully', 'success');
   };
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity: string): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (severity) {
       case 'critical': return 'red';
       case 'high': return 'orange';
@@ -351,6 +351,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ className = '' }) => {
           {/* Quick Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
+              title="Total Events"
               value={events.length}
               icon={<Activity className="w-5 h-5" />}
               color="blue"
@@ -358,6 +359,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ className = '' }) => {
               trend="up"
             />
             <StatCard
+              title="Security Events"
               value={events.filter(e => e.category === 'security').length}
               icon={<Shield className="w-5 h-5" />}
               color="red"
@@ -365,6 +367,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ className = '' }) => {
               trend="down"
             />
             <StatCard
+              title="Failed Logins"
               value={events.filter(e => e.eventType === 'login' && e.status === 'failure').length}
               icon={<XCircle className="w-5 h-5" />}
               color="orange"
@@ -372,6 +375,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ className = '' }) => {
               trend="up"
             />
             <StatCard
+              title="Data Exports"
               value={events.filter(e => e.eventType === 'data_export').length}
               icon={<Download className="w-5 h-5" />}
               color="green"
@@ -432,6 +436,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ className = '' }) => {
           {/* Investigation Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
+              title="Open Investigations"
               value={investigations.filter(i => i.status === 'open').length}
               icon={<FileSearch className="w-5 h-5" />}
               color="blue"
@@ -564,7 +569,7 @@ const EventRow: React.FC<EventRowProps> = ({
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center space-x-2">
-          <Badge color={getSeverityColor(event.severity)} size="sm">
+          <Badge color={getSeverityColor(event.severity) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
             {event.severity}
           </Badge>
           {getStatusIcon(event.status)}
@@ -650,7 +655,7 @@ const InvestigationCard: React.FC<InvestigationCardProps> = ({
             <Badge color={getStatusColor(investigation.status)} size="sm">
               {investigation.status.replace('_', ' ')}
             </Badge>
-            <Badge color={getSeverityColor(investigation.severity)} size="sm" variant="outline">
+            <Badge color={getSeverityColor(investigation.severity) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm" variant="outline">
               {investigation.severity}
             </Badge>
           </div>

@@ -9,6 +9,10 @@ These are simplified versions of the full GDPR endpoints,
 designed for quick implementation and easy integration.
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response
+
+from app.middleware.rate_limiter import check_rate_limit
+
+from app.core.path_utils import sanitize_path, safe_filename
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 import logging
@@ -84,6 +88,8 @@ class UserDeleteResponse(BaseModel):
 # EXPORT ENDPOINT
 # ============================================
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.get("/export", response_model=UserExportResponse)
 async def export_user_data(
     background_tasks: BackgroundTasks,
@@ -155,7 +161,9 @@ async def export_user_data(
         logger.error(f"Error in export_user_data: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="Failed to process export request. Please try again later."
+            detail="Failed 
+@check_rate_limit(identifier="public", endpoint_type="public")
+to process export request. Please try again later."
         )
 
 
@@ -197,7 +205,9 @@ async def get_export_status(
         
     except Exception as e:
         logger.error(f"Error getting export status: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get export status")
+        raise HTTPException(status_code=500, detail="Failed to get exp
+@check_rate_limit(identifier="public", endpoint_type="public")
+ort status")
 
 
 # ============================================

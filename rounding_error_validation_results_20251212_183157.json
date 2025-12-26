@@ -1,0 +1,217 @@
+{
+  "test_summary": {
+    "total_assessments_tested": 3,
+    "overall_rounding_accuracy": 92.38095238095238,
+    "target_accuracy": 90.0,
+    "total_combinations_tested": 105,
+    "total_precision_analyses": 15,
+    "meets_target": true
+  },
+  "assessment_results": [
+    {
+      "assessment_type": "big_five",
+      "rounding_accuracy": 91.42857142857143,
+      "methods_tested": 35,
+      "critical_errors": 0,
+      "recommendations": [
+        "High cumulative rounding errors detected - review calculation steps",
+        "Recommended precision: 6 decimal places for big_five"
+      ]
+    },
+    {
+      "assessment_type": "mbti",
+      "rounding_accuracy": 97.14285714285714,
+      "methods_tested": 35,
+      "critical_errors": 0,
+      "recommendations": [
+        "High cumulative rounding errors detected - review calculation steps",
+        "Recommended precision: 6 decimal places for mbti"
+      ]
+    },
+    {
+      "assessment_type": "enneagram",
+      "rounding_accuracy": 88.57142857142857,
+      "methods_tested": 35,
+      "critical_errors": 0,
+      "recommendations": [
+        "High cumulative rounding errors detected - review calculation steps",
+        "Recommended precision: 6 decimal places for enneagram"
+      ]
+    }
+  ],
+  "error_patterns": {
+    "method_performance": {
+      "round_half_up": {
+        "avg_max_error": 0.11577428517097167,
+        "max_error": 0.999999999999986,
+        "error_std": 0.28711138413647397
+      },
+      "round_half_down": {
+        "avg_max_error": 0.11194302515295472,
+        "max_error": 0.9090909090909156,
+        "error_std": 0.2671706698723704
+      },
+      "round_half_even": {
+        "avg_max_error": 0.10454317820513141,
+        "max_error": 0.7142857142857194,
+        "error_std": 0.24392932205051482
+      },
+      "round_up": {
+        "avg_max_error": 0.40667350158723947,
+        "max_error": 2.0000000000000147,
+        "error_std": 0.7597574725832185
+      },
+      "round_down": {
+        "avg_max_error": 0.2377240477641366,
+        "max_error": 1.818181818181812,
+        "error_std": 0.569248467868667
+      },
+      "round_ceiling": {
+        "avg_max_error": 0.17764992658157122,
+        "max_error": 1.538461538461533,
+        "error_std": 0.4071627109631601
+      },
+      "round_floor": {
+        "avg_max_error": 0.17474593792724052,
+        "max_error": 1.17647058823529,
+        "error_std": 0.4086829490652434
+      }
+    },
+    "precision_impact": {
+      "0": {
+        "avg_error": 0.4262405333491979,
+        "error_range": 0.0,
+        "error_reduction_factor": 0.609374731383311
+      },
+      "1": {
+        "avg_error": 0.04353129718852539,
+        "error_range": 0.0,
+        "error_reduction_factor": 0.8581192358367026
+      },
+      "2": {
+        "avg_error": 0.004944962034786472,
+        "error_range": 0.0,
+        "error_reduction_factor": 0.6779294062975112
+      },
+      "3": {
+        "avg_error": 0.00033445848142689264,
+        "error_range": 0.0,
+        "error_reduction_factor": 0.5563674098040925
+      },
+      "6": {
+        "avg_error": 4.127581853296431e-07,
+        "error_range": 3.0626842058625014e-15,
+        "error_reduction_factor": 0.6675207372946186
+      }
+    },
+    "common_error_sources": [
+      "Score normalization calculations",
+      "Multi-step aggregation with intermediate rounding",
+      "Floating-point precision limitations",
+      "Different category score magnitudes"
+    ]
+  },
+  "recommendations": [
+    "Use round_half_up as standard rounding method for consistent results",
+    "Use at least 2 decimal places for intermediate calculations",
+    "Implement consistent rounding strategy across all assessment types"
+  ],
+  "rounding_method_performance": {
+    "method_scores": {
+      "round_half_up": {
+        "avg_accuracy": 100.0,
+        "avg_max_error": 0.11577428517097167,
+        "consistency": 100.0
+      },
+      "round_half_down": {
+        "avg_accuracy": 100.0,
+        "avg_max_error": 0.11194302515295472,
+        "consistency": 100.0
+      },
+      "round_half_even": {
+        "avg_accuracy": 100.0,
+        "avg_max_error": 0.10454317820513141,
+        "consistency": 100.0
+      },
+      "round_up": {
+        "avg_accuracy": 80.0,
+        "avg_max_error": 0.40667350158723947,
+        "consistency": 100.0
+      },
+      "round_down": {
+        "avg_accuracy": 86.66666666666667,
+        "avg_max_error": 0.2377240477641366,
+        "consistency": 88.45299461620749
+      },
+      "round_ceiling": {
+        "avg_accuracy": 93.33333333333333,
+        "avg_max_error": 0.17764992658157122,
+        "consistency": 88.45299461620749
+      },
+      "round_floor": {
+        "avg_accuracy": 86.66666666666667,
+        "avg_max_error": 0.17474593792724052,
+        "consistency": 88.45299461620749
+      }
+    },
+    "recommended_method": "round_half_up",
+    "method_ranking": [
+      [
+        "round_half_up",
+        {
+          "avg_accuracy": 100.0,
+          "avg_max_error": 0.11577428517097167,
+          "consistency": 100.0
+        }
+      ],
+      [
+        "round_half_down",
+        {
+          "avg_accuracy": 100.0,
+          "avg_max_error": 0.11194302515295472,
+          "consistency": 100.0
+        }
+      ],
+      [
+        "round_half_even",
+        {
+          "avg_accuracy": 100.0,
+          "avg_max_error": 0.10454317820513141,
+          "consistency": 100.0
+        }
+      ],
+      [
+        "round_ceiling",
+        {
+          "avg_accuracy": 93.33333333333333,
+          "avg_max_error": 0.17764992658157122,
+          "consistency": 88.45299461620749
+        }
+      ],
+      [
+        "round_down",
+        {
+          "avg_accuracy": 86.66666666666667,
+          "avg_max_error": 0.2377240477641366,
+          "consistency": 88.45299461620749
+        }
+      ],
+      [
+        "round_floor",
+        {
+          "avg_accuracy": 86.66666666666667,
+          "avg_max_error": 0.17474593792724052,
+          "consistency": 88.45299461620749
+        }
+      ],
+      [
+        "round_up",
+        {
+          "avg_accuracy": 80.0,
+          "avg_max_error": 0.40667350158723947,
+          "consistency": 100.0
+        }
+      ]
+    ]
+  }
+}

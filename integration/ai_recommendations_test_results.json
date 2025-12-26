@@ -1,0 +1,139 @@
+{
+  "summary": {
+    "total_tests": 5,
+    "successful_tests": 5,
+    "success_rate": 100.0
+  },
+  "test_results": [
+    {
+      "name": "Basic Recommendation Generation",
+      "success": true,
+      "response_time": 2.5007851123809814,
+      "details": {
+        "team_size": 6,
+        "recommendations_count": 3,
+        "recommendation_types": [
+          "skill_gaps",
+          "team_composition",
+          "conflict_resolution"
+        ],
+        "priority_distribution": {
+          "high": 1,
+          "medium": 2,
+          "low": 0
+        },
+        "average_confidence": 0.8701387328060788,
+        "average_impact": 0.7333333333333334,
+        "validation": {
+          "recommendations_generated": true,
+          "valid_types": true,
+          "valid_priorities": true,
+          "valid_confidence": true,
+          "valid_impact": true,
+          "has_action_items": true
+        }
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:26:05.293909"
+    },
+    {
+      "name": "Large Team Processing",
+      "success": true,
+      "response_time": 4.72850489616394,
+      "details": {
+        "team_size": 15,
+        "recommendations_count": 5,
+        "processing_efficiency": 1.0574166908564087,
+        "processing_time_per_member": 0.3152336597442627,
+        "memory_efficient": true
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:26:10.023312"
+    },
+    {
+      "name": "Recommendation Quality",
+      "success": true,
+      "response_time": 4.013703107833862,
+      "details": {
+        "team_characteristics": {
+          "high_performers": 1,
+          "low_performers": 4,
+          "personality_diversity": 4
+        },
+        "recommendations_by_type": {
+          "team_composition": 1,
+          "skill_gaps": 1,
+          "personality_match": 0,
+          "performance_optimization": 2,
+          "conflict_resolution": 1
+        },
+        "quality_metrics": {
+          "performance_recommendations": 2,
+          "personality_recommendations": 0,
+          "team_composition_recommendations": 1,
+          "high_confidence_recommendations": 4,
+          "high_impact_recommendations": 4,
+          "specific_action_items": true
+        },
+        "average_confidence": 0.8211619271509114,
+        "average_impact": 0.72
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:26:14.037933"
+    },
+    {
+      "name": "Concurrent Processing",
+      "success": true,
+      "response_time": 6.935933828353882,
+      "details": {
+        "teams_processed": 5,
+        "successful_results": 5,
+        "total_recommendations": 22,
+        "average_recommendations_per_team": 4.4,
+        "concurrent_efficiency": 3.1718872388984862,
+        "processing_speed": "efficient"
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:26:20.978215"
+    },
+    {
+      "name": "Recommendation Persistence",
+      "success": true,
+      "response_time": 4.35854697227478,
+      "details": {
+        "recommendations_count": 3,
+        "persisted_count": 3,
+        "data_size_estimate": 2272,
+        "persistence_validation": {
+          "all_recommendations_persisted": true,
+          "data_integrity": true,
+          "action_items_preserved": true,
+          "metadata_preserved": true
+        },
+        "data_integrity": true
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:26:25.339198"
+    }
+  ],
+  "ai_engine_capabilities": {
+    "recommendation_types": [
+      "team_composition",
+      "skill_gaps",
+      "personality_match",
+      "performance_optimization",
+      "conflict_resolution"
+    ],
+    "processing_time_range": [
+      2.0,
+      8.0
+    ],
+    "confidence_range": [
+      0.7,
+      0.95
+    ],
+    "max_team_size_supported": 20,
+    "concurrent_processing": true,
+    "persistence_support": true
+  }
+}

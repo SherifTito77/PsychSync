@@ -3,7 +3,7 @@
 from sqlalchemy import Column, Integer, Float, ForeignKey, JSON, DateTime
 from sqlalchemy.sql import func
 
-from app.db.base import Base
+from app.core.database import Base
 
 class ResponseScore(Base):
     """

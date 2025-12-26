@@ -1,0 +1,650 @@
+{
+  "execution_summary": {
+    "start_time": "2025-12-12T15:36:36.141051",
+    "end_time": "2025-12-12T15:37:25.108104",
+    "total_execution_time": 48.96688222885132,
+    "modules_tested": 3,
+    "successful_modules": 3,
+    "module_success_rate": 100.0
+  },
+  "test_summary": {
+    "total_tests": 23,
+    "successful_tests": 21,
+    "failed_tests": 2,
+    "overall_success_rate": 91.30434782608695,
+    "assessment": "GOOD",
+    "assessment_icon": "\u2705"
+  },
+  "module_results": {
+    "SendGrid Email Integration": {
+      "total_tests": 7,
+      "successful_tests": 7,
+      "success_rate": 100.0,
+      "average_response_time": 0.11865977559770857
+    },
+    "SSO Integration": {
+      "total_tests": 10,
+      "successful_tests": 10,
+      "success_rate": 100.0,
+      "average_response_time": 0
+    },
+    "Webhook Retry Logic": {
+      "total_tests": 6,
+      "successful_tests": 4,
+      "success_rate": 66.66666666666666,
+      "average_response_time": 0
+    }
+  },
+  "detailed_results": {
+    "SendGrid Email Integration": {
+      "module_name": "SendGrid Email Integration",
+      "success": true,
+      "execution_time": 1.456521987915039,
+      "results": {
+        "summary": {
+          "total_tests": 7,
+          "successful_tests": 7,
+          "success_rate": 100.0,
+          "average_response_time": 0.11865977559770857
+        },
+        "test_results": [
+          {
+            "name": "Single Email Sending",
+            "success": true,
+            "response_time": 0.1520853042602539,
+            "details": {
+              "status_code": 202,
+              "email_count": 1,
+              "api_response": {
+                "message": "Email sent successfully"
+              }
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:36.293402"
+          },
+          {
+            "name": "Bulk Email Sending (100 recipients)",
+            "success": true,
+            "response_time": 0.15529608726501465,
+            "details": {
+              "status_code": 202,
+              "recipient_count": 100,
+              "emails_per_second": 643.9312268656762,
+              "api_response": {
+                "message": "Email sent successfully"
+              }
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:36.449142"
+          },
+          {
+            "name": "Template Email Sending",
+            "success": true,
+            "response_time": 0.15148019790649414,
+            "details": {
+              "status_code": 202,
+              "template_id": "d-template-123456789",
+              "dynamic_data_keys": [
+                "user_name",
+                "assessment_type",
+                "completion_date",
+                "results_link"
+              ],
+              "api_response": {
+                "message": "Email sent successfully"
+              }
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:36.600757"
+          },
+          {
+            "name": "Error Handling",
+            "success": true,
+            "response_time": 0,
+            "details": {
+              "total_tests": 4,
+              "successful_tests": 4,
+              "test_results": [
+                {
+                  "email": "invalid@example",
+                  "success": true,
+                  "status_code": 400,
+                  "expected": "Invalid email address"
+                },
+                {
+                  "email": "bounced@example.com",
+                  "success": true,
+                  "status_code": 422,
+                  "expected": "Email address has bounced"
+                },
+                {
+                  "email": "blocked@example.com",
+                  "success": true,
+                  "status_code": 403,
+                  "expected": "Email address is blocked"
+                },
+                {
+                  "email": "valid@example.com",
+                  "success": true,
+                  "status_code": 202,
+                  "expected": "success"
+                }
+              ]
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.205683"
+          },
+          {
+            "name": "Rate Limiting",
+            "success": true,
+            "response_time": 0.17003488540649414,
+            "details": {
+              "total_emails": 500,
+              "successful_sends": 500,
+              "emails_per_second_actual": 2940.5730406714733,
+              "success_rate": 100.0,
+              "test_duration": 0.17003488540649414
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.381929"
+          },
+          {
+            "name": "Email Attachments",
+            "success": true,
+            "response_time": 0.15172195434570312,
+            "details": {
+              "status_code": 202,
+              "attachment_count": 1,
+              "attachment_types": [
+                "application/pdf"
+              ],
+              "api_response": {
+                "message": "Email sent successfully"
+              }
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.533750"
+          },
+          {
+            "name": "Webhook Integration",
+            "success": true,
+            "response_time": 0.05,
+            "details": {
+              "total_events": 5,
+              "processed_events": 5,
+              "event_types": [
+                "unsubscribed",
+                "clicked",
+                "delivered",
+                "bounced",
+                "opened"
+              ],
+              "events": [
+                {
+                  "event_type": "delivered",
+                  "email": "delivered@example.com",
+                  "processed": true,
+                  "timestamp": "2025-12-12 15:36:37.546678"
+                },
+                {
+                  "event_type": "opened",
+                  "email": "opened@example.com",
+                  "processed": true,
+                  "timestamp": "2025-12-12 15:36:37.557744"
+                },
+                {
+                  "event_type": "clicked",
+                  "email": "clicked@example.com",
+                  "processed": true,
+                  "timestamp": "2025-12-12 15:36:37.568712"
+                },
+                {
+                  "event_type": "bounced",
+                  "email": "bounced@example.com",
+                  "processed": true,
+                  "timestamp": "2025-12-12 15:36:37.580180"
+                },
+                {
+                  "event_type": "unsubscribed",
+                  "email": "unsubscribed@example.com",
+                  "processed": true,
+                  "timestamp": "2025-12-12 15:36:37.593742"
+                }
+              ]
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.593773"
+          }
+        ],
+        "mock_service_stats": {
+          "emails_sent": 501,
+          "api_calls": 501,
+          "average_response_time": 0.15269135905359082
+        }
+      },
+      "error": null
+    },
+    "SSO Integration": {
+      "module_name": "SSO Integration",
+      "success": true,
+      "execution_time": 0.02012491226196289,
+      "results": {
+        "summary": {
+          "total_tests": 10,
+          "successful_tests": 10,
+          "success_rate": 100.0,
+          "providers_tested": [
+            "Google",
+            "Microsoft"
+          ]
+        },
+        "provider_results": {
+          "Google": {
+            "total_tests": 5,
+            "successful_tests": 5,
+            "success_rate": 100.0,
+            "average_response_time": 0.000686025619506836
+          },
+          "Microsoft": {
+            "total_tests": 5,
+            "successful_tests": 5,
+            "success_rate": 100.0,
+            "average_response_time": 0.0028104782104492188
+          }
+        },
+        "test_results": [
+          {
+            "name": "OAuth Authorization Flow",
+            "provider": "Google",
+            "success": true,
+            "response_time": 3.0994415283203125e-05,
+            "details": {
+              "authorization_code_generated": true,
+              "access_token_received": true,
+              "refresh_token_received": true,
+              "token_type": "Bearer",
+              "expires_in": 3600,
+              "user_profile": {
+                "id": "Google_user_cacc1b6b",
+                "email": "Google_user_cacc1b6b@google.com",
+                "name": "Google User Cacc1B6B",
+                "verified": true
+              }
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.597941"
+          },
+          {
+            "name": "Token Refresh",
+            "provider": "Google",
+            "success": true,
+            "response_time": 1.811981201171875e-05,
+            "details": {
+              "old_token_invalidated": true,
+              "new_access_token_generated": true,
+              "new_refresh_token_generated": true,
+              "new_token_valid": true,
+              "profile_retrieved": true
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.598057"
+          },
+          {
+            "name": "Concurrent Sessions",
+            "provider": "Google",
+            "success": true,
+            "response_time": 0.003381013870239258,
+            "details": {
+              "total_sessions": 50,
+              "successful_sessions": 50,
+              "success_rate": 100.0,
+              "average_session_time": 2.411365509033203e-05,
+              "sessions_per_second": 14788.46343699316,
+              "unique_users": 50
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.601545"
+          },
+          {
+            "name": "Error Handling",
+            "provider": "Google",
+            "success": true,
+            "response_time": 0,
+            "details": {
+              "total_scenarios": 4,
+              "successful_error_handling": 4,
+              "test_results": [
+                {
+                  "scenario": "Invalid Authorization Code",
+                  "error_handled": true,
+                  "response_time": 2.86102294921875e-06,
+                  "error_type": "invalid_grant"
+                },
+                {
+                  "scenario": "Expired Authorization Code",
+                  "error_handled": true,
+                  "response_time": 4.792213439941406e-05,
+                  "error_type": "invalid_grant"
+                },
+                {
+                  "scenario": "Invalid Access Token",
+                  "error_handled": true,
+                  "response_time": 1.6689300537109375e-06,
+                  "error_type": "invalid_token"
+                },
+                {
+                  "scenario": "Expired Access Token",
+                  "error_handled": true,
+                  "response_time": 3.1948089599609375e-05,
+                  "error_type": "invalid_token"
+                }
+              ]
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.601678"
+          },
+          {
+            "name": "State Parameter Security",
+            "provider": "Google",
+            "success": true,
+            "response_time": 0,
+            "details": {
+              "total_scenarios": 3,
+              "security_checks_passed": 3,
+              "test_results": [
+                {
+                  "scenario": "Valid State",
+                  "state_valid": true,
+                  "expected_success": true,
+                  "security_check_passed": true,
+                  "response_time": 1.9073486328125e-06
+                },
+                {
+                  "scenario": "Invalid State",
+                  "state_valid": false,
+                  "expected_success": false,
+                  "security_check_passed": true,
+                  "response_time": 1.1920928955078125e-06
+                },
+                {
+                  "scenario": "Missing State",
+                  "state_valid": false,
+                  "expected_success": false,
+                  "security_check_passed": true,
+                  "response_time": 0.0
+                }
+              ]
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.601733"
+          },
+          {
+            "name": "OAuth Authorization Flow",
+            "provider": "Microsoft",
+            "success": true,
+            "response_time": 2.0265579223632812e-05,
+            "details": {
+              "authorization_code_generated": true,
+              "access_token_received": true,
+              "refresh_token_received": true,
+              "token_type": "Bearer",
+              "expires_in": 3600,
+              "user_profile": {
+                "id": "Microsoft_user_2a2d44ea",
+                "email": "Microsoft_user_2a2d44ea@microsoft.com",
+                "name": "Microsoft User 2A2D44Ea",
+                "verified": true
+              }
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.602048"
+          },
+          {
+            "name": "Token Refresh",
+            "provider": "Microsoft",
+            "success": true,
+            "response_time": 1.0013580322265625e-05,
+            "details": {
+              "old_token_invalidated": true,
+              "new_access_token_generated": true,
+              "new_refresh_token_generated": true,
+              "new_token_valid": true,
+              "profile_retrieved": true
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.602112"
+          },
+          {
+            "name": "Concurrent Sessions",
+            "provider": "Microsoft",
+            "success": true,
+            "response_time": 0.014022111892700195,
+            "details": {
+              "total_sessions": 50,
+              "successful_sessions": 50,
+              "success_rate": 100.0,
+              "average_session_time": 0.00013620853424072265,
+              "sessions_per_second": 3565.7966776052913,
+              "unique_users": 50
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.616255"
+          },
+          {
+            "name": "Error Handling",
+            "provider": "Microsoft",
+            "success": true,
+            "response_time": 0,
+            "details": {
+              "total_scenarios": 4,
+              "successful_error_handling": 4,
+              "test_results": [
+                {
+                  "scenario": "Invalid Authorization Code",
+                  "error_handled": true,
+                  "response_time": 4.76837158203125e-06,
+                  "error_type": "invalid_grant"
+                },
+                {
+                  "scenario": "Expired Authorization Code",
+                  "error_handled": true,
+                  "response_time": 5.2928924560546875e-05,
+                  "error_type": "invalid_grant"
+                },
+                {
+                  "scenario": "Invalid Access Token",
+                  "error_handled": true,
+                  "response_time": 1.9073486328125e-06,
+                  "error_type": "invalid_token"
+                },
+                {
+                  "scenario": "Expired Access Token",
+                  "error_handled": true,
+                  "response_time": 3.1948089599609375e-05,
+                  "error_type": "invalid_token"
+                }
+              ]
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.616403"
+          },
+          {
+            "name": "State Parameter Security",
+            "provider": "Microsoft",
+            "success": true,
+            "response_time": 0,
+            "details": {
+              "total_scenarios": 3,
+              "security_checks_passed": 3,
+              "test_results": [
+                {
+                  "scenario": "Valid State",
+                  "state_valid": true,
+                  "expected_success": true,
+                  "security_check_passed": true,
+                  "response_time": 9.5367431640625e-07
+                },
+                {
+                  "scenario": "Invalid State",
+                  "state_valid": false,
+                  "expected_success": false,
+                  "security_check_passed": true,
+                  "response_time": 0.0
+                },
+                {
+                  "scenario": "Missing State",
+                  "state_valid": false,
+                  "expected_success": false,
+                  "security_check_passed": true,
+                  "response_time": 0.0
+                }
+              ]
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:37.616458"
+          }
+        ]
+      },
+      "error": null
+    },
+    "Webhook Retry Logic": {
+      "module_name": "Webhook Retry Logic",
+      "success": true,
+      "execution_time": 47.4900279045105,
+      "results": {
+        "summary": {
+          "total_tests": 6,
+          "successful_tests": 4,
+          "success_rate": 66.66666666666666
+        },
+        "test_results": [
+          {
+            "name": "Successful Delivery",
+            "success": true,
+            "response_time": 0.6983797550201416,
+            "details": {
+              "event_id": "b4fc54b1e43c8a4c",
+              "attempts": 1,
+              "status": "delivered",
+              "delivered_at": "2025-12-12T15:36:38.316372"
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:38.316400"
+          },
+          {
+            "name": "Retry Mechanism",
+            "success": false,
+            "response_time": 8.634431838989258,
+            "details": {
+              "event_id": "d184badbac3731c0",
+              "total_attempts": 5,
+              "final_status": "retrying",
+              "delivered_at": "2025-12-12T15:36:45.950535",
+              "retry_attempts": 4,
+              "last_error": "Exception: list.remove(x): x not in list"
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:46.951821"
+          },
+          {
+            "name": "Exponential Backoff",
+            "success": true,
+            "response_time": 9.34934687614441,
+            "details": {
+              "event_id": "46d34e396d397fb1",
+              "attempts": 5,
+              "retry_intervals": [
+                60,
+                300,
+                900,
+                3600,
+                7200
+              ],
+              "expected_intervals": [
+                60,
+                300,
+                900,
+                3600,
+                7200
+              ],
+              "backoff_correct": true,
+              "final_status": "retrying"
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:36:56.301428"
+          },
+          {
+            "name": "Max Attempts Limit",
+            "success": false,
+            "response_time": 5.954838752746582,
+            "details": {
+              "event_id": "170826fedd7b2299",
+              "attempts": 7,
+              "max_attempts": 5,
+              "final_status": "retrying",
+              "attempts_within_limit": false
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:37:02.256398"
+          },
+          {
+            "name": "Concurrent Processing",
+            "success": true,
+            "response_time": 22.846046924591064,
+            "details": {
+              "total_events": 20,
+              "successful_deliveries": 11,
+              "failed_deliveries": 0,
+              "success_rate": 55.00000000000001,
+              "concurrency_limit": 10,
+              "processing_time": 22.846046924591064,
+              "events_per_second": 0.8754249724696297
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:37:25.104010"
+          },
+          {
+            "name": "Signature Verification",
+            "success": true,
+            "response_time": 0.0002219676971435547,
+            "details": {
+              "signature_format_valid": true,
+              "signature_length": 71,
+              "signatures_consistent": true,
+              "signatures_unique": true,
+              "webhook_headers": {
+                "Content-Type": "application/json",
+                "User-Agent": "PsychSync-Webhook/1.0",
+                "X-PsychSync-Event-ID": "dea7eb16ef3e7641",
+                "X-PsychSync-Timestamp": "1765528645",
+                "X-PsychSync-Signature": "sha256=aaf6aa683c640fb004117ef586111268633bdd244dc3f23607a5ac35bdb9b94f"
+              },
+              "signature_present": true,
+              "timestamp_present": true
+            },
+            "error_message": null,
+            "timestamp": "2025-12-12T15:37:25.104530"
+          }
+        ],
+        "retry_service_config": {
+          "max_attempts": 5,
+          "retry_intervals": [
+            60,
+            300,
+            900,
+            3600,
+            7200
+          ],
+          "max_concurrent_retries": 10
+        }
+      },
+      "error": null
+    }
+  },
+  "recommendations": [
+    "\u2705 Good integration health. Address minor issues before production deployment.",
+    "\ud83d\udd27 Focus on fixing failed tests to achieve optimal reliability.",
+    "\ud83d\udcca Implement additional monitoring for integration points.",
+    "\u26a1 Improve Webhook Retry Logic test success rate (66.7%)"
+  ]
+}

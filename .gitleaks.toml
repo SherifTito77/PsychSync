@@ -1,0 +1,157 @@
+# Gitleaks Configuration for PsychSync
+# Scans code for secrets, API keys, credentials, and other sensitive data
+
+title = "PsychSync Secret Detection"
+
+# Extended list of secret patterns
+[extend]
+  # Custom patterns for PsychSync-specific secrets
+  [extend.keywords]
+    # AWS credentials
+    pattern = '(?i)aws_access_key_id\\s*=\\s*["\']?[A-Z0-9]{20}["\']?'
+    secretGroup = 1
+    entropy = 1
+    keywords = ["aws_access_key_id", "aws_secret_access_key", "aws_session_token"]
+
+    [[extend.keywords.regexes]]
+    pattern = "\\b(AKI[A-Za-z0-9]{16})\\b"
+    secretGroup = 1
+    entropy = 1
+    keywords = ["aws", "amazon"]
+
+    # Database credentials
+    pattern = '(?i)database_url\\s*=\\s*["\']?([^"\'>\\s]+)["\']?'
+    secretGroup = 1
+    entropy = 3
+    keywords = ["database_url", "db_url", "postgres", "mysql", "mongodb"]
+
+    # API Keys
+    pattern = '(?i)api[_-]?key\\s*=\\s*["\']?([a-zA-Z0-9_\-]{20,})["\']?'
+    secretGroup = 1
+    entropy = 4
+    keywords = ["api_key", "apikey", "x-api-key"]
+
+    # JWT Secrets
+    pattern = '(?i)jwt[_-]?secret\\s*=\\s*["\']?([^"\'>\\s]{20,})["\']?'
+    secretGroup = 1
+    entropy = 3
+    keywords = ["jwt_secret", "jwtsecret", "secret_key"]
+
+    # OAuth tokens
+    pattern = '(?i)oauth[_-]?token\\s*=\\s*["\']?([^"\'>\\s]{30,})["\']?'
+    secretGroup = 1
+    entropy = 4
+    keywords = ["oauth_token", "accesstoken", "access_token"]
+
+    # Stripe API keys
+    pattern = '\\b(sk_test_[A-Za-z0-9]{24,})\\b'
+    secretGroup = 1
+    entropy = 1
+    keywords = ["stripe"]
+
+    # SendGrid API keys
+    pattern = '\\b(SG\\.[A-Za-z0-9_\-\\.]{32,})\\b'
+    secretGroup = 1
+    entropy = 1
+    keywords = ["sendgrid", "twilio"]
+
+    # Slack tokens
+    pattern = '\\b(xox[pb]-[A-Za-z0-9\\-]{12,})\\b'
+    secretGroup = 1
+    entropy = 1
+    keywords = ["slack"]
+
+    # GitHub tokens
+    pattern = '(?i)github[_-]?token\\s*=\\s*["\']?(gh[pousr]_[A-Za-z0-9_]{36,})["\']?'
+    secretGroup = 1
+    entropy = 1
+    keywords = ["github", "ghp", "gho", "ghu", "ghs", "ghr"]
+
+    # Private keys (SSH, GPG, etc.)
+    pattern = '-----BEGIN[A-Z]+ PRIVATE KEY-----'
+    secretGroup = 0
+    entropy = 1
+    keywords = ["private", "key", "ssh", "rsa"]
+
+    # Certificates
+    pattern = '-----BEGIN CERTIFICATE-----'
+    secretGroup = 0
+    entropy = 1
+    keywords = ["certificate", "cert", "tls", "ssl"]
+
+    # Google Cloud credentials
+    pattern = '"type": "service_account"'
+    secretGroup = 0
+    entropy = 1
+    keywords = ["google", "gcp", "service_account"]
+
+    # OpenAI API keys
+    pattern = '\\b(sk-[a-zA-Z0-9]{48})\\b'
+    secretGroup = 1
+    entropy = 1
+    keywords = ["openai", "gpt", "chatgpt"]
+
+    # Anthropic API keys
+    pattern = '\\b(sk-ant-[a-zA-Z0-9_\-]{95})\\b'
+    secretGroup = 1
+    entropy = 1
+    keywords = ["anthropic", "claude"]
+
+    # Redis passwords
+    pattern = '(?i)redis[_-]?password\\s*=\\s*["\']?([^"\'>\\s]{8,})["\']?'
+    secretGroup = 1
+    entropy = 3
+    keywords = ["redis"]
+
+    # ElasticSearch passwords
+    pattern = '(?i)elasticsearch[_-]?password\\s*=\\s*["\']?([^"\'>\\s]{10,})["\']?'
+    secretGroup = 1
+    entropy = 3
+    keywords = ["elasticsearch", "elastic"]
+
+[allowlist]
+  # Allow-list for false positives
+  description = "Allow-list for known false positives"
+
+  # Example comments (these won't trigger as they're commented)
+  rules = [
+    # Ignore example secrets in documentation
+    '# Example: your-api-key-here',
+    '# Fake secret for testing: test_secret_123',
+  ]
+
+[entropy]
+  # Entropy settings for detecting high-entropy strings (likely secrets)
+  minimum = 4.5
+  maximum = 8.0
+
+[[entropy.allowlist]]
+  # Allow high-entropy strings in specific file types
+  files = [
+    '.*\\.pyc',
+    '.*\\.min\\.js',
+    'package-lock\\.json',
+    'yarn\\.lock',
+  ]
+
+  # Allow specific patterns
+  regexes = [
+    # UUIDs (high entropy but not secrets)
+    '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
+  ]
+
+[rule.allowlist]
+  # Allow-list specific rules for specific paths
+  description = "Allow-list rules for specific files/directories"
+
+  # Ignore test fixtures
+  rules = [
+    {
+      description = "Ignore test fixture files",
+      path = '''tests/fixtures/.*\.json''',
+      regexes = [
+        '(?i)"api_key"\\s*:\\s*"test_[^"]+["\\]?',
+        '(?i)"password"\\s*:\\s*"test_[^"]+["\\]?',
+      ]
+    },
+  ]

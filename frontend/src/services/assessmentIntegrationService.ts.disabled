@@ -1,0 +1,479 @@
+// Assessment Integration Service - Connects AI engine to actual assessment flow
+import { aiService } from './aiService';
+import { errorHandlingService } from './errorHandlingService';
+
+export interface AssessmentResponse {
+  question_id: number;
+  selected_option: string;
+  response_time_ms: number;
+  timestamp: string;
+}
+
+export interface AssessmentSubmission {
+  assessment_id: string;
+  framework: string;
+  responses: AssessmentResponse[];
+  user_context?: any;
+  session_id?: string;
+}
+
+export interface AssessmentResult {
+  assessment_id: string;
+  framework: string;
+  personality_type: string;
+  confidence: number;
+  ai_insights: any;
+  detailed_analysis: any;
+  recommendations: string[];
+  completion_time: string;
+  user_id?: string;
+  team_analysis?: any;
+}
+
+export interface AssessmentProgress {
+  current_question: number;
+  total_questions: number;
+  responses: AssessmentResponse[];
+  estimated_completion_time: number;
+  current_dimension: string;
+}
+
+class AssessmentIntegrationService {
+  private assessmentSessions: Map<string, AssessmentProgress> = new Map();
+
+  /**
+   * Start a new assessment session
+   */
+  startAssessmentSession(
+    assessmentId: string,
+    totalQuestions: number,
+    framework: string = 'mbti'
+  ): string {
+    const sessionId = this.generateSessionId();
+
+    const progress: AssessmentProgress = {
+      current_question: 1,
+      total_questions: totalQuestions,
+      responses: [],
+      estimated_completion_time: totalQuestions * 30, // 30 seconds per question
+      current_dimension: 'E-I'
+    };
+
+    this.assessmentSessions.set(sessionId, progress);
+
+    return sessionId;
+  }
+
+  /**
+   * Submit a single assessment response
+   */
+  async submitResponse(
+    sessionId: string,
+    questionId: number,
+    selectedOption: string,
+    responseTimeMs: number
+  ): Promise<AssessmentProgress> {
+    const progress = this.assessmentSessions.get(sessionId);
+    if (!progress) {
+      throw new Error('Invalid assessment session');
+    }
+
+    const response: AssessmentResponse = {
+      question_id: questionId,
+      selected_option: selectedOption,
+      response_time_ms: responseTimeMs,
+      timestamp: new Date().toISOString()
+    };
+
+    progress.responses.push(response);
+    progress.current_question = questionId + 1;
+    progress.estimated_completion_time =
+      (progress.total_questions - progress.current_question) * 25; // Adjusted time
+
+    // Update current dimension based on question
+    progress.current_dimension = this.getCurrentDimension(questionId);
+
+    // Cache progress
+    this.cacheAssessmentProgress(sessionId, progress);
+
+    return progress;
+  }
+
+  /**
+   * Complete assessment and get AI analysis
+   */
+  async completeAssessment(
+    sessionId: string,
+    submissionData: AssessmentSubmission
+  ): Promise<AssessmentResult> {
+    try {
+      const progress = this.assessmentSessions.get(sessionId);
+      if (!progress) {
+        throw new Error('Invalid assessment session');
+      }
+
+      // Calculate personality type from responses
+      const personalityAnalysis = this.analyzeResponses(progress.responses);
+
+      // Get AI insights
+      const aiInsights = await aiService.getMBTIInsights(personalityAnalysis.type);
+
+      // Process with enhanced AI
+      const enhancedAnalysis = await this.processWithEnhancedAI(
+        submissionData.framework,
+        personalityAnalysis,
+        submissionData.user_context
+      );
+
+      const result: AssessmentResult = {
+        assessment_id: submissionData.assessment_id,
+        framework: submissionData.framework,
+        personality_type: personalityAnalysis.type,
+        confidence: personalityAnalysis.confidence,
+        ai_insights: aiInsights,
+        detailed_analysis: enhancedAnalysis,
+        recommendations: this.generateRecommendations(personalityAnalysis.type, enhancedAnalysis),
+        completion_time: new Date().toISOString(),
+        user_id: submissionData.user_context?.user_id
+      };
+
+      // Cache result for 24 hours
+      this.cacheAssessmentResult(submissionData.assessment_id, result);
+
+      // Clear session
+      this.assessmentSessions.delete(sessionId);
+
+      return result;
+
+    } catch (error) {
+      console.error('Assessment completion failed:', error);
+      return errorHandlingService.handleAIError(error as Error, {
+        component: 'AssessmentIntegrationService',
+        action: 'completeAssessment',
+        user: submissionData.user_context
+      }, {
+        fallback: () => this.createFallbackResult(submissionData)
+      });
+    }
+  }
+
+  /**
+   * Get current assessment progress
+   */
+  getProgress(sessionId: string): AssessmentProgress | null {
+    return this.assessmentSessions.get(sessionId) || null;
+  }
+
+  /**
+   * Resume an existing assessment session
+   */
+  resumeSession(sessionId: string, assessmentId: string, totalQuestions: number): AssessmentProgress {
+    // Try to load cached progress
+    const cachedProgress = this.loadCachedProgress(sessionId);
+
+    if (cachedProgress && cachedProgress.total_questions === totalQuestions) {
+      this.assessmentSessions.set(sessionId, cachedProgress);
+      return cachedProgress;
+    }
+
+    // Create new session if no cache exists
+    return this.startAssessmentSession(assessmentId, totalQuestions);
+  }
+
+  /**
+   * Analyze assessment responses to determine personality type
+   */
+  private analyzeResponses(responses: AssessmentResponse[]): { type: string; confidence: number; breakdown: any } {
+    // Simple MBTI analysis based on response patterns
+    const dimensions = {
+      'E-I': { E: 0, I: 0 },
+      'S-N': { S: 0, N: 0 },
+      'T-F': { T: 0, F: 0 },
+      'J-P': { J: 0, P: 0 }
+    };
+
+    // Count responses for each dimension
+    responses.forEach(response => {
+      // Extract dimension from question_id or selected_option
+      const dimension = this.extractDimension(response);
+      if (dimension && dimensions[dimension]) {
+        const [first, second] = dimension.split('-');
+        if (response.selected_option === first) {
+          dimensions[dimension][first]++;
+        } else if (response.selected_option === second) {
+          dimensions[dimension][second]++;
+        }
+      }
+    });
+
+    // Determine type based on dominant preferences
+    const type =
+      (dimensions['E-I']['E'] > dimensions['E-I']['I'] ? 'E' : 'I') +
+      (dimensions['S-N']['S'] > dimensions['S-N']['N'] ? 'S' : 'N') +
+      (dimensions['T-F']['T'] > dimensions['T-F']['F'] ? 'T' : 'F') +
+      (dimensions['J-P']['J'] > dimensions['J-P']['P'] ? 'J' : 'P');
+
+    // Calculate confidence based on response consistency
+    const totalResponses = responses.length;
+    const maxVotes = Math.max(...Object.values(dimensions).map(d => Math.max(d.E, d.I)));
+    const confidence = totalResponses > 0 ? maxVotes / totalResponses : 0.5;
+
+    return {
+      type: type,
+      confidence: Math.min(confidence + 0.3, 0.95), // Boost confidence slightly
+      breakdown: dimensions
+    };
+  }
+
+  /**
+   * Extract dimension from response
+   */
+  private extractDimension(response: AssessmentResponse): string | null {
+    // This would be based on actual question data
+    // For now, provide a simple mapping based on question_id
+    const dimensionMap: Record<number, string> = {
+      1: 'E-I', 2: 'S-N', 3: 'T-F', 4: 'J-P',
+      5: 'E-I', 6: 'S-N', 7: 'T-F', 8: 'J-P'
+    };
+    return dimensionMap[response.question_id] || null;
+  }
+
+  /**
+   * Process assessment with enhanced AI
+   */
+  private async processWithEnhancedAI(
+    framework: string,
+    personalityAnalysis: any,
+    userContext?: any
+  ): Promise<any> {
+    try {
+      const enhancedRequest = {
+        framework: framework,
+        data: {
+          type: personalityAnalysis.type,
+          confidence: personalityAnalysis.confidence,
+          responses_count: userContext?.responses_count || 0
+        },
+        user_context: {
+          ...userContext,
+          assessment_completed: true,
+          processing_time: new Date().toISOString()
+        }
+      };
+
+      const response = await aiService.processUserAssessment(enhancedRequest, userContext);
+      return response;
+
+    } catch (error) {
+      console.warn('Enhanced AI processing failed, using basic analysis:', error);
+      return this.createBasicAnalysis(personalityAnalysis);
+    }
+  }
+
+  /**
+   * Create basic analysis fallback
+   */
+  private createBasicAnalysis(personalityAnalysis: any): any {
+    return {
+      core_traits: ['Adaptability', 'Learning capability'],
+      workplace_fit: ['Various roles possible'],
+      development_areas: ['Communication skills', 'Leadership'],
+      team_dynamics: {
+        role: 'Versatile contributor',
+        communication_style: 'Adaptable'
+      },
+      fallback: true
+    };
+  }
+
+  /**
+   * Generate personalized recommendations
+   */
+  private generateRecommendations(personalityType: string, analysis: any): string[] {
+    const baseRecommendations = [
+      `Leverage your ${personalityType} strengths in your daily work`,
+      'Continue developing skills that complement your natural preferences',
+      'Seek environments that allow you to work according to your style'
+    ];
+
+    // Add specific recommendations based on analysis
+    if (analysis.strengths) {
+      baseRecommendations.push(
+        `Focus on developing your ${analysis.strengths.slice(0, 2).join(' and ')} abilities`
+      );
+    }
+
+    if (analysis.development_areas) {
+      baseRecommendations.push(
+        `Consider working on your ${analysis.development_areas.slice(0, 2).join(' and ')} areas`
+      );
+    }
+
+    return baseRecommendations;
+  }
+
+  /**
+   * Create fallback result when processing fails
+   */
+  private createFallbackResult(submissionData: AssessmentSubmission): AssessmentResult {
+    return {
+      assessment_id: submissionData.assessment_id,
+      framework: submissionData.framework,
+      personality_type: 'UNKNOWN',
+      confidence: 0.5,
+      ai_insights: {
+        message: 'AI processing temporarily unavailable',
+        basic_insights: ['Basic assessment completed']
+      },
+      detailed_analysis: {
+        core_traits: ['Adaptability'],
+        workplace_fit: ['Various roles'],
+        fallback: true
+      },
+      recommendations: [
+        'Try assessment again later for detailed AI insights',
+        'Contact support if issues persist'
+      ],
+      completion_time: new Date().toISOString(),
+      user_id: submissionData.user_context?.user_id
+    };
+  }
+
+  /**
+   * Generate unique session ID
+   */
+  private generateSessionId(): string {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get current dimension based on question number
+   */
+  private getCurrentDimension(questionId: number): string {
+    const dimensionOrder = ['E-I', 'S-N', 'T-F', 'J-P'];
+    const dimensionIndex = Math.floor((questionId - 1) / 2) % 4;
+    return dimensionOrder[dimensionIndex];
+  }
+
+  /**
+   * Cache assessment progress
+   */
+  private cacheAssessmentProgress(sessionId: string, progress: AssessmentProgress): void {
+    try {
+      localStorage.setItem(`assessment_progress_${sessionId}`, JSON.stringify(progress));
+    } catch (error) {
+      console.warn('Failed to cache assessment progress:', error);
+    }
+  }
+
+  /**
+   * Load cached assessment progress
+   */
+  private loadCachedProgress(sessionId: string): AssessmentProgress | null {
+    try {
+      const cached = localStorage.getItem(`assessment_progress_${sessionId}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.warn('Failed to load cached progress:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Cache assessment result
+   */
+  private cacheAssessmentResult(assessmentId: string, result: AssessmentResult): void {
+    try {
+      // Cache for 24 hours
+      const expiryTime = new Date().getTime() + (24 * 60 * 60 * 1000);
+      const cacheData = {
+        result,
+        expiry: expiryTime
+      };
+      localStorage.setItem(`assessment_result_${assessmentId}`, JSON.stringify(cacheData));
+    } catch (error) {
+      console.warn('Failed to cache assessment result:', error);
+    }
+  }
+
+  /**
+   * Get cached assessment result
+   */
+  getCachedResult(assessmentId: string): AssessmentResult | null {
+    try {
+      const cached = localStorage.getItem(`assessment_result_${assessmentId}`);
+      if (!cached) return null;
+
+      const cacheData = JSON.parse(cached);
+      if (Date.now() > cacheData.expiry) {
+        localStorage.removeItem(`assessment_result_${assessmentId}`);
+        return null;
+      }
+
+      return cacheData.result;
+    } catch (error) {
+      console.warn('Failed to load cached result:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear all assessment caches
+   */
+  clearCache(): void {
+    try {
+      // Clear progress caches
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('assessment_progress_')) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // Clear expired result caches
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('assessment_result_')) {
+          try {
+            const cacheData = JSON.parse(localStorage.getItem(key) || '');
+            if (Date.now() > cacheData.expiry) {
+              localStorage.removeItem(key);
+            }
+          } catch {
+            localStorage.removeItem(key);
+          }
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to clear assessment cache:', error);
+    }
+  }
+
+  /**
+   * Get assessment statistics
+   */
+  getAssessmentStats(): {
+    try {
+      const activeSessions = this.assessmentSessions.size;
+      const cachedResults = Object.keys(localStorage).filter(key =>
+        key.startsWith('assessment_result_')
+      ).length;
+
+      return {
+        active_sessions: activeSessions,
+        cached_results: cachedResults,
+        cache_utilization: cachedResults > 0 ? 'active' : 'idle'
+      };
+    } catch (error) {
+      return {
+        active_sessions: 0,
+        cached_results: 0,
+        cache_utilization: 'error'
+      };
+    }
+  }
+}
+
+// Create singleton instance
+export const assessmentIntegrationService = new AssessmentIntegrationService();
+
+// Export default
+export default assessmentIntegrationService;

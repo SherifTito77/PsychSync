@@ -23,10 +23,16 @@ from slack_bolt import App
 from slack_bolt.adapter.fastapi import SlackRequestHandler
 
 from app.core.config import settings
+from app.core.database import get_async_db
 from app.db.models.user import User
 from app.db.models.team import Team
+from app.db.models.response import Response
 from app.services.assessment_service import AssessmentService
+from app.services.user_service import UserService
 from app.integrations.slack.client import SlackClient
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -331,21 +337,134 @@ class SlackBotHandler:
             ]
         }
     
-    def _get_user_status(self, user_id: str) -> Dict[str, Any]:
-        """Get user's wellness status"""
-        # TODO: Integrate with database to fetch real data
-        return {
-            "blocks": [
-                {
-                    "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "📊 Your Wellness Status"
+    async def _get_user_status(self, user_id: str) -> Dict[str, Any]:
+        """Get user's wellness status with real database integration"""
+        try:
+            # Get database session
+            async with get_async_db() as db:
+                # Find user by Slack ID
+                result = await db.execute(
+                    select(User).where(User.slack_user_id == user_id)
+                )
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    return {
+                        "blocks": [
+                            {
+                                "type": "section",
+                                "text": {
+                                    "type": "mrkdwn",
+                                    "text": "❌ *User not found. Please link your Slack account first.*"
+                                }
+                            }
+                        ]
                     }
-                },
-                {
-                    "type": "section",
-                    "fields": [
+
+                # Get recent assessments and responses
+                thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+                recent_responses = await db.execute(
+                    select(Response)
+                    .where(Response.user_id == user.id)
+                    .where(Response.created_at >= thirty_days_ago)
+                    .order_by(Response.created_at.desc())
+                    .limit(10)
+                )
+                responses = recent_responses.scalars().all()
+
+                # Calculate wellness metrics
+                total_assessments = len(responses)
+                if total_assessments > 0:
+                    avg_score = sum(r.score or 0 for r in responses) / total_assessments
+                    last_assessment = responses[0].created_at if responses else None
+                else:
+                    avg_score = 0
+                    last_assessment = None
+
+                # Determine wellness level
+                if avg_score >= 80:
+                    wellness_level = "Excellent"
+                    emoji = "🟢"
+                elif avg_score >= 60:
+                    wellness_level = "Good"
+                    emoji = "🟡"
+                elif avg_score >= 40:
+                    wellness_level = "Okay"
+                    emoji = "🟠"
+                else:
+                    wellness_level = "Needs Attention"
+                    emoji = "🔴"
+
+                last_assessment_str = last_assessment.strftime("%B %d, %Y") if last_assessment else "No assessments"
+
+                return {
+                    "blocks": [
+                        {
+                            "type": "header",
+                            "text": {
+                                "type": "plain_text",
+                                "text": f"{emoji} Your Wellness Status"
+                            }
+                        },
+                        {
+                            "type": "section",
+                            "fields": [
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Wellness Level:*\n{wellness_level}"
+                                },
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Average Score:*\n{avg_score:.1f}/100"
+                                },
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Assessments:*\n{total_assessments} (30 days)"
+                                },
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Last Assessment:*\n{last_assessment_str}"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "actions",
+                            "elements": [
+                                {
+                                    "type": "button",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "📝 Complete Assessment"
+                                    },
+                                    "style": "primary",
+                                    "url": f"{settings.FRONTEND_URL}/assessments"
+                                },
+                                {
+                                    "type": "button",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "📊 View Detailed Report"
+                                    },
+                                    "url": f"{settings.FRONTEND_URL}/dashboard"
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+        except Exception as e:
+            logger.error(f"Error getting user status for {user_id}: {e}")
+            return {
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "❌ *Error retrieving wellness data. Please try again later.*"
+                        }
+                    }
+                ]
+            }
                         {
                             "type": "mrkdwn",
                             "text": "*Overall Score:*\n🟢 78/100"
@@ -390,33 +509,195 @@ class SlackBotHandler:
             ]
         }
     
-    def _get_team_status(self, user_id: str) -> Dict[str, Any]:
-        """Get team wellness overview"""
-        # TODO: Integrate with database
-        return {
-            "blocks": [
-                {
-                    "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "👥 Team Wellness Overview"
+    async def _get_team_status(self, user_id: str) -> Dict[str, Any]:
+        """Get team wellness overview with real database integration"""
+        try:
+            # Get database session
+            async with get_async_db() as db:
+                # Find user by Slack ID
+                result = await db.execute(
+                    select(User).where(User.slack_user_id == user_id)
+                )
+                user = result.scalar_one_or_none()
+
+                if not user or not user.team_id:
+                    return {
+                        "blocks": [
+                            {
+                                "type": "section",
+                                "text": {
+                                    "type": "mrkdwn",
+                                    "text": "❌ *Team not found. Please ensure you're assigned to a team.*"
+                                }
+                            }
+                        ]
                     }
-                },
-                {
-                    "type": "section",
-                    "fields": [
+
+                # Get team information
+                team_result = await db.execute(
+                    select(Team).where(Team.id == user.team_id)
+                )
+                team = team_result.scalar_one_or_none()
+
+                if not team:
+                    return {
+                        "blocks": [
+                            {
+                                "type": "section",
+                                "text": {
+                                    "type": "mrkdwn",
+                                    "text": "❌ *Team information not found.*"
+                                }
+                            }
+                        ]
+                    }
+
+                # Get team members' recent assessments
+                thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+
+                # Count team members
+                team_members_count = await db.execute(
+                    select(func.count(User.id))
+                    .where(User.team_id == user.team_id)
+                    .where(User.is_active == True)
+                )
+                total_members = team_members_count.scalar() or 0
+
+                # Get team member responses
+                team_responses = await db.execute(
+                    select(Response, User.full_name)
+                    .join(User, Response.user_id == User.id)
+                    .where(User.team_id == user.team_id)
+                    .where(Response.created_at >= thirty_days_ago)
+                    .order_by(Response.created_at.desc())
+                )
+                responses_with_names = team_responses.all()
+
+                # Calculate team metrics
+                members_with_assessments = set()
+                total_score = 0
+                assessment_count = 0
+
+                for response, name in responses_with_names:
+                    members_with_assessments.add(response.user_id)
+                    if response.score:
+                        total_score += response.score
+                        assessment_count += 1
+
+                # Calculate metrics
+                participation_rate = (len(members_with_assessments) / total_members * 100) if total_members > 0 else 0
+                team_average = (total_score / assessment_count) if assessment_count > 0 else 0
+
+                # Determine wellness level for team
+                if team_average >= 80:
+                    wellness_level = "Excellent"
+                    emoji = "🟢"
+                elif team_average >= 60:
+                    wellness_level = "Good"
+                    emoji = "🟡"
+                elif team_average >= 40:
+                    wellness_level = "Okay"
+                    emoji = "🟠"
+                else:
+                    wellness_level = "Needs Attention"
+                    emoji = "🔴"
+
+                # Simple trend calculation (compare with previous period)
+                sixty_days_ago = datetime.utcnow() - timedelta(days=60)
+                previous_responses = await db.execute(
+                    select(Response)
+                    .join(User, Response.user_id == User.id)
+                    .where(User.team_id == user.team_id)
+                    .where(Response.created_at >= sixty_days_ago)
+                    .where(Response.created_at < thirty_days_ago)
+                )
+                previous_scores = [r.score for r in previous_responses.scalars().all() if r.score]
+                previous_average = sum(previous_scores) / len(previous_scores) if previous_scores else 0
+
+                if team_average > previous_average + 5:
+                    trend = "📈 Improving"
+                elif team_average < previous_average - 5:
+                    trend = "📉 Declining"
+                else:
+                    trend = "➡️ Stable"
+
+                return {
+                    "blocks": [
                         {
-                            "type": "mrkdwn",
-                            "text": "*Team Average:*\n🟡 72/100"
+                            "type": "header",
+                            "text": {
+                                "type": "plain_text",
+                                "text": f"👥 {team.name} Wellness Overview"
+                            }
                         },
                         {
-                            "type": "mrkdwn",
-                            "text": "*Participation:*\n85% (11/13)"
+                            "type": "section",
+                            "fields": [
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Team Average:*\n{emoji} {team_average:.1f}/100"
+                                },
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Participation:*\n{participation_rate:.0f}% ({len(members_with_assessments)}/{total_members})"
+                                },
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Wellness Level:*\n{wellness_level}"
+                                },
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"*Trend:*\n{trend}"
+                                }
+                            ]
                         },
                         {
-                            "type": "mrkdwn",
-                            "text": "*Trend:*\n➡️ Stable"
+                            "type": "context",
+                            "elements": [
+                                {
+                                    "type": "mrkdwn",
+                                    "text": f"📊 Based on {assessment_count} assessments in the last 30 days"
+                                }
+                            ]
                         },
+                        {
+                            "type": "actions",
+                            "elements": [
+                                {
+                                    "type": "button",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "📈 View Team Report"
+                                    },
+                                    "url": f"{settings.FRONTEND_URL}/teams/{team.id}/analytics"
+                                },
+                                {
+                                    "type": "button",
+                                    "text": {
+                                        "type": "plain_text",
+                                        "text": "📋 Schedule Assessment"
+                                    },
+                                    "style": "primary",
+                                    "url": f"{settings.FRONTEND_URL}/teams/{team.id}/assessments"
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+        except Exception as e:
+            logger.error(f"Error getting team status for {user_id}: {e}")
+            return {
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "❌ *Error retrieving team data. Please try again later.*"
+                        }
+                    }
+                ]
+            }
                         {
                             "type": "mrkdwn",
                             "text": "*Alerts:*\n⚠️ 2 requiring attention"
@@ -622,10 +903,45 @@ class SlackBotHandler:
             ]
         }
     
-    def _save_checkin(self, user_id: str, mood: str, stress: str, notes: str):
-        """Save check-in to database"""
-        # TODO: Implement database integration
-        logger.info(f"Check-in saved for {user_id}: mood={mood}, stress={stress}")
+    async def _save_checkin(self, user_id: str, mood: str, stress: str, notes: str):
+        """Save check-in to database with proper integration"""
+        try:
+            # Get database session
+            async with get_async_db() as db:
+                # Find user by Slack ID
+                result = await db.execute(
+                    select(User).where(User.slack_user_id == user_id)
+                )
+                user = result.scalar_one_or_none()
+
+                if not user:
+                    logger.warning(f"User not found for Slack ID {user_id}")
+                    return False
+
+                # Calculate wellness score
+                wellness_score = self._calculate_score(mood, stress)
+
+                # Create a simple assessment response record for the check-in
+                checkin_response = Response(
+                    user_id=user.id,
+                    assessment_id=None,  # This is a check-in, not tied to a formal assessment
+                    question_text="Daily Wellness Check-in",
+                    response_text=f"Mood: {mood}, Stress: {stress}, Notes: {notes}",
+                    score=wellness_score,
+                    response_type="daily_checkin",
+                    created_at=datetime.utcnow()
+                )
+
+                # Save to database
+                db.add(checkin_response)
+                await db.commit()
+
+                logger.info(f"Check-in saved for user {user.id} (Slack: {user_id}): score={wellness_score}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Error saving check-in for {user_id}: {e}")
+            return False
     
     def _calculate_score(self, mood: str, stress: str) -> int:
         """Calculate wellness score from check-in"""

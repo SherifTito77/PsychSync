@@ -19,7 +19,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-import requests
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.models.email_connection import EmailConnection, EmailProvider
@@ -170,9 +170,10 @@ class EmailConnectorService:
             "scope": " ".join(self.outlook_config["scopes"])
         }
 
-        response = requests.post(token_url, data=data)
-        response.raise_for_status()
-        token_data = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.post(token_url, data=data)
+            response.raise_for_status()
+            token_data = response.json()
 
         access_token = token_data.get("access_token")
         refresh_token = token_data.get("refresh_token")
@@ -181,7 +182,7 @@ class EmailConnectorService:
 
     async def create_email_connection(
         self,
-        db: Session,
+        db: AsyncSession,
         user_id: str,
         provider: EmailProvider,
         email_address: str,
@@ -224,7 +225,7 @@ class EmailConnectorService:
         logger.info(f"Created email connection for user {user_id}, provider {provider}")
         return email_connection
 
-    async def refresh_access_token(self, db: Session, connection: EmailConnection) -> bool:
+    async def refresh_access_token(self, db: AsyncSession, connection: EmailConnection) -> bool:
         """Refresh access token for email connection"""
         if not connection.refresh_token_encrypted:
             logger.error(f"No refresh token available for connection {connection.id}")
@@ -258,9 +259,10 @@ class EmailConnectorService:
                     "scope": " ".join(self.outlook_config["scopes"])
                 }
 
-                response = requests.post(token_url, data=data)
-                response.raise_for_status()
-                token_data = response.json()
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(token_url, data=data)
+                    response.raise_for_status()
+                    token_data = response.json()
 
                 new_access_token = token_data.get("access_token")
                 new_refresh_token = token_data.get("refresh_token", refresh_token)
@@ -280,7 +282,7 @@ class EmailConnectorService:
             await db.commit()
             return False
 
-    async def test_connection(self, db: Session, connection: EmailConnection) -> bool:
+    async def test_connection(self, db: AsyncSession, connection: EmailConnection) -> bool:
         """Test if email connection is working"""
         try:
             # Check if token needs refresh
@@ -351,12 +353,12 @@ class EmailConnectorService:
             logger.error(f"IMAP connection test failed: {e}")
             return False
 
-    def get_user_connections(self, db: Session, user_id: str) -> List[EmailConnection]:
+    async def get_user_connections(self, db: AsyncSession, user_id: str) -> List[EmailConnection]:
         """Get all email connections for a user"""
         result = await db.execute(query)
         return result.scalars().all()
 
-    async def disconnect_email(self, db: Session, connection_id: str, user_id: str) -> bool:
+    async def disconnect_email(self, db: AsyncSession, connection_id: str, user_id: str) -> bool:
         """Disconnect email connection"""
         connection = result = await db.execute(query)
         return result.scalars().all()

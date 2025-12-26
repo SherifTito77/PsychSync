@@ -1,0 +1,24 @@
+{
+  "enabled": true,
+  "tracking": {
+    "user_registrations": true,
+    "assessment_completions": true,
+    "team_formations": true,
+    "feature_usage": true,
+    "user_engagement": true,
+    "conversion_rates": true
+  },
+  "metrics": [
+    "daily_active_users",
+    "monthly_active_users",
+    "assessment_completion_rate",
+    "team_engagement_score",
+    "user_retention_rate"
+  ],
+  "reports": {
+    "daily_report": true,
+    "weekly_report": true,
+    "monthly_report": true,
+    "real_time_dashboard": true
+  }
+}

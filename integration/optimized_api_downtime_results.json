@@ -1,0 +1,213 @@
+{
+  "summary": {
+    "total_tests": 2,
+    "successful_tests": 2,
+    "success_rate": 100.0,
+    "target_success_rate": 90,
+    "meets_target": true
+  },
+  "test_results": [
+    {
+      "test_name": "Optimized Cache Effectiveness",
+      "success": true,
+      "details": {
+        "total_cache_requests": 25,
+        "cache_hits": 25,
+        "hit_rate": 100.0,
+        "target_hit_rate": 80,
+        "cache_statistics": {
+          "total_entries": 5,
+          "total_hits": 25,
+          "hit_rate": 100.0,
+          "cache_entries_by_priority": {
+            "critical": 2,
+            "high": 2,
+            "normal": 1,
+            "low": 0
+          },
+          "oldest_entry": "2025-12-12 17:24:48.895052",
+          "newest_entry": "2025-12-12 17:24:50.836374",
+          "circuit_breaker_open": false,
+          "circuit_breaker_failures": 0
+        },
+        "endpoint_results": [
+          {
+            "endpoint": "/api/v1/health",
+            "phase": "populate",
+            "success": true,
+            "source": "api",
+            "response_time": 0.36294984817504883
+          },
+          {
+            "endpoint": "/api/v1/users/profile",
+            "phase": "populate",
+            "success": true,
+            "source": "api",
+            "response_time": 0.5758721828460693
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "phase": "populate",
+            "success": true,
+            "source": "api",
+            "response_time": 0.7467889785766602
+          },
+          {
+            "endpoint": "/api/v1/teams",
+            "phase": "populate",
+            "success": true,
+            "source": "enhanced_fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/assessments",
+            "phase": "populate",
+            "success": true,
+            "source": "api",
+            "response_time": 0.4513101577758789
+          },
+          {
+            "endpoint": "/api/v1/health",
+            "phase": "cache_test",
+            "success": true,
+            "source": "cache_hit_api",
+            "response_time": 2.5033950805664062e-05,
+            "cache_age": 1.941396
+          },
+          {
+            "endpoint": "/api/v1/users/profile",
+            "phase": "cache_test",
+            "success": true,
+            "source": "cache_hit_api",
+            "response_time": 0.00013899803161621094,
+            "cache_age": 1.36564
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "phase": "cache_test",
+            "success": true,
+            "source": "cache_hit_api",
+            "response_time": 0.0006561279296875,
+            "cache_age": 0.620111
+          },
+          {
+            "endpoint": "/api/v1/teams",
+            "phase": "cache_test",
+            "success": true,
+            "source": "cache_hit_fallback",
+            "response_time": 3.981590270996094e-05,
+            "cache_age": 0.452977
+          },
+          {
+            "endpoint": "/api/v1/assessments",
+            "phase": "cache_test",
+            "success": true,
+            "source": "cache_hit_api",
+            "response_time": 1.4066696166992188e-05,
+            "cache_age": 0.001653
+          }
+        ]
+      }
+    },
+    {
+      "test_name": "Enhanced Recovery Scenarios",
+      "success": true,
+      "details": {
+        "normal_phase_success": "3/3",
+        "circuit_breaker_success": "5/5",
+        "recovery_phase_success": "3/3",
+        "overall_recovery_resilient": true,
+        "recovery_results": [
+          {
+            "phase": "normal",
+            "attempt": 1,
+            "success": true,
+            "source": "cache_hit_api"
+          },
+          {
+            "phase": "normal",
+            "attempt": 2,
+            "success": true,
+            "source": "cache_hit_api"
+          },
+          {
+            "phase": "normal",
+            "attempt": 3,
+            "success": true,
+            "source": "cache_hit_api"
+          },
+          {
+            "phase": "circuit_breaker",
+            "attempt": 1,
+            "success": true,
+            "source": "cache_circuit_breaker",
+            "warning": null
+          },
+          {
+            "phase": "circuit_breaker",
+            "attempt": 2,
+            "success": true,
+            "source": "cache_circuit_breaker",
+            "warning": null
+          },
+          {
+            "phase": "circuit_breaker",
+            "attempt": 3,
+            "success": true,
+            "source": "cache_circuit_breaker",
+            "warning": null
+          },
+          {
+            "phase": "circuit_breaker",
+            "attempt": 4,
+            "success": true,
+            "source": "cache_circuit_breaker",
+            "warning": null
+          },
+          {
+            "phase": "circuit_breaker",
+            "attempt": 5,
+            "success": true,
+            "source": "cache_circuit_breaker",
+            "warning": null
+          },
+          {
+            "phase": "recovery",
+            "attempt": 1,
+            "success": true,
+            "source": "api",
+            "refresh": true
+          },
+          {
+            "phase": "recovery",
+            "attempt": 2,
+            "success": true,
+            "source": "api",
+            "refresh": true
+          },
+          {
+            "phase": "recovery",
+            "attempt": 3,
+            "success": true,
+            "source": "api",
+            "refresh": true
+          }
+        ],
+        "circuit_breaker_effective": false
+      }
+    }
+  ],
+  "client_capabilities": {
+    "cache_strategy": "adaptive",
+    "circuit_breaker_threshold": 3,
+    "retry_attempts": 4,
+    "retry_delays": [
+      0.5,
+      1.5,
+      3,
+      6
+    ],
+    "adaptive_ttl": true,
+    "enhanced_fallbacks": true
+  }
+}

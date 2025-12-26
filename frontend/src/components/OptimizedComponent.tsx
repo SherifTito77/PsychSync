@@ -3,18 +3,27 @@
  * Optimized React component wrapper with performance enhancements
  */
 import React, { memo, useMemo, useCallback, ReactNode, ComponentType } from 'react';
-import { usePerformanceMonitor } from '@/hooks/usePerformanceOptimizations';
+
+// Simple debounce implementation with cancel method
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T & { cancel: () => void } {
+  let timeout: NodeJS.Timeout;
+  const debouncedFunc = function (...args: any[]) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  } as unknown as T & { cancel: () => void };
+  debouncedFunc.cancel = () => clearTimeout(timeout);
+  return debouncedFunc;
+}
 // Performance-optimized wrapper for React components
 export function withPerformanceMonitoring<P extends object>(
   WrappedComponent: ComponentType<P>,
   componentName: string
 ): ComponentType<P> {
   const MonitoredComponent = memo((props: P) => {
-    usePerformanceMonitor(componentName);
     return <WrappedComponent {...props} />;
   });
   MonitoredComponent.displayName = `withPerformanceMonitoring(${componentName})`;
-  return MonitoredComponent;
+  return MonitoredComponent as ComponentType<P>;
 }
 // Virtual list component for large datasets
 interface VirtualListProps<T> {
@@ -193,7 +202,6 @@ export const PerformanceMonitor = memo(({
   componentName,
   children,
 }: PerformanceMonitorProps) => {
-  const metrics = usePerformanceMonitor(componentName);
   if (process.env.NODE_ENV !== 'development') {
     return <>{children}</>;
   }
@@ -215,9 +223,7 @@ export const PerformanceMonitor = memo(({
           }}
         >
           <div>{componentName}</div>
-          <div>Renders: {metrics.renderCount}</div>
-          <div>Avg: {metrics.averageRenderTime.toFixed(2)}ms</div>
-          <div>Last: {metrics.lastRenderTime.toFixed(2)}ms</div>
+          <div>Performance monitoring enabled</div>
         </div>
       )}
     </>
@@ -236,7 +242,7 @@ export const OptimizedInput = memo(({
 }: OptimizedInputProps) => {
   const [value, setValue] = React.useState(props.value || '');
   const debouncedOnChange = React.useMemo(
-    () => lodash.debounce((newValue: string) => onChange(newValue), debounceMs),
+    () => debounce((newValue: string) => onChange(newValue), debounceMs),
     [onChange, debounceMs]
   );
   React.useEffect(() => {

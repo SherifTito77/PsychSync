@@ -75,7 +75,7 @@ export const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ classN
     try {
       setRunning(true);
       const result = await complianceService.runComplianceCheck(checkType);
-      setCheckResults(result);
+      setCheckResults(result as unknown as ComplianceResult);
       showNotification(`Compliance check completed. Score: ${result.compliance_score}/100`, 'success');
     } catch (error) {
       showNotification('Failed to run compliance check', 'error');
@@ -207,7 +207,7 @@ export const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ classN
                   <span className="text-2xl font-semibold ml-2">/ 100</span>
                 </div>
                 <div className="mt-3">
-                  <Badge color={getStatusColor(checkResults.compliance_status)} variant="solid">
+                  <Badge color={getStatusColor(checkResults.compliance_status) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} variant="solid">
                     {checkResults.compliance_status.replace('_', ' ').toUpperCase()}
                   </Badge>
                 </div>
@@ -417,7 +417,7 @@ const getCategoryTitle = (categoryKey: string): string => {
     training: 'Training Compliance',
     documentation: 'Documentation Requirements'
   };
-  return titles[categoryKey] || categoryKey.replace('_', ' ').title();
+  return titles[categoryKey] || categoryKey.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 const getCategoryDescription = (categoryKey: string): string => {
   const descriptions: Record<string, string> = {
@@ -451,5 +451,5 @@ const CheckStatusBadge: React.FC<{ status: string }> = ({ status }) => {
     color: 'gray',
     label: status
   };
-  return <Badge color={config.color} size="sm">{config.label}</Badge>;
+  return <Badge color={config.color as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">{config.label}</Badge>;
 };

@@ -262,14 +262,12 @@ class AnonymousFeedbackService {
     }
   }
 }
-// Type for the review response
-interface FeedbackReviewResponse {
-  feedbacks: FeedbackItemForReview[];
-  summary: any;
-  total_count: number;
-  reviewer_id: string;
-  review_timestamp: string;
-  privacy_guidelines: string[];
+// Missing type for feedback follow-up
+interface FeedbackFollowUp {
+  tracking_id: string;
+  message: string;
+  contact_preference?: string;
+  additional_evidence?: string[];
 }
 // Create singleton instance
 export const anonymousFeedbackService = new AnonymousFeedbackService();

@@ -1,0 +1,303 @@
+{
+  "summary": {
+    "total_tests": 6,
+    "successful_tests": 3,
+    "success_rate": 50.0
+  },
+  "test_results": [
+    {
+      "name": "Healthy API Response",
+      "success": true,
+      "response_time": 1.4521310329437256,
+      "details": {
+        "total_endpoints": 5,
+        "successful_requests": 5,
+        "api_requests": 5,
+        "results": [
+          {
+            "endpoint": "/api/v1/health",
+            "success": true,
+            "source": "api",
+            "status_code": 200
+          },
+          {
+            "endpoint": "/api/v1/users/profile",
+            "success": true,
+            "source": "api",
+            "status_code": 200
+          },
+          {
+            "endpoint": "/api/v1/assessments",
+            "success": true,
+            "source": "api",
+            "status_code": 200
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "success": true,
+            "source": "api",
+            "status_code": 200
+          },
+          {
+            "endpoint": "/api/v1/teams",
+            "success": true,
+            "source": "api",
+            "status_code": 200
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:24:26.522090"
+    },
+    {
+      "name": "Intermittent Failures",
+      "success": false,
+      "response_time": 8.904360294342041,
+      "details": {
+        "total_endpoints": 3,
+        "successful_requests": 2,
+        "graceful_degradations": 2,
+        "success_rate": 66.66666666666666,
+        "results": [
+          {
+            "endpoint": "/api/v1/users/profile",
+            "success": false,
+            "source": "api",
+            "status_code": 500,
+            "warning": null
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "success": true,
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability"
+          },
+          {
+            "endpoint": "/api/v1/assessments",
+            "success": true,
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:24:35.426559"
+    },
+    {
+      "name": "Complete API Outage",
+      "success": true,
+      "response_time": 12.98695683479309,
+      "details": {
+        "total_endpoints": 4,
+        "successful_requests": 4,
+        "cache_usage": 0,
+        "fallback_usage": 4,
+        "offline_mode_active": true,
+        "results": [
+          {
+            "endpoint": "/api/v1/users/profile",
+            "success": true,
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability",
+            "last_error": "Service Unavailable - Circuit Breaker Open"
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "success": true,
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability",
+            "last_error": "Service Unavailable - Circuit Breaker Open"
+          },
+          {
+            "endpoint": "/api/v1/teams",
+            "success": true,
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability",
+            "last_error": "Service Unavailable - Circuit Breaker Open"
+          },
+          {
+            "endpoint": "/api/v1/health",
+            "success": true,
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability",
+            "last_error": "Service Unavailable - Circuit Breaker Open"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:24:54.878935"
+    },
+    {
+      "name": "Circuit Breaker Behavior",
+      "success": true,
+      "response_time": 3.2170250415802,
+      "details": {
+        "total_attempts": 1,
+        "successful_requests": 1,
+        "circuit_breaker_triggered": true,
+        "circuit_breaker_threshold": 5,
+        "results": [
+          {
+            "attempt": 1,
+            "success": true,
+            "source": "fallback",
+            "status_code": 200,
+            "circuit_breaker_open": true
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:24:58.096035"
+    },
+    {
+      "name": "Cache Effectiveness",
+      "success": false,
+      "response_time": 31.634133100509644,
+      "details": {
+        "total_requests": 10,
+        "cache_hits": 0,
+        "cache_hit_rate": 0.0,
+        "average_response_time": 0.0,
+        "results": [
+          {
+            "endpoint": "/api/v1/users/profile",
+            "request_number": 1,
+            "success": false,
+            "source": "api",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "request_number": 1,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/users/profile",
+            "request_number": 2,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "request_number": 2,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/users/profile",
+            "request_number": 3,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "request_number": 3,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/users/profile",
+            "request_number": 4,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "request_number": 4,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/users/profile",
+            "request_number": 5,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          },
+          {
+            "endpoint": "/api/v1/analytics",
+            "request_number": 5,
+            "success": true,
+            "source": "fallback",
+            "response_time": 0
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:25:36.351504"
+    },
+    {
+      "name": "Recovery After Outage",
+      "success": false,
+      "response_time": 7.152557373046875e-07,
+      "details": {
+        "outage_handled": true,
+        "outage_source": "fallback",
+        "recovery_responses": 3,
+        "successful_recoveries": 0,
+        "offline_mode_recovered": false,
+        "recovery_responses_detail": [
+          {
+            "success": false,
+            "error": "Random Service Failure",
+            "status_code": 500,
+            "retry_attempts": 1
+          },
+          {
+            "success": true,
+            "data": {
+              "user": "offline_user",
+              "role": "user",
+              "last_sync": null,
+              "offline_mode": true
+            },
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability",
+            "last_error": "Service Unavailable - Circuit Breaker Open"
+          },
+          {
+            "success": true,
+            "data": {
+              "user": "offline_user",
+              "role": "user",
+              "last_sync": null,
+              "offline_mode": true
+            },
+            "source": "fallback",
+            "status_code": 200,
+            "warning": "Using fallback data due to API unavailability",
+            "last_error": "Service Unavailable - Circuit Breaker Open"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T16:25:51.082904"
+    }
+  ],
+  "client_capabilities": {
+    "retry_attempts": 3,
+    "retry_delays": [
+      1,
+      2,
+      4
+    ],
+    "cache_enabled": true,
+    "circuit_breaker_threshold": 5,
+    "fallback_data_available": true
+  }
+}

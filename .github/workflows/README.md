@@ -413,3 +413,303 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 **Workflow Status:** ✅ Production Ready
 **SLSA Level:** 3 (Highest)
 **Last Updated:** December 26, 2025
+
+---
+
+## 🔍 Security Testing Workflows
+
+### Overview
+
+PsychSync implements comprehensive security testing with **SAST, DAST, and SCA** scanning:
+
+- **SAST (Static Application Security Testing)** - Semgrep
+- **DAST (Dynamic Application Security Testing)** - OWASP ZAP
+- **SCA (Software Composition Analysis)** - Trivy, Snyk, npm audit, Safety
+
+---
+
+### Security Testing Workflows
+
+#### 1. SAST - Semgrep Security Scan
+
+**File:** `sast-semgrep.yml`
+
+**Triggers:** Pull requests, Push to main/develop
+
+**What it does:**
+- Scans Python code for security issues
+- OWASP Top 10 rule sets
+- Publishes to GitHub Security tab
+- Requires security review for high-severity findings
+
+**Severity Levels:**
+- 🔴 Error (High): Security review required
+- ⚠️ Warning (Medium): Review recommended
+- ℹ️ Info (Low): Best practices
+
+**Actions on Findings:**
+1. Uploads SARIF to GitHub Security
+2. Comments on PR
+3. Labels as `security-review-required` if high severity
+4. Blocks merge until review complete
+
+---
+
+#### 2. DAST - OWASP ZAP Security Scan
+
+**File:** `dast-zap.yml`
+
+**Triggers:** Push to main/develop, Daily schedule (2 AM UTC)
+
+**What it does:**
+- Dynamic security testing on staging
+- Tests running application for vulnerabilities
+- Scans for authentication, authorization, injection attacks
+
+**Scan Types:**
+- **Baseline Scan:** Every push (15 min)
+- **Full Scan:** Weekly (2 hours)
+
+**Reports:**
+- HTML (visual dashboard)
+- Markdown (summary)
+- XML (machine-readable)
+- SARIF (GitHub Security)
+
+---
+
+#### 3. SCA - Dependency Vulnerability Scan
+
+**File:** `sca-trivy-snyk.yml`
+
+**Triggers:** Pull requests, Push, Daily schedule (3 AM UTC)
+
+**What it does:**
+- Generates SBOM (Software Bill of Materials)
+- Scans dependencies for known vulnerabilities
+- Checks Python packages (Trivy, Safety)
+- Checks Node.js packages (npm audit)
+- License compliance verification
+
+**Tools Used:**
+| Tool | Purpose |
+|------|---------|
+| Trivy | SBOM vulnerability scanning |
+| Snyk | Deep dependency analysis |
+| npm audit | Frontend dependency check |
+| Safety | Python security database |
+| Dependency Review | License compliance |
+
+**Fail Conditions:**
+- Any Critical or High severity vulnerabilities
+- GPL/AGPL license violations
+- Known CVEs in dependencies
+
+---
+
+### Security Review Process
+
+#### Automatic Security Review Requirement
+
+**Triggered when:**
+- SAST finds high-severity issues
+- SCA finds critical/high vulnerabilities
+- DAST finds critical/high issues
+
+**Process:**
+1. PR labeled as `security-review-required` + `do-not-merge`
+2. Security team notified
+3. Review must be completed before merge
+4. Labels removed after approval
+
+#### Manual Security Review Request
+
+**To request security review:**
+
+1. Label PR with `security-review`
+2. Assign to `@security-team`
+3. Add comment describing changes
+
+**Review SLA:**
+- Low risk: 24 hours
+- Medium risk: 4 hours
+- High risk: 1 hour
+
+---
+
+### Results and Dashboards
+
+#### GitHub Security Tab
+
+All results uploaded to:
+**Repository → Security → Alerts**
+
+Features:
+- View all findings in one place
+- Filter by severity
+- Track remediation progress
+- Integration with PR comments
+
+#### Scan Reports (Artifacts)
+
+**SAST:**
+- `semgrep-results` - SARIF + JSON
+
+**DAST:**
+- `zap-dast-report` - HTML + Markdown + XML
+- `zap-full-scan-report` - Weekly comprehensive scan
+
+**SCA:**
+- `trivy-scan-results` - SARIF report
+- `snyk-scan-results` - Snyk analysis
+- `npm-audit-results` - npm audit JSON
+- `safety-check-results` - Python safety check
+- `sbom` - Software Bill of Materials
+
+---
+
+### Required Secrets
+
+| Secret | Description | Required For |
+|--------|-------------|--------------|
+| `ZAP_API_KEY` | OWASP ZAP API key | DAST scans |
+| `STAGING_AUTH_TOKEN` | Auth token for staging | DAST authenticated scans |
+| `SNYK_TOKEN` | Snyk API token | SCA deep scan |
+
+**Setup:** Repository → Settings → Secrets and variables → Actions
+
+---
+
+### Best Practices
+
+#### For Developers
+
+1. **Run scans locally before pushing:**
+   ```bash
+   # Semgrep
+   semgrep --config=auto
+
+   # Trivy
+   trivy fs .
+
+   # npm audit
+   cd frontend && npm audit
+   ```
+
+2. **Fix high-severity findings immediately**
+
+3. **Keep dependencies updated**
+
+#### For Security Team
+
+1. **Review security dashboard daily**
+
+2. **Tune scanning rules to reduce false positives**
+
+3. **Maintain scan schedules**
+
+---
+
+### Troubleshooting
+
+**Problem:** Scan takes too long
+**Solution:** Reduce scope, use `--exclude` patterns
+
+**Problem:** Too many false positives
+**Solution:** Customize rules, add exclude patterns
+
+**Problem:** ZAP can't access staging
+**Solution:** Verify `STAGING_AUTH_TOKEN`, check staging environment
+
+---
+
+### Quick Start Guide
+
+#### First Time Setup
+
+1. **Configure secrets** (see Required Secrets above)
+
+2. **Test workflows manually:**
+   ```bash
+   # Test SAST
+   gh workflow run sast-semgrep.yml
+
+   # Test DAST (manual target)
+   gh workflow run dast-zap.yml -f target_url=https://your-staging.com
+
+   # Test SCA
+   gh workflow run sca-trivy-snyk.yml -f scan_type=full
+   ```
+
+3. **Verify results:**
+   - Check Actions tab for workflow runs
+   - Check Security tab for findings
+   - Review job summaries
+
+#### Daily Monitoring
+
+**Check:**
+1. GitHub Security tab for new alerts
+2. Actions tab for workflow failures
+3. PRs requiring security review
+4. Vulnerability trends
+
+---
+
+### Metrics and KPIs
+
+**Track These Metrics:**
+- Scan duration (average)
+- False positive rate
+- Time to fix vulnerabilities
+- Critical vulnerabilities over time
+- High/Medium vulnerabilities over time
+- Security review turnaround time
+
+**View at:**
+```
+Repository → Security → Overview
+Repository → Actions → Security workflows → Summary
+```
+
+---
+
+### Integration with Other Tools
+
+**Continuous Monitoring:**
+- Snyk - Continuous dependency monitoring
+- Dependabot - Automated PRs for updates
+- CodeQL - Additional static analysis
+- SonarQube - Code quality + security
+
+**Alerting:**
+- Configure Slack notifications for failures
+- Page on-call for critical findings
+- Create JIRA tickets for vulnerabilities
+
+---
+
+### Further Reading
+
+**Internal:**
+- `docs/SECURITY_MASTER_INDEX.md` - Complete security guide
+- `docs/SECRET_LEAK_REMEDIATION_PLAYBOOK.md` - Incident response
+
+**External:**
+- [OWASP ZAP Documentation](https://www.zaproxy.org/docs/)
+- [Semgrep Documentation](https://semgrep.dev/docs/)
+- [Trivy Documentation](https://aquasecurity.github.io/trivy/)
+
+---
+
+### Support
+
+**Questions?**
+- Security Team: @security-team
+- DevOps: @devops
+- Create issue in repository
+
+---
+
+**Security Testing Status:** ✅ Production Ready
+**Last Updated:** December 26, 2025

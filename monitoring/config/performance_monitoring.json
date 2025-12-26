@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "interval_seconds": 60,
+  "metrics_collected": [
+    "response_time",
+    "request_rate",
+    "error_rate",
+    "active_users",
+    "cache_hit_rate",
+    "database_queries",
+    "memory_usage",
+    "cpu_usage"
+  ],
+  "thresholds": {
+    "response_time_ms": 2000,
+    "error_rate_percent": 5,
+    "cache_hit_rate_percent": 80,
+    "memory_usage_mb": 512,
+    "cpu_usage_percent": 70
+  },
+  "alert_channels": [
+    "email",
+    "slack"
+  ]
+}

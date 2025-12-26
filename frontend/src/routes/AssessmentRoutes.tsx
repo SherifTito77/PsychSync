@@ -7,16 +7,25 @@ import EnneagramAssessmentPage from '@/pages/assessments/types/EnneagramAssessme
 import DISCAssessmentPage from '@/pages/assessments/types/DISCAssessmentPage'
 import StrengthsFinderPage from '@/pages/assessments/types/StrengthsFinderPage'
 import PredictiveIndexPage from '@/pages/assessments/types/PredictiveIndexPage'
+import SocialStylesPage from '@/pages/assessments/types/SocialStylesPage'
 export default function AssessmentRoutes() {
   return (
     <Routes>
       <Route path="continue" element={<AssessmentContinuePage />} />
+      <Route path="mbti/start" element={<MBTIAssessmentPage />} />
       <Route path="mbti" element={<MBTIAssessmentPage />} />
-      <Route path="bigfive" element={<BigFiveAssessmentPage />} />
+      <Route path="big-five/start" element={<BigFiveAssessmentPage />} />
+      <Route path="big-five" element={<BigFiveAssessmentPage />} />
+      <Route path="enneagram/start" element={<EnneagramAssessmentPage />} />
       <Route path="enneagram" element={<EnneagramAssessmentPage />} />
+      <Route path="disc/start" element={<DISCAssessmentPage />} />
       <Route path="disc" element={<DISCAssessmentPage />} />
-      <Route path="strengths" element={<StrengthsFinderPage />} />
-      <Route path="predictive" element={<PredictiveIndexPage />} />
+      <Route path="strengthsfinder/start" element={<StrengthsFinderPage />} />
+      <Route path="strengthsfinder" element={<StrengthsFinderPage />} />
+      <Route path="predictive-index/start" element={<PredictiveIndexPage />} />
+      <Route path="predictive-index" element={<PredictiveIndexPage />} />
+      <Route path="social-styles/start" element={<SocialStylesPage />} />
+      <Route path="social-styles" element={<SocialStylesPage />} />
     </Routes>
   );
 }

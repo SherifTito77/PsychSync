@@ -1,276 +1,174 @@
 # app/services/response_service.py
-from typing import List, Optional, Dict, Any
-from sqlalchemy.ext.asyncio import AsyncSession, joinedload
+"""
+Response Service - Cleaned and fixed version
+Handles assessment responses with proper async support
+"""
+from uuid import UUID
 from datetime import datetime
-from fastapi import HTTPException, status
-
-from app.db.models.assessment import (
-    Assessment,
-    AssessmentResponse,
-    AssessmentAssignment,
-    ResponseStatus,
-    # Response
-)
-from app.schemas.response import ResponseCreate, ResponseUpdate, ResponseSave, ResponseSubmit
-from app.db.models.response_score import ResponseScore
+from typing import List, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.db.models.response import Response, AssessmentResponse
+from app.schemas.response import ResponseCreate, ResponseUpdate
 
 class ResponseService:
-    """Response service for database operations"""
-    
+
     @staticmethod
-    def create_response_session(
-        db: Session,
-        assessment_id: int,
-        respondent_id: Optional[int],
-        assignment_id: Optional[int] = None
-    ) -> AssessmentResponse:
-        """Create new response session"""
-        # Check if active session exists
-        existing = result = await db.execute(query)
-        return result.scalars().all()
-        
-        if existing:
-            return existing
-        
-        response = AssessmentResponse(
-            assessment_id=assessment_id,
-            assignment_id=assignment_id,
-            respondent_id=respondent_id,
-            responses={},
-            status=ResponseStatus.IN_PROGRESS,
-            current_section=0,
-            progress_percentage=0.0
+    async def create(db: AsyncSession, *, response_in: ResponseCreate) -> Response:
+        """Create a new assessment response."""
+        response = Response(
+            assessment_id=response_in.assessment_id,
+            user_id=response_in.user_id,
+            question_id=response_in.question_id,
+            answer_text=getattr(response_in, 'answer_text', None),
+            answer_value=getattr(response_in, 'answer_value', None),
+            answer_data=getattr(response_in, 'answer_data', None),
+            response_time_ms=getattr(response_in, 'response_time_ms', None),
+            confidence_rating=getattr(response_in, 'confidence_rating', None),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
         )
+
         db.add(response)
         await db.commit()
         await db.refresh(response)
+
+        # Calculate initial score if possible
+        await ResponseService._calculate_score(db, response)
+
         return response
-    
+
     @staticmethod
-    def get_response(db: Session, response_id: int) -> Optional[AssessmentResponse]:
-        """Get response by ID"""
+    async def get_by_id(db: AsyncSession, response_id: UUID) -> Optional[Response]:
+        """Get response by ID."""
+        result = await db.execute(select(Response).where(Response.id == response_id))
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_by_assessment(
+        db: AsyncSession,
+        assessment_id: UUID,
+        user_id: Optional[UUID] = None
+    ) -> List[Response]:
+        """Get responses for an assessment, optionally filtered by user."""
+        query = select(Response).where(Response.assessment_id == assessment_id)
+
+        if user_id:
+            query = query.where(Response.user_id == user_id)
+
         result = await db.execute(query)
         return result.scalars().all()
-    
+
     @staticmethod
-    def get_user_responses(
-        db: Session,
-        user_id: int,
-        status: Optional[str] = None
-    ) -> List[AssessmentResponse]:
-        """Get all responses by user"""
-        query = db.query(AssessmentResponse).filter(
-            AssessmentResponse.respondent_id == user_id
+    async def get_by_user(
+        db: AsyncSession,
+        user_id: UUID,
+        limit: int = 100
+    ) -> List[Response]:
+        """Get user's responses."""
+        result = await db.execute(
+            select(Response)
+            .where(Response.user_id == user_id)
+            .order_by(Response.created_at.desc())
+            .limit(limit)
         )
-        
-        if status:
-            query = query.filter(AssessmentResponse.status == ResponseStatus(status))
-        
-        return query.order_by(AssessmentResponse.started_at.desc()).all()
-    
-    @staticmethod
-    def get_assessment_responses(
-        db: Session,
-        assessment_id: int,
-        completed_only: bool = True
-    ) -> List[AssessmentResponse]:
-        """Get all responses for an assessment"""
-        query = db.query(AssessmentResponse).filter(
-            AssessmentResponse.assessment_id == assessment_id
-        )
-        
-        if completed_only:
-            query = query.filter(AssessmentResponse.is_complete == True)
-        
-        return query.all()
-    
-    @staticmethod
-    def save_progress(
-        db: Session,
-        response: AssessmentResponse,
-        responses_data: Dict[str, Any],
-        current_section: Optional[int] = None
-    ) -> AssessmentResponse:
-        """Save response progress"""
-        # Merge new responses with existing
-        existing_responses = response.responses or {}
-        existing_responses.update(responses_data)
-        response.responses = existing_responses
-        
-        if current_section is not None:
-            response.current_section = current_section
-        
-        # Calculate progress
-        assessment = db.query(Assessment).options(
-            joinedload(Assessment.sections)
-        ).filter(Assessment.id == response.assessment_id).first()
-        
-        if assessment:
-            total_questions = sum(len(s.questions) for s in assessment.sections)
-            answered_questions = len([k for k in existing_responses.keys() if existing_responses[k] is not None])
-            response.progress_percentage = (answered_questions / total_questions * 100) if total_questions > 0 else 0
-        
-        response.last_saved_at = datetime.utcnow()
-        
-        await db.commit()
-        await db.refresh(response)
-        return response
-    
-    @staticmethod
-    def submit_response(
-        db: Session,
-        response: AssessmentResponse,
-        responses_data: Dict[str, Any],
-        time_taken: Optional[int] = None
-    ) -> AssessmentResponse:
-        """Submit completed response"""
-        # Update responses
-        existing_responses = response.responses or {}
-        existing_responses.update(responses_data)
-        response.responses = existing_responses
-        
-        # Mark as complete
-        response.is_complete = True
-        response.status = ResponseStatus.COMPLETED
-        response.submitted_at = datetime.utcnow()
-        response.progress_percentage = 100.0
-        
-        if time_taken:
-            response.time_taken = time_taken
-        else:
-            # Calculate time taken
-            time_diff = datetime.utcnow() - response.started_at
-            response.time_taken = int(time_diff.total_seconds())
-        
-        # Mark assignment as completed if exists
-        if response.assignment_id:
-            assignment = result = await db.execute(query)
         return result.scalars().all()
-            if assignment:
-                assignment.completed_at = datetime.utcnow()
-        
-        await db.commit()
-        await db.refresh(response)
-        
-        # Calculate score
-        ResponseService.calculate_score(db, response)
-        
-        return response
-    
+
     @staticmethod
-    def calculate_score(
-        db: Session,
-        response: AssessmentResponse
-    ) -> Optional[ResponseScore]:
-        """Calculate score for response (basic implementation)"""
-        from app.services.scoring_service import ScoringService
-        # Check if score already exists
-        existing_score = result = await db.execute(query)
-        return result.scalars().all()
-        
-        if existing_score:
-            return existing_score
-        
-        # Calculate using appropriate algorithm
-        scoring_result = ScoringService.calculate_score(db, response)
-        
-        
-        # Get assessment with questions
-        assessment = db.query(Assessment).options(
-            joinedload(Assessment.sections).joinedload(Assessment.sections[0].questions)
-        ).filter(Assessment.id == response.assessment_id).first()
-        
-        if not assessment:
+    async def update(
+        db: AsyncSession,
+        *,
+        response_id: UUID,
+        response_in: ResponseUpdate
+    ) -> Optional[Response]:
+        """Update a response."""
+        result = await db.execute(select(Response).where(Response.id == response_id))
+        response = result.scalar_one_or_none()
+
+        if not response:
             return None
-        
-        # Basic scoring logic
-        total_score = 0.0
-        max_score = 0.0
-        
-        for section in assessment.sections:
-            for question in section.questions:
-                q_id = str(question.id)
-                if q_id in response.responses:
-                    answer = response.responses[q_id]
-                    
-                    # Simple scoring based on question type
-                    if question.question_type.value == "rating_scale":
-                        if question.config and "max" in question.config:
-                            max_val = float(question.config["max"])
-                            max_score += max_val
-                            if answer is not None:
-                                total_score += float(answer)
-                    
-                    elif question.question_type.value == "yes_no":
-                        max_score += 1
-                        if answer:
-                            total_score += 1
-        
-        # Create score record
-        percentage = (total_score / max_score * 100) if max_score > 0 else 0
-        
-        score = ResponseScore(
-            response_id=response.id,
-            total_score=total_score,
-            max_possible_score=max_score,
-            percentage_score=percentage,
-            subscale_scores={},
-            interpretation=ResponseService._get_interpretation(percentage)
+
+        update_data = response_in.dict(exclude_unset=True)
+        update_data["updated_at"] = datetime.utcnow()
+
+        for field, value in update_data.items():
+            setattr(response, field, value)
+
+        await db.commit()
+        await db.refresh(response)
+
+        # Recalculate score if answer changed
+        if any(key in update_data for key in ['answer_text', 'answer_value', 'answer_data']):
+            await ResponseService._calculate_score(db, response)
+
+        return response
+
+    @staticmethod
+    async def delete(db: AsyncSession, *, response_id: UUID) -> bool:
+        """Delete a response."""
+        result = await db.execute(select(Response).where(Response.id == response_id))
+        response = result.scalar_one_or_none()
+
+        if not response:
+            return False
+
+        await db.delete(response)
+        await db.commit()
+        return True
+
+    @staticmethod
+    async def get_assessment_completion(
+        db: AsyncSession,
+        assessment_id: UUID,
+        user_id: UUID
+    ) -> dict:
+        """Get completion status for a user's assessment."""
+        total_result = await db.execute(
+            select(Response).where(
+                Response.assessment_id == assessment_id,
+                Response.user_id == user_id
+            )
         )
-        
-        db.add(score)
+        total_responses = len(total_result.scalars().all())
+
+        scored_result = await db.execute(
+            select(Response).where(
+                Response.assessment_id == assessment_id,
+                Response.user_id == user_id,
+                Response.score.isnot(None)
+            )
+        )
+        scored_responses = len(scored_result.scalars().all())
+
+        return {
+            "total_questions": total_responses,
+            "answered_questions": total_responses,
+            "scored_questions": scored_responses,
+            "completion_rate": total_responses / max(total_responses, 1),
+            "score_rate": scored_responses / max(total_responses, 1)
+        }
+
+    @staticmethod
+    async def _calculate_score(db: AsyncSession, response: Response) -> None:
+        """Internal method to calculate response score."""
+        # Simple scoring logic - can be enhanced based on question type
+        if response.answer_value is not None:
+            # Assuming 1-5 scale, normalize to 0-1
+            response.score = min(response.answer_value / 5.0, 1.0)
+            response.normalized_score = response.score
+
         await db.commit()
-        await db.refresh(score)
-        
-        return score
-    
+
     @staticmethod
-    def _get_interpretation(percentage: float) -> str:
-        """Get basic interpretation based on percentage"""
-        if percentage >= 80:
-            return "High score range"
-        elif percentage >= 60:
-            return "Above average range"
-        elif percentage >= 40:
-            return "Average range"
-        elif percentage >= 20:
-            return "Below average range"
-        else:
-            return "Low score range"
-    
-    @staticmethod
-    def get_response_score(db: Session, response_id: int) -> Optional[ResponseScore]:
-        """Get score for a response"""
-        result = await db.execute(query)
-        return result.scalars().all()
-    
-    @staticmethod
-    def delete_response(db: Session, response: AssessmentResponse) -> None:
-        """Delete response"""
-        db.delete(response)
-        await db.commit()
-    
-    @staticmethod
-    def validate_response_data(
-        db: Session,
-        assessment_id: int,
-        responses_data: Dict[str, Any]
-    ) -> tuple[bool, Optional[str]]:
-        """Validate response data against assessment structure"""
-        assessment = db.query(Assessment).options(
-            joinedload(Assessment.sections).joinedload(Assessment.sections[0].questions)
-        ).filter(Assessment.id == assessment_id).first()
-        
-        if not assessment:
-            return False, "Assessment not found"
-        
-        # Check required questions
-        for section in assessment.sections:
-            for question in section.questions:
-                if question.is_required:
-                    q_id = str(question.id)
-                    if q_id not in responses_data or responses_data[q_id] is None:
-                        return False, f"Required question '{question.question_text}' not answered"
-        
-        return True, None
-    
+    async def bulk_create(
+        db: AsyncSession,
+        responses: List[ResponseCreate]
+    ) -> List[Response]:
+        """Create multiple responses efficiently."""
+        created_responses = []
+
+        for response_in in responses:
+            response = await ResponseService.create(db=db, response_in=response_in)
+            created_responses.append(response)
+
+        return created_responses

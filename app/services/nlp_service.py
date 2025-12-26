@@ -1,316 +1,1144 @@
-# ============================================================================
-# FILE 1: app/services/nlp_service.py
-# Core NLP service for sentiment analysis and text processing
-# ============================================================================
+"""
+Natural Language Processing Service
+Provides comprehensive NLP capabilities including text processing,
+sentiment analysis, theme extraction, and language understanding.
+"""
 
-from typing import Dict, List, Optional, Tuple
-import re
-from collections import Counter
-from datetime import datetime
-import numpy as np
-from textblob import TextBlob
-import spacy
-from transformers import pipeline
+import asyncio
 import logging
+import re
+import string
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Tuple, Set, Union
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import Counter, defaultdict
+import json
+
+# Try to import NLP libraries, provide fallbacks if not available
+try:
+    import spacy
+    SPACY_AVAILABLE = True
+except ImportError:
+    SPACY_AVAILABLE = False
+    logging.warning("spaCy not available. Install with: pip install spacy")
+
+try:
+    import nltk
+    from nltk.corpus import stopwords
+    from nltk.tokenize import word_tokenize, sent_tokenize
+    from nltk.stem import WordNetLemmatizer
+    from nltk import ngrams
+    NLTK_AVAILABLE = True
+except ImportError:
+    NLTK_AVAILABLE = False
+    logging.warning("NLTK not available. Install with: pip install nltk")
+
+try:
+    from textblob import TextBlob
+    TEXTBLOB_AVAILABLE = True
+except ImportError:
+    TEXTBLOB_AVAILABLE = False
+    logging.warning("TextBlob not available. Install with: pip install textblob")
+
+try:
+    import gensim
+    from gensim import corpora, models
+    from gensim.models import LdaModel, CoherenceModel
+    GENSIM_AVAILABLE = True
+except ImportError:
+    GENSIM_AVAILABLE = False
+    logging.warning("Gensim not available. Install with: pip install gensim")
+
+from sqlalchemy.orm import Session
+from sqlalchemy import func, and_, or_
 
 logger = logging.getLogger(__name__)
 
+
+class SentimentLabel(Enum):
+    """Sentiment classification labels"""
+    VERY_POSITIVE = "very_positive"
+    POSITIVE = "positive"
+    NEUTRAL = "neutral"
+    NEGATIVE = "negative"
+    VERY_NEGATIVE = "very_negative"
+
+
+class TextComplexity(Enum):
+    """Text complexity levels"""
+    VERY_SIMPLE = "very_simple"
+    SIMPLE = "simple"
+    MODERATE = "moderate"
+    COMPLEX = "complex"
+    VERY_COMPLEX = "very_complex"
+
+
+class NLPModel(Enum):
+    """Available NLP models"""
+    SPACY = "spacy"
+    NLTK = "nltk"
+    TEXTBLOB = "textblob"
+    CUSTOM = "custom"
+
+
+@dataclass
+class SentimentScore:
+    """Sentiment analysis results"""
+    polarity: float  # -1.0 to 1.0
+    subjectivity: float  # 0.0 to 1.0
+    confidence: float  # 0.0 to 1.0
+    label: SentimentLabel
+    details: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "polarity": self.polarity,
+            "subjectivity": self.subjectivity,
+            "confidence": self.confidence,
+            "label": self.label.value,
+            "details": self.details
+        }
+
+
+@dataclass
+class Theme:
+    """Identified theme from text analysis"""
+    id: str
+    name: str
+    keywords: List[str]
+    frequency: int
+    relevance_score: float
+    examples: List[str] = field(default_factory=list)
+    sentiment_distribution: Dict[str, float] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "keywords": self.keywords,
+            "frequency": self.frequency,
+            "relevance_score": self.relevance_score,
+            "examples": self.examples[:3],  # Limit examples
+            "sentiment_distribution": self.sentiment_distribution
+        }
+
+
+@dataclass
+class TextAnalysis:
+    """Complete text analysis results"""
+    text_id: str
+    original_text: str
+    word_count: int
+    sentence_count: int
+    readability_score: float
+    complexity: TextComplexity
+    sentiment: SentimentScore
+    themes: List[Theme] = field(default_factory=list)
+    key_entities: List[str] = field(default_factory=list)
+    key_phrases: List[str] = field(default_factory=list)
+    language: str = "en"
+    processed_at: datetime = field(default_factory=datetime.utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "text_id": self.text_id,
+            "word_count": self.word_count,
+            "sentence_count": self.sentence_count,
+            "readability_score": self.readability_score,
+            "complexity": self.complexity.value,
+            "sentiment": self.sentiment.to_dict(),
+            "themes": [theme.to_dict() for theme in self.themes],
+            "key_entities": self.key_entities,
+            "key_phrases": self.key_phrases,
+            "language": self.language,
+            "processed_at": self.processed_at.isoformat()
+        }
+
+
+@dataclass
+class WordFrequency:
+    """Word frequency analysis"""
+    word: str
+    frequency: int
+    normalized_frequency: float
+    context_words: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "word": self.word,
+            "frequency": self.frequency,
+            "normalized_frequency": self.normalized_frequency,
+            "context_words": self.context_words[:10]
+        }
+
+
 class NLPService:
-    """Advanced NLP service for psychometric text analysis"""
-    
-    def __init__(self):
-        self.nlp = None
-        self.sentiment_analyzer = None
-        self.emotion_classifier = None
-        self._initialize_models()
-    
-    def _initialize_models(self):
-        """Initialize NLP models lazily"""
+    """Comprehensive NLP service with multiple model support"""
+
+    def __init__(self, preferred_model: NLPModel = NLPModel.SPACY):
+        self.preferred_model = preferred_model
+        self.models_loaded = False
+        self.nlp_models = {}
+
+        # Text processing resources
+        self.stop_words = set()
+        self.lemmatizer = None
+        self.word_freq_cache = {}
+
+        # Topic modeling components
+        self.lda_models = {}
+        self.topic_dictionaries = {}
+
+        # Initialize services
+        self._initialize_nlp_models()
+        self._initialize_resources()
+
+        logger.info(f"NLP Service initialized with preferred model: {preferred_model.value}")
+
+    def _initialize_nlp_models(self) -> None:
+        """Initialize available NLP models"""
         try:
-            # Load spaCy model
-            self.nlp = spacy.load("en_core_web_sm")
-            
-            # Initialize sentiment analyzer
-            self.sentiment_analyzer = pipeline(
-                "sentiment-analysis",
-                model="distilbert-base-uncased-finetuned-sst-2-english"
-            )
-            
-            # Initialize emotion classifier
-            self.emotion_classifier = pipeline(
-                "text-classification",
-                model="j-hartmann/emotion-english-distilroberta-base",
-                top_k=None
-            )
-            
-            logger.info("NLP models initialized successfully")
+            # Initialize spaCy
+            if SPACY_AVAILABLE:
+                try:
+                    self.nlp_models['spacy'] = spacy.load("en_core_web_sm")
+                    logger.info("spaCy model loaded successfully")
+                except OSError:
+                    logger.warning("spaCy model not found. Run: python -m spacy download en_core_web_sm")
+                    self.nlp_models['spacy'] = None
+
+            # Initialize NLTK resources
+            if NLTK_AVAILABLE:
+                try:
+                    # Configure SSL for NLTK downloads if needed
+                    try:
+                        import ssl
+                        try:
+                            _create_unverified_https_context = ssl._create_unverified_context
+                        except AttributeError:
+                            pass
+                        else:
+                            ssl._create_default_https_context = _create_unverified_https_context
+                    except ImportError:
+                        pass
+
+                    # Ensure nltk is accessible in this scope
+                    import nltk
+
+                    # Download required NLTK data with error handling
+                    required_data = ['punkt', 'stopwords', 'wordnet', 'averaged_perceptron_tagger']
+                    downloaded_data = []
+
+                    for data_name in required_data:
+                        try:
+                            nltk.download(data_name, quiet=True)
+                            downloaded_data.append(data_name)
+                        except Exception as download_error:
+                            logger.warning(f"Failed to download NLTK data '{data_name}': {str(download_error)}")
+
+                    # Verify data is actually available
+                    available_data = []
+                    for data_name in downloaded_data:
+                        try:
+                            if data_name == 'punkt':
+                                from nltk.tokenize import word_tokenize, sent_tokenize
+                                available_data.append(data_name)
+                            elif data_name == 'stopwords':
+                                from nltk.corpus import stopwords
+                                available_data.append(data_name)
+                            elif data_name == 'wordnet':
+                                from nltk.corpus import wordnet
+                                available_data.append(data_name)
+                            elif data_name == 'averaged_perceptron_tagger':
+                                import nltk
+                                nltk.data.load('taggers/averaged_perceptron_tagger.pickle')
+                                available_data.append(data_name)
+                        except Exception as verify_error:
+                            logger.warning(f"NLTK data '{data_name}' verification failed: {str(verify_error)}")
+
+                    if len(available_data) >= 2:  # At least basic functionality
+                        self.nlp_models['nltk'] = True
+                        if 'wordnet' in available_data:
+                            self.lemmatizer = WordNetLemmatizer()
+                        logger.info(f"NLTK resources loaded successfully: {available_data}")
+                    else:
+                        self.nlp_models['nltk'] = None
+                        logger.warning("Insufficient NLTK data available, falling back to basic functionality")
+
+                except Exception as e:
+                    logger.error(f"Failed to initialize NLTK resources: {str(e)}")
+                    self.nlp_models['nltk'] = None
+
+            # Initialize TextBlob
+            if TEXTBLOB_AVAILABLE:
+                self.nlp_models['textblob'] = True
+                logger.info("TextBlob initialized successfully")
+
+            # Initialize Gensim for topic modeling
+            if GENSIM_AVAILABLE:
+                self.nlp_models['gensim'] = True
+                logger.info("Gensim initialized successfully")
+
+            self.models_loaded = True
+
         except Exception as e:
-            logger.error(f"Error initializing NLP models: {e}")
+            logger.error(f"Failed to initialize NLP models: {str(e)}")
+            self.models_loaded = False
+
+    def _initialize_resources(self) -> None:
+        """Initialize text processing resources"""
+        try:
+            # Load stop words
+            if (NLTK_AVAILABLE and
+                self.nlp_models.get('nltk') and
+                'stopwords' in dir()):
+                try:
+                    self.stop_words = set(stopwords.words('english'))
+                except Exception as stopwords_error:
+                    logger.warning(f"Failed to load NLTK stopwords: {str(stopwords_error)}")
+                    self.stop_words = self._get_basic_stopwords()
+            else:
+                # Basic stop words list
+                self.stop_words = self._get_basic_stopwords()
+
+            logger.info(f"NLP resources initialized successfully with {len(self.stop_words)} stopwords")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize NLP resources: {str(e)}")
+            # Fallback to basic stopwords
+            self.stop_words = self._get_basic_stopwords()
+
+    def _get_basic_stopwords(self) -> set:
+        """Get basic stop words list as fallback"""
+        return {
+            'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves',
+            'you', 'your', 'yours', 'yourself', 'yourselves', 'he', 'him',
+            'his', 'himself', 'she', 'her', 'hers', 'herself', 'it',
+            'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+            'what', 'which', 'who', 'whom', 'this', 'that', 'these',
+            'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been',
+            'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
+            'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because',
+            'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about',
+            'against', 'between', 'into', 'through', 'during', 'before',
+            'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in',
+            'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then',
+            'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all',
+            'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some',
+            'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
+            'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should',
+            'now'
+        }
+
+    async def analyze_text(
+        self,
+        text: str,
+        text_id: Optional[str] = None,
+        include_sentiment: bool = True,
+        include_themes: bool = True,
+        include_entities: bool = True,
+        include_phrases: bool = True
+    ) -> TextAnalysis:
+        """Perform comprehensive text analysis"""
+        try:
+            if not text or not text.strip():
+                raise ValueError("Text cannot be empty")
+
+            text_id = text_id or f"text_{datetime.utcnow().timestamp()}"
+
+            # Basic text statistics
+            word_count = len(text.split())
+            sentence_count = self._count_sentences(text)
+            readability_score = self._calculate_readability(text)
+            complexity = self._determine_complexity(readability_score, word_count, sentence_count)
+
+            # Sentiment analysis
+            sentiment = SentimentScore(0.0, 0.0, 0.0, SentimentLabel.NEUTRAL)
+            if include_sentiment:
+                sentiment = await self.analyze_sentiment(text)
+
+            # Theme extraction
+            themes = []
+            if include_themes:
+                themes = await self.extract_themes(text)
+
+            # Entity recognition
+            entities = []
+            if include_entities:
+                entities = await self.extract_entities(text)
+
+            # Key phrase extraction
+            phrases = []
+            if include_phrases:
+                phrases = await self.extract_key_phrases(text)
+
+            analysis = TextAnalysis(
+                text_id=text_id,
+                original_text=text,
+                word_count=word_count,
+                sentence_count=sentence_count,
+                readability_score=readability_score,
+                complexity=complexity,
+                sentiment=sentiment,
+                themes=themes,
+                key_entities=entities,
+                key_phrases=phrases,
+                language=self._detect_language(text)
+            )
+
+            logger.debug(f"Completed text analysis for {text_id}")
+            return analysis
+
+        except Exception as e:
+            logger.error(f"Text analysis failed: {str(e)}")
             raise
-    
-    def analyze_text(self, text: str) -> Dict:
-        """
-        Comprehensive text analysis for psychometric insights
-        
-        Args:
-            text: Input text to analyze
-            
-        Returns:
-            Dict containing sentiment, emotions, linguistic features
-        """
-        if not text or not text.strip():
-            return self._empty_analysis()
-        
+
+    async def analyze_sentiment(self, text: str, model: Optional[NLPModel] = None) -> SentimentScore:
+        """Analyze sentiment of text"""
         try:
-            # Basic sentiment
-            sentiment = self._analyze_sentiment(text)
-            
-            # Emotion detection
-            emotions = self._detect_emotions(text)
-            
-            # Linguistic features
-            linguistic = self._extract_linguistic_features(text)
-            
-            # Psycholinguistic markers
-            psycho_markers = self._extract_psycholinguistic_markers(text)
-            
-            # Named entities
-            entities = self._extract_entities(text)
-            
-            return {
-                "sentiment": sentiment,
-                "emotions": emotions,
-                "linguistic_features": linguistic,
-                "psycholinguistic_markers": psycho_markers,
-                "entities": entities,
-                "metadata": {
-                    "text_length": len(text),
-                    "word_count": len(text.split()),
-                    "analyzed_at": datetime.utcnow().isoformat()
-                }
-            }
+            model = model or self.preferred_model
+
+            if model == NLPModel.SPACY and self.nlp_models.get('spacy'):
+                return await self._sentiment_analysis_spacy(text)
+            elif model == NLPModel.TEXTBLOB and TEXTBLOB_AVAILABLE:
+                return await self._sentiment_analysis_textblob(text)
+            elif model == NLPModel.NLTK and NLTK_AVAILABLE:
+                return await self._sentiment_analysis_nltk(text)
+            else:
+                # Fallback to simple rule-based sentiment
+                return await self._sentiment_analysis_simple(text)
+
         except Exception as e:
-            logger.error(f"Error in text analysis: {e}")
-            return self._empty_analysis()
-    
-    def _analyze_sentiment(self, text: str) -> Dict:
-        """Analyze sentiment using multiple methods"""
-        # TextBlob sentiment
-        blob = TextBlob(text)
-        textblob_sentiment = {
-            "polarity": blob.sentiment.polarity,  # -1 to 1
-            "subjectivity": blob.sentiment.subjectivity  # 0 to 1
-        }
-        
-        # Transformer-based sentiment
-        transformer_result = self.sentiment_analyzer(text[:512])[0]
-        
-        return {
-            "overall_score": textblob_sentiment["polarity"],
-            "label": transformer_result["label"],
-            "confidence": transformer_result["score"],
-            "subjectivity": textblob_sentiment["subjectivity"],
-            "interpretation": self._interpret_sentiment(textblob_sentiment["polarity"])
-        }
-    
-    def _detect_emotions(self, text: str) -> Dict:
-        """Detect emotions in text"""
+            logger.error(f"Sentiment analysis failed: {str(e)}")
+            return SentimentScore(0.0, 0.0, 0.0, SentimentLabel.NEUTRAL)
+
+    async def extract_themes(
+        self,
+        text: str,
+        num_themes: int = 5,
+        method: str = "frequency"
+    ) -> List[Theme]:
+        """Extract main themes from text"""
         try:
-            results = self.emotion_classifier(text[:512])[0]
-            
-            emotions = {}
-            for result in results:
-                emotions[result["label"]] = result["score"]
-            
-            # Get dominant emotion
-            dominant = max(results, key=lambda x: x["score"])
-            
-            return {
-                "scores": emotions,
-                "dominant_emotion": dominant["label"],
-                "dominant_confidence": dominant["score"],
-                "emotional_intensity": np.std(list(emotions.values()))
-            }
+            if method == "frequency":
+                return await self._extract_themes_frequency(text, num_themes)
+            elif method == "topic_modeling" and GENSIM_AVAILABLE:
+                return await self._extract_themes_lda(text, num_themes)
+            else:
+                return await self._extract_themes_frequency(text, num_themes)
+
         except Exception as e:
-            logger.error(f"Emotion detection error: {e}")
-            return {"scores": {}, "dominant_emotion": "neutral", "dominant_confidence": 0.5}
-    
-    def _extract_linguistic_features(self, text: str) -> Dict:
-        """Extract linguistic features for personality insights"""
-        doc = self.nlp(text)
-        
-        # Count different POS tags
-        pos_counts = Counter([token.pos_ for token in doc])
-        
-        # Sentence complexity
-        sentences = list(doc.sents)
-        avg_sentence_length = np.mean([len(sent) for sent in sentences]) if sentences else 0
-        
-        # Vocabulary richness (Type-Token Ratio)
-        words = [token.text.lower() for token in doc if token.is_alpha]
-        ttr = len(set(words)) / len(words) if words else 0
-        
-        return {
-            "sentence_count": len(sentences),
-            "avg_sentence_length": float(avg_sentence_length),
-            "type_token_ratio": float(ttr),
-            "noun_count": pos_counts.get("NOUN", 0),
-            "verb_count": pos_counts.get("VERB", 0),
-            "adjective_count": pos_counts.get("ADJ", 0),
-            "adverb_count": pos_counts.get("ADV", 0),
-            "pronoun_count": pos_counts.get("PRON", 0),
-            "complexity_score": self._calculate_complexity(doc)
-        }
-    
-    def _extract_psycholinguistic_markers(self, text: str) -> Dict:
-        """Extract LIWC-style psycholinguistic markers"""
-        text_lower = text.lower()
-        words = re.findall(r'\b\w+\b', text_lower)
-        total_words = len(words)
-        
-        if total_words == 0:
-            return {}
-        
-        # Define marker categories
-        markers = {
-            "first_person": ["i", "me", "my", "mine", "myself"],
-            "first_person_plural": ["we", "us", "our", "ours", "ourselves"],
-            "second_person": ["you", "your", "yours", "yourself"],
-            "third_person": ["he", "she", "they", "him", "her", "them"],
-            "positive_emotion": ["happy", "joy", "love", "good", "great", "excellent"],
-            "negative_emotion": ["sad", "angry", "hate", "bad", "terrible", "awful"],
-            "anxiety": ["worry", "fear", "nervous", "anxious", "scared", "afraid"],
-            "cognitive": ["think", "know", "consider", "understand", "realize"],
-            "tentative": ["maybe", "perhaps", "possibly", "probably", "might"],
-            "certainty": ["always", "never", "definitely", "absolutely", "certainly"],
-            "achievement": ["win", "success", "achieve", "goal", "accomplish"],
-            "power": ["strong", "superior", "control", "dominant", "powerful"]
-        }
-        
-        results = {}
-        for category, word_list in markers.items():
-            count = sum(1 for word in words if word in word_list)
-            results[category] = {
-                "count": count,
-                "percentage": (count / total_words) * 100
-            }
-        
-        return results
-    
-    def _extract_entities(self, text: str) -> List[Dict]:
-        """Extract named entities"""
-        doc = self.nlp(text)
-        
-        entities = []
-        for ent in doc.ents:
-            entities.append({
-                "text": ent.text,
-                "label": ent.label_,
-                "start": ent.start_char,
-                "end": ent.end_char
-            })
-        
-        return entities
-    
-    def _calculate_complexity(self, doc) -> float:
-        """Calculate text complexity score"""
-        # Average word length
-        words = [token for token in doc if token.is_alpha]
-        avg_word_length = np.mean([len(token.text) for token in words]) if words else 0
-        
-        # Sentence length variance
-        sentences = list(doc.sents)
-        sentence_lengths = [len(sent) for sent in sentences]
-        length_variance = np.var(sentence_lengths) if len(sentence_lengths) > 1 else 0
-        
-        # Lexical diversity
-        unique_ratio = len(set([t.lemma_ for t in words])) / len(words) if words else 0
-        
-        # Combine into complexity score (0-100)
-        complexity = (
-            (avg_word_length / 10) * 30 +
-            (length_variance / 100) * 30 +
-            unique_ratio * 40
-        )
-        
-        return min(100, complexity)
-    
-    def _interpret_sentiment(self, polarity: float) -> str:
-        """Interpret sentiment polarity score"""
-        if polarity >= 0.5:
-            return "very_positive"
-        elif polarity >= 0.1:
-            return "positive"
-        elif polarity >= -0.1:
-            return "neutral"
-        elif polarity >= -0.5:
-            return "negative"
+            logger.error(f"Theme extraction failed: {str(e)}")
+            return []
+
+    async def extract_entities(self, text: str) -> List[str]:
+        """Extract named entities from text"""
+        try:
+            if self.nlp_models.get('spacy'):
+                return await self._extract_entities_spacy(text)
+            else:
+                return await self._extract_entities_simple(text)
+
+        except Exception as e:
+            logger.error(f"Entity extraction failed: {str(e)}")
+            return []
+
+    async def extract_key_phrases(
+        self,
+        text: str,
+        num_phrases: int = 10,
+        min_length: int = 2,
+        max_length: int = 4
+    ) -> List[str]:
+        """Extract key phrases from text"""
+        try:
+            if self.nlp_models.get('spacy'):
+                return await self._extract_key_phrases_spacy(text, num_phrases, min_length, max_length)
+            else:
+                return await self._extract_key_phrases_ngrams(text, num_phrases, min_length, max_length)
+
+        except Exception as e:
+            logger.error(f"Key phrase extraction failed: {str(e)}")
+            return []
+
+    async def analyze_word_frequency(
+        self,
+        texts: List[str],
+        normalize: bool = True,
+        min_frequency: int = 2
+    ) -> List[WordFrequency]:
+        """Analyze word frequency across multiple texts"""
+        try:
+            all_words = []
+            word_contexts = defaultdict(list)
+
+            for text in texts:
+                words = self._preprocess_text(text)
+                all_words.extend(words)
+
+                # Track word contexts
+                for i, word in enumerate(words):
+                    context_start = max(0, i - 3)
+                    context_end = min(len(words), i + 4)
+                    context = [words[j] for j in range(context_start, context_end) if j != i]
+                    word_contexts[word].extend(context)
+
+            # Count frequencies
+            word_counts = Counter(all_words)
+            total_words = len(all_words)
+
+            # Create WordFrequency objects
+            frequencies = []
+            for word, count in word_counts.items():
+                if count >= min_frequency and word not in self.stop_words:
+                    normalized_freq = count / total_words if normalize and total_words > 0 else count
+
+                    # Get unique context words
+                    unique_contexts = list(set(word_contexts[word]))
+
+                    frequencies.append(WordFrequency(
+                        word=word,
+                        frequency=count,
+                        normalized_frequency=normalized_freq,
+                        context_words=unique_contexts
+                    ))
+
+            # Sort by frequency
+            frequencies.sort(key=lambda x: x.frequency, reverse=True)
+
+            return frequencies
+
+        except Exception as e:
+            logger.error(f"Word frequency analysis failed: {str(e)}")
+            return []
+
+    async def generate_word_cloud_data(
+        self,
+        texts: List[str],
+        max_words: int = 100,
+        exclude_stopwords: bool = True
+    ) -> List[Dict[str, Any]]:
+        """Generate data for word cloud visualization"""
+        try:
+            frequencies = await self.analyze_word_frequency(
+                texts,
+                normalize=True,
+                min_frequency=1
+            )
+
+            # Filter and format for word cloud
+            word_cloud_data = []
+            for freq in frequencies[:max_words]:
+                if exclude_stopwords and freq.word.lower() in self.stop_words:
+                    continue
+
+                word_cloud_data.append({
+                    "text": freq.word,
+                    "value": freq.frequency,
+                    "weight": freq.normalized_frequency * 100  # Scale for visualization
+                })
+
+            return word_cloud_data
+
+        except Exception as e:
+            logger.error(f"Word cloud data generation failed: {str(e)}")
+            return []
+
+    # Implementation methods for different NLP models
+
+    async def _sentiment_analysis_spacy(self, text: str) -> SentimentScore:
+        """Sentiment analysis using spaCy with custom rules"""
+        try:
+            nlp = self.nlp_models['spacy']
+            doc = nlp(text)
+
+            # Simple sentiment based on word polarity
+            positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'like', 'enjoy']
+            negative_words = ['bad', 'terrible', 'awful', 'horrible', 'hate', 'dislike', 'poor', 'worst']
+
+            positive_count = sum(1 for token in doc if token.text.lower() in positive_words)
+            negative_count = sum(1 for token in doc if token.text.lower() in negative_words)
+            total_words = len(doc)
+
+            polarity = (positive_count - negative_count) / max(total_words, 1)
+            subjectivity = min(0.5, (positive_count + negative_count) / max(total_words, 1))
+
+            # Determine sentiment label
+            if polarity > 0.3:
+                label = SentimentLabel.POSITIVE if polarity < 0.7 else SentimentLabel.VERY_POSITIVE
+            elif polarity < -0.3:
+                label = SentimentLabel.NEGATIVE if polarity > -0.7 else SentimentLabel.VERY_NEGATIVE
+            else:
+                label = SentimentLabel.NEUTRAL
+
+            confidence = abs(polarity)
+
+            return SentimentScore(
+                polarity=polarity,
+                subjectivity=subjectivity,
+                confidence=confidence,
+                label=label
+            )
+
+        except Exception as e:
+            logger.error(f"spaCy sentiment analysis failed: {str(e)}")
+            return await self._sentiment_analysis_simple(text)
+
+    async def _sentiment_analysis_textblob(self, text: str) -> SentimentScore:
+        """Sentiment analysis using TextBlob"""
+        try:
+            blob = TextBlob(text)
+            polarity = blob.sentiment.polarity
+            subjectivity = blob.sentiment.subjectivity
+
+            # Determine sentiment label
+            if polarity > 0.3:
+                label = SentimentLabel.POSITIVE if polarity < 0.7 else SentimentLabel.VERY_POSITIVE
+            elif polarity < -0.3:
+                label = SentimentLabel.NEGATIVE if polarity > -0.7 else SentimentLabel.VERY_NEGATIVE
+            else:
+                label = SentimentLabel.NEUTRAL
+
+            confidence = abs(polarity)
+
+            return SentimentScore(
+                polarity=polarity,
+                subjectivity=subjectivity,
+                confidence=confidence,
+                label=label,
+                details={"assessments": blob.sentiment_assessments.assessments if hasattr(blob.sentiment_assessments, 'assessments') else []}
+            )
+
+        except Exception as e:
+            logger.error(f"TextBlob sentiment analysis failed: {str(e)}")
+            return await self._sentiment_analysis_simple(text)
+
+    async def _sentiment_analysis_nltk(self, text: str) -> SentimentScore:
+        """Sentiment analysis using NLTK (requires VADER)"""
+        try:
+            # Try to use VADER sentiment analyzer
+            from nltk.sentiment import SentimentIntensityAnalyzer
+            sia = SentimentIntensityAnalyzer()
+
+            scores = sia.polarity_scores(text)
+            polarity = scores['compound']
+            subjectivity = 1 - scores['neu']
+
+            # Determine sentiment label
+            if polarity > 0.05:
+                label = SentimentLabel.POSITIVE if polarity < 0.5 else SentimentLabel.VERY_POSITIVE
+            elif polarity < -0.05:
+                label = SentimentLabel.NEGATIVE if polarity > -0.5 else SentimentLabel.VERY_NEGATIVE
+            else:
+                label = SentimentLabel.NEUTRAL
+
+            confidence = abs(polarity)
+
+            return SentimentScore(
+                polarity=polarity,
+                subjectivity=subjectivity,
+                confidence=confidence,
+                label=label,
+                details={"vader_scores": scores}
+            )
+
+        except ImportError:
+            logger.warning("VADER sentiment analyzer not available, falling back to simple analysis")
+            return await self._sentiment_analysis_simple(text)
+        except Exception as e:
+            logger.error(f"NLTK sentiment analysis failed: {str(e)}")
+            return await self._sentiment_analysis_simple(text)
+
+    async def _sentiment_analysis_simple(self, text: str) -> SentimentScore:
+        """Simple rule-based sentiment analysis"""
+        try:
+            positive_words = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'like', 'enjoy', 'happy', 'pleased', 'satisfied', 'awesome', 'perfect']
+            negative_words = ['bad', 'terrible', 'awful', 'horrible', 'hate', 'dislike', 'poor', 'worst', 'angry', 'frustrated', 'disappointed', 'sad', 'upset', 'annoying']
+
+            words = text.lower().split()
+            positive_count = sum(1 for word in words if word in positive_words)
+            negative_count = sum(1 for word in words if word in negative_words)
+            total_words = len(words)
+
+            polarity = (positive_count - negative_count) / max(total_words, 1)
+            subjectivity = min(0.5, (positive_count + negative_count) / max(total_words, 1))
+
+            # Determine sentiment label
+            if polarity > 0.1:
+                label = SentimentLabel.POSITIVE if polarity < 0.5 else SentimentLabel.VERY_POSITIVE
+            elif polarity < -0.1:
+                label = SentimentLabel.NEGATIVE if polarity > -0.5 else SentimentLabel.VERY_NEGATIVE
+            else:
+                label = SentimentLabel.NEUTRAL
+
+            confidence = min(abs(polarity) * 2, 1.0)
+
+            return SentimentScore(
+                polarity=polarity,
+                subjectivity=subjectivity,
+                confidence=confidence,
+                label=label
+            )
+
+        except Exception as e:
+            logger.error(f"Simple sentiment analysis failed: {str(e)}")
+            return SentimentScore(0.0, 0.0, 0.0, SentimentLabel.NEUTRAL)
+
+    async def _extract_themes_frequency(
+        self,
+        text: str,
+        num_themes: int
+    ) -> List[Theme]:
+        """Extract themes based on word frequency"""
+        try:
+            # Process text
+            words = self._preprocess_text(text)
+            word_freq = Counter(words)
+
+            # Group related words into themes
+            themes = []
+            processed_words = set()
+
+            for word, freq in word_freq.most_common(num_themes * 3):  # Get more to find themes
+                if word in processed_words or word in self.stop_words:
+                    continue
+
+                # Find related words (simple approach)
+                related_words = [word]
+                for other_word, other_freq in word_freq.items():
+                    if other_word not in processed_words and other_word != word:
+                        # Check if words are similar (same starting letters or common patterns)
+                        if (other_word.startswith(word[:3]) or word.startswith(other_word[:3])) and other_freq >= 2:
+                            related_words.append(other_word)
+                            processed_words.add(other_word)
+
+                total_freq = sum(word_freq[w] for w in related_words)
+                relevance_score = total_freq / len(words)
+
+                # Create theme
+                theme_id = f"theme_{len(themes)}"
+                theme_name = self._generate_theme_name(related_words)
+
+                # Find examples containing these words
+                sentences = self._split_into_sentences(text)
+                examples = []
+                for sentence in sentences[:10]:  # Check first 10 sentences
+                    if any(word in sentence.lower() for word in related_words[:3]):
+                        examples.append(sentence.strip())
+                        if len(examples) >= 2:
+                            break
+
+                themes.append(Theme(
+                    id=theme_id,
+                    name=theme_name,
+                    keywords=related_words[:5],  # Top 5 keywords
+                    frequency=total_freq,
+                    relevance_score=relevance_score,
+                    examples=examples
+                ))
+
+                processed_words.add(word)
+
+                if len(themes) >= num_themes:
+                    break
+
+            return themes
+
+        except Exception as e:
+            logger.error(f"Frequency-based theme extraction failed: {str(e)}")
+            return []
+
+    async def _extract_themes_lda(self, text: str, num_themes: int) -> List[Theme]:
+        """Extract themes using Latent Dirichlet Allocation"""
+        try:
+            if not GENSIM_AVAILABLE:
+                return await self._extract_themes_frequency(text, num_themes)
+
+            # Prepare documents (split text into chunks)
+            sentences = self._split_into_sentences(text)
+            documents = [self._preprocess_text(sent) for sent in sentences if len(sent.strip()) > 10]
+
+            if len(documents) < num_themes:
+                return await self._extract_themes_frequency(text, num_themes)
+
+            # Create dictionary and corpus
+            dictionary = corpora.Dictionary(documents)
+            corpus = [dictionary.doc2bow(doc) for doc in documents]
+
+            # Train LDA model
+            lda_model = LdaModel(
+                corpus=corpus,
+                id2word=dictionary,
+                num_topics=num_themes,
+                random_state=42,
+                passes=10,
+                alpha='auto'
+            )
+
+            # Extract themes
+            themes = []
+            for idx, topic in lda_model.print_topics(num_words=5):
+                # Parse topic words
+                topic_words = []
+                for word_prob in topic.split(' + '):
+                    word = word_prob.split('"')[1]
+                    topic_words.append(word)
+
+                # Calculate theme frequency
+                theme_freq = sum(1 for doc in documents if any(word in doc for word in topic_words))
+                relevance_score = theme_freq / len(documents)
+
+                # Find examples
+                examples = []
+                for sentence in sentences[:20]:
+                    if any(word in sentence.lower() for word in topic_words[:3]):
+                        examples.append(sentence.strip())
+                        if len(examples) >= 2:
+                            break
+
+                themes.append(Theme(
+                    id=f"lda_topic_{idx}",
+                    name=f"Topic {idx + 1}: {topic_words[0].title()} & {topic_words[1].title()}",
+                    keywords=topic_words,
+                    frequency=theme_freq,
+                    relevance_score=relevance_score,
+                    examples=examples
+                ))
+
+            return themes
+
+        except Exception as e:
+            logger.error(f"LDA theme extraction failed: {str(e)}")
+            return await self._extract_themes_frequency(text, num_themes)
+
+    async def _extract_entities_spacy(self, text: str) -> List[str]:
+        """Extract entities using spaCy"""
+        try:
+            nlp = self.nlp_models['spacy']
+            doc = nlp(text)
+
+            entities = []
+            for ent in doc.ents:
+                if ent.label_ in ['PERSON', 'ORG', 'GPE', 'PRODUCT', 'EVENT', 'WORK_OF_ART']:
+                    entities.append(ent.text)
+
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_entities = []
+            for entity in entities:
+                if entity not in seen:
+                    seen.add(entity)
+                    unique_entities.append(entity)
+
+            return unique_entities[:20]  # Limit to top 20
+
+        except Exception as e:
+            logger.error(f"spaCy entity extraction failed: {str(e)}")
+            return []
+
+    async def _extract_entities_simple(self, text: str) -> List[str]:
+        """Simple entity extraction using capitalization patterns"""
+        try:
+            # Find capitalized words/phrases
+            capitalized_pattern = r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b'
+            entities = re.findall(capitalized_pattern, text)
+
+            # Filter out common words
+            common_words = {'This', 'That', 'The', 'It', 'He', 'She', 'They', 'We', 'You'}
+            entities = [entity for entity in entities if entity not in common_words and len(entity) > 2]
+
+            # Remove duplicates
+            return list(dict.fromkeys(entities))[:20]
+
+        except Exception as e:
+            logger.error(f"Simple entity extraction failed: {str(e)}")
+            return []
+
+    async def _extract_key_phrases_spacy(
+        self,
+        text: str,
+        num_phrases: int,
+        min_length: int,
+        max_length: int
+    ) -> List[str]:
+        """Extract key phrases using spaCy"""
+        try:
+            nlp = self.nlp_models['spacy']
+            doc = nlp(text)
+
+            # Extract noun chunks and other phrases
+            phrases = []
+
+            # Noun chunks
+            for chunk in doc.noun_chunks:
+                if min_length <= len(chunk.text.split()) <= max_length:
+                    phrases.append(chunk.text)
+
+            # Additional phrases based on POS patterns
+            for i in range(len(doc)):
+                # Find adjective-noun patterns
+                if i < len(doc) - 1 and doc[i].pos_ == 'ADJ' and doc[i + 1].pos_ == 'NOUN':
+                    phrase = f"{doc[i].text} {doc[i + 1].text}"
+                    if min_length <= len(phrase.split()) <= max_length:
+                        phrases.append(phrase)
+
+            # Filter and rank phrases
+            filtered_phrases = []
+            seen = set()
+
+            for phrase in phrases:
+                # Clean and normalize
+                clean_phrase = phrase.strip().lower()
+                if (len(clean_phrase) > 5 and
+                    clean_phrase not in seen and
+                    not all(word in self.stop_words for word in clean_phrase.split())):
+
+                    seen.add(clean_phrase)
+                    filtered_phrases.append(phrase)
+
+            return filtered_phrases[:num_phrases]
+
+        except Exception as e:
+            logger.error(f"spaCy key phrase extraction failed: {str(e)}")
+            return await self._extract_key_phrases_ngrams(text, num_phrases, min_length, max_length)
+
+    async def _extract_key_phrases_ngrams(
+        self,
+        text: str,
+        num_phrases: int,
+        min_length: int,
+        max_length: int
+    ) -> List[str]:
+        """Extract key phrases using n-grams"""
+        try:
+            words = self._preprocess_text(text)
+
+            # Generate n-grams
+            phrases = []
+            for n in range(min_length, max_length + 1):
+                if len(words) >= n:
+                    for ngram in ngrams(words, n):
+                        phrase = ' '.join(ngram)
+                        if not all(word in self.stop_words for word in phrase.split()):
+                            phrases.append(phrase)
+
+            # Count phrase frequencies
+            phrase_freq = Counter(phrases)
+
+            # Return most frequent phrases
+            return [phrase for phrase, freq in phrase_freq.most_common(num_phrases)]
+
+        except Exception as e:
+            logger.error(f"N-gram key phrase extraction failed: {str(e)}")
+            return []
+
+    # Helper methods
+
+    def _preprocess_text(self, text: str) -> List[str]:
+        """Preprocess text for analysis"""
+        try:
+            # Convert to lowercase
+            text = text.lower()
+
+            # Remove punctuation
+            text = text.translate(str.maketrans('', '', string.punctuation))
+
+            # Tokenize with fallback
+            if (NLTK_AVAILABLE and
+                self.nlp_models.get('nltk') and
+                'punkt' in str(nltk.data.path)):
+                try:
+                    words = word_tokenize(text)
+                except Exception as tokenize_error:
+                    logger.warning(f"NLTK tokenization failed: {str(tokenize_error)}")
+                    words = text.split()
+            else:
+                words = text.split()
+
+            # Remove stop words and short words
+            words = [
+                word for word in words
+                if word not in self.stop_words and len(word) > 2
+            ]
+
+            # Lemmatize if available
+            if self.lemmatizer:
+                try:
+                    words = [self.lemmatizer.lemmatize(word) for word in words]
+                except Exception as lemmatize_error:
+                    logger.warning(f"Lemmatization failed: {str(lemmatize_error)}")
+                    # Continue with non-lemmatized words
+
+            return words
+
+        except Exception as e:
+            logger.error(f"Text preprocessing failed: {str(e)}")
+            # Return basic tokenization as last resort
+            try:
+                text = text.lower().translate(str.maketrans('', '', string.punctuation))
+                return [word for word in text.split() if len(word) > 2 and word not in self.stop_words]
+            except Exception:
+                return []
+
+    def _count_sentences(self, text: str) -> int:
+        """Count number of sentences in text"""
+        try:
+            # Try NLTK sentence tokenization first
+            if (NLTK_AVAILABLE and
+                self.nlp_models.get('nltk') and
+                'punkt' in str(nltk.data.path)):
+                try:
+                    return len(sent_tokenize(text))
+                except Exception as nltk_error:
+                    logger.warning(f"NLTK sentence tokenization failed: {str(nltk_error)}")
+
+            # Fallback to regex-based sentence counting
+            sentences = re.split(r'[.!?]+', text)
+            return len([s.strip() for s in sentences if s.strip()])
+
+        except Exception:
+            return len(text.split('.'))
+
+    def _split_into_sentences(self, text: str) -> List[str]:
+        """Split text into sentences with fallback methods"""
+        try:
+            # Try NLTK sentence tokenization first
+            if (NLTK_AVAILABLE and
+                self.nlp_models.get('nltk') and
+                'punkt' in str(nltk.data.path)):
+                try:
+                    return sent_tokenize(text)
+                except Exception as nltk_error:
+                    logger.warning(f"NLTK sentence tokenization failed: {str(nltk_error)}")
+
+            # Fallback to regex-based sentence splitting
+            sentences = re.split(r'[.!?]+', text)
+            return [s.strip() for s in sentences if s.strip()]
+
+        except Exception:
+            # Last resort: split on periods
+            return [s.strip() for s in text.split('.') if s.strip()]
+
+    def _calculate_readability(self, text: str) -> float:
+        """Calculate readability score (simplified Flesch Reading Ease)"""
+        try:
+            words = text.split()
+            sentences = self._count_sentences(text)
+
+            if sentences == 0:
+                return 0
+
+            avg_sentence_length = len(words) / sentences
+
+            # Simplified readability score
+            readability = 100 - (avg_sentence_length * 1.5)
+            return max(0, min(100, readability))
+
+        except Exception:
+            return 50  # Default to moderate readability
+
+    def _determine_complexity(
+        self,
+        readability: float,
+        word_count: int,
+        sentence_count: int
+    ) -> TextComplexity:
+        """Determine text complexity level"""
+        if readability > 80:
+            return TextComplexity.VERY_SIMPLE
+        elif readability > 65:
+            return TextComplexity.SIMPLE
+        elif readability > 45:
+            return TextComplexity.MODERATE
+        elif readability > 25:
+            return TextComplexity.COMPLEX
         else:
-            return "very_negative"
-    
-    def analyze_trend(self, texts: List[str], timestamps: List[datetime]) -> Dict:
-        """Analyze sentiment trend over multiple texts"""
-        if len(texts) != len(timestamps):
-            raise ValueError("texts and timestamps must have same length")
-        
-        analyses = []
-        for text, timestamp in zip(texts, timestamps):
-            analysis = self.analyze_text(text)
-            analysis["timestamp"] = timestamp.isoformat()
-            analyses.append(analysis)
-        
-        # Calculate trend
-        sentiments = [a["sentiment"]["overall_score"] for a in analyses]
-        
-        if len(sentiments) > 1:
-            # Linear regression for trend
-            x = np.arange(len(sentiments))
-            z = np.polyfit(x, sentiments, 1)
-            trend_direction = "improving" if z[0] > 0.05 else "declining" if z[0] < -0.05 else "stable"
-            trend_strength = abs(z[0])
-        else:
-            trend_direction = "insufficient_data"
-            trend_strength = 0.0
-        
+            return TextComplexity.VERY_COMPLEX
+
+    def _detect_language(self, text: str) -> str:
+        """Detect text language (simplified)"""
+        try:
+            # Simple detection based on common words
+            english_words = {'the', 'and', 'is', 'in', 'to', 'of', 'a', 'that', 'it', 'with', 'for', 'as', 'was', 'on', 'be', 'are', 'have'}
+            words = text.lower().split()[:50]  # Check first 50 words
+
+            english_count = sum(1 for word in words if word in english_words)
+
+            if english_count > len(words) * 0.1:  # 10% threshold
+                return "en"
+            else:
+                return "unknown"
+        except Exception:
+            return "en"  # Default to English
+
+    def _generate_theme_name(self, keywords: List[str]) -> str:
+        """Generate a readable theme name from keywords"""
+        if not keywords:
+            return "Unknown Theme"
+
+        # Take the most frequent keyword
+        main_keyword = keywords[0].replace('_', ' ').title()
+
+        if len(keywords) > 1:
+            second_keyword = keywords[1].replace('_', ' ').title()
+            return f"{main_keyword} & {second_keyword}"
+
+        return main_keyword
+
+    # Utility methods
+
+    def get_model_status(self) -> Dict[str, Any]:
+        """Get status of loaded NLP models"""
         return {
-            "analyses": analyses,
-            "trend": {
-                "direction": trend_direction,
-                "strength": float(trend_strength),
-                "average_sentiment": float(np.mean(sentiments)),
-                "sentiment_variance": float(np.var(sentiments))
+            "models_loaded": self.models_loaded,
+            "preferred_model": self.preferred_model.value,
+            "available_models": {
+                name: (model is not None) for name, model in self.nlp_models.items()
             },
-            "session_count": len(texts)
+            "resources": {
+                "stop_words_loaded": len(self.stop_words) > 0,
+                "lemmatizer_available": self.lemmatizer is not None
+            }
         }
-    
-    def generate_wordcloud_data(self, text: str, max_words: int = 100) -> List[Dict]:
-        """Generate word frequency data for wordcloud"""
-        doc = self.nlp(text)
-        
-        # Filter meaningful words (nouns, verbs, adjectives)
-        meaningful_words = [
-            token.lemma_.lower()
-            for token in doc
-            if token.pos_ in ["NOUN", "VERB", "ADJ"] and not token.is_stop
-        ]
-        
-        # Count frequencies
-        word_freq = Counter(meaningful_words)
-        
-        # Return top words
-        return [
-            {"word": word, "frequency": freq}
-            for word, freq in word_freq.most_common(max_words)
-        ]
-    
-    def _empty_analysis(self) -> Dict:
-        """Return empty analysis structure"""
-        return {
-            "sentiment": {"overall_score": 0.0, "label": "neutral", "confidence": 0.0},
-            "emotions": {"scores": {}, "dominant_emotion": "neutral"},
-            "linguistic_features": {},
-            "psycholinguistic_markers": {},
-            "entities": []
-        }
+
+    async def batch_analyze_texts(
+        self,
+        texts: List[str],
+        text_ids: Optional[List[str]] = None,
+        **kwargs
+    ) -> List[TextAnalysis]:
+        """Analyze multiple texts in batch"""
+        try:
+            if text_ids is None:
+                text_ids = [f"batch_{i}_{datetime.utcnow().timestamp()}" for i in range(len(texts))]
+
+            analyses = []
+            for text, text_id in zip(texts, text_ids):
+                try:
+                    analysis = await self.analyze_text(text, text_id, **kwargs)
+                    analyses.append(analysis)
+                except Exception as e:
+                    logger.error(f"Failed to analyze text {text_id}: {str(e)}")
+                    continue
+
+            return analyses
+
+        except Exception as e:
+            logger.error(f"Batch text analysis failed: {str(e)}")
+            return []
+
+
+# Export the main service class
+__all__ = [
+    "NLPService",
+    "TextAnalysis",
+    "SentimentScore",
+    "Theme",
+    "WordFrequency",
+    "SentimentLabel",
+    "TextComplexity",
+    "NLPModel"
+]
 
 

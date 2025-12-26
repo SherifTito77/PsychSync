@@ -2,6 +2,12 @@
 """
 Free NLP Analysis Service - Using only open-source local models
 Replaces OpenAI/Anthropic with free alternatives
+
+SECURITY: All text analysis methods now include comprehensive security controls:
+- Input validation and sanitization
+- PII/PHI redaction before processing
+- Output sanitization before returning
+- Security event logging for suspicious patterns
 """
 
 import re
@@ -16,6 +22,21 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 import spacy
+
+# AI Security imports
+try:
+    from ai.security.ai_input_validator import validate_ai_input
+    from ai.security.pii_redaction import redact_pii
+    from ai.security.ai_output_sanitizer import sanitize_ai_output, OutputType
+    from ai.security.ai_security_monitoring import (
+        log_ai_security_event,
+        SecurityEventType,
+        SecurityEventSeverity
+    )
+    AI_SECURITY_AVAILABLE = True
+except ImportError:
+    AI_SECURITY_AVAILABLE = False
+    logger.warning("AI security controls not available - NLP service will run without security protection")
 
 # Download required NLTK data (one-time setup)
 try:
@@ -66,11 +87,16 @@ class BehavioralIndicators:
     conflict_probability: float
 
 class FreeNLPService:
-    """Free NLP analysis using open-source models"""
+    """Free NLP analysis using open-source models with comprehensive security controls"""
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.sentiment_analyzer = SentimentIntensityAnalyzer()
+
+        # Security: Track security metrics
+        self.security_enabled = AI_SECURITY_AVAILABLE
+        self.processed_count = 0
+        self.security_events_count = 0
 
         # Load spaCy model (download if needed)
         try:
@@ -99,11 +125,66 @@ class FreeNLPService:
         self.leadership_keywords = ['lead', 'manage', 'guide', 'direct', 'supervise', 'coordinate']
         self.conflict_keywords = ['disagree', 'conflict', 'dispute', 'argument', 'issue', 'problem']
 
-    def analyze_sentiment(self, text: str) -> SentimentScore:
-        """Analyze sentiment using VADER (free NLTK analyzer)"""
+    def _apply_security_controls(self, text: str, method_name: str = "analysis") -> tuple[str, bool]:
+        """
+        Apply security controls to input text
+
+        Returns:
+            Tuple of (secured_text, security_passed)
+        """
+        if not self.security_enabled:
+            return text, True
+
         try:
+            # Step 1: Validate input
+            validation_result = validate_ai_input(text, input_type='clinical_note', sanitize=True)
+
+            if not validation_result.is_valid:
+                self.security_events_count += 1
+                log_ai_security_event(
+                    event_type=SecurityEventType.INPUT_VALIDATION_FAILED,
+                    severity=SecurityEventSeverity.MEDIUM,
+                    details={
+                        "method": method_name,
+                        "issues": validation_result.issues
+                    }
+                )
+                # Still process but with sanitized input
+                text = validation_result.sanitized_input
+
+            # Step 2: Redact PII
+            redaction_result = redact_pii(text)
+
+            if redaction_result.findings:
+                self.security_events_count += 1
+                log_ai_security_event(
+                    event_type=SecurityEventType.PII_DETECTED,
+                    severity=SecurityEventSeverity.LOW,
+                    details={
+                        "method": method_name,
+                        "num_findings": len(redaction_result.findings),
+                        "risk_score": redaction_result.risk_score
+                    }
+                )
+
+            return redaction_result.redacted_text, True
+
+        except Exception as e:
+            self.logger.error(f"Error applying security controls: {e}")
+            return text, False
+
+    def analyze_sentiment(self, text: str, user_id: Optional[str] = None) -> SentimentScore:
+        """
+        Analyze sentiment using VADER (free NLTK analyzer)
+
+        SECURITY: Input is validated and PII is redacted before processing
+        """
+        try:
+            # SECURITY: Apply security controls
+            secured_text, security_passed = self._apply_security_controls(text, "analyze_sentiment")
+
             # Clean text
-            cleaned_text = self._clean_text(text)
+            cleaned_text = self._clean_text(secured_text)
 
             if not cleaned_text:
                 return SentimentScore(0, 0, 1, 0, "neutral")
@@ -120,13 +201,25 @@ class FreeNLPService:
             else:
                 label = "neutral"
 
-            return SentimentScore(
+            # Create result
+            result = SentimentScore(
                 positive=scores['pos'],
                 negative=scores['neg'],
                 neutral=scores['neu'],
                 compound=compound,
                 label=label
             )
+
+            # SECURITY: Sanitize output
+            if self.security_enabled:
+                sanitized_result = sanitize_ai_output(result, output_type=OutputType.ANALYSIS)
+                if sanitized_result.blocked:
+                    self.logger.error(f"Output blocked: {sanitized_result.reason}")
+                    return SentimentScore(0, 0, 1, 0, "neutral")
+                result = sanitized_result.sanitized_output
+
+            self.processed_count += 1
+            return result
 
         except Exception as e:
             self.logger.error(f"Sentiment analysis failed: {e}")

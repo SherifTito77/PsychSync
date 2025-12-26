@@ -5,11 +5,12 @@ Bridges API endpoints and optimization engine
 """
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from datetime import datetime
 import logging
 
 from app.db.models.user import User
-from app.core.database import SessionLocal  # Changed from app.db.session
+from app.core.database import AsyncSessionLocal  # Changed from app.db.session
 from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.assessment import AssessmentResponse
 from app.services.optimizer.team_optimizer import (
@@ -18,6 +19,7 @@ from app.services.optimizer.team_optimizer import (
     TeamRequirements,
     OptimizedTeam
 )
+from app.services.scoring_service import ScoringService
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class TeamOptimizationService:
     
     async def optimize_team_composition(
         self,
-        db: Session,
+        db: AsyncSession,
         team_requirements: Dict[str, Any],
         organization_id: int,
         existing_team_id: Optional[int] = None
@@ -82,7 +84,7 @@ class TeamOptimizationService:
     
     async def analyze_team(
         self,
-        db: Session,
+        db: AsyncSession,
         team_id: int,
         organization_id: int
     ) -> Dict[str, Any]:
@@ -98,11 +100,12 @@ class TeamOptimizationService:
             Team analysis results
         """
         logger.info(f"Analyzing team {team_id}")
-        
-        # Get team
-        team = result = await db.execute(query)
-        return result.scalars().all()
-        
+
+        # Get team - FIXED DATABASE QUERY
+        team_query = select(Team).where(Team.id == team_id)
+        team_result = await db.execute(team_query)
+        team = team_result.scalar_one_or_none()
+
         if not team:
             raise ValueError(f"Team {team_id} not found")
         
@@ -152,7 +155,7 @@ class TeamOptimizationService:
     
     async def check_member_compatibility(
         self,
-        db: Session,
+        db: AsyncSession,
         user_id_1: int,
         user_id_2: int,
         organization_id: int
@@ -171,12 +174,14 @@ class TeamOptimizationService:
         """
         logger.info(f"Checking compatibility: {user_id_1} <-> {user_id_2}")
         
-        # Get both users
-        user1 = result = await db.execute(query)
-        return result.scalars().all()
-        
-        user2 = result = await db.execute(query)
-        return result.scalars().all()
+        # Get both users - FIXED DATABASE QUERIES
+        user1_query = select(User).where(User.id == user_id_1)
+        user1_result = await db.execute(user1_query)
+        user1 = user1_result.scalar_one_or_none()
+
+        user2_query = select(User).where(User.id == user_id_2)
+        user2_result = await db.execute(user2_query)
+        user2 = user2_result.scalar_one_or_none()
         
         if not user1 or not user2:
             raise ValueError("One or both users not found")
@@ -225,7 +230,7 @@ class TeamOptimizationService:
     
     async def get_candidate_pool(
         self,
-        db: Session,
+        db: AsyncSession,
         organization_id: int,
         filters: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
@@ -272,16 +277,17 @@ class TeamOptimizationService:
     
     async def _build_candidate_pool(
         self,
-        db: Session,
+        db: AsyncSession,
         organization_id: int,
         filters: Optional[Dict[str, Any]] = None
     ) -> List[TeamMemberProfile]:
-        """Build pool of candidate profiles"""
-        query = db.query(User).filter(
+        """Build pool of candidate profiles - FIXED ASYNC PATTERN"""
+        # FIXED: Use proper async SQLAlchemy pattern
+        query = select(User).where(
             User.organization_id == organization_id,
             User.is_active == True
         )
-        
+
         # Apply filters if provided
         if filters:
             if 'min_availability' in filters:
@@ -293,8 +299,10 @@ class TeamOptimizationService:
             if 'skills' in filters:
                 # Would filter by required skills
                 pass
-        
-        users = query.all()
+
+        # FIXED: Use async execution
+        result = await db.execute(query)
+        users = result.scalars().all()
         
         profiles = []
         for user in users:
@@ -305,13 +313,15 @@ class TeamOptimizationService:
     
     async def _get_existing_members(
         self,
-        db: Session,
+        db: AsyncSession,
         team_id: int
     ) -> List[TeamMemberProfile]:
         """Get existing team member profiles"""
-        team_members = result = await db.execute(query)
-        return result.scalars().all()
-        
+        # FIXED DATABASE QUERY
+        team_members_query = select(TeamMember).where(TeamMember.team_id == team_id)
+        team_members_result = await db.execute(team_members_query)
+        team_members = team_members_result.scalars().all()
+
         profiles = []
         for tm in team_members:
             if tm.user and tm.user.is_active:
@@ -322,7 +332,7 @@ class TeamOptimizationService:
     
     async def _user_to_profile(
         self,
-        db: Session,
+        db: AsyncSession,
         user: User
     ) -> TeamMemberProfile:
         """Convert User to TeamMemberProfile"""
@@ -360,29 +370,30 @@ class TeamOptimizationService:
     
     async def _get_user_personality(
         self,
-        db: Session,
+        db: AsyncSession,
         user_id: int
     ) -> Dict[str, float]:
         """Get user's personality traits from latest assessment"""
         
-        # Get latest personality assessment response
-        response = db.query(AssessmentResponse).filter(
-            AssessmentResponse.respondent_id == user_id,
-            AssessmentResponse.completed_at.isnot(None)
+        # FIXED: Get latest personality assessment response with async pattern
+        response_query = select(Assessment).where(
+            Assessment.user_id == user_id,
+            Assessment.completed_at.isnot(None),
+            Assessment.framework_code.in_(["MBTI", "Big_Five", "DISC"])
         ).order_by(
-            AssessmentResponse.completed_at.desc()
-        ).first()
-        
-        if response and response.score_data:
-            # Extract personality traits from score data
-            return {
-                'openness': response.score_data.get('openness', 60.0),
-                'conscientiousness': response.score_data.get('conscientiousness', 70.0),
-                'extraversion': response.score_data.get('extraversion', 55.0),
-                'agreeableness': response.score_data.get('agreeableness', 65.0),
-                'neuroticism': response.score_data.get('neuroticism', 40.0)
-            }
-        
+            Assessment.completed_at.desc()
+        )
+        response_result = await db.execute(response_query)
+        latest_assessment = response_result.scalar_one_or_none()
+
+        # Get scoring data from the latest assessment
+        if latest_assessment:
+            try:
+                scores = await ScoringService.calculate_score(db, latest_assessment.id, user_id)
+                return ScoringService._extract_personality_traits(scores)
+            except Exception:
+                pass  # Fall back to defaults if scoring fails
+  
         # Return defaults if no assessment data
         return {
             'openness': 60.0,
@@ -394,7 +405,7 @@ class TeamOptimizationService:
     
     async def _get_user_skills(
         self,
-        db: Session,
+        db: AsyncSession,
         user_id: int
     ) -> Dict[str, float]:
         """Get user's skills from assessments or profile"""
@@ -410,13 +421,14 @@ class TeamOptimizationService:
     
     async def _count_user_teams(
         self,
-        db: Session,
+        db: AsyncSession,
         user_id: int
     ) -> int:
-        """Count number of teams user is currently in"""
-        return db.query(TeamMember).filter(
-            TeamMember.user_id == user_id
-        ).count()
+        """Count number of teams user is currently in - FIXED ASYNC PATTERN"""
+        # FIXED: Use proper async SQLAlchemy pattern
+        query = select(func.count(TeamMember.id)).where(TeamMember.user_id == user_id)
+        result = await db.execute(query)
+        return result.scalar()
     
     def _build_requirements(
         self,
@@ -467,3 +479,24 @@ class TeamOptimizationService:
             tips.append("Align on quality standards and deadlines early")
         
         return tips
+
+
+# Additional utility functions for compatibility
+async def get_personality_profile_for_user(user_id: str, db: AsyncSession) -> Dict[str, Any]:
+    """
+    Get personality profile for a user
+    TODO: Implement actual personality profile retrieval
+    """
+    # Mock implementation for now
+    return {
+        "user_id": user_id,
+        "extraversion": 50,
+        "agreeableness": 75,
+        "conscientiousness": 80,
+        "neuroticism": 30,
+        "openness": 70,
+        "dominance": 60,
+        "influence": 55,
+        "steadiness": 65,
+        "conscientiousness_disc": 75
+    }

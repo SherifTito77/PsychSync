@@ -5,12 +5,14 @@ Easy setup for non-technical users using IMAP and app passwords
 """
 
 from typing import List, Dict, Any, Optional
+
+from app.middleware.rate_limiter import check_rate_limit
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, EmailStr, Field, validator
 
-from app.api.deps import get_db, get_current_user
+from app.api.v1.deps import get_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.email_connection import EmailConnection
 from app.services.free_email_connector_service import free_email_connector_service
@@ -70,7 +72,7 @@ class SimpleEmailConnection(BaseModel):
     def validate_provider(cls, v):
         if v not in IMAP_PROVIDERS:
             raise ValueError(f'Provider must be one of: {", ".join(IMAP_PROVIDERS.keys())}')
-    return v
+        return v
 
 class EmailSetupGuide(BaseModel):
     """Email setup guide for different providers"""
@@ -93,13 +95,17 @@ class SyncOptions(BaseModel):
     include_sent: bool = Field(True, description="Include sent emails in analysis")
     analyze_contacts: bool = Field(True, description="Analyze communication patterns")
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.get("/providers", response_model=Dict[str, Any])
 async def get_email_providers():
     """Get list of supported email providers with setup information"""
     return {
         "providers": IMAP_PROVIDERS,
         "default_provider": "gmail",
-        "setup_guide_url": "/api/v1/email-simple/setup-guide",
+        "setup_guide_url": "/api/v1/email-simple/setup-guide
+@check_rate_limit(identifier="public", endpoint_type="public")
+",
         "most_popular": ["gmail", "outlook", "yahoo"]
     }
 
@@ -189,7 +195,9 @@ async def get_setup_guide(provider: str):
 
     return EmailSetupGuide(
         provider=provider,
-        setup_steps=setup_steps,
+        setup_steps=setup_step
+@check_rate_limit(identifier="public", endpoint_type="public")
+s,
         app_password_url=app_password_url,
         common_issues=common_issues,
         estimated_time=estimated_time
@@ -230,8 +238,8 @@ async def quick_test_connection(test_data: QuickTest):
 async def connect_email_simple(
     connection_data: SimpleEmailConnection,
     sync_options: SyncOptions = SyncOptions(),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Connect email account using simple IMAP connection (no OAuth)
@@ -331,8 +339,8 @@ async def connect_email_simple(
 
 @router.get("/my-connections", response_model=List[Dict[str, Any]])
 async def get_my_connections(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Get user's email connections"""
 
@@ -374,8 +382,8 @@ async def get_my_connections(
 async def sync_emails_simple(
     connection_id: str,
     sync_options: SyncOptions = SyncOptions(),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Sync emails for a specific connection"""
 
@@ -453,8 +461,8 @@ async def sync_emails_simple(
 @router.delete("/{connection_id}", response_model=Dict[str, str])
 async def delete_connection_simple(
     connection_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Delete email connection"""
 
@@ -494,8 +502,8 @@ async def delete_connection_simple(
 @router.get("/connection-status/{connection_id}", response_model=Dict[str, Any])
 async def get_connection_status(
     connection_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Get detailed status of email connection"""
 

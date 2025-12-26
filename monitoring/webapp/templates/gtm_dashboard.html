@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go-to-Market Analytics Dashboard - PsychSync Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .header-stat {
+            text-align: center;
+        }
+
+        .header-stat .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .header-stat .label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #e5e7eb;
+        }
+
+        .metric-card h3 {
+            font-size: 1rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .metric-change.positive {
+            color: #10b981;
+        }
+
+        .metric-change.negative {
+            color: #ef4444;
+        }
+
+        .metric-change.neutral {
+            color: #6b7280;
+        }
+
+        .section {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #e5e7eb;
+            margin-bottom: 2rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container.small {
+            height: 300px;
+        }
+
+        .funnel-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 2rem 0;
+            gap: 1rem;
+        }
+
+        .funnel-stage {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            background: #f3f4f6;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .funnel-stage:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            color: #9ca3af;
+        }
+
+        .funnel-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .funnel-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+
+        .funnel-conversion {
+            font-size: 0.8rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .data-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .insight-card {
+            background: #f0f9ff;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .insight-card.warning {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+
+        .insight-card.success {
+            background: #f0fdf4;
+            border-left-color: #10b981;
+        }
+
+        .insight-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .insight-text {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .filter-button:hover {
+            background: #f9fafb;
+        }
+
+        .filter-button.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #1f2937;
+        }
+
+        .tab.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-indicator.healthy {
+            background: #10b981;
+        }
+
+        .status-indicator.warning {
+            background: #f59e0b;
+        }
+
+        .status-indicator.critical {
+            background: #ef4444;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.success {
+            background: #10b981;
+        }
+
+        .progress-fill.warning {
+            background: #f59e0b;
+        }
+
+        .progress-fill.danger {
+            background: #ef4444;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .header-stats {
+                gap: 1rem;
+            }
+
+            .funnel-container {
+                flex-direction: column;
+            }
+
+            .funnel-stage:not(:last-child)::after {
+                content: '↓';
+                right: 50%;
+                bottom: -1.5rem;
+                top: auto;
+                transform: translateX(50%);
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .section {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>🚀 Go-to-Market Analytics Dashboard</h1>
+                <p style="opacity: 0.9; margin-top: 0.5rem;">Real-time GTM performance and business intelligence</p>
+            </div>
+            <div class="header-stats">
+                <div class="header-stat">
+                    <div class="value" id="header-mrr">$98.5K</div>
+                    <div class="label">MRR</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value" id="header-customers">1,297</div>
+                    <div class="label">Customers</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value" id="header-growth">+25%</div>
+                    <div class="label">Growth Rate</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value" id="header-conversion">18%</div>
+                    <div class="label">Conversion</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Key Performance Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h3>Monthly Recurring Revenue</h3>
+                <div class="metric-value">$98,450</div>
+                <div class="metric-change positive">↑ 15.3% vs last month</div>
+            </div>
+            <div class="metric-card">
+                <h3>Customer Acquisition Cost</h3>
+                <div class="metric-value">$1,333</div>
+                <div class="metric-change positive">↓ 8.2% vs last quarter</div>
+            </div>
+            <div class="metric-card">
+                <h3>Customer Lifetime Value</h3>
+                <div class="metric-value">$22,950</div>
+                <div class="metric-change positive">↑ 12.5% vs last quarter</div>
+            </div>
+            <div class="metric-card">
+                <h3>LTV:CAC Ratio</h3>
+                <div class="metric-value">17.2x</div>
+                <div class="metric-change positive">↑ 2.1x vs last year</div>
+            </div>
+            <div class="metric-card">
+                <h3>Sales Cycle Length</h3>
+                <div class="metric-value">18 days</div>
+                <div class="metric-change positive">↓ 3 days vs last quarter</div>
+            </div>
+            <div class="metric-card">
+                <h3>Win Rate</h3>
+                <div class="metric-value">42%</div>
+                <div class="metric-change positive">↑ 5% vs last quarter</div>
+            </div>
+        </div>
+
+        <!-- Tabs for Different Views -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('overview')">Overview</button>
+            <button class="tab" onclick="showTab('funnel')">Sales Funnel</button>
+            <button class="tab" onclick="showTab('revenue')">Revenue Analytics</button>
+            <button class="tab" onclick="showTab('campaigns')">Campaign Performance</button>
+            <button class="tab" onclick="showTab('customers')">Customer Segments</button>
+            <button class="tab" onclick="showTab('sales')">Sales Performance</button>
+            <button class="tab" onclick="showTab('market')">Market Intelligence</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview-tab" class="tab-content active">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Revenue Growth Trend</h2>
+                </div>
+                <div class="chart-container">
+                    <canvas id="revenue-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Channel Performance</h2>
+                </div>
+                <div class="chart-container small">
+                    <canvas id="channel-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Key Insights</h2>
+                <div class="insights-grid">
+                    <div class="insight-card success">
+                        <div class="insight-title">🎯 Strong Unit Economics</div>
+                        <div class="insight-text">LTV:CAC ratio of 17.2x indicates highly profitable business model with healthy margins</div>
+                    </div>
+                    <div class="insight-card success">
+                        <div class="insight-title">📈 Accelerating Growth</div>
+                        <div class="insight-text">Revenue growth averaging 25% month-over-month with improving conversion rates</div>
+                    </div>
+                    <div class="insight-card warning">
+                        <div class="insight-title">🔍 Funnel Optimization Opportunity</div>
+                        <div class="insight-text">Lead-to-qualified conversion at 45% - opportunity to improve qualification process</div>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-title">💰 Expansion Revenue</div>
+                        <div class="insight-text">35% of growth comes from existing customer expansion - strong product-market fit</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Funnel Tab -->
+        <div id="funnel-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Conversion Funnel</h2>
+                <div class="funnel-container">
+                    <div class="funnel-stage">
+                        <div class="funnel-number">10,000</div>
+                        <div class="funnel-label">Visitors</div>
+                        <div class="funnel-conversion">12% ↓</div>
+                    </div>
+                    <div class="funnel-stage">
+                        <div class="funnel-number">1,200</div>
+                        <div class="funnel-label">Leads</div>
+                        <div class="funnel-conversion">45% ↓</div>
+                    </div>
+                    <div class="funnel-stage">
+                        <div class="funnel-number">540</div>
+                        <div class="funnel-label">Qualified</div>
+                        <div class="funnel-conversion">65% ↓</div>
+                    </div>
+                    <div class="funnel-stage">
+                        <div class="funnel-number">351</div>
+                        <div class="funnel-label">Demo Scheduled</div>
+                        <div class="funnel-conversion">80% ↓</div>
+                    </div>
+                    <div class="funnel-stage">
+                        <div class="funnel-number">280</div>
+                        <div class="funnel-label">Demo Completed</div>
+                        <div class="funnel-conversion">35% ↓</div>
+                    </div>
+                    <div class="funnel-stage">
+                        <div class="funnel-number">98</div>
+                        <div class="funnel-label">Proposals</div>
+                        <div class="funnel-conversion">35% ↓</div>
+                    </div>
+                    <div class="funnel-stage">
+                        <div class="funnel-number">34</div>
+                        <div class="funnel-label">Closed Won</div>
+                        <div class="funnel-conversion">3.4% Total</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Cohort Analysis</h2>
+                </div>
+                <div class="chart-container small">
+                    <canvas id="cohort-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Bottleneck Analysis</h2>
+                <div class="insights-grid">
+                    <div class="insight-card warning">
+                        <div class="insight-title">🚦 Visitor to Lead Conversion</div>
+                        <div class="insight-text">12% conversion is below industry average of 18%. Opportunity to improve landing page performance</div>
+                    </div>
+                    <div class="insight-card warning">
+                        <div class="insight-title">📊 Demo to Proposal Rate</div>
+                        <div class="insight-text">35% proposal rate from completed demos suggests pricing or value messaging issues</div>
+                    </div>
+                    <div class="insight-card success">
+                        <div class="insight-title">✅ Qualified to Demo Performance</div>
+                        <div class="insight-text">65% conversion from qualified to demo shows strong qualification process</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Analytics Tab -->
+        <div id="revenue-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">MRR Breakdown by Tier</h2>
+                <div class="chart-container small">
+                    <canvas id="mrr-breakdown-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Unit Economics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Customer Acquisition Cost</h3>
+                        <div class="metric-value">$1,333</div>
+                        <div class="metric-change">CAC Ratio: 12% of ACV</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Customer Lifetime Value</h3>
+                        <div class="metric-value">$22,950</div>
+                        <div class="metric-change">18-month average tenure</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Payback Period</h3>
+                        <div class="metric-value">42 days</div>
+                        <div class="metric-change positive">Excellent cash flow profile</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Gross Margin</h3>
+                        <div class="metric-value">85%</div>
+                        <div class="metric-change positive">SaaS efficiency</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Revenue Forecast</h2>
+                <div class="chart-container small">
+                    <canvas id="revenue-forecast-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaign Performance Tab -->
+        <div id="campaigns-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Top Performing Campaigns</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Campaign</th>
+                            <th>Status</th>
+                            <th>Budget</th>
+                            <th>Spend</th>
+                            <th>Leads</th>
+                            <th>Conv. Rate</th>
+                            <th>CPL</th>
+                            <th>ROI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="campaigns-table">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Channel Performance Comparison</h2>
+                </div>
+                <div class="chart-container small">
+                    <canvas id="channel-roi-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Campaign Optimization Insights</h2>
+                <div class="insights-grid">
+                    <div class="insight-card success">
+                        <div class="insight-title">📧 Email Marketing Excellence</div>
+                        <div class="insight-text">8.5x ROI with behavioral targeting - scale budget by 50%</div>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-title">🎯 Content Marketing Quality</div>
+                        <div class="insight-text">High conversion rates (22%) but high CPL - focus on bottom-funnel content</div>
+                    </div>
+                    <div class="insight-card warning">
+                        <div class="insight-title">🔍 Paid Search Optimization</div>
+                        <div class="insight-text">3.8x ROI below target - review keyword strategy and ad copy</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Segments Tab -->
+        <div id="customers-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Customer Distribution by Tier</h2>
+                <div class="chart-container small">
+                    <canvas id="customer-tier-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Industry Performance</h2>
+                </div>
+                <div class="chart-container small">
+                    <canvas id="industry-performance-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Behavioral Segments</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Power Users</h3>
+                        <div class="metric-value">95</div>
+                        <div class="metric-change positive">98% retention • 75% expansion potential</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Casual Users</h3>
+                        <div class="metric-value">850</div>
+                        <div class="metric-change">82% retention • 35% expansion potential</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>At-Risk Users</h3>
+                        <div class="metric-value">180</div>
+                        <div class="metric-change negative">45% retention • 10% expansion potential</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>New Users</h3>
+                        <div class="metric-value">172</div>
+                        <div class="metric-change">78% retention • 60% expansion potential</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Performance Tab -->
+        <div id="sales-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Sales Representative Performance</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Representative</th>
+                            <th>Deals Closed</th>
+                            <th>Revenue Generated</th>
+                            <th>Conversion Rate</th>
+                            <th>Avg Deal Size</th>
+                            <th>Sales Cycle</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-performance-table">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Sales Playbook Performance</h2>
+                <div class="chart-container small">
+                    <canvas id="playbook-performance-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Competitive Win Rates</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>vs New Relic</h3>
+                        <div class="metric-value">73%</div>
+                        <div class="metric-change positive">$4.2K avg deal size</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>vs Datadog</h3>
+                        <div class="metric-value">64%</div>
+                        <div class="metric-change">$3.8K avg deal size</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>vs Generic BI Tools</h3>
+                        <div class="metric-value">89%</div>
+                        <div class="metric-change positive">$3.2K avg deal size</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Intelligence Tab -->
+        <div id="market-tab" class="tab-content">
+            <div class="section">
+                <h2 class="section-title">Market Share</h2>
+                <div class="chart-container small">
+                    <canvas id="market-share-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Industry Opportunities</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Industry</th>
+                            <th>Market Size</th>
+                            <th>Growth Rate</th>
+                            <th>Our Penetration</th>
+                            <th>Opportunity Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id="industry-opportunities-table">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Customer Insights</h2>
+                <div class="insights-grid">
+                    <div class="insight-card">
+                        <div class="insight-title">🎯 Top Buying Triggers</div>
+                        <div class="insight-text">Competitive pressure (32%), Revenue protection (28%), Efficiency needs (22%), Executive reporting (18%)</div>
+                    </div>
+                    <div class="insight-card warning">
+                        <div class="insight-title">⚠️ Common Objections</div>
+                        <div class="insight-text">Already have tools (45%), Budget constraints (32%), Implementation complexity (18%)</div>
+                    </div>
+                    <div class="insight-card success">
+                        <div class="insight-title">✅ Success Factors</div>
+                        <div class="insight-text">Clear ROI (89%), Executive sponsorship (76%), Competitive differentiation (68%)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global chart instances
+        let charts = {};
+
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+
+            // Load data for the selected tab
+            loadTabData(tabName);
+        }
+
+        // Load data for specific tab
+        async function loadTabData(tabName) {
+            switch(tabName) {
+                case 'overview':
+                    await loadOverviewData();
+                    break;
+                case 'funnel':
+                    await loadFunnelData();
+                    break;
+                case 'revenue':
+                    await loadRevenueData();
+                    break;
+                case 'campaigns':
+                    await loadCampaignData();
+                    break;
+                case 'customers':
+                    await loadCustomerData();
+                    break;
+                case 'sales':
+                    await loadSalesData();
+                    break;
+                case 'market':
+                    await loadMarketData();
+                    break;
+            }
+        }
+
+        // Load overview data
+        async function loadOverviewData() {
+            await createRevenueChart();
+            await createChannelChart();
+        }
+
+        // Load funnel data
+        async function loadFunnelData() {
+            await createCohortChart();
+        }
+
+        // Load revenue data
+        async function loadRevenueData() {
+            await createMRRBreakdownChart();
+            await createRevenueForecastChart();
+        }
+
+        // Load campaign data
+        async function loadCampaignData() {
+            await loadCampaignsTable();
+            await createChannelROIChart();
+        }
+
+        // Load customer data
+        async function loadCustomerData() {
+            await createCustomerTierChart();
+            await createIndustryPerformanceChart();
+        }
+
+        // Load sales data
+        async function loadSalesData() {
+            await loadSalesPerformanceTable();
+            await createPlaybookPerformanceChart();
+        }
+
+        // Load market data
+        async function loadMarketData() {
+            await createMarketShareChart();
+            await loadIndustryOpportunitiesTable();
+        }
+
+        // Chart creation functions
+        async function createRevenueChart() {
+            const ctx = document.getElementById('revenue-chart');
+            if (charts.revenue) charts.revenue.destroy();
+
+            charts.revenue = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Monthly Revenue',
+                        data: [45000, 52000, 61000, 73000, 85000, 98500],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createChannelChart() {
+            const ctx = document.getElementById('channel-chart');
+            if (charts.channel) charts.channel.destroy();
+
+            charts.channel = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Email Marketing', 'Content', 'Paid Search', 'Social Media', 'Direct Sales'],
+                    datasets: [{
+                        label: 'ROI',
+                        data: [8.5, 4.2, 3.8, 2.9, 6.2],
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + 'x';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createCohortChart() {
+            const ctx = document.getElementById('cohort-chart');
+            if (charts.cohort) charts.cohort.destroy();
+
+            charts.cohort = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Current Month', 'Previous Month', '3 Months Ago'],
+                    datasets: [{
+                        label: 'Leads Generated',
+                        data: [180, 165, 140],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false
+                    }, {
+                        label: 'Conversion Rate',
+                        data: [0.68, 0.62, 0.58],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: false,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createMRRBreakdownChart() {
+            const ctx = document.getElementById('mrr-breakdown-chart');
+            if (charts.mrrBreakdown) charts.mrrBreakdown.destroy();
+
+            charts.mrrBreakdown = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Growth Tier', 'Enterprise Tier', 'Professional Services'],
+                    datasets: [{
+                        data: [67000, 28000, 3550],
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createRevenueForecastChart() {
+            const ctx = document.getElementById('revenue-forecast-chart');
+            if (charts.forecast) charts.forecast.destroy();
+
+            charts.forecast = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+                    datasets: [{
+                        label: 'Actual Revenue',
+                        data: [45000, 52000, 61000, 73000, 85000, 98500, null, null, null],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true
+                    }, {
+                        label: 'Forecast',
+                        data: [null, null, null, null, null, 98500, 112000, 128000, 145000],
+                        borderColor: '#10b981',
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value/1000) + 'K';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createChannelROIChart() {
+            const ctx = document.getElementById('channel-roi-chart');
+            if (charts.channelROI) charts.channelROI.destroy();
+
+            charts.channelROI = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['ROI', 'Lead Quality', 'Conversion Rate', 'Cost Efficiency', 'Scale Potential'],
+                    datasets: [{
+                        label: 'Email Marketing',
+                        data: [8.5, 8, 7.5, 9, 7],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)'
+                    }, {
+                        label: 'Content Marketing',
+                        data: [4.2, 9, 8, 6, 8],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)'
+                    }, {
+                        label: 'Paid Search',
+                        data: [3.8, 6, 5, 4, 9],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.2)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createCustomerTierChart() {
+            const ctx = document.getElementById('customer-tier-chart');
+            if (charts.customerTier) charts.customerTier.destroy();
+
+            charts.customerTier = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Free Tier', 'Growth Tier', 'Enterprise Tier'],
+                    datasets: [{
+                        data: [1200, 85, 12],
+                        backgroundColor: ['#6b7280', '#3b82f6', '#10b981']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createIndustryPerformanceChart() {
+            const ctx = document.getElementById('industry-performance-chart');
+            if (charts.industryPerformance) charts.industryPerformance.destroy();
+
+            charts.industryPerformance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Technology', 'Financial Services', 'Healthcare', 'Professional Services'],
+                    datasets: [{
+                        label: 'Number of Customers',
+                        data: [450, 320, 180, 347],
+                        backgroundColor: '#3b82f6'
+                    }, {
+                        label: 'Average Deal Size',
+                        data: [2200, 3500, 2800, 1900],
+                        backgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createPlaybookPerformanceChart() {
+            const ctx = document.getElementById('playbook-performance-chart');
+            if (charts.playbookPerformance) charts.playbookPerformance.destroy();
+
+            charts.playbookPerformance = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Outbound Prospecting',
+                        data: [{x: 14, y: 35, r: 8}],
+                        backgroundColor: '#3b82f6'
+                    }, {
+                        label: 'Upgrade Conversations',
+                        data: [{x: 3, y: 80, r: 12}],
+                        backgroundColor: '#10b981'
+                    }, {
+                        label: 'Enterprise Deals',
+                        data: [{x: 60, y: 50, r: 15}],
+                        backgroundColor: '#f59e0b'
+                    }, {
+                        label: 'Competitive Displacement',
+                        data: [{x: 30, y: 65, r: 10}],
+                        backgroundColor: '#8b5cf6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Sales Cycle (Days)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Conversion Rate (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.x + ' days, ' + context.parsed.y + '% conversion';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function createMarketShareChart() {
+            const ctx = document.getElementById('market-share-chart');
+            if (charts.marketShare) charts.marketShare.destroy();
+
+            charts.marketShare = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['PsychSync Monitor', 'New Relic', 'Datadog', 'Generic BI', 'Others'],
+                    datasets: [{
+                        label: 'Market Share %',
+                        data: [8, 32, 28, 22, 10],
+                        backgroundColor: ['#10b981', '#6b7280', '#6b7280', '#6b7280', '#6b7280']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 40,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Table loading functions
+        async function loadCampaignsTable() {
+            const campaigns = [
+                { name: "Q2 Email Nurture", status: "Active", budget: 15000, spend: 8200, leads: 320, convRate: 0.18, cpl: 26, roi: 8.5 },
+                { name: "Competitive Webinar Series", status: "Active", budget: 12000, spend: 10500, leads: 120, convRate: 0.32, cpl: 88, roi: 6.2 },
+                { name: "Google Ads - Performance Monitoring", status: "Active", budget: 20000, spend: 18500, leads: 240, convRate: 0.15, cpl: 77, roi: 3.8 },
+                { name: "LinkedIn Content Marketing", status: "Paused", budget: 8000, spend: 7200, leads: 95, convRate: 0.12, cpl: 76, roi: 2.9 },
+                { name: "Direct Sales Outreach", status: "Active", budget: 25000, spend: 22000, leads: 45, convRate: 0.35, cpl: 489, roi: 6.2 }
+            ];
+
+            const tbody = document.getElementById('campaigns-table');
+            tbody.innerHTML = campaigns.map(campaign => `
+                <tr>
+                    <td>${campaign.name}</td>
+                    <td><span class="status-indicator ${campaign.status === 'Active' ? 'healthy' : 'warning'}"></span>${campaign.status}</td>
+                    <td>$${campaign.budget.toLocaleString()}</td>
+                    <td>$${campaign.spend.toLocaleString()}</td>
+                    <td>${campaign.leads}</td>
+                    <td>${(campaign.convRate * 100).toFixed(1)}%</td>
+                    <td>$${campaign.cpl}</td>
+                    <td><strong>${campaign.roi}x</strong></td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadSalesPerformanceTable() {
+            const reps = [
+                { name: "Emily Rodriguez", dealsClosed: 10, revenue: 45000, convRate: 0.45, avgDeal: 4500, cycle: 15 },
+                { name: "Sarah Johnson", dealsClosed: 12, revenue: 36000, convRate: 0.38, avgDeal: 3000, cycle: 18 },
+                { name: "Michael Chen", dealsClosed: 8, revenue: 28000, convRate: 0.42, avgDeal: 3500, cycle: 22 },
+                { name: "David Kim", dealsClosed: 6, revenue: 33000, convRate: 0.35, avgDeal: 5500, cycle: 28 },
+                { name: "Jessica Taylor", dealsClosed: 9, revenue: 31500, convRate: 0.40, avgDeal: 3500, cycle: 20 }
+            ];
+
+            const tbody = document.getElementById('sales-performance-table');
+            tbody.innerHTML = reps.map(rep => `
+                <tr>
+                    <td>${rep.name}</td>
+                    <td>${rep.dealsClosed}</td>
+                    <td>$${rep.revenue.toLocaleString()}</td>
+                    <td>${(rep.convRate * 100).toFixed(1)}%</td>
+                    <td>$${rep.avgDeal.toLocaleString()}</td>
+                    <td>${rep.cycle} days</td>
+                </tr>
+            `).join('');
+        }
+
+        async function loadIndustryOpportunitiesTable() {
+            const industries = [
+                { name: "Financial Services", marketSize: "$680M", growthRate: "18%", penetration: "12%", opportunity: "$598M" },
+                { name: "Healthcare", marketSize: "$450M", growthRate: "22%", penetration: "5%", opportunity: "$428M" },
+                { name: "Manufacturing", marketSize: "$380M", growthRate: "15%", penetration: "4%", opportunity: "$365M" },
+                { name: "Technology", marketSize: "$520M", growthRate: "20%", penetration: "15%", opportunity: "$442M" }
+            ];
+
+            const tbody = document.getElementById('industry-opportunities-table');
+            tbody.innerHTML = industries.map(industry => `
+                <tr>
+                    <td>${industry.name}</td>
+                    <td>${industry.marketSize}</td>
+                    <td>${industry.growthRate}</td>
+                    <td>${industry.penetration}</td>
+                    <td><strong>${industry.opportunity}</strong></td>
+                </tr>
+            `).join('');
+        }
+
+        // Initialize dashboard on load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOverviewData();
+        });
+    </script>
+</body>
+</html>

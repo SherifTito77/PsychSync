@@ -1,0 +1,148 @@
+{
+  "summary": {
+    "total_tests": 7,
+    "successful_tests": 1,
+    "success_rate": 14.285714285714285,
+    "average_response_time": 0.03056094305855887
+  },
+  "test_results": [
+    {
+      "name": "Single Email Sending",
+      "success": false,
+      "response_time": 0,
+      "details": {},
+      "error_message": "'email'",
+      "timestamp": "2025-12-12T15:34:30.794197"
+    },
+    {
+      "name": "Bulk Email Sending (100 recipients)",
+      "success": false,
+      "response_time": 0,
+      "details": {},
+      "error_message": "'email'",
+      "timestamp": "2025-12-12T15:34:30.945279"
+    },
+    {
+      "name": "Template Email Sending",
+      "success": false,
+      "response_time": 0,
+      "details": {},
+      "error_message": "'email'",
+      "timestamp": "2025-12-12T15:34:31.097956"
+    },
+    {
+      "name": "Error Handling",
+      "success": false,
+      "response_time": 0,
+      "details": {
+        "total_tests": 4,
+        "successful_tests": 0,
+        "test_results": [
+          {
+            "email": "invalid@example",
+            "success": false,
+            "error": "'email'",
+            "expected": "Invalid email address"
+          },
+          {
+            "email": "bounced@example.com",
+            "success": false,
+            "error": "'email'",
+            "expected": "Email address has bounced"
+          },
+          {
+            "email": "blocked@example.com",
+            "success": false,
+            "error": "'email'",
+            "expected": "Email address is blocked"
+          },
+          {
+            "email": "valid@example.com",
+            "success": false,
+            "error": "'email'",
+            "expected": "success"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:34:31.701544"
+    },
+    {
+      "name": "Rate Limiting",
+      "success": false,
+      "response_time": 0.1639266014099121,
+      "details": {
+        "total_emails": 500,
+        "successful_sends": 0,
+        "emails_per_second_actual": 0.0,
+        "success_rate": 0.0,
+        "test_duration": 0.1639266014099121
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:34:31.869515"
+    },
+    {
+      "name": "Email Attachments",
+      "success": false,
+      "response_time": 0,
+      "details": {},
+      "error_message": "'email'",
+      "timestamp": "2025-12-12T15:34:32.022217"
+    },
+    {
+      "name": "Webhook Integration",
+      "success": true,
+      "response_time": 0.05,
+      "details": {
+        "total_events": 5,
+        "processed_events": 5,
+        "event_types": [
+          "opened",
+          "unsubscribed",
+          "bounced",
+          "clicked",
+          "delivered"
+        ],
+        "events": [
+          {
+            "event_type": "delivered",
+            "email": "delivered@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 15:34:32.033516"
+          },
+          {
+            "event_type": "opened",
+            "email": "opened@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 15:34:32.046589"
+          },
+          {
+            "event_type": "clicked",
+            "email": "clicked@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 15:34:32.057770"
+          },
+          {
+            "event_type": "bounced",
+            "email": "bounced@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 15:34:32.069722"
+          },
+          {
+            "event_type": "unsubscribed",
+            "email": "unsubscribed@example.com",
+            "processed": true,
+            "timestamp": "2025-12-12 15:34:32.083984"
+          }
+        ]
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:34:32.084030"
+    }
+  ],
+  "mock_service_stats": {
+    "emails_sent": 0,
+    "api_calls": 501,
+    "average_response_time": 0
+  }
+}

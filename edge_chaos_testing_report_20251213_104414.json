@@ -1,0 +1,100 @@
+{
+  "test_summary": {
+    "total_tests": 5,
+    "passed": 0,
+    "failed": 0,
+    "warnings": 0,
+    "errors": 5,
+    "skipped": 0,
+    "overall_status": "FAIL",
+    "success_rate": 0.0,
+    "execution_time": 7.799750804901123
+  },
+  "test_results": [
+    {
+      "scenario_id": "test_network_drop_mid_submission",
+      "scenario_type": "browser_stress",
+      "result": "error",
+      "execution_time": 0,
+      "response_time": 0,
+      "error_message": "'EdgeChaosTester' object has no attribute '_capture_system_metrics'",
+      "user_experience_impact": "Test execution failed",
+      "system_metrics": {},
+      "recommendations": [
+        "Add comprehensive error handling"
+      ],
+      "timestamp": "2025-12-13T10:44:06.313699"
+    },
+    {
+      "scenario_id": "disk_full_scenario",
+      "scenario_type": "disk_full",
+      "result": "error",
+      "execution_time": 7.799750804901123,
+      "response_time": 0,
+      "error_message": "'EdgeChaosTester' object has no attribute '_capture_system_metrics'",
+      "user_experience_impact": "Failed to execute disk full test scenario",
+      "system_metrics": {},
+      "recommendations": [
+        "Add comprehensive disk monitoring and error handling"
+      ],
+      "timestamp": "2025-12-13T10:44:14.113485"
+    },
+    {
+      "scenario_id": "test_memory_leak_simulation",
+      "scenario_type": "browser_stress",
+      "result": "error",
+      "execution_time": 0,
+      "response_time": 0,
+      "error_message": "'EdgeChaosTester' object has no attribute '_capture_system_metrics'",
+      "user_experience_impact": "Test execution failed",
+      "system_metrics": {},
+      "recommendations": [
+        "Add comprehensive error handling"
+      ],
+      "timestamp": "2025-12-13T10:44:14.114592"
+    },
+    {
+      "scenario_id": "test_malicious_large_input",
+      "scenario_type": "browser_stress",
+      "result": "error",
+      "execution_time": 0,
+      "response_time": 0,
+      "error_message": "'EdgeChaosTester' object has no attribute '_capture_system_metrics'",
+      "user_experience_impact": "Test execution failed",
+      "system_metrics": {},
+      "recommendations": [
+        "Add comprehensive error handling"
+      ],
+      "timestamp": "2025-12-13T10:44:14.114646"
+    },
+    {
+      "scenario_id": "test_rapid_form_spam",
+      "scenario_type": "browser_stress",
+      "result": "error",
+      "execution_time": 0,
+      "response_time": 0,
+      "error_message": "'EdgeChaosTester' object has no attribute '_capture_system_metrics'",
+      "user_experience_impact": "Test execution failed",
+      "system_metrics": {},
+      "recommendations": [
+        "Add comprehensive error handling"
+      ],
+      "timestamp": "2025-12-13T10:44:14.114677"
+    }
+  ],
+  "system_impact": {
+    "critical_issues": [
+      "ChaosTestResult(scenario_id='test_network_drop_mid_submission', scenario_type=<TestScenario.BROWSER_STRESS: 'browser_stress'>, result=<TestResult.ERROR: 'error'>, execution_time=0, response_time=0, error_message=\"'EdgeChaosTester' object has no attribute '_capture_system_metrics'\", recovery_time=None, system_metrics={}, user_experience_impact='Test execution failed', recommendations=['Add comprehensive error handling'], timestamp=datetime.datetime(2025, 12, 13, 10, 44, 6, 313699))",
+      "ChaosTestResult(scenario_id='disk_full_scenario', scenario_type=<TestScenario.DISK_FULL: 'disk_full'>, result=<TestResult.ERROR: 'error'>, execution_time=7.799750804901123, response_time=0, error_message=\"'EdgeChaosTester' object has no attribute '_capture_system_metrics'\", recovery_time=None, system_metrics={}, user_experience_impact='Failed to execute disk full test scenario', recommendations=['Add comprehensive disk monitoring and error handling'], timestamp=datetime.datetime(2025, 12, 13, 10, 44, 14, 113485))",
+      "ChaosTestResult(scenario_id='test_memory_leak_simulation', scenario_type=<TestScenario.BROWSER_STRESS: 'browser_stress'>, result=<TestResult.ERROR: 'error'>, execution_time=0, response_time=0, error_message=\"'EdgeChaosTester' object has no attribute '_capture_system_metrics'\", recovery_time=None, system_metrics={}, user_experience_impact='Test execution failed', recommendations=['Add comprehensive error handling'], timestamp=datetime.datetime(2025, 12, 13, 10, 44, 14, 114592))",
+      "ChaosTestResult(scenario_id='test_malicious_large_input', scenario_type=<TestScenario.BROWSER_STRESS: 'browser_stress'>, result=<TestResult.ERROR: 'error'>, execution_time=0, response_time=0, error_message=\"'EdgeChaosTester' object has no attribute '_capture_system_metrics'\", recovery_time=None, system_metrics={}, user_experience_impact='Test execution failed', recommendations=['Add comprehensive error handling'], timestamp=datetime.datetime(2025, 12, 13, 10, 44, 14, 114646))",
+      "ChaosTestResult(scenario_id='test_rapid_form_spam', scenario_type=<TestScenario.BROWSER_STRESS: 'browser_stress'>, result=<TestResult.ERROR: 'error'>, execution_time=0, response_time=0, error_message=\"'EdgeChaosTester' object has no attribute '_capture_system_metrics'\", recovery_time=None, system_metrics={}, user_experience_impact='Test execution failed', recommendations=['Add comprehensive error handling'], timestamp=datetime.datetime(2025, 12, 13, 10, 44, 14, 114677))"
+    ],
+    "performance_issues": [],
+    "recommendations": [
+      "Add comprehensive disk monitoring and error handling",
+      "Add comprehensive error handling"
+    ]
+  },
+  "timestamp": "2025-12-13T10:44:14.114745"
+}

@@ -1,0 +1,84 @@
+# PsychSync Python Dependencies Allow-List
+# This file serves as the master allow-list for all approved Python packages
+# New dependencies MUST be added here before they can be merged via PR
+#
+# Format: package_name==min_version,max_version # purpose/security_notes
+
+# ============================================================================
+# CORE FRAMEWORK
+# ============================================================================
+fastapi==0.104.0,0.120.0  # Web framework - actively maintained, security-focused
+uvicorn==0.24.0,0.30.0   # ASGI server - production-ready
+pydantic==2.4.0,2.10.0   # Data validation - security through type safety
+pydantic-settings==2.1.0,2.2.0  # Settings management
+python-multipart==0.0.6,0.0.7  # Form data parsing
+
+# ============================================================================
+# DATABASE
+# ============================================================================
+sqlalchemy==2.0.23,2.0.36  # ORM - parameterized queries prevent SQLi
+alembic==1.13.0,1.14.0     # Database migrations
+psycopg2-binary==2.9.9,2.9.10  # PostgreSQL adapter
+asyncpg==0.29.0,0.30.0     # Async PostgreSQL driver
+
+# ============================================================================
+# SECURITY & AUTHENTICATION
+# ============================================================================
+python-jose[cryptography]==3.3.0,3.4.0  # JWT handling
+passlib[bcrypt]==1.7.4,1.8.0  # Password hashing with bcrypt
+bcrypt==4.1.2,4.2.0  # Modern password hashing
+cryptography==42.0.0,43.0.0  # Encryption primitives
+python-dotenv==1.0.0,1.0.1  # Environment variable management
+
+# ============================================================================
+# CACHE & QUEUE
+# ============================================================================
+redis==5.0.1,5.2.0  # Caching and session storage
+celery==5.3.4,5.4.0  # Async task queue
+
+# ============================================================================
+# HTTP CLIENTS
+# ============================================================================
+httpx==0.25.2,0.28.0  # Async HTTP client with timeout defaults
+
+# ============================================================================
+# TESTING
+# ============================================================================
+pytest==7.4.3,8.0.0  # Testing framework
+pytest-asyncio==0.21.1,0.24.0  # Async test support
+pytest-cov==4.1.0,6.0.0  # Code coverage
+pytest-mock==3.12.0,3.14.0  # Mocking support
+
+# ============================================================================
+# SECURITY TESTING (Dev Dependencies)
+# ============================================================================
+bandit[toml]==1.7.6,1.8.0  # SAST tool for Python
+bandit-sarif-formatter==1.1.0,1.2.0  # SARIF output for Bandit
+pip-audit==2.7.0,2.8.0  # SCA tool for Python dependencies
+safety==3.2.0,3.3.0  # Dependency vulnerability scanner
+
+# ============================================================================
+# SBOM & SUPPLY CHAIN
+# ============================================================================
+cyclonedx-bom==4.4.0,4.5.0  # CycloneDX SBOM generation
+cyclonedx-python-lib==0.15.0,0.16.0  # Python package for CycloneDX
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+python-dateutil==2.8.2,2.9.0  # Date handling
+email-validator==2.1.0,2.2.0  # Email validation
+pytz==2024.1,2024.2  # Timezone support
+
+# ============================================================================
+# MONITORING & LOGGING
+# ============================================================================
+python-json-logger==2.0.7,2.0.8  # Structured logging
+
+# ============================================================================
+# DEVELOPMENT TOOLS
+# ============================================================================
+black==24.1.0,24.10.0  # Code formatter
+flake8==7.0.0,7.1.0  # Linting
+mypy==1.8.0,1.14.0  # Type checking
+ipython==8.20.0,8.19.0  # Enhanced REPL

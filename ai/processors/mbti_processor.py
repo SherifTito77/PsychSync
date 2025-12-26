@@ -1,7 +1,7 @@
 # app/ai/processors/mbti.py - MBTI Assessment Processor
 
 from typing import Dict, Any, List
-from ai.processors.base import PersonalityFrameworkProcessor
+from ai.processors.processors_base import PersonalityFrameworkProcessor
 
 
 class MBTIProcessor(PersonalityFrameworkProcessor):

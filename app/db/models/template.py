@@ -3,7 +3,7 @@ from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Inde
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.db.base import Base
+from app.core.database import Base
 
 
 class Template(Base):

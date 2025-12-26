@@ -85,7 +85,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ classN
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner size="large" />
       </div>
     );
   }
@@ -140,7 +140,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ classN
                 <span className="text-3xl font-semibold ml-2">/ 100</span>
               </div>
               <div className="mt-4 flex items-center gap-3">
-                <Badge color={getStatusColor(complianceData?.status || 'critical')} variant="solid">
+                <Badge color={getStatusColor(complianceData?.status || 'critical') as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} variant="solid">
                   {complianceData?.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
                 </Badge>
                 <span className="text-sm text-indigo-100">
@@ -158,24 +158,28 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ classN
       {/* Category Scores Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <ComplianceCategoryCard
+          title="Labor Law"
           score={complianceData?.categories.labor_law || 0}
           icon={<Users className="w-6 h-6" />}
           link="/compliance/labor-law"
           color="blue"
         />
         <ComplianceCategoryCard
+          title="Data Privacy"
           score={complianceData?.categories.data_privacy || 0}
           icon={<Shield className="w-6 h-6" />}
           link="/compliance/privacy"
           color="green"
         />
         <ComplianceCategoryCard
+          title="Workplace Safety"
           score={complianceData?.categories.workplace_safety || 0}
           icon={<AlertTriangle className="w-6 h-6" />}
           link="/compliance/safety"
           color="yellow"
         />
         <ComplianceCategoryCard
+          title="Training"
           score={complianceData?.categories.training || 0}
           icon={<FileText className="w-6 h-6" />}
           link="/compliance/training"
@@ -218,24 +222,28 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ classN
           <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <QuickActionCard
+              title="Training Management"
               description="Manage mandatory training assignments"
               icon={<FileText className="w-8 h-8" />}
               link="/compliance/training"
               color="blue"
             />
             <QuickActionCard
+              title="Feedback Review"
               description="Review employee feedback submissions"
               icon={<Activity className="w-8 h-8" />}
               link="/compliance/feedback"
               color="green"
             />
             <QuickActionCard
+              title="Employee Rights"
               description="View employee rights information"
               icon={<Shield className="w-8 h-8" />}
               link="/compliance/rights"
               color="purple"
             />
             <QuickActionCard
+              title="Audit Logs"
               description="Review system activity logs"
               icon={<Clock className="w-8 h-8" />}
               link="/compliance/audit"
@@ -248,13 +256,13 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ classN
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Current Score</span>
-              <span className={`font-semibold ${getScoreColor(complianceData?.overall || 0)}`}>
+              <span className={`font-semibold ${getScoreColor(complianceData?.overall || 0) as string}`}>
                 {complianceData?.overall || 0}%
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Status</span>
-              <Badge color={getStatusColor(complianceData?.status || 'critical')} size="sm">
+              <Badge color={getStatusColor(complianceData?.status || 'critical') as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
                 {complianceData?.status?.replace('_', ' ') || 'Unknown'}
               </Badge>
             </div>

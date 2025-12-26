@@ -1,0 +1,127 @@
+{
+  "summary": {
+    "total_tests": 6,
+    "successful_tests": 4,
+    "success_rate": 66.66666666666666
+  },
+  "test_results": [
+    {
+      "name": "Successful Delivery",
+      "success": true,
+      "response_time": 0.21935105323791504,
+      "details": {
+        "event_id": "929723a8ddc901c8",
+        "attempts": 1,
+        "status": "delivered",
+        "delivered_at": "2025-12-12T15:34:32.328918"
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:34:32.328951"
+    },
+    {
+      "name": "Retry Mechanism",
+      "success": false,
+      "response_time": 9.670900821685791,
+      "details": {
+        "event_id": "ae578dc4466c3dc6",
+        "total_attempts": 5,
+        "final_status": "retrying",
+        "delivered_at": "2025-12-12T15:34:40.999683",
+        "retry_attempts": 4,
+        "last_error": "Exception: list.remove(x): x not in list"
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:34:42.000021"
+    },
+    {
+      "name": "Exponential Backoff",
+      "success": true,
+      "response_time": 9.818272113800049,
+      "details": {
+        "event_id": "8486e86a904cdb40",
+        "attempts": 5,
+        "retry_intervals": [
+          60,
+          300,
+          900,
+          3600,
+          7200
+        ],
+        "expected_intervals": [
+          60,
+          300,
+          900,
+          3600,
+          7200
+        ],
+        "backoff_correct": true,
+        "final_status": "retrying"
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:34:51.818478"
+    },
+    {
+      "name": "Max Attempts Limit",
+      "success": false,
+      "response_time": 6.791669845581055,
+      "details": {
+        "event_id": "12c45755a7b9568b",
+        "attempts": 7,
+        "max_attempts": 5,
+        "final_status": "retrying",
+        "attempts_within_limit": false
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:34:58.610473"
+    },
+    {
+      "name": "Concurrent Processing",
+      "success": true,
+      "response_time": 19.633486032485962,
+      "details": {
+        "total_events": 20,
+        "successful_deliveries": 17,
+        "failed_deliveries": 0,
+        "success_rate": 85.0,
+        "concurrency_limit": 10,
+        "processing_time": 19.633486032485962,
+        "events_per_second": 1.0186677988263315
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:35:18.244940"
+    },
+    {
+      "name": "Signature Verification",
+      "success": true,
+      "response_time": 3.719329833984375e-05,
+      "details": {
+        "signature_format_valid": true,
+        "signature_length": 71,
+        "signatures_consistent": true,
+        "signatures_unique": true,
+        "webhook_headers": {
+          "Content-Type": "application/json",
+          "User-Agent": "PsychSync-Webhook/1.0",
+          "X-PsychSync-Event-ID": "fe37f91a996fd6c6",
+          "X-PsychSync-Timestamp": "1765528518",
+          "X-PsychSync-Signature": "sha256=6aeead859d429329f5ac81b09ce2b3f32c2efb27b4904d3a3241dbe55edbea2e"
+        },
+        "signature_present": true,
+        "timestamp_present": true
+      },
+      "error_message": null,
+      "timestamp": "2025-12-12T15:35:18.245113"
+    }
+  ],
+  "retry_service_config": {
+    "max_attempts": 5,
+    "retry_intervals": [
+      60,
+      300,
+      900,
+      3600,
+      7200
+    ],
+    "max_concurrent_retries": 10
+  }
+}

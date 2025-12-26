@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Welcome to PsychSync! 🎉</h2>
+
+<p>Hi {{ user_name }},</p>
+
+<p>Welcome to PsychSync! We're excited to have you on board. Our AI-powered platform is designed to help you understand your team better and build more effective, collaborative teams.</p>
+
+<h3>Here's what you can do first:</h3>
+
+<ol>
+    <li><strong>Complete your profile</strong> - Add your team members and set up your organization structure</li>
+    <li><strong>Take your first assessment</strong> - Discover personality insights with our scientifically-validated assessments</li>
+    <li><strong>Explore team optimization</strong> - Use our AI engine to build the perfect team for your next project</li>
+</ol>
+
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="stat-number">5+</div>
+        <div class="stat-label">Assessment Frameworks</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number">AI</div>
+        <div class="stat-label">Powered Recommendations</div>
+    </div>
+</div>
+
+<h3>Quick Start Guide</h3>
+
+<div class="feature-list">
+    <h4>🚀 Get Started in 5 Minutes:</h4>
+    <ol>
+        <li><strong>Add Team Members:</strong> Invite your colleagues to join your workspace</li>
+        <li><strong>Choose Assessments:</strong> Select from Big Five, MBTI, Enneagram, and more</li>
+        <li><strong>Run Analysis:</strong> Get instant insights and team compatibility reports</li>
+        <li><strong>Optimize Teams:</strong> Use our AI to recommend the best team configurations</li>
+    </ol>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="button">Go to Dashboard</a>
+    <p style="margin-top: 15px; font-size: 14px; color: #64748b;">
+        Or copy this link: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">{{ dashboard_url }}</code>
+    </p>
+</div>
+
+<h3>🎯 Popular Features</h3>
+
+<ul>
+    <li><strong>Personality Assessments:</strong> Big Five, MBTI, Enneagram, DISC, and more</li>
+    <li><strong>Team Optimization:</strong> AI-powered recommendations for team composition</li>
+    <li><strong>Compatibility Analysis:</strong> Understand how your team works together</li>
+    <li><strong>Diversity Insights:</strong> Ensure balanced and inclusive teams</li>
+    <li><strong>Performance Tracking:</strong> Monitor team dynamics over time</li>
+</ul>
+
+<div class="success-box">
+    <h4>💡 Pro Tip:</h4>
+    <p>Start with our free tier to explore all features. You can upgrade anytime to unlock advanced analytics and larger team sizes.</p>
+</div>
+
+<p>If you have any questions or need help getting started, our support team is here to help!</p>
+
+<p style="margin-top: 30px;">
+    Best regards,<br>
+    The PsychSync Team
+</p>
+{% endblock %}

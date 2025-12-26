@@ -1,0 +1,40 @@
+{
+  "incident_id": "INC_1766381359_715ce5ac",
+  "report_timestamp": "2025-12-22T12:29:21.703511",
+  "incident_details": {
+    "severity": "CRITICAL",
+    "status": "ACTIVE",
+    "description": "Suspicious database activity detected - potential SQL injection attempt",
+    "created_at": "2025-12-22T12:29:19.386293",
+    "affected_systems": [
+      "database",
+      "api",
+      "user_data"
+    ],
+    "data_exposed": 0
+  },
+  "automation_summary": {
+    "total_actions": 1,
+    "successful_actions": 1,
+    "failed_actions": 0,
+    "total_communications": 1,
+    "acknowledged_communications": 0
+  },
+  "actions_taken": [
+    {
+      "action_type": "CONTAINMENT",
+      "description": "Enabled maintenance mode",
+      "executed_at": "2025-12-22T12:29:21.402256",
+      "success": 1,
+      "details": ""
+    }
+  ],
+  "communications": [
+    {
+      "recipient_type": "EMAIL",
+      "recipient": "security-team@psychsync.com, cto@psychsync.com, dba@psychsync.com",
+      "sent_at": "2025-12-22T12:29:21.699512",
+      "acknowledged": 0
+    }
+  ]
+}

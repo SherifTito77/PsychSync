@@ -5,6 +5,8 @@
 # ============================================================================
 
 from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
+
+from app.middleware.rate_limiter import check_rate_limit
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -14,7 +16,7 @@ from ai.psychometrics.personality_insights import PersonalityInsightEngine
 from ai.psychometrics.psychometric_scorer import PsychometricScorer
 from ai.pattern_recognition import PatternDetector, AnomalyDetector
 
-router = APIRouter(prefix="/api/v1/psychometrics", tags=["Psychometrics"])
+router = APIRouter(prefix="/psychometrics", tags=["Psychometrics"])
 
 # Pydantic models
 class TextSampleRequest(BaseModel):
@@ -71,6 +73,8 @@ def get_anomaly_detector() -> AnomalyDetector:
     return AnomalyDetector()
 
 # Routes
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/personality/from-text")
 async def analyze_personality_from_text(
     request: TextSampleRequest,
@@ -93,7 +97,9 @@ async def analyze_personality_from_text(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Personality analysis failed: {str(e)}"
+       
+@check_rate_limit(identifier="public", endpoint_type="public")
+     detail=f"Personality analysis failed: {str(e)}"
         )
 
 @router.post("/emotion/analyze-state")
@@ -116,7 +122,9 @@ async def analyze_emotional_state(
         return result
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+          
+@check_rate_limit(identifier="public", endpoint_type="public")
+  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Emotional state analysis failed: {str(e)}"
         )
 

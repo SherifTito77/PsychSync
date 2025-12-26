@@ -1,0 +1,341 @@
+{
+  "wellness_domains": [
+    {
+      "domain": "Mental Wellness",
+      "focus_areas": [
+        {
+          "name": "stress_management",
+          "improved_approach": "Replace 'Rate your stress level' with behavioral triggers"
+        },
+        {
+          "name": "mindfulness",
+          "improved_approach": "Focus on presence and awareness practices rather than abstract concepts"
+        },
+        {
+          "name": "cognitive_health",
+          "improved_approach": "Assess memory, focus, and mental clarity through daily tasks"
+        }
+      ],
+      "improved_questions": [
+        {
+          "id": "stress_triggers",
+          "text": "What situations typically increase your stress levels?",
+          "type": "scenario_based",
+          "scenarios": [
+            "Work deadlines or pressure",
+            "Family or relationship issues",
+            "Financial concerns",
+            "Health worries",
+            "Too many commitments",
+            "Lack of control over situations"
+          ],
+          "follow_up": "How do you usually handle stress when it comes up?"
+        },
+        {
+          "id": "mental_clarity",
+          "text": "How often do you experience these mental clarity challenges?",
+          "frequency_items": [
+            "Difficulty concentrating on tasks",
+            "Forgetting important information",
+            "Making decisions feels overwhelming",
+            "Racing thoughts that won't stop",
+            "Feeling mentally foggy or slow"
+          ]
+        },
+        {
+          "id": "coping_strategies",
+          "text": "Which of these activities help you feel more mentally balanced?",
+          "type": "effectiveness_rating",
+          "strategies": [
+            "Deep breathing or meditation",
+            "Physical exercise or movement",
+            "Talking with friends/family",
+            "Creative activities (art, music, writing)",
+            "Time in nature",
+            "Journaling or writing thoughts",
+            "Watching movies or TV",
+            "Social media or internet scrolling"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "Emotional Wellness",
+      "focus_areas": [
+        {
+          "name": "emotional_awareness",
+          "improved_approach": "Focus on recognizing and naming emotions rather than rating happiness"
+        },
+        {
+          "name": "emotional_regulation",
+          "improved_approach": "Assess coping mechanisms through real situations"
+        },
+        {
+          "name": "emotional_resilience",
+          "improved_approach": "Measure through bounce-back ability from challenges"
+        }
+      ],
+      "improved_questions": [
+        {
+          "id": "emotional_check_in",
+          "text": "When you pause to check in with yourself, which emotions do you notice most often?",
+          "type": "emotion_selection",
+          "emotion_categories": [
+            "😊 Positive emotions (joy, gratitude, excitement)",
+            "😔 Sad emotions (sadness, disappointment, grief)",
+            "😠 Angry emotions (frustration, anger, irritation)",
+            "😰 Anxious emotions (worry, fear, anxiety)",
+            "🤔 Confusion emotions (uncertainty, overwhelm)",
+            "😐 Neutral emotions (calm, content, steady)"
+          ]
+        },
+        {
+          "id": "emotional_triggers",
+          "text": "What types of situations tend to trigger strong emotional reactions for you?",
+          "situation_types": [
+            "Feeling criticized or judged",
+            "Not being heard or understood",
+            "Feeling out of control",
+            "Disappointing others",
+            "Unexpected changes",
+            "Conflict or disagreement"
+          ]
+        },
+        {
+          "id": "emotional_recovery",
+          "text": "When you have an emotionally difficult experience, how do you typically recover?",
+          "recovery_patterns": [
+            "Talk it out with someone",
+            "Take time alone to process",
+            "Stay busy to distract myself",
+            "Journal or write about it",
+            "Physical activity or movement",
+            "It takes me a very long time to recover",
+            "I tend to avoid thinking about it"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "Social Wellness",
+      "focus_areas": [
+        {
+          "name": "social_connections",
+          "improved_approach": "Assess quality of connections rather than quantity of friends"
+        },
+        {
+          "name": "community_belonging",
+          "improved_approach": "Measure sense of belonging and inclusion"
+        },
+        {
+          "name": "communication_patterns",
+          "improved_approach": "Evaluate communication skills and relationship dynamics"
+        }
+      ],
+      "improved_questions": [
+        {
+          "id": "social_interactions",
+          "text": "In a typical week, how do you feel after different types of social interactions?",
+          "interaction_types": [
+            {
+              "type": "Close friends/family",
+              "feelings": ["Energized and connected", "Comfortable and supported", "Drained or tired", "Anxious or stressed"]
+            },
+            {
+              "type": "Work colleagues",
+              "feelings": ["Motivated and collaborative", "Neutral or professional", "Competitive or stressed", "Isolated or excluded"]
+            },
+            {
+              "type": "New people/strangers",
+              "feelings": ["Curious and excited", "Cautious but open", "Anxious or nervous", "Prefer to avoid"]
+            }
+          ]
+        },
+        {
+          "id": "support_system",
+          "text": "Who can you count on for support in different situations?",
+          "support_scenarios": [
+            {
+              "situation": "When you need emotional support",
+              "options": ["Partner/spouse", "Family member", "Close friend", "Therapist/counselor", "I handle it alone"]
+            },
+            {
+              "situation": "When you need practical help",
+              "options": ["Family", "Friends", "Neighbors", "Professional services", "I prefer to manage myself"]
+            },
+            {
+              "situation": "When you want to celebrate good news",
+              "options": ["Multiple people", "Close circle only", "Partner/close friend", "Keep it private"]
+            }
+          ]
+        },
+        {
+          "id": "social_satisfaction",
+          "text": "How satisfied are you with these aspects of your social life?",
+          "satisfaction_areas": [
+            {
+              "area": "Quality of close relationships",
+              "importance": "Very important"
+            },
+            {
+              "area": "Sense of community belonging",
+              "importance": "Somewhat important"
+            },
+            {
+              "area": "Variety of social connections",
+              "importance": "Nice to have"
+            },
+            {
+              "area": "Time for solitude and alone time",
+              "importance": "Essential"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "Spiritual Wellness",
+      "focus_areas": [
+        {
+          "name": "purpose_meaning",
+          "improved_approach": "Focus on daily sources of meaning rather than abstract purpose"
+        },
+        {
+          "name": "values_alignment",
+          "improved_approach": "Assess how well daily actions reflect personal values"
+        },
+        {
+          "name": "inner_peace",
+          "improved_approach": "Measure contentment and inner harmony practices"
+        }
+      ],
+      "improved_questions": [
+        {
+          "id": "meaning_sources",
+          "text": "What gives you a sense of meaning or purpose in your daily life?",
+          "meaning_sources": [
+            "Helping others or contributing to community",
+            "Creative expression or artistic pursuits",
+            "Learning and personal growth",
+            "Relationships and connections",
+            "Work or career achievements",
+            "Spiritual or religious practices",
+            "Nature and environment",
+            "Personal values and principles"
+          ]
+        },
+        {
+          "id": "values_alignment",
+          "text": "How often do your daily actions align with what you consider most important?",
+          "alignment_areas": [
+            "My time priorities reflect my values",
+            "My spending matches what matters to me",
+            "My relationships support my wellbeing",
+            "My work contributes to my sense of purpose",
+            "I make decisions that feel authentic to me"
+          ]
+        },
+        {
+          "id": "peace_practices",
+          "text": "Which activities help you feel more peaceful or centered?",
+          "peace_activities": [
+            "Meditation or mindfulness practices",
+            "Time in nature",
+            "Spiritual or religious observance",
+            "Creative expression",
+            "Helping others",
+            "Reflection or journaling",
+            "Music or art appreciation",
+            "Physical movement or exercise"
+          ]
+        }
+      ]
+    },
+    {
+      "domain": "Occupational Wellness",
+      "focus_areas": [
+        {
+          "name": "work_satisfaction",
+          "improved_approach": "Assess specific elements of work rather than overall satisfaction"
+        },
+        {
+          "name": "work_life_balance",
+          "improved_approach": "Measure boundaries and integration rather than strict separation"
+        },
+        {
+          "name": "growth_development",
+          "improved_approach": "Focus on learning opportunities and skill development"
+        }
+      ],
+      "improved_questions": [
+        {
+          "id": "work_elements",
+          "text": "Which aspects of your work give you the most energy and satisfaction?",
+          "work_elements": [
+            "Solving interesting problems",
+            "Helping or serving others",
+            "Creating or building things",
+            "Learning new skills",
+            "Leadership or influence",
+            "Collaboration with colleagues",
+            "Autonomy and independence",
+            "Recognition and appreciation"
+          ]
+        },
+        {
+          "id": "work_boundaries",
+          "text": "How well do these boundary practices work for you?",
+          "boundary_practices": [
+            "Starting and ending work on time",
+            "Taking regular breaks during work",
+            "Not checking emails/messages after hours",
+            "Taking full lunch breaks away from desk",
+            "Using vacation time regularly",
+            "Saying 'no' to additional commitments"
+          ]
+        },
+        {
+          "id": "professional_growth",
+          "text": "What types of growth opportunities are most important for you right now?",
+          "growth_types": [
+            "Developing new technical skills",
+            "Leadership or management training",
+            "Creative or innovative projects",
+            "Networking and relationship building",
+            "Work-life balance improvements",
+            "Increased compensation or benefits",
+            "More meaningful work",
+            "Better work environment"
+          ]
+        }
+      ]
+    }
+  ],
+  "universal_improvements": {
+    "avoid_abstract_questions": [
+      "Rate your overall happiness",
+      "How satisfied are you with life",
+      "Rate your stress level 1-10"
+    ],
+    "prefer_behavioral_questions": [
+      "How often do you...",
+      "When was the last time you...",
+      "What do you typically do when..."
+    ],
+    "include_context_options": [
+      "Think about the past month",
+      "Consider your typical week",
+      "In your daily routine"
+    ],
+    "provide_relatable_examples": [
+      "Like brisk walking, cycling, or dancing",
+      "Such as meditation, deep breathing, or yoga",
+      "Including friends, family, or colleagues"
+    ],
+    "offer_actionable_followups": [
+      "Would you like tips for improving this area?",
+      "What's one small change you could try?",
+      "What resources would be most helpful?"
+    ]
+  }
+}

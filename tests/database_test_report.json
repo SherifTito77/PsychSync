@@ -1,0 +1,47 @@
+{
+  "timestamp": 1765519367.885364,
+  "total_tests": 4,
+  "passed_tests": 0,
+  "failed_tests": 4,
+  "total_duration": 0.050023794174194336,
+  "test_results": {
+    "test_database_integrity.py": {
+      "file": "test_database_integrity.py",
+      "success": false,
+      "duration": 0.008888006210327148,
+      "output": "[Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')",
+      "error": "Traceback (most recent call last):\n  File \"/Users/sheriftito/Downloads/psychsync/tests/run_database_tests.py\", line 51, in run_test_file\n    result = subprocess.run([\n             ^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 548, in run\n    with Popen(*popenargs, **kwargs) as process:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1026, in __init__\n    self._execute_child(args, executable, preexec_fn, close_fds,\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1950, in _execute_child\n    raise child_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')\n",
+      "returncode": -1
+    },
+    "test_rapid_submission_handling.py": {
+      "file": "test_rapid_submission_handling.py",
+      "success": false,
+      "duration": 0.005361080169677734,
+      "output": "[Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')",
+      "error": "Traceback (most recent call last):\n  File \"/Users/sheriftito/Downloads/psychsync/tests/run_database_tests.py\", line 51, in run_test_file\n    result = subprocess.run([\n             ^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 548, in run\n    with Popen(*popenargs, **kwargs) as process:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1026, in __init__\n    self._execute_child(args, executable, preexec_fn, close_fds,\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1950, in _execute_child\n    raise child_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')\n",
+      "returncode": -1
+    },
+    "test_transaction_rollback.py": {
+      "file": "test_transaction_rollback.py",
+      "success": false,
+      "duration": 0.007838010787963867,
+      "output": "[Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')",
+      "error": "Traceback (most recent call last):\n  File \"/Users/sheriftito/Downloads/psychsync/tests/run_database_tests.py\", line 51, in run_test_file\n    result = subprocess.run([\n             ^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 548, in run\n    with Popen(*popenargs, **kwargs) as process:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1026, in __init__\n    self._execute_child(args, executable, preexec_fn, close_fds,\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1950, in _execute_child\n    raise child_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')\n",
+      "returncode": -1
+    },
+    "test_audit_logging.py": {
+      "file": "test_audit_logging.py",
+      "success": false,
+      "duration": 0.007098197937011719,
+      "output": "[Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')",
+      "error": "Traceback (most recent call last):\n  File \"/Users/sheriftito/Downloads/psychsync/tests/run_database_tests.py\", line 51, in run_test_file\n    result = subprocess.run([\n             ^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 548, in run\n    with Popen(*popenargs, **kwargs) as process:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1026, in __init__\n    self._execute_child(args, executable, preexec_fn, close_fds,\n  File \"/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1950, in _execute_child\n    raise child_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: PosixPath('/Users/sheriftito/Downloads/psychsync/tests/tests')\n",
+      "returncode": -1
+    }
+  },
+  "recommendations": [
+    "Fix failing database tests before production deployment",
+    "Review database constraint definitions",
+    "Verify transaction rollback implementations",
+    "Check audit logging configuration"
+  ]
+}

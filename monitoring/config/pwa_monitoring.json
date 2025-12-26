@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "metrics": [
+    "service_worker_registration",
+    "pwa_installation_rate",
+    "offline_usage",
+    "cache_performance",
+    "background_sync_events",
+    "push_notification_delivery",
+    "app_launch_speed",
+    "user_engagement"
+  ],
+  "tracking": {
+    "daily_active_users": true,
+    "installation_events": true,
+    "offline_sessions": true,
+    "cache_hit_rates": true,
+    "error_rates": true
+  },
+  "alerting": {
+    "pwa_score_threshold": 80,
+    "offline_session_threshold": 100,
+    "installation_rate_target": 15
+  }
+}

@@ -397,7 +397,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
                         {activity.user} • {new Date(activity.timestamp).toLocaleString()}
                       </p>
                     </div>
-                    <Badge color={getStatusColor(activity.status)} size="sm">
+                    <Badge color={getStatusColor(activity.status) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
                       {activity.status}
                     </Badge>
                   </div>
@@ -840,7 +840,7 @@ const UserRow: React.FC<UserRowProps> = ({ user, onAction, getRoleIcon, getStatu
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <Badge color={getStatusColor(user.status)} size="sm">
+        <Badge color={getStatusColor(user.status) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
           {user.status}
         </Badge>
       </td>
@@ -950,7 +950,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, getStatusColor })
           {activity.user} • {activity.ip} • {new Date(activity.timestamp).toLocaleString()}
         </p>
       </div>
-      <Badge color={getStatusColor(activity.status)} size="sm">
+      <Badge color={getStatusColor(activity.status) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
         {activity.status}
       </Badge>
     </div>

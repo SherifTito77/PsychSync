@@ -1,0 +1,123 @@
+{
+  "summary": {
+    "total_tests": 3,
+    "successful_tests": 1,
+    "success_rate": 33.33333333333333,
+    "target_success_rate": 90,
+    "meets_target": false
+  },
+  "test_results": [
+    {
+      "test_name": "Optimized Retry Mechanism",
+      "success": true,
+      "details": {
+        "total_strategies_tested": 2,
+        "successful_strategies": 2,
+        "strategy_results": [
+          {
+            "strategy": "exponential_backoff",
+            "success": true,
+            "attempts": 3,
+            "max_attempts_allowed": 3,
+            "delivery_time": 34.99033880233765,
+            "final_status": "delivered",
+            "response_times": [
+              0.5295770168304443,
+              31,
+              1.4540119171142578
+            ],
+            "avg_response_time": 10.994529644648233
+          },
+          {
+            "strategy": "adaptive_backoff",
+            "success": true,
+            "attempts": 6,
+            "max_attempts_allowed": 6,
+            "delivery_time": 10.421083211898804,
+            "final_status": "delivered",
+            "response_times": [
+              0.293079137802124,
+              1.813690185546875,
+              0.9665830135345459,
+              0.868412971496582,
+              0.45945119857788086,
+              1.0123589038848877
+            ],
+            "avg_response_time": 0.9022625684738159
+          }
+        ],
+        "best_strategy": {
+          "strategy": "exponential_backoff",
+          "success": true,
+          "attempts": 3,
+          "max_attempts_allowed": 3,
+          "delivery_time": 34.99033880233765,
+          "final_status": "delivered",
+          "response_times": [
+            0.5295770168304443,
+            31,
+            1.4540119171142578
+          ],
+          "avg_response_time": 10.994529644648233
+        },
+        "adaptive_better": true
+      }
+    },
+    {
+      "test_name": "Enhanced Max Attempts Handling",
+      "success": false,
+      "details": {
+        "attempts": 10,
+        "max_attempts": 7,
+        "final_status": "retrying",
+        "attempts_within_limit": false,
+        "proper_abandonment": false,
+        "processing_time": 8.845042943954468,
+        "retry_intervals_used": 9
+      }
+    },
+    {
+      "test_name": "Priority-Based Delivery",
+      "success": false,
+      "details": {
+        "total_events": 4,
+        "delivered": 2,
+        "delivery_rate": 50.0,
+        "critical_delivered": true,
+        "average_delivery_times": {
+          "critical": 0.193694,
+          "normal": 0.177317
+        },
+        "priority_respected": false,
+        "processing_time": 31.003221035003662
+      }
+    }
+  ],
+  "service_capabilities": {
+    "max_concurrent_retries": 15,
+    "max_attempts_per_webhook": 7,
+    "retry_intervals": [
+      30,
+      120,
+      300,
+      900,
+      1800,
+      3600,
+      7200
+    ],
+    "adaptive_retry_enabled": true,
+    "priority_queue_enabled": true,
+    "batch_delivery_enabled": true
+  },
+  "delivery_statistics": {
+    "total_delivered": 4,
+    "total_failed": 0,
+    "total_abandoned": 1,
+    "average_delivery_time": 11.44560575,
+    "retry_count_distribution": {
+      "3": 1,
+      "6": 1,
+      "1": 2
+    }
+  }
+}

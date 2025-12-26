@@ -56,9 +56,18 @@ async def http_exception_handler(request: Request, exc: Union[HTTPException, Sta
     )
 
     # Convert to dict with datetime serialization
+    from datetime import datetime
+    import json
+
+    def datetime_converter(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
+
+    content = error_response.model_dump(mode="json", exclude_unset=True)
     return JSONResponse(
         status_code=exc.status_code,
-        content=error_response.model_dump(mode="json", exclude_unset=True)
+        content=json.loads(json.dumps(content, default=datetime_converter))
     )
 
 

@@ -4,12 +4,14 @@
 # ============================================================================
 
 from fastapi import APIRouter, HTTPException, Depends, status
+
+from app.middleware.rate_limiter import check_rate_limit
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional
 from datetime import datetime
 from app.services.nlp_service import NLPService
 
-router = APIRouter(prefix="/api/v1/nlp", tags=["NLP"])
+router = APIRouter(prefix="/nlp", tags=["NLP"])
 
 # Pydantic models
 class TextAnalysisRequest(BaseModel):
@@ -20,7 +22,7 @@ class TextAnalysisRequest(BaseModel):
     def text_not_empty(cls, v):
         if not v.strip():
             raise ValueError("Text cannot be empty or only whitespace")
-    return v
+        return v
 
 class TextAnalysisResponse(BaseModel):
     sentiment: dict
@@ -38,7 +40,7 @@ class TrendAnalysisRequest(BaseModel):
     def validate_timestamps(cls, v, values):
         if "texts" in values and len(v) != len(values["texts"]):
             raise ValueError("timestamps must match texts length")
-    return v
+        return v
 
 class WordCloudRequest(BaseModel):
     text: str = Field(..., min_length=10)
@@ -53,6 +55,8 @@ def get_nlp_service() -> NLPService:
     return NLPService()
 
 # Routes
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/analyze", response_model=TextAnalysisResponse)
 async def analyze_text(
     request: TextAnalysisRequest,
@@ -73,7 +77,9 @@ async def analyze_text(
         return result
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ER
+@check_rate_limit(identifier="public", endpoint_type="public")
+ROR,
             detail=f"Analysis failed: {str(e)}"
         )
 
@@ -95,6 +101,8 @@ async def analyze_trend(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
+
+@check_rate_limit(identifier="public", endpoint_type="public")
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trend analysis failed: {str(e)}"
         )

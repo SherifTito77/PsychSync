@@ -1,0 +1,7 @@
+PsychSync Test Coverage Report
+Generated: 2025-11-22T04:59:28.557832
+Target Coverage: 80.0%
+Actual Coverage: 0.00%
+Status: ❌ FAILED
+
+Module Coverage:

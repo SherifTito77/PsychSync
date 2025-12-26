@@ -1,5 +1,9 @@
 # app/api/v1/endpoints/templates.py
 from typing import List, Optional
+
+from app.api.v1.deps import get_current_user, Depends
+
+from app.middleware.rate_limiter import check_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -84,6 +88,8 @@ def list_templates(
     }
 
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.get("/search", response_model=List[TemplateSchema])
 def search_templates(
     q: str = Query(..., min_length=2),
@@ -92,7 +98,9 @@ def search_templates(
     """
     Search templates by name or description.
     """
-    templates = TemplateService.search(db, query=q)
+    templat
+@check_rate_limit(identifier="public", endpoint_type="public")
+es = TemplateService.search(db, query=q)
     return templates
 
 
@@ -114,7 +122,9 @@ def get_template(
     
     if not template.is_public:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+         
+@check_rate_limit(identifier="public", endpoint_type="public")
+   status_code=status.HTTP_403_FORBIDDEN,
             detail="This template is not public"
         )
     
@@ -194,7 +204,7 @@ def create_template_from_assessment(
     return template
 
 
-@router.put("/{template_id}", response_model=TemplateSchema)
+@router.put("/{template_id}", response_model=TemplateSchema, dependencies=[Depends(get_current_user)])
 def update_template(
     template_id: int,
     template_in: TemplateUpdate,
@@ -225,7 +235,7 @@ def update_template(
     return updated_template
 
 
-@router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])
 def delete_template(
     template_id: int,
     db: Session = Depends(get_db),

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Port Redirect - PsychSync</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        .container {
+            max-width: 500px;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        .correct-url {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 1.1rem;
+            word-break: break-all;
+        }
+        .countdown {
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+        .button {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Port Update Detected</h1>
+        <p>The PsychSync development server has moved to a new port!</p>
+
+        <div class="correct-url">
+            <strong>Correct URL:</strong><br>
+            http://localhost:5176/login
+        </div>
+
+        <p>You will be automatically redirected in <span id="countdown">5</span> seconds.</p>
+
+        <div class="countdown">
+            <a href="http://localhost:5176/login" class="button">Go to Login Page Now</a>
+        </div>
+
+        <p style="margin-top: 2rem; font-size: 0.9rem; opacity: 0.8;">
+            Please update your bookmarks to use the new port 5176.
+        </p>
+    </div>
+
+    <script>
+        let countdown = 5;
+        const countdownElement = document.getElementById('countdown');
+
+        const timer = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+
+            if (countdown <= 0) {
+                clearInterval(timer);
+                window.location.href = 'http://localhost:5176/login';
+            }
+        }, 1000);
+
+        // Clear any old port data from localStorage
+        if (localStorage.getItem('api_base_url') && localStorage.getItem('api_base_url').includes('5174')) {
+            localStorage.removeItem('api_base_url');
+        }
+        if (sessionStorage.getItem('api_base_url') && sessionStorage.getItem('api_base_url').includes('5174')) {
+            sessionStorage.removeItem('api_base_url');
+        }
+
+        // Clear browser cache for this domain
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                names.forEach(function(name) {
+                    if (name.includes('5174')) {
+                        caches.delete(name);
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -61,7 +61,6 @@ celery_app.conf.update(
     task_soft_time_limit=300,  # 5 minutes
     task_time_limit=600,       # 10 minutes
     task_acks_late=True,
-    worker_send_task_events=True,
 
     # Result backend
     result_expires=3600,       # 1 hour

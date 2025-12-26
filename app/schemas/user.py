@@ -1,15 +1,22 @@
-#app/shemas/user.py
+# app/schemas/user.py
 
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import field_validator
+
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
+from app.db.models.user import UserRole
+
+# SECURITY: Enterprise-grade password validation
+from app.core.password_validator import validate_password_strength
 
 
 class UserBase(BaseModel):
     """Base Pydantic model for a User, containing common attributes."""
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    role: UserRole = UserRole.USER
     is_active: bool = True
 
 

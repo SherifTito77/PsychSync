@@ -1,0 +1,497 @@
+"""
+Behavioral Analysis API Endpoints
+Focused purely on behavioral patterns, analytics, and organizational insights
+Separate from personality assessments and clinical mental health tools
+"""
+
+from fastapi import APIRouter, HTTPException, Depends, Query
+
+from app.middleware.rate_limiter import check_rate_limit
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+import asyncio
+
+from app.api.v1.deps import get_current_user, get_db
+from app.services.behavioral_pattern_recognition import BehavioralPatternService
+from app.services.anomaly_detection import AnomalyDetectionService
+from app.services.team_optimization_service import TeamOptimizationService
+from app.db.crud.team_crud import TeamCRUD
+from app.schemas.behavioral import (
+    BehavioralPatternRequest,
+    BehavioralPatternResponse,
+    AnomalyDetectionRequest,
+    AnomalyDetectionResponse,
+    TeamBehavioralInsightsRequest,
+    TeamBehavioralInsightsResponse,
+    BehavioralTrendRequest,
+    BehavioralTrendResponse,
+    OrganizationalBehavioralReport
+)
+from core.logging import get_logger
+
+logger = get_logger(__name__)
+router = APIRouter()
+
+# Behavioral Analysis Services
+behavioral_service = BehavioralPatternService()
+anomaly_service = AnomalyDetectionService()
+
+
+
+@check_rate_limit(identifier="public", endpoint_type="public")
+@router.post("/patterns/analyze", response_model=BehavioralPatternResponse)
+async def analyze_behavioral_patterns(
+    request: BehavioralPatternRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Analyze behavioral patterns for a user or team
+    Focuses on observable behaviors, not personality traits
+    """
+    try:
+        # Get behavioral data based on analysis scope
+        if request.analysis_scope == "individual":
+            behavioral_data = await behavioral_service.get_user_behavioral_data(
+                user_id=request.user_id,
+                time_period=request.time_period,
+                behavioral_categories=request.behavioral_categories
+            )
+        else:  # team
+            behavioral_data = await behavioral_service.get_team_behavioral_data(
+                team_id=request.team_id,
+                time_period=request.time_period,
+                behavioral_categories=request.behavioral_categories
+            )
+
+        # Analyze patterns for each category
+        pattern_results = {}
+        for category in request.behavioral_categories:
+            patterns = await behavioral_service.analyze_behavioral_patterns(
+                behavioral_data[category],
+                pattern_type=category,
+                analysis_options=request.analysis_options
+            )
+            pattern_results[category] = patterns
+
+        return BehavioralPatternResponse(
+            success=True,
+            analysis_scope=request.analysis_scope,
+            time_period=request.time_period,
+            behavioral_categories=request.behavioral_categories,
+            patterns=pattern_results,
+            confidence_scores=await behavioral_service.calculate_confidence_scores(pattern_results),
+            recommendations=await behavioral_service.generate_behavioral_recommendations(
+                pattern_results, request.analysis_scope
+            ),
+            analyzed_at=datetime.utcnow()
+        )
+
+    except Exception as e:
+        logger.error(f"Behavioral pattern analysis failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+    
+@check_rate_limit(identifier="public", endpoint_type="public")
+        detail="Behavioral pattern analysis failed"
+        )
+
+
+@router.post("/anomalies/detect", response_model=AnomalyDetectionResponse)
+async def detect_behavioral_anomalies(
+    request: AnomalyDetectionRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Detect anomalies in behavioral patterns
+    Early warning system for behavioral changes
+    """
+    try:
+        # Get baseline and current behavioral data
+        baseline_data = await behavioral_service.get_baseline_behavioral_data(
+            user_id=request.user_id if request.analysis_scope == "individual" else None,
+            team_id=request.team_id if request.analysis_scope == "team" else None,
+            baseline_period=request.baseline_period
+        )
+
+        current_data = await behavioral_service.get_current_behavioral_data(
+            user_id=request.user_id if request.analysis_scope == "individual" else None,
+            team_id=request.team_id if request.analysis_scope == "team" else None,
+            current_period=request.current_period
+        )
+
+        # Detect anomalies using specified methods
+        anomaly_results = {}
+        for method in request.detection_methods:
+            anomalies = await anomaly_service.detect_anomalies(
+                baseline_data=baseline_data,
+                current_data=current_data,
+                method=method,
+                sensitivity=request.sensitivity,
+                behavioral_categories=request.behavioral_categories
+            )
+            anomaly_results[method] = anomalies
+
+        # Consolidate and prioritize anomalies
+        consolidated_anomalies = await anomaly_service.consolidate_anomalies(
+            anomaly_results, request.prioritization_criteria
+        )
+
+        return AnomalyDetectionResponse(
+            success=True,
+            analysis_scope=request.analysis_scope,
+            detection_methods=request.detection_methods,
+            baseline_period=request.baseline_period,
+            current_period=request.current_period,
+            anomalies_detected=len(consolidated_anomalies),
+            anomaly_details=consolidated_anomalies,
+            severity_distribution=await anomaly_service.calculate_severity_distribution(
+                consolidated_anomalies
+            ),
+            recommended_actions=await anomaly_service.generate_action_recommendations(
+                consolidated_anomalies
+            ),
+            detected_at=datetime.utcnow()
+        )
+
+    except Exception as e:
+        logger.error(f"Anomaly detection failed:
+@check_rate_limit(identifier="public", endpoint_type="public")
+ {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Anomaly detection failed"
+        )
+
+
+@router.post("/team/insights", response_model=TeamBehavioralInsightsResponse)
+async def get_team_behavioral_insights(
+    request: TeamBehavioralInsightsRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Generate comprehensive team behavioral insights
+    Focus on team dynamics, collaboration patterns, and productivity
+    """
+    try:
+        # Verify team access
+        team_crud = TeamCRUD(db)
+        team = await team_crud.get_team(request.team_id)
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        # Get team behavioral data
+        team_behavioral_data = await behavioral_service.get_comprehensive_team_behavioral_data(
+            team_id=request.team_id,
+            time_period=request.time_period,
+            insight_categories=request.insight_categories
+        )
+
+        # Generate insights for each category
+        insights = {}
+        for category in request.insight_categories:
+            if category == "collaboration":
+                insights[category] = await behavioral_service.analyze_collaboration_patterns(
+                    team_behavioral_data[category]
+                )
+            elif category == "productivity":
+                insights[category] = await behavioral_service.analyze_productivity_patterns(
+                    team_behavioral_data[category]
+                )
+            elif category == "communication":
+                insights[category] = await behavioral_service.analyze_communication_patterns(
+                    team_behavioral_data[category]
+                )
+            elif category == "engagement":
+                insights[category] = await behavioral_service.analyze_engagement_patterns(
+                    team_behavioral_data[category]
+                )
+            elif category == "performance":
+                insights[category] = await behavioral_service.analyze_performance_patterns(
+                    team_behavioral_data[category]
+                )
+
+        # Generate team optimization recommendations
+        recommendations = await behavioral_service.generate_team_optimization_recommendations(
+            insights, team_behavioral_data
+        )
+
+        return TeamBehavioralInsightsResponse(
+            success=True,
+            team_id=request.team_id,
+            team_name=team.name,
+            time_period=request.time_period,
+            insight_categories=request.insight_categories,
+            insights=insights,
+            team_behavioral_score=await behavioral_service.calculate_team_behavioral_score(insights),
+            high_performing_patterns=await behavioral_service.identify_high_performing_patterns(insights),
+            improvement_opportunities=await behavioral_service.identify_improvement_opportunities(insights),
+            recommendations=recommendations,
+            benchmark_comparisons=await behavioral_service.get_benchmark_comparisons(
+                request.team_id, insights
+            ),
+            analyzed_at=datetime.utcnow()
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Team behavioral insights failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Team behavioral insights analysis failed"
+        )
+
+
+@router.post("/trends/analyze", response_model=BehavioralTrendResponse)
+async def analyze_behavioral_trends(
+    request: BehavioralTrendRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Analyze behavioral trends over time
+    Track progress and identify long-term patterns
+    """
+    try:
+        # Get historical behavioral data
+        historical_data = await behavioral_service.get_historical_behavioral_data(
+            user_id=request.user_id if request.analysis_scope == "individual" else None,
+            team_id=request.team_id if request.analysis_scope == "team" else None,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            behavioral_categories=request.behavioral_categories
+        )
+
+        # Analyze trends for each category
+        trend_analysis = {}
+        for category in request.behavioral_categories:
+            trends = await behavioral_service.analyze_trends(
+                historical_data[category],
+                trend_type=request.trend_type,
+                time_interval=request.time_interval
+            )
+            trend_analysis[category] = trends
+
+        # Calculate trend metrics
+        trend_metrics = await behavioral_service.calculate_trend_metrics(trend_analysis)
+
+        return BehavioralTrendResponse(
+            success=True,
+            analysis_scope=request.analysis_scope,
+            time_period={
+                "start_date": request.start_date,
+                "end_date": request.end_date
+            },
+            behavioral_categories=request.behavioral_categories,
+            trend_analysis=trend_analysis,
+            trend_metrics=trend_metrics,
+            key_insights=await behavioral_service.extract_trend_insights(trend_analysis),
+            predictions=await behavioral_service.generate_trend_predictions(trend_analysis),
+            recommendations=await behavioral_service.generate_trend_recommendations(trend_analysis),
+            analyzed_at=datetime.utcnow()
+        )
+
+    except Exception as e:
+        logger.error(f"Behavioral trend analysis failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Behavioral trend analysis failed"
+        )
+
+
+@router.get("/organization/{organization_id}/report", response_model=OrganizationalBehavioralReport)
+async def get_organizational_behavioral_report(
+    organization_id: int,
+    time_period: str = Query(default="90d", description="Time period for analysis"),
+    include_benchmarks: bool = Query(default=True, description="Include industry benchmarks"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    """
+    Generate comprehensive organizational behavioral report
+    Aggregate behavioral insights across all teams
+    """
+    try:
+        # Get all teams in organization
+        team_crud = TeamCRUD(db)
+        teams = await team_crud.get_organization_teams(organization_id)
+
+        if not teams:
+            raise HTTPException(status_code=404, detail="No teams found for organization")
+
+        # Collect behavioral data from all teams
+        organizational_data = {
+            "teams": [],
+            "aggregate_metrics": {},
+            "behavioral_patterns": {},
+            "anomaly_summary": {},
+            "recommendations": []
+        }
+
+        # Analyze each team and aggregate results
+        for team in teams:
+            team_insights = await behavioral_service.get_team_behavioral_summary(
+                team_id=team.id,
+                time_period=time_period
+            )
+
+            organizational_data["teams"].append({
+                "team_id": team.id,
+                "team_name": team.name,
+                "behavioral_score": team_insights.get("behavioral_score", 0),
+                "key_patterns": team_insights.get("key_patterns", []),
+                "anomalies": team_insights.get("anomalies", [])
+            })
+
+        # Generate aggregate metrics
+        organizational_data["aggregate_metrics"] = await behavioral_service.calculate_organizational_metrics(
+            organizational_data["teams"]
+        )
+
+        # Identify cross-team behavioral patterns
+        organizational_data["behavioral_patterns"] = await behavioral_service.identify_organizational_patterns(
+            organizational_data["teams"]
+        )
+
+        # Generate organizational recommendations
+        organizational_data["recommendations"] = await behavioral_service.generate_organizational_recommendations(
+            organizational_data
+        )
+
+        # Include benchmarks if requested
+        benchmark_data = None
+        if include_benchmarks:
+            benchmark_data = await behavioral_service.get_organizational_benchmarks(organization_id)
+
+        return OrganizationalBehavioralReport(
+            organization_id=organization_id,
+            time_period=time_period,
+            total_teams=len(teams),
+            organizational_behavioral_score=organizational_data["aggregate_metrics"].get("overall_score", 0),
+            team_breakdown=organizational_data["teams"],
+            behavioral_patterns=organizational_data["behavioral_patterns"],
+            aggregate_metrics=organizational_data["aggregate_metrics"],
+            top_performing_teams=await behavioral_service.identify_top_performing_teams(
+                organizational_data["teams"]
+            ),
+            improvement_opportunities=await behavioral_service.identify_organizational_improvements(
+                organizational_data
+            ),
+            recommendations=organizational_data["recommendations"],
+            benchmark_comparison=benchmark_data,
+            generated_at=datetime.utcnow()
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Organizational behavioral report failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Organizational behavioral report generation failed"
+        )
+
+
+@router.get("/patterns/catalog")
+async def get_behavioral_pattern_catalog(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Get catalog of available behavioral pattern types and analysis options
+    """
+    try:
+        catalog = {
+            "behavioral_categories": [
+                {
+                    "id": "temporal",
+                    "name": "Temporal Patterns",
+                    "description": "Time-based behavioral patterns and rhythms",
+                    "analysis_types": ["daily", "weekly", "monthly", "seasonal"],
+                    "metrics": ["activity_distribution", "peak_performance_times", "consistency_scores"]
+                },
+                {
+                    "id": "sequential",
+                    "name": "Sequential Patterns",
+                    "description": "Behavioral sequences and decision flows",
+                    "analysis_types": ["decision_trees", "path_analysis", "transition_patterns"],
+                    "metrics": ["completion_rates", "decision_points", "efficiency_scores"]
+                },
+                {
+                    "id": "social",
+                    "name": "Social Patterns",
+                    "description": "Interaction and collaboration behaviors",
+                    "analysis_types": ["network_analysis", "communication_flows", "influence_mapping"],
+                    "metrics": ["centrality_scores", "collaboration_frequency", "social_coherence"]
+                },
+                {
+                    "id": "learning",
+                    "name": "Learning Patterns",
+                    "description": "Skill acquisition and adaptation behaviors",
+                    "analysis_types": ["progression_analysis", "adaptation_rate", "knowledge_retention"],
+                    "metrics": ["learning_velocity", "adaptability_score", "mastery_curves"]
+                },
+                {
+                    "id": "performance",
+                    "name": "Performance Patterns",
+                    "description": "Productivity and achievement patterns",
+                    "analysis_types": ["productivity_analysis", "goal_completion", "quality_metrics"],
+                    "metrics": ["productivity_score", "consistency_index", "improvement_rate"]
+                },
+                {
+                    "id": "risk",
+                    "name": "Risk Patterns",
+                    "description": "Risk-taking and safety behaviors",
+                    "analysis_types": ["risk_assessment", "safety_compliance", "decision_quality"],
+                    "metrics": ["risk_tolerance", "safety_score", "decision_outcomes"]
+                },
+                {
+                    "id": "communication",
+                    "name": "Communication Patterns",
+                    "description": "Communication style and effectiveness",
+                    "analysis_types": ["style_analysis", "effectiveness_metrics", "engagement_patterns"],
+                    "metrics": ["clarity_score", "responsiveness", "engagement_level"]
+                }
+            ],
+            "anomaly_detection_methods": [
+                {
+                    "id": "statistical",
+                    "name": "Statistical Methods",
+                    "methods": ["zscore", "iqr", "modified_zscore"],
+                    "best_for": ["baseline_deviations", "threshold_monitoring"]
+                },
+                {
+                    "id": "machine_learning",
+                    "name": "Machine Learning",
+                    "methods": ["isolation_forest", "one_class_svm", "local_outlier_factor"],
+                    "best_for": ["complex_patterns", "multivariate_anomalies"]
+                },
+                {
+                    "id": "ensemble",
+                    "name": "Ensemble Methods",
+                    "methods": ["voting", "stacking", "weighted_ensemble"],
+                    "best_for": ["high_accuracy", "robust_detection"]
+                }
+            ],
+            "analysis_options": {
+                "sensitivity_levels": ["low", "medium", "high", "adaptive"],
+                "time_periods": ["7d", "30d", "90d", "180d", "365d", "custom"],
+                "aggregation_methods": ["mean", "median", "weighted", "exponential"],
+                "confidence_thresholds": [0.5, 0.7, 0.8, 0.9, 0.95]
+            }
+        }
+
+        return {
+            "success": True,
+            "catalog": catalog,
+            "last_updated": datetime.utcnow()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get behavioral pattern catalog: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve behavioral pattern catalog"
+        )

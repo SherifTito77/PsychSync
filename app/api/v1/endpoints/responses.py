@@ -1,5 +1,9 @@
 # app/api/v1/endpoints/responses.py
 from typing import List, Optional
+
+from app.api.v1.deps import get_current_user, Depends
+
+from app.middleware.rate_limiter import check_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -20,6 +24,8 @@ import app.services.assessment_service as AssessmentService
 router = APIRouter()
 
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/start", response_model=ResponseSchema, status_code=status.HTTP_201_CREATED)
 def start_response(
     response_in: ResponseCreate,
@@ -49,7 +55,9 @@ def start_response(
         db,
         assessment_id=response_in.assessment_id,
         respondent_id=current_user.id if not assessment.allow_anonymous else None,
-        assignment_id=response_in.assignment_id
+        assignmen
+@check_rate_limit(identifier="public", endpoint_type="public")
+t_id=response_in.assignment_id
     )
     
     return response
@@ -64,7 +72,9 @@ def get_my_responses(
     """
     Get all responses by current user.
     """
-    responses = ResponseService.get_user_responses(
+    responses = ResponseSer
+@check_rate_limit(identifier="public", endpoint_type="public")
+vice.get_user_responses(
         db,
         user_id=current_user.id,
         status=status_filter
@@ -108,7 +118,7 @@ def get_response(
     return response_dict
 
 
-@router.put("/{response_id}/save", response_model=ResponseSchema)
+@router.put("/{response_id}/save", response_model=ResponseSchema, dependencies=[Depends(get_current_user)])
 def save_progress(
     response_id: int,
     save_data: ResponseSave,
@@ -216,7 +226,7 @@ def submit_response(
     return response_dict
 
 
-@router.delete("/{response_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{response_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])
 def delete_response(
     response_id: int,
     db: Session = Depends(get_db),

@@ -344,7 +344,7 @@ class AdaptiveTestEngine:
         
         elif method == 'random':
             # Random selection (for comparison/testing)
-            return np.random.choice(available)
+            return np.secrets.choice(available)
         
         else:
             raise ValueError(f"Unknown selection method: {method}")
@@ -447,7 +447,7 @@ class AdaptiveTestEngine:
             """Simulate response based on true ability."""
             item = self.irt.item_dict[item_id]
             p = self.irt.probability(true_theta, item)
-            return 1 if np.random.random() < p else 0
+            return 1 if np.secrets.SystemRandom().random() < p else 0
         
         result = self.administer_test(
             simulated_response,

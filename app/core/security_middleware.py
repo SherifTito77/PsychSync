@@ -66,7 +66,7 @@ class AdvancedRateLimiter:
                     }
 
                 # Add current request
-                await self.redis_client.zadd(key, {str(current_time): current_time})
+                await self.redis_client.zadd(key, {str(current_time): float(current_time)})
                 await self.redis_client.expire(key, window)
 
                 return False, {
@@ -323,7 +323,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
-            "connect-src 'self' https:; "
+            "connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174 https:; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
             "form-action 'self'; "
@@ -422,7 +422,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 error_code="RATE_LIMIT_EXCEEDED",
                 data={
                     "limit": limit_info["limit"],
-                    "reset": limit_info["reset"],
+                    "reset": int(limit_info["reset"]),  # Convert to int for JSON serialization
                     "retry_after": limit_info["retry_after"]
                 }
             ).dict(),

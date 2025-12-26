@@ -1,0 +1,214 @@
+# PsychSync Enterprise Monitoring Configuration
+# Comprehensive Prometheus setup for FastAPI, PostgreSQL, React, and Stripe monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'psychsync-production'
+    environment: 'production'
+
+rule_files:
+  - "alert_rules.yml"
+  - "recording_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+          - sentry-alertmanager:9094
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: "https://your-datadog-endpoint/api/v1/prometheus/writes"
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 200
+      capacity: 2500
+    metadata_config:
+      send: true
+      send_interval: 30s
+    headers:
+      X-Datadog-ApiKey: "${DATADOG_API_KEY}"
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # FastAPI Application Metrics
+  - job_name: 'psychsync-api'
+    static_configs:
+      - targets: ['api:8000']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    params:
+      format: ['prometheus']
+    metric_relabel_configs:
+      # Drop high cardinality labels
+      - source_labels: [user_id]
+        regex: '.*'
+        action: labeldrop
+      # Keep only important endpoints for high-frequency monitoring
+      - source_labels: [endpoint]
+        regex: '/api/v1/(health|auth/login|auth/register|users)'
+        action: keep
+        target_label: endpoint
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'psychsync-api-production'
+
+  # Frontend Application Metrics
+  - job_name: 'psychsync-frontend'
+    static_configs:
+      - targets: ['frontend:3000']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+    honor_labels: true
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'psychsync-frontend-production'
+
+  # PostgreSQL Database Metrics
+  - job_name: 'postgresql-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metric_relabel_configs:
+      # Rename metrics for clarity
+      - source_labels: [__name__]
+        regex: 'pg_stat_activity_.*'
+        target_label: __name__
+        replacement: 'postgresql_activity_${1}'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'psychsync-postgresql-production'
+
+  # Redis Metrics
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'psychsync-redis-production'
+
+  # Nginx Metrics
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'psychsync-nginx-production'
+
+  # Container Metrics (cAdvisor)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    metric_relabel_configs:
+      # Drop unnecessary container metrics
+      - source_labels: [name]
+        regex: '.*k8s_POD.*'
+        action: drop
+      - source_labels: [name]
+        regex: '.*docker.*'
+        action: drop
+
+  # Node Metrics (node_exporter)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets:
+        - 'node-exporter:9100'
+    scrape_interval: 30s
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'psychsync-node-production'
+
+  # Stripe Metrics (Custom Exporter)
+  - job_name: 'stripe-exporter'
+    static_configs:
+      - targets: ['stripe-exporter:8080']
+    scrape_interval: 60s
+    metrics_path: /metrics
+    scrape_timeout: 30s
+    metric_relabel_configs:
+      # Add business context to Stripe metrics
+      - source_labels: [event_type]
+        regex: '.*'
+        target_label: business_event
+        replacement: '${1}'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'psychsync-stripe-production'
+
+  # Blackbox Exporter for External Monitoring
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://api.psychsync.com/health
+        - https://app.psychsync.com
+        - https://api.stripe.com/v1
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Blackbox Exporter for TCP Checks
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - postgres:5432
+        - redis:6379
+        - rabbitmq:5672
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Custom Business Metrics Exporter
+  - job_name: 'business-metrics'
+    static_configs:
+      - targets: ['business-metrics:8081']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    honor_labels: true
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 30d
+    retention.size: 50GB
+    wal-compression: true

@@ -286,7 +286,7 @@ export const ReportBuilder: React.FC<ReportBuilderProps> = ({ className = '' }) 
         return {};
     }
   };
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category: string): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (category) {
       case 'compliance': return 'blue';
       case 'audit': return 'purple';
@@ -516,7 +516,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             </h3>
             <p className="text-sm text-gray-600 line-clamp-2">{template.description}</p>
           </div>
-          <Badge color={getCategoryColor(template.category)} size="sm">
+          <Badge color={getCategoryColor(template.category) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
             {template.category}
           </Badge>
         </div>
@@ -604,7 +604,7 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <Badge color={getCategoryColor(template.category)} size="sm">
+        <Badge color={getCategoryColor(template.category) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
           {template.category}
         </Badge>
       </td>

@@ -1,0 +1,410 @@
+# ==========================================
+# PsychSync Production Alerts
+# ==========================================
+
+groups:
+  - name: psychsync.critical
+    rules:
+      # Application Critical Alerts
+      - alert: ApplicationDown
+        expr: up{job="psychsync"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: psychsync
+          team: platform
+        annotations:
+          summary: "PsychSync application is down"
+          description: "PsychSync has been down for more than 1 minute"
+          runbook_url: "https://runbooks.psychsync.com/application-down"
+          dashboard_url: "https://grafana.psychsync.com/d/psychsync-overview"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5..",job="psychsync"}[5m]) / rate(http_requests_total{job="psychsync"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: psychsync
+          team: platform
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for more than 2 minutes"
+          runbook_url: "https://runbooks.psychsync.com/high-error-rate"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="psychsync"}[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: psychsync
+          team: platform
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for more than 5 minutes"
+
+      - alert: DatabaseConnectionsHigh
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "High database connections"
+          description: "{{ $value }} active database connections (threshold: 80)"
+
+      - alert: DatabaseDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+          team: platform
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+
+      - alert: RedisDown
+        expr: up{job="redis-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+          team: platform
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for more than 1 minute"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+          team: platform
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+          team: platform
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% (threshold: 90%)"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+          team: platform
+        annotations:
+          summary: "Low disk space"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining (threshold: 10%)"
+
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: kubernetes
+          team: platform
+        annotations:
+          summary: "Pod is crash looping"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+
+      - alert: PodNotReady
+        expr: kube_pod_status_ready{condition="true"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: kubernetes
+          team: platform
+        annotations:
+          summary: "Pod not ready"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has been not ready for more than 10 minutes"
+
+  - name: psychsync.business
+    rules:
+      # Business Critical Alerts
+      - alert: LowUserEngagement
+        expr: rate(user_interactions_total[1h]) < 10
+        for: 15m
+        labels:
+          severity: warning
+          service: business
+          team: product
+        annotations:
+          summary: "Low user engagement"
+          description: "User interactions per hour: {{ $value }} (threshold: 10)"
+
+      - alert: SubscriptionChurnHigh
+        expr: rate(subscriptions_cancelled_total[24h]) / rate(subscriptions_created_total[24h]) > 0.1
+        for: 1h
+        labels:
+          severity: warning
+          service: billing
+          team: business
+        annotations:
+          summary: "High subscription churn rate"
+          description: "Churn rate: {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      - alert: RevenueDrop
+        expr: (rate(invoice_amount_paid_total[24h]) - rate(invoice_amount_paid_total[24h] offset 24h)) / rate(invoice_amount_paid_total[24h] offset 24h) < -0.2
+        for: 2h
+        labels:
+          severity: critical
+          service: billing
+          team: business
+        annotations:
+          summary: "Revenue drop detected"
+          description: "Revenue has dropped by {{ $value | humanizePercentage }} compared to yesterday"
+
+      - alert: FailedPaymentHigh
+        expr: rate(payment_failed_total[1h]) / rate(payment_attempted_total[1h]) > 0.1
+        for: 30m
+        labels:
+          severity: warning
+          service: billing
+          team: business
+        annotations:
+          summary: "High failed payment rate"
+          description: "Failed payment rate: {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      - alert: TrialConversionLow
+        expr: rate(subscriptions_converted_from_trial_total[24h]) / rate(trials_started_total[24h]) < 0.15
+        for: 4h
+        labels:
+          severity: warning
+          service: business
+          team: product
+        annotations:
+          summary: "Low trial conversion rate"
+          description: "Trial conversion rate: {{ $value | humanizePercentage }} (threshold: 15%)"
+
+      - alert: AssessmentTimeoutHigh
+        expr: rate(assessment_timeout_total[1h]) / rate(assessment_started_total[1h]) > 0.05
+        for: 30m
+        labels:
+          severity: warning
+          service: product
+          team: platform
+        annotations:
+          summary: "High assessment timeout rate"
+          description: "Assessment timeout rate: {{ $value | humanizePercentage }} (threshold: 5%)"
+
+  - name: psychsync.security
+    rules:
+      # Security Alerts
+      - alert: SuspiciousLoginActivity
+        expr: rate(login_attempts_total{status="failed"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: security
+          team: security
+        annotations:
+          summary: "Suspicious login activity detected"
+          description: "High rate of failed login attempts: {{ $value }} per minute"
+
+      - alert: BruteForceAttack
+        expr: rate(login_attempts_total{status="failed"}[1m]) > 50
+        for: 1m
+        labels:
+          severity: critical
+          service: security
+          team: security
+        annotations:
+          summary: "Potential brute force attack"
+          description: "Very high rate of failed login attempts: {{ $value }} per minute"
+
+      - alert: UnauthorizedAPIAccess
+        expr: rate(http_requests_total{status="401",job="psychsync"}[5m]) > 20
+        for: 3m
+        labels:
+          severity: warning
+          service: security
+          team: security
+        annotations:
+          summary: "High rate of unauthorized API access"
+          description: "401 responses per minute: {{ $value }}"
+
+      - alert: DataExfiltrationSuspected
+        expr: rate(api_requests_total{endpoint="export",method="GET"}[10m]) > 100
+        for: 5m
+        labels:
+          severity: critical
+          service: security
+          team: security
+        annotations:
+          summary: "Potential data exfiltration"
+          description: "Unusual high rate of data export requests: {{ $value }} per minute"
+
+  - name: psychsync.performance
+    rules:
+      # Performance Alerts
+      - alert: SlowDatabaseQueries
+        expr: avg(rate(pg_stat_statements_mean_time_seconds{calls > 100}[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time: {{ $value }}s (threshold: 1s)"
+
+      - alert: DatabaseDeadlocks
+        expr: increase(pg_stat_database_deadlocks[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "Database deadlocks detected"
+          description: "Deadlocks in last 5 minutes: {{ $value }}"
+
+      - alert: CacheHitRateLow
+        expr: redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: redis
+          team: platform
+        annotations:
+          summary: "Low Redis cache hit rate"
+          description: "Cache hit rate: {{ $value | humanizePercentage }} (threshold: 80%)"
+
+      - alert: HighMemoryLeak
+        expr: increase(container_memory_usage_bytes{container="psychsync"}[1h]) / container_spec_memory_limit_bytes > 0.1
+        for: 30m
+        labels:
+          severity: warning
+          service: application
+          team: platform
+        annotations:
+          summary: "Potential memory leak detected"
+          description: "Memory usage increased by {{ $value | humanizePercentage }} in the last hour"
+
+      - alert: ExternalAPIFailure
+        expr: rate(external_api_requests_total{status="error"}[5m]) / rate(external_api_requests_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: external
+          team: platform
+        annotations:
+          summary: "External API failures"
+          description: "External API error rate: {{ $value | humanizePercentage }}"
+
+  - name: psychsync.compliance
+    rules:
+      # Compliance and Audit Alerts
+      - alert: AuditLogGap
+        expr: time() - max(audit_log_timestamp) > 300
+        for: 2m
+        labels:
+          severity: warning
+          service: compliance
+          team: security
+        annotations:
+          summary: "Audit log gap detected"
+          description: "No audit logs for {{ $value }} seconds"
+
+      - alert: GDPRRequestOverdue
+        expr: time() - gdpr_request_created_timestamp > 259200  # 72 hours
+        for: 1h
+        labels:
+          severity: critical
+          service: compliance
+          team: security
+        annotations:
+          summary: "GDPR request overdue"
+          description: "GDPR request pending for more than 72 hours"
+
+      - alert: SecurityVulnerability
+        expr: security_vulnerabilities{severity="critical"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: security
+          team: security
+        annotations:
+          summary: "Critical security vulnerability detected"
+          description: "{{ $value }} critical security vulnerabilities found"
+
+      - alert: BackupFailure
+        expr: backup_successful == 0
+        for: 10m
+        labels:
+          severity: critical
+          service: backup
+          team: platform
+        annotations:
+          summary: "Backup failed"
+          description: "Last backup attempt was unsuccessful"
+
+      - alert: CertificateExpiringSoon
+        expr: (ssl_certificate_expiry_seconds - time()) < 2592000  # 30 days
+        for: 1h
+        labels:
+          severity: warning
+          service: security
+          team: security
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "Certificate expires in {{ $value | humanizeDuration }}"
+
+  - name: psychsync.capacity
+    rules:
+      # Capacity Planning Alerts
+      - alert: ApproachingUserLimit
+        expr: (active_users_total / user_limit) > 0.8
+        for: 15m
+        labels:
+          severity: warning
+          service: capacity
+          team: product
+        annotations:
+          summary: "Approaching user limit"
+          description: "{{ $value | humanizePercentage }} of user limit utilized"
+
+      - alert: ApproachingStorageLimit
+        expr: (storage_used_bytes / storage_limit_bytes) > 0.85
+        for: 30m
+        labels:
+          severity: warning
+          service: capacity
+          team: platform
+        annotations:
+          summary: "Approaching storage limit"
+          description: "{{ $value | humanizePercentage }} of storage limit utilized"
+
+      - alert: APIRateLimitApproaching
+        expr: rate(api_requests_total[5m]) / api_rate_limit > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+          team: platform
+        annotations:
+          summary: "API rate limit approaching"
+          description: "{{ $value | humanizePercentage }} of API rate limit utilized"
+
+      - alert: DatabaseConnectionsApproachingMax
+        expr: pg_stat_activity_count / max_connections > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          team: platform
+        annotations:
+          summary: "Database connections approaching maximum"
+          description: "{{ $value | humanizePercentage }} of database connections utilized"

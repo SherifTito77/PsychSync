@@ -1,0 +1,123 @@
+# Prometheus Alert Rules for PsychSync Security Metrics
+
+groups:
+  - name: psychsync_security
+    interval: 1m
+    rules:
+      # Critical Alert: Critical Security Vulnerabilities
+      - alert: CriticalSecurityVulnerability
+        expr: psychsync_vulnerabilities_by_severity{severity="critical"} > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Critical security vulnerability detected"
+          description: "{{ $value }} critical vulnerabilities found in PsychSync"
+          runbook_url: "https://docs.psychsync.com/runbooks/security/critical-vulnerability"
+
+      # Warning Alert: High Security Vulnerabilities
+      - alert: HighSecurityVulnerability
+        expr: psychsync_vulnerabilities_by_severity{severity="high"} > 0
+        for: 15m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High severity security vulnerability detected"
+          description: "{{ $value }} high severity vulnerabilities found in PsychSync"
+          runbook_url: "https://docs.psychsync.com/runbooks/security/high-vulnerability"
+
+      # Warning Alert: Low Security Score
+      - alert: LowSecurityScore
+        expr: psychsync_security_score < 70
+        for: 15m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Security score below acceptable threshold"
+          description: "Security score is {{ $value }}/100, below the 70 threshold"
+          runbook_url: "https://docs.psychsync.com/runbooks/security/low-score"
+
+      # Critical Alert: Critical Security Score
+      - alert: CriticalSecurityScore
+        expr: psychsync_security_score < 50
+        for: 5m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Security score critically low"
+          description: "Security score is {{ $value }}/100, critical level"
+          runbook_url: "https://docs.psychsync.com/runbooks/security/critical-score"
+
+      # Info Alert: Compliance Violation
+      - alert: ComplianceViolation
+        expr: psychsync_compliance_status == 0
+        for: 1h
+        labels:
+          severity: info
+          team: compliance
+        annotations:
+          summary: "Compliance standard violation detected"
+          description: "{{ $labels.standard }} is not compliant"
+          runbook_url: "https://docs.psychsync.com/runbooks/compliance/violation"
+
+      # Warning Alert: Too Many Medium Vulnerabilities
+      - alert: ExcessiveMediumVulnerabilities
+        expr: psychsync_vulnerabilities_by_severity{severity="medium"} > 20
+        for: 1h
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Excessive medium severity vulnerabilities"
+          description: "{{ $value }} medium severity vulnerabilities found, above threshold of 20"
+
+      # Info Alert: Stale Security Scan
+      - alert: StaleSecurityScan
+        expr: time() - psychsync_last_scan_timestamp > 86400
+        for: 1h
+        labels:
+          severity: info
+          team: devops
+        annotations:
+          summary: "Security scan data is stale"
+          description: "Last security scan was more than 24 hours ago"
+          runbook_url: "https://docs.psychsync.com/runbooks/devops/stale-scan"
+
+  - name: psychsync_trends
+    interval: 5m
+    rules:
+      # Alert: Security Score Dropping
+      - alert: SecurityScoreDropping
+        expr: |
+          (
+            psychsync_security_score
+            -
+            psychsync_security_score offset 1h
+          ) < -10
+        for: 30m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Security score dropping rapidly"
+          description: "Security score dropped by more than 10 points in the last hour"
+
+      # Alert: Vulnerabilities Increasing
+      - alert: VulnerabilitiesIncreasing
+        expr: |
+          (
+            psychsync_vulnerabilities_total
+            -
+            psychsync_vulnerabilities_total offset 1h
+          ) > 5
+        for: 1h
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Vulnerability count increasing"
+          description: "{{ $value }} new vulnerabilities detected in the last hour"

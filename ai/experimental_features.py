@@ -710,7 +710,7 @@ if __name__ == "__main__":
     
     # Leaderboard
     for i in range(5):
-        gamification.award_points(f"user_{i}", random.randint(50, 500), "Activity")
+        gamification.award_points(f"user_{i}", secrets.randbelow(450) + 50, "Activity")
     
     leaderboard = gamification.get_leaderboard(limit=5)
     print("\nLeaderboard:")

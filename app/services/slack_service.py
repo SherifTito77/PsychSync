@@ -15,6 +15,8 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from app.core.config import settings
 
+from app.core.path_utils import sanitize_path, safe_filename
+
 logger = logging.getLogger(__name__)
 
 
@@ -452,7 +454,7 @@ Production Integration Guide
    - Get Signing Secret
 
 3. Add to .env:
-   SLACK_BOT_TOKEN=xoxb-your-token-here
+   SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}  # Set via environment variable
    SLACK_SIGNING_SECRET=your-secret-here
    SLACK_WEBHOOK_URL=https://hooks.slack.com/... (optional)
 

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Details Demo - Working Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .goal-card {
+            background: #f8f9fa;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 12px;
+            border-left: 5px solid #4CAF50;
+            transition: transform 0.3s;
+        }
+        .goal-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .goal-title {
+            color: #2e7d32;
+            margin: 0 0 15px 0;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        .goal-progress {
+            color: #495057;
+            margin: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .view-details-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 15px;
+        }
+        .view-details-btn:hover {
+            background: linear-gradient(135deg, #45a049 0%, #2e7d32 100%);
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            text-align: center;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .success-check {
+            color: #4CAF50;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .error-message {
+            color: #f44336;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .domain-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 20px;
+            margin: 10px 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 View Details Functionality Test</h1>
+        <p>This page tests if View Details buttons work. Click the buttons below!</p>
+
+        <!-- Occupational Wellness Goal -->
+        <div class="goal-card">
+            <div class="domain-badge">💼 Occupational</div>
+            <h2 class="goal-title">Improve Occupational Wellness</h2>
+            <p class="goal-progress">Progress: 41% → 89%</p>
+            <p>Focus on enhancing occupational wellness through targeted activities and consistent practice.</p>
+            <button class="view-details-btn" onclick="showDetails('occupational')">View Details</button>
+        </div>
+
+        <!-- Spiritual Wellness Goal -->
+        <div class="goal-card">
+            <div class="domain-badge">🌟 Spiritual</div>
+            <h2 class="goal-title">Improve Spiritual Wellness</h2>
+            <p class="goal-progress">Progress: 56% → 75%</p>
+            <p>Focus on enhancing spiritual wellness through targeted activities and consistent practice.</p>
+            <button class="view-details-btn" onclick="showDetails('spiritual')">View Details</button>
+        </div>
+
+        <!-- Test Results -->
+        <div id="test-results" style="margin-top: 30px; padding: 20px; background: #e8f5e8; border-radius: 10px; display: none;">
+            <h3>Test Results:</h3>
+            <div id="results-content"></div>
+        </div>
+    </div>
+
+    <!-- Modal for detailed view -->
+    <div id="details-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeDetails()">✕ Close</button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // AI Analytics Data
+        const wellnessAnalytics = {
+            occupational: {
+                successPrediction: '90%',
+                timeline: '8-12 weeks',
+                confidence: 'High',
+                analysis: 'Your occupational wellness assessment shows balanced work-life integration with room for professional growth. AI analysis indicates that implementing structured career development and work-life boundary strategies will significantly enhance job satisfaction and professional wellbeing.',
+                recommendations: [
+                    'Set clear work-life boundaries with technology-free periods',
+                    'Implement career development planning with skill acquisition',
+                    'Create professional network building strategies',
+                    'Practice stress management techniques for workplace challenges'
+                ],
+                riskFactors: ['Work-life imbalance', 'Career stagnation', 'Burnout risk'],
+                mitigation: 'Regular boundary reviews, continuous learning, stress monitoring, professional support'
+            },
+            spiritual: {
+                successPrediction: '91%',
+                timeline: '12-20 weeks',
+                confidence: 'High',
+                analysis: 'Your spiritual wellness assessment demonstrates strong foundational values with potential for deeper meaning and purpose development. AI analysis reveals that implementing structured reflection practices and value-aligned activities will significantly enhance life satisfaction and overall wellbeing.',
+                recommendations: [
+                    'Create daily reflection and meditation practice',
+                    'Identify core values and align activities accordingly',
+                    'Practice mindfulness and presence in daily activities',
+                    'Engage in community service or volunteering'
+                ],
+                riskFactors: ['Spiritual questioning', 'Value conflicts', 'Purpose uncertainty'],
+                mitigation: 'Gradual exploration, spiritual guidance, community support, regular reflection'
+            }
+        };
+
+        function showDetails(domain) {
+            console.log(`🎯 View Details clicked for domain: ${domain}`);
+
+            // Show test results
+            const resultsDiv = document.getElementById('test-results');
+            const resultsContent = document.getElementById('results-content');
+
+            resultsDiv.style.display = 'block';
+            resultsContent.innerHTML = `
+                <div class="success-check">✅ SUCCESS!</div>
+                <strong>View Details button clicked for ${domain} wellness</strong><br>
+                <strong>Console:</strong> Check browser console for detailed logs<br>
+                <strong>Status:</strong> Button functionality is working correctly!
+            `;
+
+            // Show modal with detailed view
+            const modal = document.getElementById('details-modal');
+            const modalContent = document.getElementById('modal-content');
+            const analytics = wellnessAnalytics[domain];
+
+            modalContent.innerHTML = `
+                <div class="success-check">🎯 Detailed View Working!</div>
+                <h2>📊 ${domain.charAt(0).toUpperCase() + domain.slice(1)} Wellness Details</h2>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                    <div style="background: #e8f5e8; padding: 20px; border-radius: 10px; border-left: 5px solid #4CAF50;">
+                        <h3>📊 Progress Overview</h3>
+                        <p><strong>Current Status:</strong> Actively improving</p>
+                        <p><strong>Success Prediction:</strong> ${analytics.successPrediction}</p>
+                        <p><strong>Timeline:</strong> ${analytics.timeline}</p>
+                    </div>
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 10px; border-left: 5px solid #ffc107;">
+                        <h3>🤖 AI Analytics</h3>
+                        <p><strong>Confidence:</strong> ${analytics.confidence}</p>
+                        <p><strong>Analysis:</strong> ${analytics.analysis.substring(0, 100)}...</p>
+                    </div>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3>💡 Personalized Recommendations</h3>
+                    <ul style="text-align: left; margin: 0; padding-left: 20px;">
+                        ${analytics.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                </div>
+
+                <div style="background: #fef3c7; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3>⚠️ Risk Assessment</h3>
+                    <p><strong>Risk Factors:</strong> ${analytics.riskFactors.join(', ')}</p>
+                    <p><strong>Mitigation:</strong> ${analytics.mitigation}</p>
+                </div>
+
+                <div style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="✅ CONCLUSION</h3>
+                    <p><strong>View Details is working perfectly!</strong></p>
+                    <p>The button successfully triggered the detailed view with comprehensive AI-powered analytics for ${domain} wellness.</p>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+            console.log('✅ Modal displayed with comprehensive details');
+            console.log('🤖 AI Analytics loaded:', analytics);
+        }
+
+        function closeDetails() {
+            console.log('🔍 Closing detailed view...');
+            document.getElementById('details-modal').style.display = 'none';
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            console.log('🚀 View Details Demo Page Loaded');
+            console.log('📊 Testing Occupational and Spiritual wellness domains');
+            console.log('💡 Click the "View Details" buttons to test functionality');
+        });
+
+        // Make functions available for manual testing
+        window.testViewDetails = {
+            testOccupational: () => showDetails('occupational'),
+            testSpiritual: () => showDetails('spiritual'),
+            closeModal: closeDetails
+        };
+    </script>
+</body>
+</html>

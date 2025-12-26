@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "dev": "./dev.sh",
+    "dev-full": "./scripts/dev-start.sh",
+    "dev-stop": "./scripts/dev-start.sh stop"
   },
   "devDependencies": {
     "husky": "^8.0.3",
     "lint-staged": "^13.3.0"
+  },
+  "dependencies": {
+    "react-hot-toast": "^2.6.0"
   }
 }

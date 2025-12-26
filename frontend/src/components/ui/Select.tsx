@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, ''> {
   label?: string;
   error?: string;
@@ -17,16 +17,25 @@ export const Select: React.FC<SelectProps> = ({
   onValueChange,
   children,
   className = '',
+  id: providedId,
   ...props
 }) => {
+  // Generate unique ID for label-select association
+  const generatedId = useId();
+  const selectId = providedId || generatedId;
+
   const baseClasses = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
   const errorClasses = error ? 'border-red-500 focus:ring-red-500' : '';
   const disabledClasses = props.disabled ? 'bg-gray-100 cursor-not-allowed' : '';
   const selectClasses = `${baseClasses} ${errorClasses} ${disabledClasses} ${className}`;
+
   return (
     <div className="space-y-2">
       {label && (
-        <label className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor={selectId}
+          className="block text-sm font-medium text-gray-700"
+        >
           {label}
           {props.required && <span className="text-red-500 ml-1">*</span>}
         </label>
@@ -37,6 +46,9 @@ export const Select: React.FC<SelectProps> = ({
             if (React.isValidElement(child) && child.type === 'select') {
               return React.cloneElement(child, {
                 ...child.props,
+                id: child.props.id || selectId,
+                'aria-invalid': error ? 'true' : 'false',
+                'aria-describedby': error ? `${selectId}-error` : helperText ? `${selectId}-helper` : undefined,
                 onChange: (e: React.ChangeEvent<HTMLSelectElement>) => {
                   child.props.onChange?.(e);
                   onValueChange?.(e.target.value);
@@ -48,14 +60,17 @@ export const Select: React.FC<SelectProps> = ({
         </div>
       ) : (
         <select
+          id={selectId}
           className={selectClasses}
+          aria-invalid={error ? 'true' : 'false'}
+          aria-describedby={error ? `${selectId}-error` : helperText ? `${selectId}-helper` : undefined}
           onChange={(e) => {
             props.onChange?.(e);
             onValueChange?.(e.target.value);
           }}
           {...props}
         >
-          <option value="">{props.placeholder || 'Select an option'}</option>
+          <option value="">{placeholder || 'Select an option'}</option>
           {options?.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -64,10 +79,21 @@ export const Select: React.FC<SelectProps> = ({
         </select>
       )}
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p
+          id={`${selectId}-error`}
+          className="text-sm text-red-600"
+          role="alert"
+        >
+          {error}
+        </p>
       )}
       {helperText && !error && (
-        <p className="text-sm text-gray-500">{helperText}</p>
+        <p
+          id={`${selectId}-helper`}
+          className="text-sm text-gray-500"
+        >
+          {helperText}
+        </p>
       )}
     </div>
   );

@@ -1,0 +1,133 @@
+{
+  "test_summary": {
+    "total_inputs_tested": 5,
+    "total_model_combinations": 30,
+    "overall_consistency_rate": 0.5974477420651535,
+    "target_consistency_rate": 0.8,
+    "min_consistency_score": 0.21734697223044439,
+    "max_consistency_score": 1.0,
+    "total_issues_found": 7,
+    "meets_target": false
+  },
+  "consistency_distribution": {
+    "different": 2,
+    "similar": 1,
+    "exact_match": 2
+  },
+  "detailed_results": [
+    {
+      "test_id": "consistency_test_personality_analysis_001",
+      "input_id": "personality_analysis_001",
+      "input_type": "personality_analysis",
+      "consistency_level": "different",
+      "overall_score": 0.2226694253652066,
+      "content_similarity": 0.3295254104411724,
+      "structural_similarity": 0.16666666666666666,
+      "semantic_similarity": 0.1904837852206273,
+      "confidence_variance": 0.01548546168982983,
+      "processing_time_variance": 0.2456059770147878,
+      "issues_count": 2,
+      "issues": [
+        "Low overall consistency across models",
+        "Low structural similarity in outputs"
+      ],
+      "recommendations": [
+        "Standardize model outputs through response templates",
+        "Implement standardized output schemas"
+      ]
+    },
+    {
+      "test_id": "consistency_test_team_recommendations_001",
+      "input_id": "team_recommendations_001",
+      "input_type": "team_recommendation",
+      "consistency_level": "similar",
+      "overall_score": 0.5472223127301163,
+      "content_similarity": 0.614854517611026,
+      "structural_similarity": 0.5,
+      "semantic_similarity": 0.5425531914893617,
+      "confidence_variance": 0.005153391485023215,
+      "processing_time_variance": 1.1590665255121402,
+      "issues_count": 3,
+      "issues": [
+        "Low overall consistency across models",
+        "High variance in processing times",
+        "Low structural similarity in outputs"
+      ],
+      "recommendations": [
+        "Standardize model outputs through response templates",
+        "Optimize model performance consistency",
+        "Implement standardized output schemas"
+      ]
+    },
+    {
+      "test_id": "consistency_test_assessment_insights_001",
+      "input_id": "assessment_insights_001",
+      "input_type": "assessment_insight",
+      "consistency_level": "exact_match",
+      "overall_score": 1.0,
+      "content_similarity": 1.0,
+      "structural_similarity": 1.0,
+      "semantic_similarity": 1.0,
+      "confidence_variance": 0.023132298048611458,
+      "processing_time_variance": 0.25882012031051793,
+      "issues_count": 0,
+      "issues": [],
+      "recommendations": [
+        "Consistency metrics are within acceptable ranges"
+      ]
+    },
+    {
+      "test_id": "consistency_test_team_dynamics_001",
+      "input_id": "team_dynamics_001",
+      "input_type": "team_dynamics",
+      "consistency_level": "exact_match",
+      "overall_score": 1.0,
+      "content_similarity": 1.0,
+      "structural_similarity": 1.0,
+      "semantic_similarity": 1.0,
+      "confidence_variance": 0.012387575414996776,
+      "processing_time_variance": 0.7023920585057076,
+      "issues_count": 0,
+      "issues": [],
+      "recommendations": [
+        "Consistency metrics are within acceptable ranges"
+      ]
+    },
+    {
+      "test_id": "consistency_test_minimal_data_001",
+      "input_id": "minimal_data_001",
+      "input_type": "personality_analysis",
+      "consistency_level": "different",
+      "overall_score": 0.21734697223044439,
+      "content_similarity": 0.3117838999919651,
+      "structural_similarity": 0.16666666666666666,
+      "semantic_similarity": 0.1904837852206273,
+      "confidence_variance": 0.00263185154532239,
+      "processing_time_variance": 0.18787997965463663,
+      "issues_count": 2,
+      "issues": [
+        "Low overall consistency across models",
+        "Low structural similarity in outputs"
+      ],
+      "recommendations": [
+        "Standardize model outputs through response templates",
+        "Implement standardized output schemas"
+      ]
+    }
+  ],
+  "critical_issues": [
+    "Overall consistency below enterprise threshold"
+  ],
+  "recommendations": [
+    "\u274c Consistency issues require immediate attention",
+    "Implement standardized response templates across all AI models",
+    "Establish consistency monitoring in production",
+    "Regular calibration of confidence scoring mechanisms"
+  ],
+  "quality_metrics": {
+    "avg_confidence_variance": 0.011758115636756734,
+    "avg_processing_time_variance": 0.5107529321995581,
+    "high_consistency_tests": 2,
+    "low_consistency_tests": 3
+  }
+}

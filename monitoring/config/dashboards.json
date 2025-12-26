@@ -1,0 +1,35 @@
+[
+  {
+    "name": "PWA Performance Dashboard",
+    "type": "pwa",
+    "metrics": [
+      "service_worker_health",
+      "installation_rate",
+      "offline_usage",
+      "cache_performance",
+      "user_engagement"
+    ]
+  },
+  {
+    "name": "Application Performance Dashboard",
+    "type": "performance",
+    "metrics": [
+      "response_time",
+      "request_rate",
+      "error_rate",
+      "throughput",
+      "resource_usage"
+    ]
+  },
+  {
+    "name": "Business Metrics Dashboard",
+    "type": "business",
+    "metrics": [
+      "active_users",
+      "assessment_completions",
+      "team_formations",
+      "user_retention",
+      "conversion_rates"
+    ]
+  }
+]

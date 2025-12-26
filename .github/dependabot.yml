@@ -1,0 +1,183 @@
+# Dependabot Configuration for PsychSync
+# Automated dependency updates with security-aware policies
+
+version: 2
+updates:
+  # Python backend dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"  # Check for updates every week
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "sheriftito"  # Security team lead
+    assignees:
+      - "sheriftito"
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    allow:
+      # Allow-list of approved packages (security-vetted)
+      - dependency-name: "fastapi"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "uvicorn"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "sqlalchemy"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "alembic"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "psycopg2-binary"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "python-jose"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "passlib"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "python-multipart"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "redis"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "celery"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "httpx"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "pytest"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "pytest-asyncio"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "pytest-cov"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    ignore:
+      # Ignore major versions that require manual review
+      - dependency-name: "fastapi"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sqlalchemy"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # Group related updates together
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+        exclude-patterns:
+          - "webpack"
+      web-framework:
+        patterns:
+          - "fastapi"
+          - "uvicorn"
+          - "starlette"
+      database:
+        patterns:
+          - "sqlalchemy"
+          - "alembic"
+          - "psycopg2*"
+      testing:
+        patterns:
+          - "pytest*"
+          - "coverage*"
+
+  # JavaScript frontend dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "sheriftito"
+    assignees:
+      - "sheriftito"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "security"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    allow:
+      # Allow-list of approved npm packages
+      - dependency-name: "react"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "react-router-dom"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "axios"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "zustand"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "@tanstack/react-query"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-name: "@testing-library/react"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    ignore:
+      # Block major versions that require migration
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+      react-ecosystem:
+        patterns:
+          - "react*"
+          - "@types/react"
+      testing:
+        patterns:
+          - "vitest"
+          - "@testing-library/*"
+          - "jsdom"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "sheriftito"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ci-cd"
+    commit-message:
+      prefix: "ci(deps)"
+      include: "scope"
+    allow:
+      # Allow-list of approved GitHub Actions
+      - dependency-name: "actions/checkout"
+      - dependency-name: "actions/setup-python"
+      - dependency-name: "actions/setup-node"
+      - dependency-name: "actions/upload-artifact"
+      - dependency-name: "actions/download-artifact"
+      - dependency-name: "docker/build-push-action"
+      - dependency-name: "docker/login-action"
+      - dependency-name: "docker/setup-buildx-action"
+      - dependency-name: "sigstore/cosign-installer"
+      - dependency-name: "slsa-framework/slsa-github-generator"
+      - dependency-name: "github/codeql-action"

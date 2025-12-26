@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "target_coverage": 80.0,
+    "timestamp": "2025-11-22T04:59:28.557832",
+    "project_root": "/Users/sheriftito/Downloads/psychsync"
+  },
+  "summary": {
+    "total_coverage": 0.0,
+    "covered_lines": 0,
+    "total_lines": 0,
+    "missing_lines": 0
+  },
+  "modules": {},
+  "missing_coverage": []
+}

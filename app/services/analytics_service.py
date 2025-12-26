@@ -1,19 +1,63 @@
-
-#app/services/Analytics_services.py
 """
 Analytics Service for PsychSync
-
-Provides:
-- Team performance analytics
-- Wellness trend analysis
-- Predictive insights using AI engine
-- Compatibility analysis
-- Role optimization recommendations
-- Assessment analytics
-- User analytics
-- Team analytics
-- System analytics
 """
-from typing import Dict, List, Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
+
+import logging
+from typing import Dict, Any, Optional
+from datetime import datetime
+import json
+
+logger = logging.getLogger(__name__)
+
+class AnalyticsService:
+    """
+    Service for tracking analytics events throughout the application
+    """
+
+    def __init__(self):
+        self.logger = logging.getLogger("analytics")
+
+    async def track_onboarding_event(
+        self,
+        user_id: Optional[str] = None,
+        event_type: str = "",
+        event_data: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Track onboarding-related events
+
+        Args:
+            user_id: The user ID if available
+            event_type: Type of onboarding event
+            event_data: Additional event data
+            session_id: Session identifier
+
+        Returns:
+            Dict with tracking result
+        """
+        try:
+            event = {
+                "event_type": f"onboarding_{event_type}",
+                "user_id": user_id,
+                "session_id": session_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "event_data": event_data or {}
+            }
+
+            # Log the event (in production, this would send to analytics backend)
+            self.logger.info(f"Analytics event: {json.dumps(event)}")
+
+            return {
+                "success": True,
+                "event_id": f"evt_{datetime.utcnow().timestamp()}",
+                "timestamp": event["timestamp"]
+            }
+
+        except Exception as e:
+            self.logger.error(f"Failed to track onboarding event: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }

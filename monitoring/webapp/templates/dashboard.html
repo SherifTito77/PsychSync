@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PsychSync Monitor - Business Intelligence Platform</title>
+    <meta name="description" content="Monitor your PsychSync platform performance and drive business growth">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .value-props {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .value-props h2 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            color: #1a202c;
+        }
+
+        .value-props p {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .metric-card h3 {
+            font-size: 1.2rem;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 0.5rem;
+        }
+
+        .metric-change.positive {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .metric-change.negative {
+            background: #fca5a5;
+            color: #dc2626;
+        }
+
+        .action-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 0.5rem;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .stats-highlight {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .stats-highlight h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .stat-item h3 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-item p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metric-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🚀 PsychSync Monitor</h1>
+            <p>Transform technical monitoring into business intelligence. See how your platform performance impacts your bottom line.</p>
+        </header>
+
+        <div class="stats-highlight">
+            <h2>Business Impact at a Glance</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3>$125K</h3>
+                    <p>Monthly Revenue</p>
+                </div>
+                <div class="stat-item">
+                    <h3>2,847</h3>
+                    <p>Active Users</p>
+                </div>
+                <div class="stat-item">
+                    <h3>73%</h3>
+                    <p>Assessment Completion</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="value-props">
+            <h2>Why Business Teams Choose PsychSync Monitor</h2>
+            <p>Traditional monitoring tells you when systems break. PsychSync Monitor tells you how that affects your business performance, revenue, and customer satisfaction.</p>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h3>📊 Revenue Protection</h3>
+                <div class="metric-value">$156K</div>
+                <div class="metric-label">Saved monthly by preventing outages</div>
+                <div class="metric-change positive">
+                    <i class="fas fa-arrow-up"></i> 23% from last month
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3>⚡ Speed to Value</h3>
+                <div class="metric-value">73%</div>
+                <div class="metric-label">Faster assessment completion</div>
+                <div class="metric-change positive">
+                    <i class="fas fa-arrow-up"></i> 45% industry average
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3">😊 Customer Satisfaction</h3>
+                <div class="metric-value">72.3</div>
+                <div class="metric-label">NPS Score</div>
+                <div class="metric-change positive">
+                    <i class="fas fa-arrow-up"></i> 27 points vs industry
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <h3>🎯️ Reliability</h3>
+                <div class="metric-value">99.9%</div>
+                <div class="metric-label">Uptime SLA</div>
+                <div class="metric-change positive">
+                    <i class="fas fa-check-circle"></i> Above 99.5% target
+                </div>
+            </div>
+        </div>
+
+        <div class="action-section">
+            <h2>Ready to Transform Your Monitoring into Business Intelligence?</h2>
+            <p>Get started in just 2 minutes. No technical expertise required.</p>
+            <div>
+                <a href="/setup" class="btn btn-primary">
+                    <i class="fas fa-rocket"></i> Start Free Setup
+                </a>
+                <a href="#demo" class="btn btn-secondary">
+                    <i class="fas fa-play-circle"></i> Live Demo
+                </a>
+                <a href="/analytics/revenue-impact" class="btn btn-secondary">
+                    <i class="fas fa-chart-line"></i> ROI Calculator
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Animate numbers on scroll
+        function animateValue(element, start, end, duration) {
+            const startTime = performance.now();
+            const stepTime = duration / (end - start);
+
+            function updateValue(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const value = start + (end - start) * progress;
+                element.textContent = value.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateValue.bind(null, performance.now()));
+                }
+            }
+
+            updateValue(performance.now());
+        }
+
+        // Trigger animations when elements are in view
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = entry.target;
+                    const text = target.textContent;
+                    const value = parseInt(text.replace(/[^0-9]/g, ''));
+                    if (!isNaN(value)) {
+                        animateValue(target, 0, value, 1500);
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.metric-value').forEach(el => observer.observe(el));
+        document.querySelectorAll('.stat-item h3').forEach(el => observer.observe(el));
+    </script>
+</body>
+</html>

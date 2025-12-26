@@ -172,7 +172,7 @@ export const IntegrationHub: React.FC<IntegrationHubProps> = ({ className = '' }
       showNotification('Integration disconnected successfully', 'success');
     }
   };
-  const getStatusColor = (status: Integration['status']) => {
+  const getStatusColor = (status: Integration['status']): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (status) {
       case 'connected': return 'green';
       case 'disconnected': return 'gray';
@@ -182,7 +182,7 @@ export const IntegrationHub: React.FC<IntegrationHubProps> = ({ className = '' }
       default: return 'gray';
     }
   };
-  const getCategoryColor = (category: Integration['category']) => {
+  const getCategoryColor = (category: Integration['category']): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (category) {
       case 'communication': return 'blue';
       case 'hr': return 'purple';
@@ -249,21 +249,25 @@ export const IntegrationHub: React.FC<IntegrationHubProps> = ({ className = '' }
           {/* Quick Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
+              title="Connected Integrations"
               value={integrations.filter(i => i.status === 'connected').length}
               icon={<CheckCircle className="w-5 h-5" />}
               color="green"
             />
             <StatCard
+              title="Active Webhooks"
               value={integrations.reduce((sum, i) => sum + i.webhookEndpoints.filter(w => w.active).length, 0)}
               icon={<Webhook className="w-5 h-5" />}
               color="blue"
             />
             <StatCard
+              title="Daily Activity"
               value={integrations.reduce((sum, i) => sum + i.statistics.lastDayActivity, 0)}
               icon={<RefreshCw className="w-5 h-5" />}
               color="purple"
             />
             <StatCard
+              title="Data Points Processed"
               value={integrations.reduce((sum, i) => sum + i.statistics.dataPointsProcessed, 0)}
               icon={<Database className="w-5 h-5" />}
               color="yellow"
@@ -472,7 +476,7 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge color={getStatusColor(integration.status)} size="sm">
+            <Badge color={getStatusColor(integration.status) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
               {integration.status}
             </Badge>
             <div className="relative">
@@ -515,7 +519,7 @@ const IntegrationCard: React.FC<IntegrationCardProps> = ({
         <div className="space-y-4">
           {/* Category and Version */}
           <div className="flex items-center justify-between">
-            <Badge color={getCategoryColor(integration.category)} size="sm" variant="outline">
+            <Badge color={getCategoryColor(integration.category) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm" variant="outline">
               {integration.category}
             </Badge>
             <span className="text-sm text-gray-500">v{integration.version}</span>

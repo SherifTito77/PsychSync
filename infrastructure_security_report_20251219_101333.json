@@ -1,0 +1,186 @@
+{
+  "scan_id": "59033ad2cb0977fa",
+  "timestamp": "2025-12-19T10:13:27.039936",
+  "target_host": "localhost",
+  "open_ports": [
+    {
+      "port": 5432,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "postgresql",
+      "version": "",
+      "banner": "",
+      "risk_level": "HIGH",
+      "recommendation": "Restrict database access to local networks only"
+    },
+    {
+      "port": 6379,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "redis",
+      "version": "",
+      "banner": "-ERR wrong number of arguments for 'get' command\r\n",
+      "risk_level": "HIGH",
+      "recommendation": "Secure redis service or disable if not required"
+    },
+    {
+      "port": 8000,
+      "protocol": "tcp",
+      "state": "open",
+      "service": "http-alt",
+      "version": "",
+      "banner": "HTTP/1.1 200 OK\r\ndate: Fri, 19 Dec 2025 03:13:26 GMT\r\nserver: uvicorn\r\ncontent-length: 106\r\ncontent-type: application/json\r\nx-request-id: c663b11b-5a4d-4299-bdc8-b3e1ff7f0573\r\nx-response-time-ms: 144.52\r\nstrict-transport-security: max-age=31536000; includeSubDomains; preload\r\ncontent-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174 https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\r\nx-xss-protection: 1; mode=block\r\nx-frame-options: DENY\r\nx-content-type-options: nosniff\r\nreferrer-policy: strict-origin-when-cross-origin\r\nx-permitted-cross-domain-policies: none\r\nx-dns-prefetch-control: off\r\npermissions-policy: geolocation=",
+      "risk_level": "LOW",
+      "recommendation": "Monitor http-alt service for security updates"
+    }
+  ],
+  "service_security": {
+    "postgresql": {
+      "name": "postgresql",
+      "port": 5432,
+      "protocol": "tcp",
+      "version": "Unknown",
+      "configuration_issues": [
+        "PostgreSQL port exposed to network"
+      ],
+      "security_recommendations": [
+        "Restrict PostgreSQL access to local networks only",
+        "Configure pg_hba.conf for secure access control",
+        "Use SSL/TLS for database connections"
+      ]
+    }
+  },
+  "ssh_security": {},
+  "server_banners": {},
+  "firewall_rules": [
+    {
+      "rule_number": 1,
+      "action": "ALLOW",
+      "protocol": "tcp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "5432",
+      "risk_level": "HIGH",
+      "recommendation": "Restrict PostgreSQL (port 5432) to local networks"
+    },
+    {
+      "rule_number": 2,
+      "action": "ALLOW",
+      "protocol": "tcp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "6379",
+      "risk_level": "LOW",
+      "recommendation": "Monitor redis (port 6379) for unusual activity"
+    },
+    {
+      "rule_number": 3,
+      "action": "ALLOW",
+      "protocol": "udp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "53",
+      "risk_level": "MEDIUM",
+      "recommendation": "Review UDP service dns on port 53"
+    },
+    {
+      "rule_number": 4,
+      "action": "ALLOW",
+      "protocol": "udp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "123",
+      "risk_level": "MEDIUM",
+      "recommendation": "Review UDP service ntp on port 123"
+    },
+    {
+      "rule_number": 5,
+      "action": "ALLOW",
+      "protocol": "udp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "161",
+      "risk_level": "MEDIUM",
+      "recommendation": "Review UDP service snmp on port 161"
+    },
+    {
+      "rule_number": 6,
+      "action": "ALLOW",
+      "protocol": "udp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "162",
+      "risk_level": "MEDIUM",
+      "recommendation": "Review UDP service snmp-trap on port 162"
+    },
+    {
+      "rule_number": 7,
+      "action": "ALLOW",
+      "protocol": "udp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "500",
+      "risk_level": "MEDIUM",
+      "recommendation": "Review UDP service ipsec on port 500"
+    },
+    {
+      "rule_number": 8,
+      "action": "ALLOW",
+      "protocol": "udp",
+      "source": "ANY",
+      "destination": "ANY",
+      "port": "4500",
+      "risk_level": "MEDIUM",
+      "recommendation": "Review UDP service ipsec-nat-t on port 4500"
+    }
+  ],
+  "cve_vulnerabilities": [
+    {
+      "cve_id": "CVE-2023-1234",
+      "severity": "HIGH",
+      "cvss_score": 8.5,
+      "description": "Example vulnerability in example software",
+      "affected_software": "Example Software",
+      "fixed_version": "2.0.1",
+      "references": [
+        "https://example.com/cve-2023-1234"
+      ]
+    },
+    {
+      "cve_id": "CVE-2023-5678",
+      "severity": "CRITICAL",
+      "cvss_score": 9.8,
+      "description": "Critical vulnerability in critical component",
+      "affected_software": "Critical Component",
+      "fixed_version": "3.1.0",
+      "references": [
+        "https://example.com/cve-2023-5678"
+      ]
+    }
+  ],
+  "risk_summary": {
+    "overall_status": "MEDIUM",
+    "risk_score": 41,
+    "open_ports_count": 3,
+    "high_risk_ports": 2,
+    "total_cves": 2,
+    "critical_cves": 1,
+    "high_cves": 1,
+    "ssh_security_score": 0,
+    "services_with_issues": 1
+  },
+  "recommendations": [
+    "Close or secure high-risk open ports",
+    "Apply security patches immediately",
+    "Update vulnerable software",
+    "Review and tighten firewall rules",
+    "Implement regular security scanning and patching",
+    "Use firewall to restrict access to necessary services only",
+    "Disable unnecessary services and ports",
+    "Keep all software up to date with security patches",
+    "Implement intrusion detection and prevention systems",
+    "Regular backup and disaster recovery testing",
+    "Security monitoring and alerting",
+    "Regular security audits and penetration testing"
+  ]
+}

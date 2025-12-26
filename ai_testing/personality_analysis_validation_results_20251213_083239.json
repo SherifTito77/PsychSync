@@ -1,0 +1,98 @@
+{
+  "test_summary": {
+    "total_assessments_tested": 3,
+    "validation_checks_performed": 15,
+    "avg_validation_accuracy": 0.7444444444444445,
+    "min_accuracy_score": 0.39,
+    "max_accuracy_score": 0.9433333333333332,
+    "target_accuracy": 0.8,
+    "critical_issues_found": 0,
+    "assessments_with_critical_issues": 0,
+    "meets_target": false
+  },
+  "validation_level_distribution": {
+    "correct": 2,
+    "insufficient_data": 1
+  },
+  "check_performance_rates": {
+    "personality_type_validation": 1.0,
+    "trait_validation": 0.6666666666666666,
+    "strength_validation": 0.6666666666666666,
+    "recommendation_validation": 1.0,
+    "confidence_validation": 0.6666666666666666
+  },
+  "detailed_results": [
+    {
+      "validation_id": "validation_mbti_user_001_1765589559",
+      "user_id": "mbti_user_001",
+      "assessment_type": "mbti",
+      "predicted_type": "ENTP",
+      "actual_type": "ENTP",
+      "accuracy_score": 0.9433333333333332,
+      "validation_level": "correct",
+      "checks_passed": 5,
+      "total_checks": 5,
+      "critical_issues_count": 0,
+      "confidence_score": 0.88,
+      "recommendations": [
+        "Good accuracy achieved with minor optimization opportunities"
+      ]
+    },
+    {
+      "validation_id": "validation_bigfive_user_001_1765589559",
+      "user_id": "bigfive_user_001",
+      "assessment_type": "big_five",
+      "predicted_type": null,
+      "actual_type": null,
+      "accuracy_score": 0.9,
+      "validation_level": "correct",
+      "checks_passed": 5,
+      "total_checks": 5,
+      "critical_issues_count": 0,
+      "confidence_score": 0.75,
+      "recommendations": [
+        "Good accuracy achieved with minor optimization opportunities"
+      ]
+    },
+    {
+      "validation_id": "validation_enneagram_user_001_1765589559",
+      "user_id": "enneagram_user_001",
+      "assessment_type": "enneagram",
+      "predicted_type": "Type 5 - The Investigator",
+      "actual_type": "Type 5",
+      "accuracy_score": 0.39,
+      "validation_level": "insufficient_data",
+      "checks_passed": 2,
+      "total_checks": 5,
+      "critical_issues_count": 0,
+      "confidence_score": 0.91,
+      "recommendations": [
+        "Significant accuracy issues detected - review analysis algorithms",
+        "Calibrate confidence scoring to reflect data quality"
+      ]
+    }
+  ],
+  "critical_issues_summary": {
+    "total_critical_issues": 0,
+    "affected_assessments": 0,
+    "most_common_failures": [
+      "trait_validation",
+      "strength_validation",
+      "confidence_validation"
+    ]
+  },
+  "recommendations": [
+    "\u26a0\ufe0f Good accuracy with targeted improvements needed",
+    "Priority improvements needed in: trait_validation, strength_validation, confidence_validation",
+    "Implement cross-validation with multiple analysis methods",
+    "Enhance training data with verified personality assessments",
+    "Add confidence interval reporting for all personality insights",
+    "Create feedback loops from user validation of results"
+  ],
+  "quality_metrics": {
+    "high_accuracy_validations": 2,
+    "low_accuracy_validations": 1,
+    "average_confidence": 0.8466666666666667,
+    "type_matching_accuracy": 0
+  }
+}

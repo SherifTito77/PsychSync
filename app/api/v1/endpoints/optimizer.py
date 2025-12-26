@@ -4,6 +4,8 @@ API endpoints for team composition optimization
 Provides team optimization and analysis features
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+
+from app.middleware.rate_limiter import check_rate_limit
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
@@ -148,6 +150,8 @@ class CompatibilityCheckResponse(BaseModel):
 # ENDPOINTS
 # =================================================================
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/optimize", response_model=OptimizedTeamResponse)
 async def optimize_team(
     request: OptimizeTeamRequest,
@@ -239,7 +243,9 @@ async def optimize_team(
         logger.error(f"Error optimizing team: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to optimize team composition"
+     
+@check_rate_limit(identifier="public", endpoint_type="public")
+       detail="Failed to optimize team composition"
         )
 
 
@@ -329,7 +335,9 @@ async def analyze_team(
         raise
     except Exception as e:
         logger.error(f"Error analyzing team: {str(e)}", exc_info=True)
-        raise HTTPException(
+        raise HTTPEx
+@check_rate_limit(identifier="public", endpoint_type="public")
+ception(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze team"
         )

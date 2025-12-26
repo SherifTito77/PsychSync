@@ -175,13 +175,16 @@ def cached(
 
 
 # Convenience functions
-def cache_get(key: str) -> Optional[Any]:
-    """Get value from cache"""
+async def cache_get(key: str) -> Optional[Any]:
+    """Get value from cache - async version for FastAPI compatibility"""
     return Cache.get(key)
 
 
-def cache_set(key: str, value: Any, expire: int = 3600) -> bool:
-    """Set value in cache"""
+async def cache_set(key: str, value: Any, expire: int = 3600, expire_seconds: int = None) -> bool:
+    """Set value in cache - async version for FastAPI compatibility"""
+    # Support both parameter names for backward compatibility
+    if expire_seconds is not None:
+        expire = expire_seconds
     return Cache.set(key, value, expire)
 
 

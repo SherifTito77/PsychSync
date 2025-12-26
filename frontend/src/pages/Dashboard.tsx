@@ -1,10 +1,12 @@
 // src/pages/Dashboard.tsx
+// src/pages/Dashboard.tsx
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTeam } from '../contexts/TeamContext';
 import Button from '../components/common/Button';
-import Icon from '../components/common/Icon'; // <-- IMPORT THE NEW COMPONENT
+import Icon from '../components/common/Icon';
 import { DashboardData } from '../types';
+import '../styles/mobile-utils.css'; // Import mobile utilities
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { teams, fetchTeams } = useTeam();
@@ -58,32 +60,32 @@ const Dashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* --- Welcome Header --- */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-3xl font-bold text-gray-900">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mobile-card">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mobile-text-responsive">
           Welcome back, {user?.full_name || 'User'}!
         </h1>
-        <p className="text-gray-600 mt-2">
+        <p className="text-gray-600 mt-2 mobile-text-responsive">
           Here's an overview of your team optimization platform.
         </p>
       </div>
       {/* --- Stats Grid --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statCards.map((card, index) => (
           <div
             key={index}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow mobile-card"
           >
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600 mobile-text-responsive">
                   {card.title}
                 </p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1 mobile-text-responsive">
                   {card.value}
                 </p>
               </div>
               {/* --- FIX: Use the new, standardized Icon component --- */}
-              <div className={`p-3 rounded-lg ${card.bgColor}`}>
+              <div className={`p-2 sm:p-3 rounded-lg ${card.bgColor} ml-3`}>
                 <Icon size="lg" className={card.textColor}>{card.icon}</Icon>
               </div>
             </div>
@@ -91,35 +93,35 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
       {/* --- Quick Actions --- */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mobile-card">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 mobile-text-responsive">
           Quick Actions
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button className="justify-center">Create New Team</Button>
-          <Button className="justify-center" variant="secondary">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <Button className="mobile-touch-target" mobileLarge>Create New Team</Button>
+          <Button className="mobile-touch-target" variant="secondary" mobileLarge>
             Run Assessment
           </Button>
-          <Button className="justify-center" variant="secondary">
+          <Button className="mobile-touch-target" variant="secondary" mobileLarge>
             Optimize Teams
           </Button>
         </div>
       </div>
       {/* --- Recent Activity --- */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mobile-card">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 mobile-text-responsive">
           Recent Activity
         </h2>
-        <div className="space-y-3">
-          <div className="flex items-center text-sm text-gray-600">
-            <span className="w-2 h-2 bg-green-400 rounded-full mr-3"></span>
-            Team "Frontend Squad" completed MBTI assessment
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-start sm:items-center text-sm text-gray-600 mobile-list-item">
+            <span className="w-2 h-2 bg-green-400 rounded-full mr-3 mt-1 sm:mt-0 flex-shrink-0"></span>
+            <span className="mobile-text-responsive">Team "Frontend Squad" completed MBTI assessment</span>
           </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <span className="w-2 h-2 bg-blue-400 rounded-full mr-3"></span>
-            New optimization suggestion for "Backend Team"
+          <div className="flex items-start sm:items-center text-sm text-gray-600 mobile-list-item">
+            <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-1 sm:mt-0 flex-shrink-0"></span>
+            <span className="mobile-text-responsive">New optimization suggestion for "Backend Team"</span>
           </div>
-          <div className="flex items-center text-sm text-gray-600">
+          <div className="flex items-start sm:items-center text-sm text-gray-600 mobile-list-item">
             <span className="w-2 h-2 bg-purple-400 rounded-full mr-3"></span>
             Analytics report generated for Q4 2024
           </div>

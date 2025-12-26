@@ -404,7 +404,7 @@ def follow_up_on_pending_feedback() -> Dict[str, Any]:
 
 
 @celery_app.task(name="generate_monthly_anonymous_feedback_report")
-def generate_monthly_anonymous_feedback_report(organization_id: str) -> Dict[str, Any]:
+async def generate_monthly_anonymous_feedback_report(organization_id: str) -> Dict[str, Any]:
     """
     Generate monthly anonymous feedback analytics report
 

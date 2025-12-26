@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
+
+from app.middleware.rate_limiter import check_rate_limit
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -32,6 +34,8 @@ class FeedbackStatusUpdate(BaseModel):
     public_resolution_notes: Optional[str] = Field(None, description="Public notes visible to submitter")
 
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/submit", response_model=Dict[str, Any])
 async def submit_anonymous_feedback(
     feedback_data: AnonymousFeedbackSubmission,
@@ -89,7 +93,9 @@ async def submit_anonymous_feedback(
                 "alternatives": [
                     "Try submitting again",
                     "Contact HR directly via confidential channel",
-                    "Use external reporting hotlines"
+                    "Use external 
+@check_rate_limit(identifier="public", endpoint_type="public")
+reporting hotlines"
                 ]
             }
         )
@@ -151,13 +157,15 @@ async def check_feedback_status(
             status_code=500,
             detail={
                 "error": "Unable to check status",
-                "message": "Please try again later or contact support",
+                "message": "Please try again later or co
+@check_rate_limit(identifier="public", endpoint_type="public")
+ntact support",
                 "alternatives": ["Contact HR support", "Try submitting new feedback"]
             }
         )
 
 
-@router.get("/categories", response_model=Dict[str, Any])
+@router.get("/categories", response_model=Dict[str, Any], dependencies=[Depends(get_current_user)])
 async def get_feedback_categories():
     """
     Get available feedback categories and subcategories

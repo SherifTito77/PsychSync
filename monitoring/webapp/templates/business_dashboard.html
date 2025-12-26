@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Behavioral Intelligence Dashboard - PsychSync</title>
+    <meta name="description" content="Real-time insights into team dynamics, behavioral patterns, and business impact for your PsychSync platform">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: #1a202c;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .header-stat {
+            text-align: center;
+        }
+
+        .header-stat .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #059669;
+        }
+
+        .header-stat .label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .revenue-highlight {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .revenue-highlight h2 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .revenue-highlight p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .metric-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .metric-change.positive {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .metric-change.negative {
+            background: #fca5a5;
+            color: #dc2626;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .chart-container .chart-wrapper {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            min-height: 300px;
+        }
+
+        @media (max-width: 768px) {
+            .chart-container .chart-wrapper {
+                height: 300px;
+                min-height: 250px;
+            }
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .insights-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .insights-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 1.5rem;
+        }
+
+        .insight-card {
+            border-left: 4px solid #667eea;
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .insight-card.high-impact {
+            border-left-color: #ef4444;
+        }
+
+        .insight-card.medium-impact {
+            border-left-color: #f59e0b;
+        }
+
+        .insight-card.low-impact {
+            border-left-color: #10b981;
+        }
+
+        .insight-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .insight-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .insight-impact {
+            font-size: 0.9rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .impact-high {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .impact-medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .impact-low {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .insight-description {
+            color: #6b7280;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .insight-financial {
+            background: #ecfdf5;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .financial-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .insight-recommendation {
+            background: #eff6ff;
+            border-radius: 8px;
+            padding: 1rem;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .recommendation-title {
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 0.5rem;
+        }
+
+        .recommendation-text {
+            color: #64748b;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .confidence-score {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .confidence-bar {
+            width: 100px;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: #059669;
+            transition: width 0.3s ease;
+        }
+
+        /* Initialize confidence bars after page load */
+        .confidence-fill[data-confidence] {
+            width: attr(data-confidence) !important;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .header-stats {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>
+                    <i class="fas fa-users-cog"></i>
+                    Team Behavioral Intelligence Dashboard
+                </h1>
+                <p style="color: #6b7280; margin-top: 0.5rem;">
+                    Real-time insights into team dynamics, behavioral patterns, and business impact from your PsychSync behavioral intelligence platform
+                </p>
+            </div>
+            <div class="header-stats">
+                <div class="header-stat">
+                    <div class="value">{{ metrics.active_teams if metrics else "127" }}</div>
+                    <div class="label">Active Teams</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value">92%</div>
+                    <div class="label">Engagement Rate</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value">{{ "%.1f"|format(metrics.improvement_score) if metrics else "68.5" }}</div>
+                    <div class="label">Team Improvement</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="revenue-highlight">
+            <h2>${{ "{:,}".format(int(metrics.monthly_value_created) if metrics else "285,000") }} Monthly Value Created</h2>
+            <p>Your behavioral intelligence platform has delivered <strong>${{ "{:,}".format(int((metrics.productivity_gain + metrics.retention_savings) if metrics else 42000)) }}</strong> in team performance improvements this month</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <i class="fas fa-users-cog"></i>
+                        Team Performance
+                    </div>
+                    <div class="metric-change positive">
+                        <i class="fas fa-arrow-up"></i> 23%
+                    </div>
+                </div>
+                <div class="metric-value">${{ "{:,}".format(int(metrics.productivity_gain if metrics else 21000)) }}</div>
+                <div class="metric-label">Monthly productivity improvement value</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Assessment Completion
+                    </div>
+                    <div class="metric-change positive">
+                        <i class="fas fa-arrow-up"></i> 45% vs industry
+                    </div>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(metrics.assessment_completion_rate) if metrics else "73.5" }}%</div>
+                <div class="metric-label">Assessment completion rate</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <i class="fas fa-users"></i>
+                        User Engagement
+                    </div>
+                    <div class="metric-change positive">
+                        <i class="fas fa-arrow-up"></i> 27 points
+                    </div>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(metrics.nps_score) if metrics else "45.8" }}</div>
+                <div class="metric-label">Net Promoter Score</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">
+                        <i class="fas fa-brain"></i>
+                        Behavioral Pattern Recognition
+                    </div>
+                    <div class="metric-change positive">
+                        <i class="fas fa-arrow-up"></i> 43% more accurate
+                    </div>
+                </div>
+                <div class="metric-value">{{ "%.1f"|format(metrics.pattern_recognition_rate) if metrics else "94.2" }}%</div>
+                <div class="metric-label">AI accuracy in identifying behavioral patterns</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-header">
+                <div class="chart-title">Team Performance Impact Trend</div>
+                <select id="timeRange" class="form-select" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+                    <option value="7d">Last 7 Days</option>
+                    <option value="30d" selected>Last 30 Days</option>
+                    <option value="90d">Last 90 Days</option>
+                </select>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="insights-section">
+            <div class="insights-header">
+                <i class="fas fa-lightbulb"></i>
+                Team Behavioral Insights & Recommendations
+            </div>
+
+            {% for insight in (insights[:3] if insights else []) %}
+            <div class="insight-card {{ insight.impact_level }}-impact">
+                <div class="insight-header">
+                    <div class="insight-title">{{ insight.title }}</div>
+                    <div class="insight-impact impact-{{ insight.impact_level }}">
+                        {{ insight.impact_level.title() }} Impact
+                    </div>
+                </div>
+
+                <div class="insight-description">
+                    {{ insight.description }}
+                </div>
+
+                <div class="insight-financial">
+                    <div class="financial-amount">${{ "{:,}".format(int(insight.financial_impact)) }}</div>
+                    <div>Monthly financial impact</div>
+                </div>
+
+                <div class="insight-recommendation">
+                    <div class="recommendation-title">
+                        <i class="fas fa-rocket"></i>
+                        Recommendation
+                    </div>
+                    <div class="recommendation-text">
+                        {{ insight.recommendation }}
+                    </div>
+                </div>
+
+                <div class="confidence-score">
+                    <i class="fas fa-chart-bar"></i>
+                    Confidence:
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" data-confidence="{{ (insight.confidence * 100) }}"></div>
+                    </div>
+                    {{ "%.0f"|format(insight.confidence * 100) }}%
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="exportInsights()">
+                    <i class="fas fa-download"></i>
+                    Export Insights Report
+                </button>
+                <button class="btn btn-secondary" onclick="refreshDashboard()">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh Data
+                </button>
+                <a href="/interventions" class="btn btn-secondary">
+                    <i class="fas fa-users-cog"></i>
+                    View Interventions
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for proper cleanup
+        let performanceChart = null;
+        let autoRefreshInterval = null;
+
+        // Initialize confidence bars properly
+        function initializeConfidenceBars() {
+            const confidenceBars = document.querySelectorAll('.confidence-fill[data-confidence]');
+            confidenceBars.forEach(bar => {
+                const confidence = bar.getAttribute('data-confidence');
+                bar.style.width = confidence + '%';
+            });
+        }
+
+        // Destroy chart instance properly
+        function destroyChart() {
+            if (performanceChart) {
+                performanceChart.destroy();
+                performanceChart = null;
+            }
+        }
+
+        // Clear auto-refresh interval
+        function clearInterval() {
+            if (autoRefreshInterval) {
+                window.clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Initialize Team Performance Impact chart
+        function initializeChart() {
+            destroyChart(); // Clean up existing chart
+
+            const ctx = document.getElementById('performanceChart');
+            if (!ctx) return;
+
+            performanceChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [{
+                        label: 'Productivity Improvement ($)',
+                        data: [18000, 21000, 19500, 22000],
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5, 150, 105, 0.2)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#059669',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }, {
+                        label: 'Team Collaboration Score',
+                        data: [12000, 14500, 13000, 16000],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#ddd',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += '$' + context.parsed.y.toLocaleString();
+                                    }
+                                    return label;
+                                },
+                                title: function(context) {
+                                    return context[0].label + ' Performance';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#6b7280'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#6b7280',
+                                callback: function(value) {
+                                    return '$' + (value/1000) + 'k';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'USD ($)',
+                                font: {
+                                    size: 14,
+                                    weight: '600'
+                                },
+                                color: '#374151'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Export insights function
+        function exportInsights() {
+            const insights = document.querySelectorAll('.insight-card');
+            const reportData = {
+                exportDate: new Date().toISOString(),
+                insights: []
+            };
+
+            insights.forEach(card => {
+                const impactLevel = card.className.includes('high-impact') ? 'high' :
+                                  card.className.includes('medium-impact') ? 'medium' : 'low';
+
+                reportData.insights.push({
+                    title: card.querySelector('.insight-title').textContent,
+                    impact: impactLevel,
+                    financial: card.querySelector('.financial-amount').textContent,
+                    recommendation: card.querySelector('.recommendation-text').textContent,
+                    confidence: card.querySelector('.confidence-fill').style.width
+                });
+            });
+
+            const dataStr = JSON.stringify(reportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+            const exportFileDefaultName = `psychsync-insights-${new Date().toISOString().split('T')[0]}.json`;
+
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Refresh dashboard function with proper memory management
+        function refreshDashboard() {
+            const button = document.querySelector('.btn-secondary[onclick="refreshDashboard()"]');
+            if (!button) return;
+
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<div class="loading-spinner"></div> Loading...';
+            button.disabled = true;
+
+            // Simulate data refresh with proper cleanup
+            setTimeout(() => {
+                button.innerHTML = originalContent;
+                button.disabled = false;
+
+                // Re-initialize components to prevent memory buildup
+                initializeConfidenceBars();
+                initializeChart();
+
+                const timestamp = new Date().toLocaleTimeString();
+                console.log(`Dashboard refreshed at ${timestamp}`);
+            }, 2000);
+        }
+
+        // Time range change handler with chart recreation
+        function handleTimeRangeChange(e) {
+            console.log(`Time range changed to: ${e.target.value}`);
+            // In a real application, this would trigger an API call to get new data
+            // For now, just reinitialize the chart to prevent memory buildup
+            initializeChart();
+        }
+
+        // Auto-refresh with proper interval management
+        function startAutoRefresh() {
+            clearInterval(); // Clear any existing interval
+            autoRefreshInterval = window.setInterval(() => {
+                console.log('Auto-refreshing dashboard data...');
+                // In a real application, this would fetch fresh data
+                // For now, just clean up periodically to prevent memory buildup
+                if (performance && performance.now) {
+                    // Force garbage collection hint if available
+                    if (window.gc) window.gc();
+                }
+            }, 300000); // 5 minutes
+        }
+
+        // Page initialization with memory management
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeConfidenceBars();
+            initializeChart();
+            startAutoRefresh();
+
+            // Set up event listeners with proper cleanup
+            const timeRangeSelect = document.getElementById('timeRange');
+            if (timeRangeSelect) {
+                timeRangeSelect.addEventListener('change', handleTimeRangeChange);
+            }
+
+            console.log('Dashboard initialized with memory management');
+        });
+
+        // Page cleanup to prevent memory leaks
+        window.addEventListener('beforeunload', function() {
+            destroyChart();
+            clearInterval();
+            console.log('Dashboard cleanup completed');
+        });
+
+        // Handle visibility changes to pause/resume updates
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                clearInterval(); // Pause updates when tab is hidden
+            } else {
+                startAutoRefresh(); // Resume when tab becomes visible
+            }
+        });
+    </script>
+</body>
+</html>

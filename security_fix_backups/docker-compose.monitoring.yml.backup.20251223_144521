@@ -1,0 +1,333 @@
+# PsychSync Enterprise Monitoring Stack
+# Complete monitoring solution with Prometheus, Grafana, and Datadog
+
+version: '3.8'
+
+services:
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.40.0
+    container_name: psychsync-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:latest/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - monitoring
+      - psychsync-network
+    restart: unless-stopped
+    environment:
+      - DATADOG_API_KEY=${DATADOG_API_KEY}
+
+  # Grafana - Visualization & Dashboards
+  grafana:
+    image: grafana/grafana:9.2.0
+    container_name: psychsync-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:latest/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:latest/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+      - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN:-localhost:3001}
+      - GF_SERVER_ROOT_URL=http://${GRAFANA_DOMAIN:-localhost:3001}
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_FEATURE_TOGGLES_PUBLICDashboards=true
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Alertmanager - Alert Management
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: psychsync-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager:latest/etc/alertmanager
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Node Exporter - System Metrics
+  node-exporter:
+    image: prom/node-exporter:v1.5.0
+    container_name: psychsync-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # PostgreSQL Exporter - Database Metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.11.0
+    container_name: psychsync-postgres-exporter
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-psychsync}?sslmode=disable
+    networks:
+      - monitoring
+      - psychsync-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # Redis Exporter - Cache Metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.37.0
+    container_name: psychsync-redis-exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    networks:
+      - monitoring
+      - psychsync-network
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  # Nginx Exporter - Web Server Metrics
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:0.10.0
+    container_name: psychsync-nginx-exporter
+    ports:
+      - "9113:9113"
+    command:
+      - '-nginx.scrape-uri=http://nginx:8080/nginx_status'
+    networks:
+      - monitoring
+      - psychsync-network
+    restart: unless-stopped
+    depends_on:
+      - nginx
+
+  # cAdvisor - Container Metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.46.0
+    container_name: psychsync-cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:latest/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Blackbox Exporter - External Monitoring
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.21.0
+    container_name: psychsync-blackbox-exporter
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./monitoring/blackbox:latest/config
+    command:
+      - '--config.file=/config/blackbox.yml'
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Datadog Agent - APM & Logs
+  datadog-agent:
+    image: datadog/agent:7.40.0
+    container_name: psychsync-datadog-agent
+    ports:
+      - "8126:8126"  # Trace receiver
+      - "10518:10518"  # DogStatsD
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_SITE=${DATADOG_SITE:-datadoghq.com}
+      - DD_ENV=${DD_ENV:-production}
+      - DD_SERVICE=psychsync-monitoring
+      - DD_VERSION=1.0.0
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_APM_ENABLED=true
+      - DD_PROFILING_ENABLED=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_AC_EXCLUDE="name:docker"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      - ./monitoring/datadog/conf.d:/etc/datadog-agent/conf.d
+    networks:
+      - monitoring
+      - psychsync-network
+    restart: unless-stopped
+
+  # Sentry - Error Tracking
+  sentry:
+    image: sentry:22.10.0
+    container_name: psychsync-sentry
+    ports:
+      - "9000:9000"
+    environment:
+      - SENTRY_SECRET_KEY=${SENTRY_SECRET_KEY}
+      - SENTRY_POSTGRES_HOST=sentry-postgres
+      - SENTRY_POSTGRES_USER=sentry
+      - SENTRY_POSTGRES_PASSWORD=${SENTRY_DB_PASSWORD}
+      - SENTRY_POSTGRES_DBNAME=sentry
+      - SENTRY_REDIS_HOST=sentry-redis
+      - SENTRY_SERVER_EMAIL=${SENTRY_EMAIL}
+      - SENTRY_EMAIL_HOST=${SMTP_HOST}
+      - SENTRY_EMAIL_PORT=${SMTP_PORT}
+      - SENTRY_EMAIL_USER=${SMTP_USER}
+      - SENTRY_EMAIL_PASSWORD=${SMTP_PASSWORD}
+      - SENTRY_EMAIL_USE_TLS=true
+      - SENTRY_WEB_HOST=0.0.0.0
+      - SENTRY_BIND_PORT=9000
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+
+  # Sentry PostgreSQL
+  sentry-postgres:
+    image: postgres:15
+    container_name: psychsync-sentry-postgres
+    environment:
+      - POSTGRES_USER=sentry
+      - POSTGRES_PASSWORD=${SENTRY_DB_PASSWORD}
+      - POSTGRES_DBNAME=sentry
+    volumes:
+      - sentry-postgres-data:/var/lib/postgresql/data
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Sentry Redis
+  sentry-redis:
+    image: redis:7-alpine
+    container_name: psychsync-sentry-redis
+    volumes:
+      - sentry-redis-data:/data
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Sentry Worker
+  sentry-worker:
+    image: sentry:22.10.0
+    container_name: psychsync-sentry-worker
+    command: sentry run worker
+    environment:
+      - SENTRY_SECRET_KEY=${SENTRY_SECRET_KEY}
+      - SENTRY_POSTGRES_HOST=sentry-postgres
+      - SENTRY_POSTGRES_USER=sentry
+      - SENTRY_POSTGRES_PASSWORD=${SENTRY_DB_PASSWORD}
+      - SENTRY_POSTGRES_DBNAME=sentry
+      - SENTRY_REDIS_HOST=sentry-redis
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+
+  # Sentry Cron
+  sentry-cron:
+    image: sentry:22.10.0
+    container_name: psychsync-sentry-cron
+    command: sentry run cron
+    environment:
+      - SENTRY_SECRET_KEY=${SENTRY_SECRET_KEY}
+      - SENTRY_POSTGRES_HOST=sentry-postgres
+      - SENTRY_POSTGRES_USER=sentry
+      - SENTRY_POSTGRES_PASSWORD=${SENTRY_DB_PASSWORD}
+      - SENTRY_POSTGRES_DBNAME=sentry
+      - SENTRY_REDIS_HOST=sentry-redis
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - sentry-postgres
+      - sentry-redis
+
+  # Loki - Log Aggregation (optional)
+  loki:
+    image: grafana/loki:2.7.0
+    container_name: psychsync-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki:latest/etc/loki
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Promtail - Log Collection
+  promtail:
+    image: grafana/promtail:2.7.0
+    container_name: psychsync-promtail
+    ports:
+      - "9080:9080"
+    volumes:
+      - ./monitoring/promtail:latest/etc/promtail
+      - /var/log:latest/var/log:ro
+      - /var/lib/docker/containers:latest/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+networks:
+  monitoring:
+    driver: bridge
+  psychsync-network:
+    external: true
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
+  sentry-postgres-data:
+  sentry-redis-data:
+  loki-data:

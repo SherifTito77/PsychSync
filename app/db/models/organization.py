@@ -20,7 +20,19 @@ class Organization(Base):
     
     # Relationships
     users = relationship("User", back_populates="organization", foreign_keys="[User.organization_id]")
-    # teams = relationship("Team", back_populates="organization", foreign_keys="[Team.organization_id]")
+    teams = relationship("Team", back_populates="organization", foreign_keys="[Team.organization_id]")
+
+    # Intervention relationships
+    interventions = relationship("Intervention", back_populates="organization")
+
+    # Employee Safety relationships - Temporarily disabled due to circular import
+    # safety_incidents = relationship("SafetyIncident", back_populates="organization")
+    # safety_resources = relationship("SafetyResource", back_populates="organization")
+    # safety_training = relationship("SafetyTraining", back_populates="organization")
+    # wellness_assessments = relationship("WellnessAssessment", back_populates="organization")
+
+    # Growth trajectory relationships
+    growth_trajectories = relationship("GrowthTrajectory", back_populates="organization")
 
     # Email Analysis Relationships - Temporarily disabled
     # communication_patterns = relationship("CommunicationPatterns", back_populates="organization", cascade="all, delete-orphan")

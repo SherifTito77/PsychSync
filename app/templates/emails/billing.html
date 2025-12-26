@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>
+    {% if billing_event == 'payment_succeeded' %}
+        Payment Successful! 💳
+    {% elif billing_event == 'subscription_created' %}
+        Subscription Activated! 🎉
+    {% elif billing_event == 'subscription_updated' %}
+        Subscription Updated! 🔄
+    {% elif billing_event == 'subscription_cancelled' %}
+        Subscription Cancelled 📧
+    {% elif billing_event == 'invoice_failed' %}
+        Payment Failed ⚠️
+    {% elif billing_event == 'payment_method_added' %}
+        Payment Method Added 💳
+    {% else %}
+        Billing Update 📋
+    {% endif %}
+</h2>
+
+<p>Hi {{ user_name }},</p>
+
+{% if billing_event == 'payment_succeeded' %}
+<div class="success-box">
+    <h3>Payment Confirmed</h3>
+    <p>Your payment of <strong>${{ amount|round(2) }}</strong> has been successfully processed.</p>
+    <p>Thank you for your continued use of PsychSync!</p>
+</div>
+
+{% elif billing_event == 'subscription_created' %}
+<div class="success-box">
+    <h3>Welcome to {{ plan_name|title }}!</h3>
+    <p>Your subscription has been successfully activated. You now have access to:</p>
+    <ul>
+        {% for feature in plan_features %}
+        <li>{{ feature }}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% elif billing_event == 'subscription_updated' %}
+<div class="feature-list">
+    <h3>Subscription Updated</h3>
+    <p>Your subscription has been successfully updated to <strong>{{ plan_name|title }}</strong>.</p>
+    {% if upgraded %}
+    <p>You now have access to additional features and higher limits!</p>
+    {% else %}
+    <p>Your subscription changes have been applied successfully.</p>
+    {% endif %}
+</div>
+
+{% elif billing_event == 'subscription_cancelled' %}
+<div class="warning-box">
+    <h3>Subscription Cancelled</h3>
+    <p>Your subscription has been cancelled and will remain active until <strong>{{ current_period_end|date:'F j, Y' }}</strong>.</p>
+    <p>After that date, your account will be downgraded to our Free plan.</p>
+</div>
+
+{% elif billing_event == 'invoice_failed' %}
+<div class="error-box">
+    <h3>Payment Failed</h3>
+    <p>We were unable to process your payment of <strong>${{ amount|round(2) }}</strong>.</p>
+    <p><strong>Reason:</strong> {{ failure_reason }}</p>
+    <p>Please update your payment information to avoid service interruption.</p>
+</div>
+
+{% elif billing_event == 'payment_method_added' %}
+<div class="feature-list">
+    <h3>Payment Method Added</h3>
+    <p>Your new payment method ({{ payment_method_type|title }} ending in {{ payment_method_last4 }}) has been successfully added to your account.</p>
+</div>
+
+{% endif %}
+
+{% if billing_event in ['payment_succeeded', 'subscription_created', 'subscription_updated'] %}
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="button">Go to Dashboard</a>
+    {% if billing_event == 'subscription_created' %}
+    <a href="{{ getting_started_url }}" class="button secondary">Getting Started</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if billing_event == 'invoice_failed' %}
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ billing_url }}" class="button">Update Payment Method</a>
+    <a href="{{ support_url }}" class="button secondary">Contact Support</a>
+</div>
+{% endif %}
+
+{% if billing_event in ['subscription_cancelled', 'invoice_failed'] %}
+<div class="warning-box" style="margin-top: 25px;">
+    <h4>💡 Need Help?</h4>
+    <p>If you have any questions about your subscription or billing, our support team is here to assist you.</p>
+    <p style="margin-top: 10px;">
+        <a href="{{ support_url }}" style="color: #2563eb; text-decoration: none;">Contact Support →</a>
+    </p>
+</div>
+{% endif %}
+
+{% if billing_event == 'payment_succeeded' %}
+<h3>Payment Details</h3>
+<div class="feature-list">
+    <ul>
+        <li><strong>Amount:</strong> ${{ amount|round(2) }} {{ currency|upper }}</li>
+        <li><strong>Date:</strong> {{ payment_date|date:'F j, Y' }}</li>
+        <li><strong>Transaction ID:</strong> {{ transaction_id }}</li>
+        {% if invoice_id %}
+        <li><strong>Invoice:</strong> #{{ invoice_id }}</li>
+        {% endif %}
+    </ul>
+</div>
+
+<p style="margin-top: 20px;">
+    <a href="{{ invoice_url }}" class="button secondary">Download Invoice</a>
+</p>
+{% endif %}
+
+{% if billing_event == 'subscription_created' or billing_event == 'subscription_updated' %}
+<h3>Subscription Details</h3>
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="stat-number">{{ plan_name|title }}</div>
+        <div class="stat-label">Plan</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number">${{ monthly_price }}/mo</div>
+        <div class="stat-label">Monthly Price</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number">{{ billing_cycle }}</div>
+        <div class="stat-label">Billing Cycle</div>
+    </div>
+    {% if annual_discount %}
+    <div class="stat-box" style="background: #d1fae5;">
+        <div class="stat-number">{{ annual_discount }}%</div>
+        <div class="stat-label">Annual Discount</div>
+    </div>
+    {% endif %}
+</div>
+
+<div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0;">
+    <h4>📅 Next Billing Date</h4>
+    <p>Your next billing date is <strong>{{ next_billing_date|date:'F j, Y' }}</strong>.</p>
+    {% if auto_renew %}
+    <p>Your subscription will automatically renew on this date.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if billing_event == 'subscription_cancelled' %}
+<h3>What Happens Next?</h3>
+<div class="feature-list">
+    <h4>Transition to Free Plan:</h4>
+    <ul>
+        <li><strong>Current Period:</strong> Full access until {{ current_period_end|date:'F j, Y' }}</li>
+        <li><strong>Team Size:</strong> Limited to 5 team members</li>
+        <li><strong>Assessments:</strong> Limited to 10 per month</li>
+        <li><strong>Features:</strong> Basic team optimization only</li>
+        <li><strong>Support:</strong> Community support only</li>
+    </ul>
+</div>
+
+<p style="margin-top: 20px;">
+    <strong>Changed your mind?</strong> You can reactivate your subscription anytime before {{ current_period_end|date:'F j, Y' }}.
+</p>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ reactivate_url }}" class="button">Reactivate Subscription</a>
+</div>
+{% endif %}
+
+<h3>Manage Your Billing</h3>
+<p>You can manage your subscription, payment methods, and billing history anytime from your account settings:</p>
+<div style="background: #f0f9ff; border-left: 4px solid #0284c7; padding: 20px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+    <ul>
+        <li><strong>View Plans:</strong> Compare different subscription tiers</li>
+        <li><strong>Update Payment:</strong> Add or change payment methods</li>
+        <li><strong>Download Invoices:</strong> Access your billing history</li>
+        <li><strong>Change Plan:</strong> Upgrade or downgrade your subscription</li>
+        <li><strong>Cancel Subscription:</strong> Manage your subscription preferences</li>
+    </ul>
+</div>
+
+<p style="margin-top: 15px;">
+    <a href="{{ billing_url }}" class="button secondary">Manage Billing →</a>
+</p>
+
+{% if billing_event == 'payment_succeeded' %}
+<div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 20px; border-radius: 8px; margin: 25px 0;">
+    <h4>🎉 Thank You for Your Support!</h4>
+    <p>Your continued support helps us improve and expand PsychSync's features for teams everywhere.</p>
+</div>
+{% endif %}
+
+<div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0; border: 1px solid #e5e7eb;">
+    <h4>📧 Email Preferences</h4>
+    <p>Want to change which billing notifications you receive? You can update your email preferences in your account settings.</p>
+    <p style="margin-top: 10px;">
+        <a href="{{ email_settings_url }}" style="color: #2563eb; text-decoration: none;">Update Email Preferences →</a>
+    </p>
+</div>
+
+<p style="margin-top: 30px;">
+    Best regards,<br>
+    The PsychSync Team
+</p>
+
+<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+<p style="font-size: 14px; color: #64748b;">
+    <strong>Need help with billing?</strong> Visit our help center or contact support for assistance with any billing questions.
+</p>
+{% endblock %}

@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import {
   Globe,
-  ChevronDown,
+  ChevronDown
   Check
 } from 'lucide-react';
 import Button from './Button';
 import { Card } from '../common/card';
+
 interface Language {
   code: string;
   name: string;
   flag: string;
   rtl: boolean;
 }
+
 interface LanguageSelectorProps {
   className?: string;
   onLanguageChange?: (language: Language) => void;
 }
+
 const languages: Language[] = [
   { code: 'en', name: 'English', flag: '🇺🇸', rtl: false },
   { code: 'es', name: 'Español', flag: '🇪🇸', rtl: false },
@@ -33,6 +36,7 @@ const languages: Language[] = [
   { code: 'ru', name: 'Русский', flag: '🇷🇺', rtl: false },
   { code: 'tr', name: 'Türkçe', flag: '🇹🇷', rtl: false }
 ];
+
 const translations: Record<string, Record<string, string>> = {
   // English
   en: {
@@ -139,10 +143,12 @@ const translations: Record<string, Record<string, string>> = {
     logout: 'تسجيل الخروج'
   }
 };
+
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ className, onLanguageChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState<Language>(languages[0]);
   const [searchTerm, setSearchTerm] = useState('');
+
   useEffect(() => {
     // Load saved language preference
     const savedLanguage = localStorage.getItem('preferred-language');
@@ -153,24 +159,31 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ className, o
       }
     }
   }, []);
+
   const handleLanguageSelect = (language: Language) => {
     setCurrentLanguage(language);
     localStorage.setItem('preferred-language', language.code);
+
     // Update document direction for RTL languages
     document.documentElement.dir = language.rtl ? 'rtl' : 'ltr';
     document.documentElement.lang = language.code;
+
     if (onLanguageChange) {
       onLanguageChange(language);
     }
+
     setIsOpen(false);
   };
+
   const filteredLanguages = languages.filter(lang =>
     lang.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lang.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   const translate = (key: string): string => {
     return translations[currentLanguage.code]?.[key] || translations.en[key];
   };
+
   return (
     <div className={`relative ${className}`}>
       {/* Language Button */}
@@ -185,6 +198,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ className, o
           <ChevronDown className="w-4 h-4" />
         </div>
       </Button>
+
       {/* Dropdown */}
       {isOpen && (
         <>
@@ -195,6 +209,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ className, o
           <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
             <div className="p-4 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-3">{translate('select_language')}</h3>
+
               {/* Search */}
               <div className="relative">
                 <input
@@ -206,6 +221,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ className, o
                 />
               </div>
             </div>
+
             {/* Language List */}
             <div className="overflow-y-auto max-h-64">
               <div className="p-2 space-y-1">
@@ -229,6 +245,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ className, o
                 ))}
               </div>
             </div>
+
             {/* Footer */}
             <div className="p-4 border-t border-gray-200 bg-gray-50">
               <div className="text-xs text-gray-600">
@@ -242,9 +259,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ className, o
     </div>
   );
 };
+
 // Translation Hook
 export const useTranslation = () => {
   const [currentLanguage, setCurrentLanguage] = useState<Language>(languages[0]);
+
   useEffect(() => {
     const savedLanguage = localStorage.getItem('preferred-language');
     if (savedLanguage) {
@@ -254,9 +273,11 @@ export const useTranslation = () => {
       }
     }
   }, []);
+
   const translate = (key: string): string => {
     return translations[currentLanguage.code]?.[key] || translations.en[key];
   };
+
   const setLanguage = (languageCode: string) => {
     const language = languages.find(lang => lang.code === languageCode);
     if (language) {
@@ -266,6 +287,7 @@ export const useTranslation = () => {
       document.documentElement.lang = languageCode;
     }
   };
+
   return {
     currentLanguage,
     translate,
@@ -273,6 +295,7 @@ export const useTranslation = () => {
     isRTL: currentLanguage.rtl
   };
 };
+
 // Format date/time according to locale
 export const formatDateTime = (date: Date, locale: string = 'en'): string => {
   try {
@@ -287,6 +310,7 @@ export const formatDateTime = (date: Date, locale: string = 'en'): string => {
     return date.toLocaleString();
   }
 };
+
 // Format number according to locale
 export const formatNumber = (
   number: number,
@@ -299,6 +323,7 @@ export const formatNumber = (
     return number.toString();
   }
 };
+
 // Currency formatting
 export const formatCurrency = (
   amount: number,
@@ -314,6 +339,7 @@ export const formatCurrency = (
     return `${currency} ${amount.toFixed(2)}`;
   }
 };
+
 // Export all supported languages
 export { languages };
 export { translations };

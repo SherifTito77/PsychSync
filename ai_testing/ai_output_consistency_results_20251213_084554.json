@@ -1,0 +1,117 @@
+{
+  "test_summary": {
+    "total_inputs_tested": 5,
+    "total_model_combinations": 30,
+    "overall_consistency_rate": 0.9818764694369426,
+    "target_consistency_rate": 0.8,
+    "min_consistency_score": 0.963040949471095,
+    "max_consistency_score": 1.0,
+    "total_issues_found": 1,
+    "meets_target": true
+  },
+  "consistency_distribution": {
+    "exact_match": 5
+  },
+  "detailed_results": [
+    {
+      "test_id": "consistency_test_personality_analysis_001",
+      "input_id": "personality_analysis_001",
+      "input_type": "personality_analysis",
+      "consistency_level": "exact_match",
+      "overall_score": 0.963040949471095,
+      "content_similarity": 0.9793672674677526,
+      "structural_similarity": 1.0,
+      "semantic_similarity": 0.8974358974358975,
+      "confidence_variance": 0.006549602984583801,
+      "processing_time_variance": 0.32723733284915485,
+      "issues_count": 0,
+      "issues": [],
+      "recommendations": [
+        "Consistency metrics are within acceptable ranges"
+      ]
+    },
+    {
+      "test_id": "consistency_test_team_recommendations_001",
+      "input_id": "team_recommendations_001",
+      "input_type": "team_recommendation",
+      "consistency_level": "exact_match",
+      "overall_score": 0.9816715904974934,
+      "content_similarity": 0.9871358952656171,
+      "structural_similarity": 1.0,
+      "semantic_similarity": 0.951769406392694,
+      "confidence_variance": 0.0023867127423277024,
+      "processing_time_variance": 1.4467779951654516,
+      "issues_count": 1,
+      "issues": [
+        "High variance in processing times"
+      ],
+      "recommendations": [
+        "Optimize model performance consistency"
+      ]
+    },
+    {
+      "test_id": "consistency_test_assessment_insights_001",
+      "input_id": "assessment_insights_001",
+      "input_type": "assessment_insight",
+      "consistency_level": "exact_match",
+      "overall_score": 1.0,
+      "content_similarity": 1.0,
+      "structural_similarity": 1.0,
+      "semantic_similarity": 1.0,
+      "confidence_variance": 0.010553755932262706,
+      "processing_time_variance": 0.7742133111943499,
+      "issues_count": 0,
+      "issues": [],
+      "recommendations": [
+        "Consistency metrics are within acceptable ranges"
+      ]
+    },
+    {
+      "test_id": "consistency_test_team_dynamics_001",
+      "input_id": "team_dynamics_001",
+      "input_type": "team_dynamics",
+      "consistency_level": "exact_match",
+      "overall_score": 1.0,
+      "content_similarity": 1.0,
+      "structural_similarity": 1.0,
+      "semantic_similarity": 1.0,
+      "confidence_variance": 0.006759046531622824,
+      "processing_time_variance": 0.6376500814997816,
+      "issues_count": 0,
+      "issues": [],
+      "recommendations": [
+        "Consistency metrics are within acceptable ranges"
+      ]
+    },
+    {
+      "test_id": "consistency_test_minimal_data_001",
+      "input_id": "minimal_data_001",
+      "input_type": "personality_analysis",
+      "consistency_level": "exact_match",
+      "overall_score": 0.9646698072161247,
+      "content_similarity": 0.9797936663301717,
+      "structural_similarity": 1.0,
+      "semantic_similarity": 0.9024390243902439,
+      "confidence_variance": 0.00925860342188818,
+      "processing_time_variance": 0.6036386555340781,
+      "issues_count": 0,
+      "issues": [],
+      "recommendations": [
+        "Consistency metrics are within acceptable ranges"
+      ]
+    }
+  ],
+  "critical_issues": [],
+  "recommendations": [
+    "\u2705 Excellent AI consistency - production ready",
+    "Implement standardized response templates across all AI models",
+    "Establish consistency monitoring in production",
+    "Regular calibration of confidence scoring mechanisms"
+  ],
+  "quality_metrics": {
+    "avg_confidence_variance": 0.007101544322537043,
+    "avg_processing_time_variance": 0.7579034752485632,
+    "high_consistency_tests": 5,
+    "low_consistency_tests": 0
+  }
+}

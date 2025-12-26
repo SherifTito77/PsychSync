@@ -1,0 +1,291 @@
+{
+  "summary": {
+    "total_tests": 3,
+    "successful_tests": 0,
+    "overall_success_rate": 0.0,
+    "target_success_rate": 95,
+    "meets_target": false
+  },
+  "test_results": [
+    {
+      "test_name": "test_scoring_consistency_across_assessments",
+      "success": false,
+      "error": "name 'r' is not defined",
+      "details": {}
+    },
+    {
+      "test_name": "test_same_input_same_output",
+      "success": false,
+      "error": "name 'r' is not defined",
+      "details": {}
+    },
+    {
+      "test_name": "Scoring Algorithm Stability",
+      "success": false,
+      "details": {
+        "stability_score": 0.8333333333333334,
+        "stability_threshold": 0.95,
+        "total_cases_tested": 24,
+        "successful_cases": 20,
+        "stability_results": [
+          {
+            "assessment_type": "big_five",
+            "edge_case_results": [
+              {
+                "case": "all_minimum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "all_maximum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "alternating",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "random",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              }
+            ]
+          },
+          {
+            "assessment_type": "mbti",
+            "edge_case_results": [
+              {
+                "case": "all_minimum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "all_maximum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "alternating",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "random",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              }
+            ]
+          },
+          {
+            "assessment_type": "enneagram",
+            "edge_case_results": [
+              {
+                "case": "all_minimum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "all_maximum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "alternating",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "random",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              }
+            ]
+          },
+          {
+            "assessment_type": "disc",
+            "edge_case_results": [
+              {
+                "case": "all_minimum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "all_maximum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "alternating",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "random",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              }
+            ]
+          },
+          {
+            "assessment_type": "strengths_finder",
+            "edge_case_results": [
+              {
+                "case": "all_minimum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "all_maximum",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "alternating",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              },
+              {
+                "case": "random",
+                "success": true,
+                "result": {
+                  "has_final_scores": true,
+                  "has_confidence": true,
+                  "has_metadata": true
+                }
+              }
+            ]
+          },
+          {
+            "assessment_type": "predictive_index",
+            "edge_case_results": [
+              {
+                "case": "all_minimum",
+                "success": false,
+                "error": "name 'r' is not defined"
+              },
+              {
+                "case": "all_maximum",
+                "success": false,
+                "error": "name 'r' is not defined"
+              },
+              {
+                "case": "alternating",
+                "success": false,
+                "error": "name 'r' is not defined"
+              },
+              {
+                "case": "random",
+                "success": false,
+                "error": "name 'r' is not defined"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "engine_capabilities": {
+    "supported_assessments": [
+      "big_five",
+      "mbti",
+      "enneagram",
+      "disc",
+      "strengths_finder",
+      "predictive_index"
+    ],
+    "scoring_algorithms": [
+      "AssessmentType.BIG_FIVE",
+      "AssessmentType.MBTI",
+      "AssessmentType.ENNEAGRAM",
+      "AssessmentType.DISC",
+      "AssessmentType.STRENGTHS_FINDER",
+      "AssessmentType.PREDICTIVE_INDEX"
+    ],
+    "question_bank_sizes": {
+      "big_five": 60,
+      "mbti": 40,
+      "enneagram": 58,
+      "disc": 60,
+      "strengths_finder": 170,
+      "predictive_index": 12
+    }
+  }
+}

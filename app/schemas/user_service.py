@@ -54,22 +54,19 @@ class user_service:
     @staticmethod
     def authenticate(db: Session, email: str, password: str) -> Optional[User]:
         """Authenticate user with email and password"""
-        print(f"🔍 DEBUG: Attempting to authenticate user: {email}")
-        
+        # SECURITY: Removed debug print to prevent information leakage
+
         user = user_service.get_by_email(db, email)
         if not user:
-            print(f"❌ DEBUG: User not found with email: {email}")
+            # SECURITY: Removed debug print to prevent information leakage
             return None
-        
-        print(f"✓ DEBUG: User found: {user.id}, checking password...")
-        print(f"✓ DEBUG: Stored hash: {user.password_hash[:30]}...")
-        
+
+        # SECURITY: Removed debug prints showing password hash
         # CRITICAL FIX: Use password_hash NOT password_hash
         if not verify_password(password, user.password_hash):
-            print(f"❌ DEBUG: Password verification failed")
+            # SECURITY: Removed debug print to prevent information leakage
             return None
-        
-        print(f"✓ DEBUG: Password verified successfully!")
+
         return user
     
     @staticmethod

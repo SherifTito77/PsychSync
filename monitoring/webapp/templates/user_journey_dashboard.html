@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Journey Analytics - PsychSync Monitor</title>
+    <meta name="description" content="Complete customer journey analytics and experience optimization insights">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: #1a202c;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        .journey-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .overview-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .overview-card .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .overview-card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .overview-card .label {
+            color: #6b7280;
+            font-size: 1rem;
+        }
+
+        .conversion-funnel {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .funnel-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .funnel-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .funnel-step {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        .funnel-step:hover {
+            border-color: #667eea;
+            background: #f0f9ff;
+        }
+
+        .funnel-step .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-weight: 600;
+        }
+
+        .funnel-step .step-name {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .funnel-step .step-users {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .funnel-step .step-rate {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .funnel-step .drop-off {
+            background: #fef2f2;
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #dc2626;
+        }
+
+        .drop-off-heatmap {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .heatmap-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: 200px repeat(7, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .heatmap-label {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .engagement-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .engagement-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .engagement-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .feature-adoption {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .feature-name {
+            flex: 1;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .adoption-bar {
+            width: 200px;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0 1rem;
+        }
+
+        .adoption-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #059669, #10b981);
+            transition: width 0.3s ease;
+        }
+
+        .adoption-percentage {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #374151;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .insights-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .insights-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .insight-item {
+            border-left: 4px solid #f59e0b;
+            background: #fef3c7;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .insight-item.critical {
+            border-left-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .insight-item.opportunity {
+            border-left-color: #059669;
+            background: #ecfdf5;
+        }
+
+        .insight-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .insight-description {
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .funnel-steps {
+                grid-template-columns: 1fr;
+            }
+
+            .heatmap-grid {
+                grid-template-columns: 150px repeat(7, 1fr);
+                gap: 0.25rem;
+            }
+
+            .engagement-metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <i class="fas fa-route"></i>
+                User Journey Analytics
+            </h1>
+            <p>Understand how users interact with your PsychSync platform and optimize their experience</p>
+        </div>
+
+        <div class="journey-overview">
+            <div class="overview-card">
+                <div class="icon" style="color: #059669;">👥</div>
+                <div class="value">10,000</div>
+                <div class="label">Monthly Visitors</div>
+            </div>
+            <div class="overview-card">
+                <div class="icon" style="color: #3b82f6;">📈</div>
+                <div class="value">65.8%</div>
+                <div class="label">Conversion Rate</div>
+            </div>
+            <div class="overview-card">
+                <div class="icon" style="color: #8b5cf6;">⏱️</div>
+                <div class="value">12.5 min</div>
+                <div class="label">Avg Time to First Assessment</div>
+            </div>
+            <div class="overview-card">
+                <div class="icon" style="color: #f59e0b;">😊</div>
+                <div class="value">72.3</div>
+                <div class="label">NPS Score</div>
+            </div>
+        </div>
+
+        <div class="conversion-funnel">
+            <div class="funnel-header">
+                <i class="fas fa-filter"></i>
+                Assessment Conversion Funnel
+            </div>
+            <div class="funnel-steps">
+                <div class="funnel-step">
+                    <div class="step-number">1</div>
+                    <div class="step-name">Visitors</div>
+                    <div class="step-users">10,000</div>
+                    <div class="step-rate">100%</div>
+                </div>
+                <div class="funnel-step">
+                    <div class="step-number">2</div>
+                    <div class="step-name">Signups</div>
+                    <div class="step-users">1,234</div>
+                    <div class="step-rate">12.3%</div>
+                    <div class="drop-off">87.7% drop-off</div>
+                </div>
+                <div class="funnel-step">
+                    <div class="step-number">3</div>
+                    <div class="step-name">First Assessment</div>
+                    <div class="step-users">891</div>
+                    <div class="step-rate">72.2%</div>
+                    <div class="drop-off">27.8% drop-off</div>
+                </div>
+                <div class="funnel-step">
+                    <div class="step-number">4</div>
+                    <div class="step-name">Completed</div>
+                    <div class="step-users">658</div>
+                    <div class="step-rate">73.8%</div>
+                    <div class="drop-off">26.2% drop-off</div>
+                </div>
+                <div class="funnel-step">
+                    <div class="step-number">5</div>
+                    <div class="step-name">Results Viewed</div>
+                    <div class="step-users">623</div>
+                    <div class="step-rate">94.7%</div>
+                    <div class="drop-off">5.3% drop-off</div>
+                </div>
+            </div>
+            <canvas id="funnelChart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="drop-off-heatmap">
+            <div class="heatmap-title">
+                <i class="fas fa-thermometer-half"></i>
+                User Drop-off Heatmap (Last 30 Days)
+            </div>
+            <div class="heatmap-grid">
+                <div class="heatmap-label">Step / Day</div>
+                <div class="heatmap-label">Mon</div>
+                <div class="heatmap-label">Tue</div>
+                <div class="heatmap-label">Wed</div>
+                <div class="heatmap-label">Thu</div>
+                <div class="heatmap-label">Fri</div>
+                <div class="heatmap-label">Sat</div>
+                <div class="heatmap-label">Sun</div>
+
+                <div class="heatmap-label">Signups</div>
+                <div class="heatmap-cell" style="background: #ef4444;" data-value="25%">25%</div>
+                <div class="heatmap-cell" style="background: #f87171;" data-value="22%">22%</div>
+                <div class="heatmap-cell" style="background: #dc2626;" data-value="28%">28%</div>
+                <div class="heatmap-cell" style="background: #ef4444;" data-value="25%">25%</div>
+                <div class="heatmap-cell" style="background: #f87171;" data-value="23%">23%</div>
+                <div class="heatmap-cell" style="background: #fca5a5;" data-value="18%">18%</div>
+                <div class="heatmap-cell" style="background: #fca5a5;" data-value="19%">19%</div>
+
+                <div class="heatmap-label">Assessment</div>
+                <div class="heatmap-cell" style="background: #f59e0b;" data-value="35%">35%</div>
+                <div class="heatmap-cell" style="background: #f59e0b;" data-value="32%">32%</div>
+                <div class="heatmap-cell" style="background: #ef4444;" data-value="38%">38%</div>
+                <div class="heatmap-cell" style="background: #f59e0b;" data-value="35%">35%</div>
+                <div class="heatmap-cell" style="background: #f59e0b;" data-value="33%">33%</div>
+                <div class="heatmap-cell" style="background: #fbbf24;" data-value="28%">28%</div>
+                <div class="heatmap-cell" style="background: #fbbf24;" data-value="25%">25%</div>
+
+                <div class="heatmap-label">Completion</div>
+                <div class="heatmap-cell" style="background: #eab308;" data-value="42%">42%</div>
+                <div class="heatmap-cell" style="background: #eab308;" data-value="40%">40%</div>
+                <div class="heatmap-cell" style="background: #f59e0b;" data-value="45%">45%</div>
+                <div class="heatmap-cell" style="background: #eab308;" data-value="42%">42%</div>
+                <div class="heatmap-cell" style="background: #eab308;" data-value="41%">41%</div>
+                <div class="heatmap-cell" style="background: #fcd34d;" data-value="35%">35%</div>
+                <div class="heatmap-cell" style="background: #fcd34d;" data-value="32%">32%</div>
+            </div>
+        </div>
+
+        <div class="engagement-metrics">
+            <div class="engagement-card">
+                <h3>
+                    <i class="fas fa-chart-bar"></i>
+                    Feature Adoption
+                </h3>
+                <div class="feature-adoption">
+                    <div class="feature-name">Team Analytics</div>
+                    <div class="adoption-bar">
+                        <div class="adoption-fill" style="width: 45%"></div>
+                    </div>
+                    <div class="adoption-percentage">45%</div>
+                </div>
+                <div class="feature-adoption">
+                    <div class="feature-name">Custom Assessments</div>
+                    <div class="adoption-bar">
+                        <div class="adoption-fill" style="width: 32%"></div>
+                    </div>
+                    <div class="adoption-percentage">32%</div>
+                </div>
+                <div class="feature-adoption">
+                    <div class="feature-name">Advanced Reports</div>
+                    <div class="adoption-bar">
+                        <div class="adoption-fill" style="width: 18%"></div>
+                    </div>
+                    <div class="adoption-percentage">18%</div>
+                </div>
+                <div class="feature-adoption">
+                    <div class="feature-name">Team Collaboration</div>
+                    <div class="adoption-bar">
+                        <div class="adoption-fill" style="width: 67%"></div>
+                    </div>
+                    <div class="adoption-percentage">67%</div>
+                </div>
+                <div class="feature-adoption">
+                    <div class="feature-name">Progress Tracking</div>
+                    <div class="adoption-bar">
+                        <div class="adoption-fill" style="width: 78%"></div>
+                    </div>
+                    <div class="adoption-percentage">78%</div>
+                </div>
+            </div>
+
+            <div class="engagement-card">
+                <h3>
+                    <i class="fas fa-users"></i>
+                    User Engagement
+                </h3>
+                <canvas id="engagementChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+
+        <div class="insights-section">
+            <div class="insights-title">
+                <i class="fas fa-lightbulb"></i>
+                Journey Optimization Insights
+            </div>
+
+            <div class="insight-item critical">
+                <div class="insight-header">
+                    <i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i>
+                    Critical: Team Creation Step Losing 28% of Users
+                </div>
+                <div class="insight-description">
+                    Users dropping off during team setup represents the largest friction point in the user journey. This step loses 28% more users than average, potentially costing $12,500 in monthly revenue.
+                </div>
+            </div>
+
+            <div class="insight-item opportunity">
+                <div class="insight-header">
+                    <i class="fas fa-chart-line" style="color: #059669;"></i>
+                    Opportunity: Weekend Users Show 40% Higher Completion
+                </div>
+                <div class="insight-description">
+                    Users starting assessments on weekends have significantly higher completion rates (65% vs 45% on weekdays). Targeting weekend engagement could increase overall conversion by 15%.
+                </div>
+            </div>
+
+            <div class="insight-item">
+                <div class="insight-header">
+                    <i class="fas fa-info-circle" style="color: #f59e0b;"></i>
+                    Team Analytics Users Have 45% Higher Retention
+                </div>
+                <div class="insight-description">
+                    Teams that adopt analytics features within their first week show 45% higher 30-day retention and 60% faster value realization compared to non-adopting teams.
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="optimizeJourney()">
+                    <i class="fas fa-magic"></i>
+                    Generate Optimization Plan
+                </button>
+                <button class="btn btn-secondary" onclick="exportJourneyReport()">
+                    <i class="fas fa-download"></i>
+                    Export Journey Report
+                </button>
+                <a href="/dashboard/business" class="btn btn-secondary">
+                    <i class="fas fa-dollar-sign"></i>
+                    View Revenue Impact
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // Funnel chart
+        const funnelCtx = document.getElementById('funnelChart').getContext('2d');
+        const funnelChart = new Chart(funnelCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Visitors', 'Signups', 'First Assessment', 'Completed', 'Results Viewed'],
+                datasets: [{
+                    label: 'Users',
+                    data: [10000, 1234, 891, 658, 623],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(5, 150, 105, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(102, 126, 234, 1)',
+                        'rgba(59, 130, 246, 1)',
+                        'rgba(139, 92, 246, 1)',
+                        'rgba(245, 158, 11, 1)',
+                        'rgba(5, 150, 105, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Users'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const total = context.dataset.data[0];
+                                const current = context.parsed.y;
+                                const percentage = ((current / total) * 100).toFixed(1);
+                                return `Conversion Rate: ${percentage}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Engagement chart
+        const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+        const engagementChart = new Chart(engagementCtx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{
+                    label: 'Daily Active Users',
+                    data: [847, 912, 985, 1047],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Weekly Active Users',
+                    data: [2156, 2234, 2398, 2543],
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Avg Session Duration (min)',
+                    data: [7.2, 7.8, 8.1, 8.4],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Tooltip functionality for heatmap
+        const tooltip = document.getElementById('tooltip');
+        const heatmapCells = document.querySelectorAll('.heatmap-cell');
+
+        heatmapCells.forEach(cell => {
+            cell.addEventListener('mouseenter', (e) => {
+                const value = e.target.getAttribute('data-value');
+                tooltip.textContent = `Drop-off Rate: ${value}`;
+                tooltip.style.opacity = '1';
+            });
+
+            cell.addEventListener('mousemove', (e) => {
+                tooltip.style.left = e.pageX + 10 + 'px';
+                tooltip.style.top = e.pageY - 30 + 'px';
+            });
+
+            cell.addEventListener('mouseleave', () => {
+                tooltip.style.opacity = '0';
+            });
+        });
+
+        // Optimization plan generator
+        function optimizeJourney() {
+            const optimizations = [
+                {
+                    priority: 'High',
+                    action: 'Simplify Team Creation Flow',
+                    impact: '$12,500 monthly revenue gain',
+                    effort: 'Medium'
+                },
+                {
+                    priority: 'High',
+                    action: 'Add Progress Indicators',
+                    impact: '15% higher completion rates',
+                    effort: 'Low'
+                },
+                {
+                    priority: 'Medium',
+                    action: 'Weekend Engagement Campaign',
+                    impact: '15% conversion increase',
+                    effort: 'Medium'
+                },
+                {
+                    priority: 'Medium',
+                    action: 'Feature Adoption Prompts',
+                    impact: '45% higher retention',
+                    effort: 'Low'
+                }
+            ];
+
+            const planText = optimizations.map(opt =>
+                `${opt.priority} Priority: ${opt.action}\nImpact: ${opt.impact}\nEffort: ${opt.effort}\n`
+            ).join('\n');
+
+            alert('Journey Optimization Plan:\n\n' + planText);
+        }
+
+        // Export journey report
+        function exportJourneyReport() {
+            const reportData = {
+                exportDate: new Date().toISOString(),
+                overview: {
+                    monthlyVisitors: 10000,
+                    conversionRate: 0.658,
+                    avgTimeToFirstAssessment: 12.5,
+                    npsScore: 72.3
+                },
+                funnel: {
+                    visitors: 10000,
+                    signups: 1234,
+                    firstAssessment: 891,
+                    completed: 658,
+                    resultsViewed: 623
+                },
+                featureAdoption: {
+                    teamAnalytics: 0.45,
+                    customAssessments: 0.32,
+                    advancedReports: 0.18,
+                    teamCollaboration: 0.67,
+                    progressTracking: 0.78
+                },
+                insights: [
+                    'Team creation step needs optimization',
+                    'Weekend users show higher engagement',
+                    'Analytics features drive retention'
+                ]
+            };
+
+            const dataStr = JSON.stringify(reportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+            const exportFileDefaultName = `psychsync-user-journey-${new Date().toISOString().split('T')[0]}.json`;
+
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Animate numbers on page load
+        window.addEventListener('load', () => {
+            const valueElements = document.querySelectorAll('.value');
+            valueElements.forEach(el => {
+                const finalValue = el.textContent;
+                const isNumeric = /^\d+/.test(finalValue);
+
+                if (isNumeric) {
+                    const numValue = parseInt(finalValue.replace(/,/g, ''));
+                    animateValue(el, 0, numValue, 1500, finalValue.includes('$'));
+                }
+            });
+        });
+
+        function animateValue(element, start, end, duration, isCurrency = false) {
+            const startTime = performance.now();
+
+            function updateValue(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const value = start + (end - start) * progress;
+
+                if (isCurrency) {
+                    element.textContent = '$' + Math.floor(value).toLocaleString();
+                } else {
+                    element.textContent = Math.floor(value).toLocaleString();
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateValue.bind(null, performance.now()));
+                }
+            }
+
+            updateValue(performance.now());
+        }
+    </script>
+</body>
+</html>

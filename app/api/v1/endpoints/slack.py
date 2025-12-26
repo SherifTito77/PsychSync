@@ -8,6 +8,8 @@ Why we need these endpoints:
 - Provide Slack app configuration endpoints
 """
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException
+
+from app.middleware.rate_limiter import check_rate_limit
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 import logging
@@ -24,6 +26,8 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/events")
 async def handle_slack_events(request: Request):
     """
@@ -41,11 +45,13 @@ async def handle_slack_events(request: Request):
         # Use Slack Bolt handler to process the request
         return await slack_bot.get_handler().handle(request)
     except Exception as e:
-        logger.error(f"Error handling Slack event: {str(e)}")
+        logger.error(f"Error handling Sla
+@check_rate_limit(identifier="public", endpoint_type="public")
+ck event: {str(e)}")
         return Response(status_code=500)
 
 
-@router.post("/interactions")
+@router.post("/interactions", dependencies=[Depends(get_current_user)])
 async def handle_slack_interactions(request: Request):
     """
     Handle interactive components
@@ -58,12 +64,14 @@ async def handle_slack_interactions(request: Request):
     """
     try:
         return await slack_bot.get_handler().handle(request)
-    except Exception as e:
+    except
+@check_rate_limit(identifier="public", endpoint_type="public")
+ Exception as e:
         logger.error(f"Error handling Slack interaction: {str(e)}")
         return Response(status_code=500)
 
 
-@router.post("/commands")
+@router.post("/commands", dependencies=[Depends(get_current_user)])
 async def handle_slack_commands(request: Request):
     """
     Handle slash commands
@@ -81,7 +89,7 @@ async def handle_slack_commands(request: Request):
         return Response(status_code=500)
 
 
-@router.get("/oauth/callback")
+@router.get("/oauth/callback", dependencies=[Depends(get_current_user)])
 async def slack_oauth_callback(
     code: str,
     state: str,

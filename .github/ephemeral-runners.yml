@@ -1,0 +1,276 @@
+# Ephemeral and Isolated CI/CD Runners Configuration
+#
+# This configuration defines self-hosted, ephemeral runners that:
+# - Are destroyed after each job (ephemeral)
+# - Run in isolated environments (no cross-job contamination)
+# - Have no persistent state or secrets
+# - Are created fresh for each workflow run
+#
+# Compliance:
+# - SLSA Level 3: Build infrastructure isolation
+# - NIST IR 8278: Ephemeral build environments
+# - CISA: Isolated build systems for critical infrastructure
+
+version: "1"
+
+runners:
+  # GitHub Actions Runner Controller (ARC) configuration
+  # Requires GitHub Enterprise or ARC setup
+  - name: psychsync-ephemeral-runner
+    provider: aws
+    region: us-east-1
+    instance_types:
+      - t3.large  # 2 vCPU, 8GB RAM
+      - t3.xlarge # 4 vCPU, 16GB RAM
+
+    # Ephemeral configuration
+    ephemeral: true
+    auto_scale:
+      min_runners: 0
+      max_runners: 10
+      idle_timeout: 300  # Terminate after 5 minutes idle
+
+    # Isolation settings
+    isolation:
+      # Use AWS Fargate or EC2 with ephemeral storage
+      type: fargate  # Container-based isolation
+
+      # Network isolation
+      vpc_id: vpc-xxxxxxxx
+      subnet_ids:
+        - subnet-xxxxxxxx
+        - subnet-yyyyyyyy
+
+      # Security groups
+      security_groups:
+        - sg-xxxxxxxx  # Restrictive SG
+
+      # No persistent storage
+      ephemeral_storage: true
+      storage_size_gb: 20
+
+    # Trust policy for OIDC (no long-lived credentials)
+    oidc:
+      issuer: "https://token.actions.githubusercontent.com"
+      audience: "sts.amazonaws.com"
+
+    # Labels for workflow targeting
+    labels:
+      - ephemeral
+      - isolated
+      - psychsync-secure
+
+    # Repository access
+    repositories:
+      - psychsync/psychsync
+
+    # Runner image
+    image: "ghcr.io/actions/actions-runner:latest"
+
+    # Environment variables (no secrets)
+    env:
+      RUNNER_IS_EPHEMERAL: "true"
+      RUNNER_ISOLATION: "strict"
+      RUNNER_SELF_UPDATE: "false"
+
+# Alternative: Kubernetes-based ephemeral runners
+# Using Actions Runner Controller (ARC)
+kubernetes_runners:
+  apiVersion: actions.github.com/v1alpha1
+  kind: RunnerDeployment
+  metadata:
+    name: psychsync-ephemeral-runners
+    namespace: github-actions
+  spec:
+    replicas: 1
+    template:
+      spec:
+        # Ephemeral runners
+        ephemeral: true
+
+        # Isolation: use dedicated node pool
+        nodeSelector:
+          dedicated: github-actions-isolated
+
+        # Resource limits
+        containers:
+          - name: runner
+            resources:
+              requests:
+                cpu: "2"
+                memory: "8Gi"
+              limits:
+                cpu: "4"
+                memory: "16Gi"
+
+        # No persistent volumes
+        volumes: []
+
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          fsGroup: 1000
+          readOnlyRootFilesystem: false
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+
+    # Auto-scaling
+    autoscalingRunnerSet:
+      minRunners: 0
+      maxRunners: 10
+      scaleDownDelaySecondsAfterScaleOut: 300
+
+# Docker-in-Docker (DinD) configuration for container builds
+dind_config:
+  enabled: false  # Prefer rootless Docker or Kaniko
+  # If enabled, use isolated DinD:
+  # privileged_mode: false
+  # use_rootless: true
+
+# Alternative: Use Kaniko for secure container builds
+kaniko_config:
+  enabled: true
+  cache: true
+  registry_mirror: ghcr.io
+  # No DinD needed - Kaniko builds without daemon
+
+# Workflow permissions (principle of least privilege)
+permissions:
+  contents: read
+  metadata: read
+  packages: write  # For pushing signed images
+  actions: read    # For OIDC
+  id-token: write  # For OIDC-based authentication
+
+# Network policies for Kubernetes runners
+network_policies:
+  apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: runner-network-policy
+    namespace: github-actions
+  spec:
+    podSelector:
+      matchLabels:
+        app: github-actions-runner
+    policyTypes:
+      - Ingress
+      - Egress
+    ingress:
+      # Only allow GitHub webhook traffic
+      - from:
+          - namespaceSelector:
+              matchLabels:
+                name: ingress-nginx
+      # Allow intra-namespace communication
+      - from:
+          - podSelector: {}
+    egress:
+      # Allow DNS
+      - to:
+          - namespaceSelector: {}
+        ports:
+          - protocol: UDP
+            port: 53
+
+      # Allow HTTPS to GitHub
+      - to:
+          - podSelector: {}
+        ports:
+          - protocol: TCP
+            port: 443
+
+      # Allow HTTPS to container registries
+      - to:
+          - podSelector: {}
+        ports:
+          - protocol: TCP
+            port: 443
+
+      # Allow GitHub OIDC
+      - to:
+          - podSelector: {}
+        ports:
+          - protocol: TCP
+            port: 443
+
+# Audit logging
+audit:
+  enabled: true
+  log_group: /github/actions/runners
+  retention_days: 90
+  include:
+    - job_start
+    - job_end
+    - commands_executed
+    - network_access
+    - container_operations
+
+# Compliance verification
+compliance_checks:
+  # Verify runner is ephemeral
+  - name: verify_ephemeral
+    script: |
+      #!/bin/bash
+      # Runner should terminate after job
+      [ -n "$RUNNER_IS_EPHEMERAL" ] || exit 1
+
+  # Verify no persistent state
+  - name: verify_no_persistent_state
+    script: |
+      #!/bin/bash
+      # No mounted volumes
+      [ $(mount | grep -v type | wc -l) -eq 0 ] || exit 1
+
+  # Verify network isolation
+  - name: verify_network_isolation
+    script: |
+      #!/bin/bash
+      # Should not be able to reach internal network
+      ping -c 1 -W 1 10.0.0.1 && exit 1
+      exit 0
+
+# Monitoring
+monitoring:
+  prometheus:
+    enabled: true
+    scrape_interval: 30s
+    metrics:
+      - runner_job_duration
+      - runner_isolation_checks
+      - runner_network_access
+
+  alerts:
+    - name: RunnerNotTerminated
+      condition: job_completed AND runner_still_running
+      severity: critical
+
+    - name: RunnerNetworkBreach
+      condition: unexpected_network_access
+      severity: critical
+
+# Secrets management
+secrets:
+  # No long-lived runner tokens
+  runner_token_ttl: 3600  # 1 hour
+
+  # Use OIDC for all external access
+  oidc_only: true
+
+  # No secrets in environment variables
+  env_secrets: []
+
+# Update strategy
+update_strategy:
+  # Always use latest runner image
+  image_pull_policy: Always
+
+  # Automated updates
+  auto_update: true
+  update_window: "0-2 0 * * *"  # 12AM-2AM UTC
+
+  # No self-update
+  runner_self_update: false

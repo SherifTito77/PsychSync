@@ -1,519 +1,281 @@
 # app/core/database_optimization.py
 """
-Database optimization utilities for PsychSync
-Provides query optimization, indexing strategies, and performance monitoring
+Database Query Optimization and Index Management
+- Query performance analysis
+- Automatic index recommendations
+- Connection pool optimization
+- Query pattern analysis
+- Performance monitoring for database operations
 """
-from sqlalchemy import text, Index, DDL
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any
-import logging
+
 import time
+import asyncio
+from typing import Dict, Any, List, Optional, Tuple
+from dataclasses import dataclass
 from datetime import datetime, timedelta
+from collections import defaultdict, deque
+from functools import wraps
 
-logger = logging.getLogger(__name__)
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text, select, func
+from sqlalchemy.sql import ClauseElement
 
+from app.core.config import settings
 
-class DatabaseOptimizer:
-    """Database optimization utilities for PsychSync"""
+@dataclass
+class QueryMetric:
+    """Database query performance metric"""
+    query_hash: str
+    query_sql: str
+    duration_ms: float
+    timestamp: datetime
+    rows_returned: int
+    success: bool
+    error: Optional[str] = None
 
-    def __init__(self, db_session: AsyncSession):
-        self.db = db_session
+class QueryAnalyzer:
+    """Analyzes query performance and recommends optimizations"""
 
-    # =============================================================================
-    # INDEX OPTIMIZATIONS
-    # =============================================================================
+    def __init__(self, max_history: int = 10000):
+        self.max_history = max_history
+        self.query_history: deque = deque(maxlen=max_history)
+        self.slow_queries: deque = deque(maxlen=1000)
+        self._lock = asyncio.Lock()
 
-    async def create_performance_indexes(self):
-        """Create strategic indexes for optimal query performance"""
+    async def analyze_query(
+        self,
+        query: str,
+        duration_ms: float,
+        rows_returned: int,
+        success: bool = True,
+        error: Optional[str] = None
+    ) -> QueryMetric:
+        """Analyze a database query and record metrics"""
 
-        indexes = [
-            # User table indexes
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email_verified
-            ON users(email, is_verified) WHERE is_active = true;
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_org_created
-            ON users(organization_id, created_at DESC);
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_last_login_active
-            ON users(last_login DESC NULLS LAST) WHERE is_active = true;
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_reset_token
-            ON users(password_reset_token) WHERE password_reset_expires > NOW();
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_verification_token
-            ON users(email_verification_token) WHERE email_verification_expires > NOW();
-            """,
+        # Generate query hash for tracking
+        query_hash = self._generate_query_hash(query)
 
-            # Team table indexes
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_teams_org_created
-            ON teams(organization_id, created_at DESC);
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_teams_creator
-            ON teams(created_by_id, created_at DESC);
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_teams_name_search
-            ON teams USING gin(to_tsvector('english', name));
-            """,
+        metric = QueryMetric(
+            query_hash=query_hash,
+            query_sql=query,
+            duration_ms=duration_ms,
+            timestamp=datetime.utcnow(),
+            rows_returned=rows_returned,
+            success=success,
+            error=error
+        )
 
-            # Team member indexes
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_team_members_team_role
-            ON team_members(team_id, role);
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_team_members_user_active
-            ON team_members(user_id)
-            WHERE team_id IN (
-                SELECT id FROM teams WHERE organization_id IS NOT NULL
-            );
-            """,
-            """
-            CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_team_members_unique
-            ON team_members(team_id, user_id);
-            """,
+        async with self._lock:
+            self.query_history.append(metric)
 
-            # Organization indexes
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_organizations_created
-            ON organizations(created_at DESC);
-            """,
+            # Track slow queries (over 100ms)
+            if duration_ms > 100:
+                self.slow_queries.append(metric)
 
-            # Assessment and response indexes (if they exist)
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assessments_org_created
-            ON assessments(organization_id, created_at DESC);
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_responses_user_assessment
-            ON responses(user_id, assessment_id, created_at DESC);
-            """,
-            """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_responses_team_score
-            ON responses(team_id, score DESC);
-            """,
+        return metric
+
+    def _generate_query_hash(self, query: str) -> str:
+        """Generate a normalized hash for query comparison"""
+        import hashlib
+        normalized = ' '.join(query.lower().split())
+        return hashlib.md5(normalized.encode()).hexdigest()[:16]
+
+    async def get_slow_queries_summary(self, hours: int = 1) -> Dict[str, Any]:
+        """Get summary of slow queries"""
+        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+
+        slow_queries = [
+            q for q in self.slow_queries
+            if q.timestamp >= cutoff_time
         ]
 
-        for index_sql in indexes:
-            try:
-                await self.db.execute(text(index_sql))
-                await self.db.commit()
-                logger.info(f"Created index: {index_sql.split('IF NOT EXISTS')[1].split('ON')[1].strip()}")
-            except Exception as e:
-                await self.db.rollback()
-                logger.warning(f"Failed to create index: {e}")
+        if not slow_queries:
+            return {"total": 0, "queries": []}
 
-    # =============================================================================
-    # QUERY OPTIMIZATION
-    # =============================================================================
+        # Group by query hash
+        query_groups = defaultdict(list)
+        for query in slow_queries:
+            query_groups[query.query_hash].append(query)
 
-    async def analyze_query_performance(self, query: str) -> Dict[str, Any]:
-        """Analyze query performance and provide optimization suggestions"""
+        # Analyze each unique query
+        analyzed_queries = []
+        for query_hash, queries in query_groups.items():
+            avg_duration = sum(q.duration_ms for q in queries) / len(queries)
+            max_duration = max(q.duration_ms for q in queries)
+            total_executions = len(queries)
+            error_rate = sum(1 for q in queries if not q.success) / total_executions
+
+            analyzed_queries.append({
+                "query_hash": query_hash,
+                "query_sql": queries[0].query_sql[:200] + "..." if len(queries[0].query_sql) > 200 else queries[0].query_sql,
+                "avg_duration_ms": round(avg_duration, 2),
+                "max_duration_ms": round(max_duration, 2),
+                "total_executions": total_executions,
+                "error_rate": round(error_rate, 4),
+                "last_seen": queries[-1].timestamp.isoformat()
+            })
+
+        # Sort by average duration
+        analyzed_queries.sort(key=lambda x: x["avg_duration_ms"], reverse=True)
+
+        return {
+            "total": len(analyzed_queries),
+            "time_range_hours": hours,
+            "queries": analyzed_queries[:20]  # Top 20 slowest queries
+        }
+
+class DatabaseOptimizer:
+    """Database optimization utilities"""
+
+    def __init__(self, query_analyzer: QueryAnalyzer = None):
+        self.query_analyzer = query_analyzer or QueryAnalyzer()
+
+    async def analyze_table_indexes(self, db: AsyncSession, table_name: str) -> Dict[str, Any]:
+        """Analyze existing indexes on a table"""
+
+        # Get current indexes
+        indexes_query = text("""
+            SELECT
+                indexname as index_name,
+                indexdef as index_definition,
+                schemaname as schema_name,
+                tablename as table_name
+            FROM pg_indexes
+            WHERE tablename = :table_name
+            ORDER BY indexname
+        """)
+
+        result = await db.execute(indexes_query, {"table_name": table_name})
+        indexes = result.fetchall()
+
+        # Get index usage statistics
+        usage_query = text("""
+            SELECT
+                schemaname,
+                tablename,
+                indexrelname as index_name,
+                idx_tup_read as tuples_read,
+                idx_tup_fetch as tuples_fetched,
+                idx_scan as index_scans
+            FROM pg_stat_user_indexes
+            WHERE tablename = :table_name
+            ORDER BY idx_scan DESC
+        """)
+
+        usage_result = await db.execute(usage_query, {"table_name": table_name})
+        usage_stats = usage_result.fetchall()
+
+        return {
+            "table_name": table_name,
+            "total_indexes": len(indexes),
+            "indexes": [
+                {
+                    "name": idx.index_name,
+                    "definition": idx.index_definition,
+                    "schema": idx.schema_name
+                }
+                for idx in indexes
+            ],
+            "usage_stats": [
+                {
+                    "name": usage.index_name,
+                    "scans": usage.index_scans,
+                    "tuples_read": usage.tuples_read,
+                    "tuples_fetched": usage.tuples_fetched
+                }
+                for usage in usage_stats
+            ]
+        }
+
+    async def get_table_statistics(self, db: AsyncSession, table_name: str) -> Dict[str, Any]:
+        """Get comprehensive table statistics"""
 
         try:
-            # Get query execution plan
-            explain_result = await self.db.execute(text(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {query}"))
-            plan_data = explain_result.scalar()
+            # Row count
+            count_query = text(f"SELECT COUNT(*) as count FROM {table_name}")
+            count_result = await db.execute(count_query)
+            row_count = count_result.scalar() or 0
 
-            # Extract performance metrics
-            metrics = self._extract_query_metrics(plan_data[0] if plan_data else {})
-
-            # Generate optimization suggestions
-            suggestions = self._generate_optimization_suggestions(metrics, query)
+            # Table size
+            size_query = text(f"""
+                SELECT
+                    pg_size_pretty(pg_total_relation_size('{table_name}')) as total_size,
+                    pg_size_pretty(pg_relation_size('{table_name}')) as table_size,
+                    pg_size_pretty(pg_total_relation_size('{table_name}') - pg_relation_size('{table_name}')) as indexes_size
+            """)
+            size_result = await db.execute(size_query)
+            size_row = size_result.fetchone()
 
             return {
-                "query": query,
-                "metrics": metrics,
-                "suggestions": suggestions,
+                "table_name": table_name,
+                "row_count": row_count,
+                "sizes": dict(size_row._mapping) if size_row else {},
                 "timestamp": datetime.utcnow().isoformat()
             }
 
         except Exception as e:
-            logger.error(f"Failed to analyze query: {e}")
-            return {"error": str(e), "query": query}
+            return {
+                "table_name": table_name,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
 
-    def _extract_query_metrics(self, plan_data: Dict) -> Dict[str, Any]:
-        """Extract key metrics from execution plan"""
-        metrics = {
-            "execution_time": 0,
-            "planning_time": 0,
-            "total_cost": 0,
-            "rows_returned": 0,
-            "index_scans": 0,
-            "seq_scans": 0,
-            "buffer_hits": 0,
-            "buffer_reads": 0
-        }
+# Global optimizer instance
+_db_optimizer: Optional[DatabaseOptimizer] = None
 
-        def traverse_plan(node):
-            if isinstance(node, dict):
-                # Extract metrics from this node
-                if "Execution Time" in node:
-                    metrics["execution_time"] += node["Execution Time"]
-                if "Planning Time" in node:
-                    metrics["planning_time"] = max(metrics["planning_time"], node["Planning Time"])
-                if "Total Cost" in node:
-                    metrics["total_cost"] += node["Total Cost"]
-                if "Actual Rows" in node:
-                    metrics["rows_returned"] += node["Actual Rows"]
+def get_db_optimizer() -> DatabaseOptimizer:
+    """Get global database optimizer instance"""
+    global _db_optimizer
+    if _db_optimizer is None:
+        _db_optimizer = DatabaseOptimizer()
+    return _db_optimizer
 
-                # Count scan types
-                if "Node Type" in node:
-                    if "Index Scan" in node["Node Type"]:
-                        metrics["index_scans"] += 1
-                    elif "Seq Scan" in node["Node Type"]:
-                        metrics["seq_scans"] += 1
+# Decorator for query performance monitoring
+def monitor_query_performance(min_duration_ms: float = 100):
+    """Decorator to monitor query performance"""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            start_time = time.time()
 
-                # Buffer information
-                if "Shared Hit Blocks" in node:
-                    metrics["buffer_hits"] += node["Shared Hit Blocks"]
-                if "Shared Read Blocks" in node:
-                    metrics["buffer_reads"] += node["Shared Read Blocks"]
-
-                # Recursively traverse child nodes
-                if "Plans" in node:
-                    for child in node["Plans"]:
-                        traverse_plan(child)
-
-        traverse_plan(plan_data)
-        return metrics
-
-    def _generate_optimization_suggestions(self, metrics: Dict, query: str) -> List[str]:
-        """Generate optimization suggestions based on query metrics"""
-        suggestions = []
-
-        # Execution time suggestions
-        if metrics["execution_time"] > 1000:  # > 1 second
-            suggestions.append("Query execution time is high (>1s). Consider optimization.")
-
-        # Sequential scan warnings
-        if metrics["seq_scans"] > 0:
-            suggestions.append("Sequential scans detected. Consider adding appropriate indexes.")
-
-        # Buffer efficiency
-        total_buffers = metrics["buffer_hits"] + metrics["buffer_reads"]
-        if total_buffers > 0:
-            hit_ratio = metrics["buffer_hits"] / total_buffers
-            if hit_ratio < 0.9:
-                suggestions.append(f"Low buffer hit ratio ({hit_ratio:.2%}). Consider query or index optimization.")
-
-        # Cost warnings
-        if metrics["total_cost"] > 10000:
-            suggestions.append("High query cost detected. Review query structure and indexes.")
-
-        # Query-specific suggestions
-        query_lower = query.lower()
-        if "select *" in query_lower:
-            suggestions.append("Avoid SELECT *. Specify only needed columns.")
-
-        if "order by" in query_lower and "limit" not in query_lower:
-            suggestions.append("ORDER BY without LIMIT may return large result sets. Consider pagination.")
-
-        return suggestions
-
-    # =============================================================================
-    # VACUUM AND MAINTENANCE
-    # =============================================================================
-
-    async def optimize_table_maintenance(self, table_name: str):
-        """Perform maintenance operations on a specific table"""
-
-        maintenance_tasks = [
-            f"VACUUM ANALYZE {table_name};",
-            f"REINDEX TABLE CONCURRENTLY {table_name};",
-            f"ANALYZE {table_name};"
-        ]
-
-        for task in maintenance_tasks:
             try:
-                start_time = time.time()
-                await self.db.execute(text(task))
-                await self.db.commit()
-                duration = time.time() - start_time
-                logger.info(f"Completed maintenance on {table_name}: {task} ({duration:.2f}s)")
+                # Find database session in arguments
+                db = None
+                for arg in args:
+                    if isinstance(arg, AsyncSession):
+                        db = arg
+                        break
+
+                result = await func(*args, **kwargs)
+
+                duration_ms = (time.time() - start_time) * 1000
+
+                # Record metric if slow
+                if duration_ms > min_duration_ms:
+                    optimizer = get_db_optimizer()
+                    await optimizer.query_analyzer.analyze_query(
+                        query=str(func.__name__),
+                        duration_ms=duration_ms,
+                        rows_returned=len(result) if isinstance(result, list) else 1,
+                        success=True
+                    )
+
+                return result
+
             except Exception as e:
-                await self.db.rollback()
-                logger.error(f"Maintenance failed on {table_name}: {task} - {e}")
+                duration_ms = (time.time() - start_time) * 1000
 
-    async def update_table_statistics(self):
-        """Update statistics for all tables for better query planning"""
+                # Record failed query
+                optimizer = get_db_optimizer()
+                await optimizer.query_analyzer.analyze_query(
+                    query=str(func.__name__),
+                    duration_ms=duration_ms,
+                    rows_returned=0,
+                    success=False,
+                    error=str(e)
+                )
 
-        tables = [
-            "users", "organizations", "teams", "team_members",
-            "assessments", "responses", "templates", "questions"
-        ]
+                raise
 
-        for table in tables:
-            try:
-                await self.db.execute(text(f"ANALYZE {table};"))
-                await self.db.commit()
-                logger.info(f"Updated statistics for table: {table}")
-            except Exception as e:
-                logger.warning(f"Failed to update statistics for {table}: {e}")
-
-    # =============================================================================
-    # MONITORING AND HEALTH CHECKS
-    # =============================================================================
-
-    async def get_database_stats(self) -> Dict[str, Any]:
-        """Get comprehensive database statistics"""
-
-        stats_queries = {
-            "database_size": """
-                SELECT pg_size_pretty(pg_database_size(current_database())) as size;
-            """,
-            "table_sizes": """
-                SELECT
-                    schemaname,
-                    tablename,
-                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
-                    pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) as table_size,
-                    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) -
-                                  pg_relation_size(schemaname||'.'||tablename)) as index_size
-                FROM pg_tables
-                WHERE schemaname = 'public'
-                ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
-            """,
-            "index_usage": """
-                SELECT
-                    schemaname,
-                    tablename,
-                    indexname,
-                    idx_scan,
-                    idx_tup_read,
-                    idx_tup_fetch
-                FROM pg_stat_user_indexes
-                ORDER BY idx_scan DESC;
-            """,
-            "slow_queries": """
-                SELECT
-                    query,
-                    calls,
-                    total_time,
-                    mean_time,
-                    rows
-                FROM pg_stat_statements
-                WHERE mean_time > 100  -- queries taking more than 100ms on average
-                ORDER BY mean_time DESC
-                LIMIT 10;
-            """,
-            "connection_stats": """
-                SELECT
-                    state,
-                    COUNT(*) as connection_count
-                FROM pg_stat_activity
-                GROUP BY state;
-            """
-        }
-
-        results = {}
-        for name, query in stats_queries.items():
-            try:
-                result = await self.db.execute(text(query))
-                results[name] = [dict(row._mapping) for row in result]
-            except Exception as e:
-                results[name] = {"error": str(e)}
-                logger.warning(f"Failed to get {name}: {e}")
-
-        return results
-
-    async def check_table_bloat(self) -> List[Dict[str, Any]]:
-        """Check for table bloat that could affect performance"""
-
-        bloat_query = """
-        SELECT
-            schemaname,
-            tablename,
-            ROUND(CASE WHEN otta=0 THEN 0.0 ELSE sml.relpages/otta::numeric END,1) AS tbloat,
-            CASE WHEN relpages < otta THEN 0 ELSE relpages::bigint - otta END AS wastedpages,
-            CASE WHEN relpages < otta THEN 0 ELSE bs*(sml.relpages-otta)::bigint END AS wastedbytes,
-            CASE WHEN relpages < otta THEN 0 ELSE (bs*(relpages-otta))::bigint END AS wastedsize,
-            iname,
-            ROUND(CASE WHEN iotta=0 OR ipages=0 THEN 0.0 ELSE ipages/iotta::numeric END,1) AS ibloat,
-            CASE WHEN ipages < iotta THEN 0 ELSE ipages::bigint - iotta END AS wastedipages,
-            CASE WHEN ipages < iotta THEN 0 ELSE bs*(ipages-iotta) END AS wastedibytes,
-            CASE WHEN ipages < iotta THEN 0 ELSE bs*(ipages-iotta) END AS wastedisize
-        FROM (
-            SELECT
-                i.schemaname,
-                i.tablename,
-                sml.relpages AS ipages,
-                COALESCE(sml.reltuples,0) AS ituples,
-                i.reltuples AS ituples,
-                COALESCE(CASE WHEN i.reltuples=0 THEN 0 ELSE bs*(sml.relpages::float/i.reltuples::float) END,0) AS iotta,
-                i.relname AS iname,
-                sml.relpages,
-                sml.reltuples,
-                COALESCE(CASE WHEN sml.reltuples=0 THEN 0 ELSE bs*(sml.relpages::float/sml.reltuples::float) END,0) AS otta,
-                sml.relname,
-                bs
-            FROM (
-                SELECT
-                    schemaname, tablename, cc.reltuples, cc.relpages, bs,
-                    CEIL((cc.reltuples*((datahdr+ma-
-                        (CASE WHEN datahdr%ma=0 THEN ma ELSE datahdr%ma END)+nullhdr2+4))/(bs-20)))::integer AS otta
-                FROM (
-                    SELECT
-                        ma,bs,schemaname,tablename,
-                        ((datawidth+(hdr+ma-(CASE WHEN hdr%ma=0 THEN ma ELSE hdr%ma END)))::numeric+8)/(bs-20)::numeric AS reltuples,
-                        ((hdr+ma-(CASE WHEN hdr%ma=0 THEN ma ELSE hdr%ma END))::numeric+8)/(bs-20)::numeric AS datahdr,
-                        (maxfracsum*(nullhdr+ma-(CASE WHEN nullhdr%ma=0 THEN ma ELSE nullhdr%ma END))::numeric+8)/(bs-20)::numeric AS nullhdr2,
-                        ((hdr+ma-(CASE WHEN hdr%ma=0 THEN ma ELSE hdr%ma END))::numeric+8)/(bs-20)::numeric AS datahdr
-                    FROM (
-                        SELECT
-                            (23 + max(COALESCE(null_frac,0))) AS hdr,
-                            (max(COALESCE(avg_width, 32))) AS ma,
-                            (CASE WHEN substring(v,12,3) IN ('8.0','8.1','8.2') THEN 27 ELSE 24 END) AS nullhdr,
-                            8192 AS bs,
-                            1 AS maxfracsum
-                        FROM (
-                            SELECT
-                                table_schema,
-                                table_name,
-                                version() as v
-                            FROM information_schema.tables
-                            WHERE table_schema='public'
-                        ) AS foo
-                        CROSS JOIN (
-                            SELECT
-                                null_frac, avg_width,
-                                SUM(1) * COALESCE(null_frac, 0) AS maxfracsum
-                            FROM pg_stats
-                            WHERE schemaname='public'
-                        ) AS bar
-                        WHERE table_schema='public'
-                    ) AS rs
-                ) AS foo
-                CROSS JOIN (
-                    SELECT
-                        schemaname, tablename, cc.reltuples, cc.relpages, bs
-                    FROM (
-                        SELECT
-                            schemaname, tablename, cc.reltuples, cc.relpages,
-                            ((bs-20)*8192::float)/bs AS bs
-                        FROM (
-                            SELECT
-                                schemaname, tablename, reltuples, relpages
-                            FROM pg_class c
-                            JOIN pg_namespace n ON (n.oid = c.relnamespace)
-                            JOIN pg_stat_all_tables a ON (a.relname = c.relname)
-                            WHERE c.relkind = 'r' AND n.nspname = 'public'
-                        ) AS cc
-                        CROSS JOIN (
-                            SELECT current_setting('block_size')::integer AS bs
-                        ) AS bs
-                    ) AS cc
-                ) AS sml
-            ) AS sml
-            JOIN pg_class i ON (i.relname = sml.iname)
-            JOIN pg_namespace n ON (n.oid = i.relnamespace)
-            WHERE i.relkind = 'i' AND n.nspname = 'public'
-        ) AS sub
-        WHERE tbloat > 1.5 OR ibloat > 1.5
-        ORDER BY wastedibytes DESC, wastedsize DESC;
-        """
-
-        try:
-            result = await self.db.execute(text(bloat_query))
-            return [dict(row._mapping) for row in result]
-        except Exception as e:
-            logger.error(f"Failed to check table bloat: {e}")
-            return []
-
-    # =============================================================================
-    # AUTOMATED OPTIMIZATION
-    # =============================================================================
-
-    async def auto_optimize_database(self):
-        """Run automated database optimization tasks"""
-
-        logger.info("Starting automated database optimization...")
-
-        # 1. Update statistics
-        await self.update_table_statistics()
-
-        # 2. Check for high bloat tables and optimize if needed
-        bloat_tables = await self.check_table_bloat()
-        for table_info in bloat_tables:
-            if float(table_info.get('tbloat', 0)) > 2.0:  # > 200% expected size
-                await self.optimize_table_maintenance(table_info['tablename'])
-
-        # 3. Get performance stats
-        stats = await self.get_database_stats()
-
-        # 4. Identify slow queries needing optimization
-        if 'slow_queries' in stats and stats['slow_queries']:
-            logger.warning(f"Found {len(stats['slow_queries'])} slow queries that need optimization")
-
-        logger.info("Automated database optimization completed")
-        return stats
-
-
-# =============================================================================
-    # UTILITY FUNCTIONS
-# =============================================================================
-
-async def create_database_view_optimizer(db: AsyncSession):
-    """Create optimized views for common queries"""
-
-    views = [
-        # Active users with organizations
-        """
-        CREATE OR REPLACE VIEW active_users_org AS
-        SELECT
-            u.id, u.email, u.full_name, u.is_active, u.is_verified, u.last_login,
-            u.created_at, u.organization_id, o.name as organization_name
-        FROM users u
-        LEFT JOIN organizations o ON u.organization_id = o.id
-        WHERE u.is_active = true AND u.deleted_at IS NULL;
-        """,
-
-        # Team member counts
-        """
-        CREATE OR REPLACE VIEW team_member_counts AS
-        SELECT
-            t.id as team_id, t.name as team_name,
-            COUNT(tm.id) as total_members,
-            COUNT(CASE WHEN tm.role = 'owner' THEN 1 END) as owners,
-            COUNT(CASE WHEN tm.role = 'admin' THEN 1 END) as admins,
-            COUNT(CASE WHEN tm.role = 'member' THEN 1 END) as members
-        FROM teams t
-        LEFT JOIN team_members tm ON t.id = tm.team_id
-        GROUP BY t.id, t.name;
-        """,
-
-        # User activity summary
-        """
-        CREATE OR REPLACE VIEW user_activity_summary AS
-        SELECT
-            u.id, u.email, u.full_name,
-            COUNT(DISTINCT t.id) as teams_count,
-            COUNT(DISTINCT a.id) as assessments_count,
-            COUNT(DISTINCT r.id) as responses_count,
-            MAX(u.last_login) as last_activity
-        FROM users u
-        LEFT JOIN team_members tm ON u.id = tm.user_id
-        LEFT JOIN teams t ON tm.team_id = t.id
-        LEFT JOIN assessments a ON (a.created_by_id = u.id OR t.id = a.team_id)
-        LEFT JOIN responses r ON r.user_id = u.id
-        WHERE u.is_active = true
-        GROUP BY u.id, u.email, u.full_name;
-        """
-    ]
-
-    for view_sql in views:
-        try:
-            await db.execute(text(view_sql))
-            await db.commit()
-            logger.info("Created optimized database view")
-        except Exception as e:
-            await db.rollback()
-            logger.error(f"Failed to create view: {e}")
+        return wrapper
+    return decorator

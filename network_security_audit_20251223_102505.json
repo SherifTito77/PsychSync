@@ -1,0 +1,167 @@
+{
+  "timestamp": "2025-12-23T03:23:18.986753",
+  "target": "localhost:8000",
+  "audits": {
+    "tls_configuration": {
+      "status": "failed",
+      "findings": [
+        {
+          "severity": "HIGH",
+          "issue": "SSL/TLS certificate not accessible",
+          "details": "_ssl.c:1063: The handshake operation timed out",
+          "audit": "tls_configuration"
+        },
+        {
+          "severity": "HIGH",
+          "issue": "No secure TLS version supported",
+          "details": "Server does not support TLS 1.2 or 1.3",
+          "audit": "tls_configuration"
+        }
+      ],
+      "recommendations": [],
+      "tests": {
+        "certificate": {
+          "status": "error",
+          "error": "_ssl.c:1063: The handshake operation timed out"
+        },
+        "tls_versions": {
+          "SSLv2": false,
+          "SSLv3": false,
+          "TLSv1.0": false,
+          "TLSv1.1": false,
+          "TLSv1.2": false,
+          "TLSv1.3": false
+        },
+        "cipher_suite": {
+          "error": "_ssl.c:1063: The handshake operation timed out"
+        },
+        "security_headers": {
+          "error": "timed out"
+        }
+      }
+    },
+    "ssl_downgrade": {
+      "status": "passed",
+      "findings": [],
+      "tests": {
+        "downgrade_to_TLSv1.0": {
+          "status": "protected",
+          "details": "Server correctly rejects TLSv1.0"
+        },
+        "downgrade_to_TLSv1.1": {
+          "status": "protected",
+          "details": "Server correctly rejects TLSv1.1"
+        },
+        "hsts": {
+          "error": "timed out"
+        },
+        "certificate_validation": {
+          "status": "no_certificate",
+          "details": "_ssl.c:1063: The handshake operation timed out"
+        }
+      }
+    },
+    "dns_poisoning": {
+      "status": "passed",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "issue": "DNSSEC validation status unclear",
+          "details": "Could not verify DNSSEC is enabled for DNS resolution",
+          "audit": "dns_poisoning"
+        },
+        {
+          "severity": "LOW",
+          "issue": "Using external DNS resolvers",
+          "details": "DNS servers: ['192.168.0.1']. Consider using local DNS resolver with cache poisoning protection",
+          "audit": "dns_poisoning"
+        },
+        {
+          "severity": "MEDIUM",
+          "issue": "Host header validation not verified",
+          "details": "Manual testing required to verify Host header validation prevents DNS rebinding",
+          "audit": "dns_poisoning"
+        }
+      ],
+      "tests": {
+        "dnssec": {
+          "status": "unknown",
+          "details": "DNSSEC status could not be determined"
+        },
+        "dns_servers": [
+          "192.168.0.1"
+        ],
+        "local_dns_resolver": {
+          "status": "absent",
+          "details": "Using external DNS servers: ['192.168.0.1']"
+        },
+        "host_header_validation": {
+          "status": "not_tested",
+          "details": "Manual testing required for Host header validation"
+        },
+        "dns_timeouts": {
+          "status": "informational",
+          "details": "DNS timeout configuration should be reviewed in application settings"
+        }
+      }
+    },
+    "internal_api": {
+      "status": "passed",
+      "findings": [
+        {
+          "severity": "MEDIUM",
+          "issue": "Localhost endpoint exposure not verified",
+          "details": "Manual code review required to ensure localhost-only endpoints are not exposed",
+          "audit": "internal_api"
+        }
+      ],
+      "tests": {
+        "_admin": {
+          "error": "timed out"
+        },
+        "_internal": {
+          "error": "timed out"
+        },
+        "_debug": {
+          "error": "timed out"
+        },
+        "_metrics": {
+          "error": "timed out"
+        },
+        "_health": {
+          "error": "timed out"
+        },
+        "_api_internal": {
+          "error": "timed out"
+        },
+        "_api_admin": {
+          "error": "timed out"
+        },
+        "_config": {
+          "error": "timed out"
+        },
+        "_.env": {
+          "error": "timed out"
+        },
+        "_api_v1_internal": {
+          "error": "timed out"
+        },
+        "localhost_exposure": {
+          "status": "not_tested",
+          "details": "Code review required to verify localhost-only endpoints"
+        }
+      }
+    },
+    "routing_leaks": {
+      "status": "passed",
+      "findings": [],
+      "tests": {
+        "cors_configuration": {
+          "error": "timed out"
+        }
+      }
+    }
+  },
+  "overall_score": 8.42,
+  "overall_status": "GOOD"
+}

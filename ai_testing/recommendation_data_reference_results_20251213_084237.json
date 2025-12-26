@@ -1,0 +1,190 @@
+{
+  "test_summary": {
+    "total_scenarios_tested": 3,
+    "total_recommendations_tested": 7,
+    "total_references_extracted": 74,
+    "total_verified_references": 35,
+    "overall_verification_rate": 0.47297297297297297,
+    "avg_verification_rate_per_recommendation": 0.44248366013071894,
+    "target_verification_rate": 0.75,
+    "recommendations_with_issues": 5,
+    "total_critical_issues": 5,
+    "meets_target": false
+  },
+  "reference_type_distribution": {
+    "score_reference": 10,
+    "trait_reference": 56,
+    "comparison_data": 2,
+    "type_reference": 6
+  },
+  "verification_rates_by_type": {
+    "score_reference": 0.8,
+    "trait_reference": 0.3392857142857143,
+    "comparison_data": 1.0,
+    "type_reference": 1.0
+  },
+  "quality_distribution": {
+    "high_quality": 2,
+    "medium_quality": 0,
+    "low_quality": 5
+  },
+  "detailed_results": [
+    {
+      "validation_id": "validation_rec_001_1_1765590157",
+      "recommendation_id": "rec_001_1",
+      "recommendation_category": "strength_development",
+      "total_references": 11,
+      "verified_references": 11,
+      "verification_rate": 1.0,
+      "critical_issues_count": 0,
+      "confidence_score": 0.92,
+      "reference_types": [
+        "comparison_data",
+        "score_reference",
+        "trait_reference"
+      ],
+      "top_issues": [],
+      "improvement_suggestions": [
+        "Good data referencing - recommendations are well-grounded"
+      ]
+    },
+    {
+      "validation_id": "validation_rec_001_2_1765590157",
+      "recommendation_id": "rec_001_2",
+      "recommendation_category": "development_area",
+      "total_references": 9,
+      "verified_references": 9,
+      "verification_rate": 1.0,
+      "critical_issues_count": 0,
+      "confidence_score": 0.78,
+      "reference_types": [
+        "score_reference",
+        "trait_reference"
+      ],
+      "top_issues": [],
+      "improvement_suggestions": [
+        "Good data referencing - recommendations are well-grounded"
+      ]
+    },
+    {
+      "validation_id": "validation_rec_002_1_1765590157",
+      "recommendation_id": "rec_002_1",
+      "recommendation_category": "career_guidance",
+      "total_references": 10,
+      "verified_references": 3,
+      "verification_rate": 0.3,
+      "critical_issues_count": 1,
+      "confidence_score": 0.88,
+      "reference_types": [
+        "type_reference",
+        "score_reference",
+        "trait_reference"
+      ],
+      "top_issues": [
+        "Low verification rate indicates poor data grounding"
+      ],
+      "improvement_suggestions": [
+        "Include more specific assessment data references",
+        "Ensure all referenced data exists in assessment"
+      ]
+    },
+    {
+      "validation_id": "validation_rec_002_2_1765590157",
+      "recommendation_id": "rec_002_2",
+      "recommendation_category": "skill_development",
+      "total_references": 6,
+      "verified_references": 1,
+      "verification_rate": 0.16666666666666666,
+      "critical_issues_count": 1,
+      "confidence_score": 0.65,
+      "reference_types": [
+        "comparison_data",
+        "trait_reference"
+      ],
+      "top_issues": [
+        "Low verification rate indicates poor data grounding"
+      ],
+      "improvement_suggestions": [
+        "Include more specific assessment data references",
+        "Ensure all referenced data exists in assessment"
+      ]
+    },
+    {
+      "validation_id": "validation_rec_002_3_1765590157",
+      "recommendation_id": "rec_002_3",
+      "recommendation_category": "development_need",
+      "total_references": 3,
+      "verified_references": 0,
+      "verification_rate": 0.0,
+      "critical_issues_count": 1,
+      "confidence_score": 0.45,
+      "reference_types": [
+        "trait_reference"
+      ],
+      "top_issues": [
+        "Low verification rate indicates poor data grounding"
+      ],
+      "improvement_suggestions": [
+        "Include more specific assessment data references",
+        "Ensure all referenced data exists in assessment"
+      ]
+    },
+    {
+      "validation_id": "validation_rec_003_1_1765590157",
+      "recommendation_id": "rec_003_1",
+      "recommendation_category": "strength_based_guidance",
+      "total_references": 17,
+      "verified_references": 6,
+      "verification_rate": 0.35294117647058826,
+      "critical_issues_count": 1,
+      "confidence_score": 0.91,
+      "reference_types": [
+        "type_reference",
+        "score_reference",
+        "trait_reference"
+      ],
+      "top_issues": [
+        "Low verification rate indicates poor data grounding"
+      ],
+      "improvement_suggestions": [
+        "Include more specific assessment data references",
+        "Ensure all referenced data exists in assessment"
+      ]
+    },
+    {
+      "validation_id": "validation_rec_003_2_1765590157",
+      "recommendation_id": "rec_003_2",
+      "recommendation_category": "career_guidance",
+      "total_references": 18,
+      "verified_references": 5,
+      "verification_rate": 0.2777777777777778,
+      "critical_issues_count": 1,
+      "confidence_score": 0.88,
+      "reference_types": [
+        "type_reference",
+        "score_reference",
+        "trait_reference"
+      ],
+      "top_issues": [
+        "Low verification rate indicates poor data grounding"
+      ],
+      "improvement_suggestions": [
+        "Include more specific assessment data references",
+        "Ensure all referenced data exists in assessment"
+      ]
+    }
+  ],
+  "recommendations": [
+    "\u274c Poor data referencing - requires immediate improvement",
+    "Improve trait reference verification accuracy",
+    "Implement automated reference checking in recommendation generation",
+    "Require minimum of 2 verified data references per recommendation",
+    "Create standardized reference format for consistency",
+    "Add confidence scoring based on reference verification"
+  ],
+  "quality_metrics": {
+    "references_per_recommendation": 10.571428571428571,
+    "high_quality_rate": 0.2857142857142857,
+    "unreferenced_recommendations": 0
+  }
+}

@@ -124,22 +124,26 @@ export const TrainingManagement: React.FC<TrainingManagementProps> = ({ classNam
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard
+          title="Total Training"
           value={stats.total}
           icon={<FileText className="w-6 h-6" />}
           color="blue"
         />
         <StatsCard
+          title="Completed"
           value={stats.completed}
           icon={<CheckCircle className="w-6 h-6" />}
           color="green"
           subtitle={`${completionRate}% completion rate`}
         />
         <StatsCard
+          title="In Progress"
           value={stats.inProgress}
           icon={<Clock className="w-6 h-6" />}
           color="yellow"
         />
         <StatsCard
+          title="Overdue"
           value={stats.overdue}
           icon={<AlertTriangle className="w-6 h-6" />}
           color="red"
@@ -367,7 +371,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     color: 'gray',
     label: status
   };
-  return <Badge color={config.color}>{config.label}</Badge>;
+  return <Badge color={config.color as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'}>{config.label}</Badge>;
 };
 const getDaysRemaining = (dueDate: string): string => {
   const due = new Date(dueDate);

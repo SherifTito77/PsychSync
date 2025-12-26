@@ -1,0 +1,339 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "PsychSync React Frontend",
+    "tags": ["psychsync", "react", "frontend"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Page View Rate",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "psychsync:frontend:page_view_rate:5m",
+            "legendFormat": "Page Views/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "green", "value": 10}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "JavaScript Error Rate",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "psychsync:frontend:error_rate:5m",
+            "legendFormat": "Errors/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "P95 Page Load Time",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "psychsync:frontend:p95_load_time:5m",
+            "legendFormat": "P95 Load Time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 2.0},
+                {"color": "red", "value": 5.0}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Bounce Rate",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "psychsync:frontend:bounce_rate:5m * 100",
+            "legendFormat": "Bounce Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "red", "value": 50}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Page Views Over Time",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "rate(frontend_page_views_total[5m])",
+            "legendFormat": "Page Views/min"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Page Views/min",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "JavaScript Errors Over Time",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "rate(frontend_javascript_errors_total[5m])",
+            "legendFormat": "JS Errors/min"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "JS Errors/min",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Page Load Time Distribution",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 24
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(frontend_page_load_time_seconds_bucket[5m]))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(frontend_page_load_time_seconds_bucket[5m]))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(frontend_page_load_time_seconds_bucket[5m]))",
+            "legendFormat": "P99"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Load Time (s)",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "User Engagement Score",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 32
+        },
+        "targets": [
+          {
+            "expr": "psychsync:frontend:user_engagement_score:5m",
+            "legendFormat": "Engagement Score"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 5},
+                {"color": "green", "value": 10}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Assessment Completion Rate",
+        "type": "stat",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 32
+        },
+        "targets": [
+          {
+            "expr": "psychsync:frontend:assessment_completion_rate:5m * 100",
+            "legendFormat": "Completion %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 50},
+                {"color": "green", "value": 80}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Assessments Started vs Completed",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 40
+        },
+        "targets": [
+          {
+            "expr": "rate(frontend_assessments_started_total[5m])",
+            "legendFormat": "Started/min"
+          },
+          {
+            "expr": "rate(frontend_assessments_completed_total[5m])",
+            "legendFormat": "Completed/min"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Assessments/min",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Single Page Sessions",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 40
+        },
+        "targets": [
+          {
+            "expr": "rate(frontend_single_page_sessions_total[5m])",
+            "legendFormat": "Bounce Sessions/min"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Sessions/min",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Team Activities",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 48
+        },
+        "targets": [
+          {
+            "expr": "rate(frontend_team_activities_total[5m])",
+            "legendFormat": "Team Activities/min"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Activities/min",
+            "min": 0
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

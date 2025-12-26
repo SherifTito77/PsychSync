@@ -1,0 +1,29 @@
+{
+  "setup_timestamp": "2025-12-01T15:15:04.328800",
+  "environment": "production",
+  "pwa_enabled": true,
+  "monitoring_components": {
+    "performance": true,
+    "error_tracking": true,
+    "pwa": true,
+    "analytics": true,
+    "alerting": true,
+    "dashboards": true
+  },
+  "configuration_files": {
+    "performance": "monitoring/config/performance_monitoring.json",
+    "error_tracking": "monitoring/config/error_tracking.json",
+    "pwa_monitoring": "monitoring/config/pwa_monitoring.json",
+    "analytics": "monitoring/config/analytics.json",
+    "alerting": "monitoring/config/alerting.json",
+    "dashboards": "monitoring/config/dashboards.json",
+    "logging": "monitoring/logging_config.json"
+  },
+  "scripts": {
+    "performance_monitor": "monitoring/scripts/performance_monitor.py",
+    "pwa_monitor": "monitoring/scripts/pwa_monitor.py"
+  },
+  "dashboards": {
+    "main_dashboard": "monitoring/dashboards/index.html"
+  }
+}

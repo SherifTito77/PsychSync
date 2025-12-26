@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Team Optimization Results Ready 🎯</h2>
+
+<p>Hi {{ user_name }},</p>
+
+<p>Your team optimization analysis is complete! Our AI engine has analyzed your team composition and generated recommendations to maximize <strong>{{ optimization_objective }}</strong>.</p>
+
+<div style="text-align: center; margin: 30px 0;">
+    <div class="stat-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <div class="stat-number">{{ overall_score|round(2) }}%</div>
+        <div class="stat-label">Overall Compatibility Score</div>
+    </div>
+</div>
+
+<h3>Recommended Team Configuration</h3>
+
+{% for team in recommended_teams %}
+<div style="background: #f8fafc; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #2563eb;">
+    <h4>Team {{ loop.index }} ({{ team.member_ids|length }} members)</h4>
+
+    <div class="stats-grid" style="margin: 15px 0;">
+        <div class="stat-box">
+            <div class="stat-number">{{ team.compatibility_score|round(2) }}</div>
+            <div class="stat-label">Compatibility</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{{ team.skill_coverage|round(2) }}</div>
+            <div class="stat-label">Skill Coverage</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number">{{ team.diversity_score|round(2) }}</div>
+            <div class="stat-label">Diversity</div>
+        </div>
+    </div>
+
+    {% if team.strengths %}
+    <div class="success-box">
+        <strong>Team Strengths:</strong>
+        <ul style="margin-top: 10px; margin-bottom: 0;">
+            {% for strength in team.strengths %}
+            <li>{{ strength }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if team.risks %}
+    <div class="warning-box" style="margin-top: 15px;">
+        <strong>Potential Risks:</strong>
+        <ul style="margin-top: 10px; margin-bottom: 0;">
+            {% for risk in team.risks %}
+            <li>{{ risk }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+<h3>Key Insights</h3>
+
+<ul>
+    {% for insight in insights %}
+    <li>{{ insight }}</li>
+    {% endfor %}
+</ul>
+
+<h3>🚀 Recommended Actions</h3>
+
+<div class="feature-list">
+    <h4>Immediate Steps:</h4>
+    <ol>
+        <li><strong>Review Team Composition:</strong> Share these recommendations with your team members</li>
+        <li><strong>Address Identified Risks:</strong> Take proactive steps to mitigate potential challenges</li>
+        <li><strong>Leverage Strengths:</strong> Focus on the unique advantages of your team composition</li>
+        <li><strong>Monitor Progress:</strong> Track team performance and re-optimize as needed</li>
+    </ol>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="button">View Detailed Analysis</a>
+    <a href="{{ download_report_url }}" class="button secondary">Download Report</a>
+</div>
+
+<h3>📊 Optimization Metrics</h3>
+
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="stat-number">{{ total_members }}</div>
+        <div class="stat-label">Team Members Analyzed</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number">{{ compatibility_pairs }}</div>
+        <div class="stat-label">Compatibility Pairs</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number">{{ unique_skills }}</div>
+        <div class="stat-label">Unique Skills</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number">{{ algorithm_runtime }}s</div>
+        <div class="stat-label">Processing Time</div>
+    </div>
+</div>
+
+{% if improvements_needed %}
+<div class="warning-box">
+    <h4>🔧 Areas for Improvement:</h4>
+    <ul>
+        {% for improvement in improvements_needed %}
+        <li>{{ improvement }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<h3>🎯 Advanced Features</h3>
+
+<p>Ready to dive deeper into team optimization? Consider these advanced features:</p>
+<ul>
+    <li><strong>Role-Specific Analysis:</strong> Get detailed insights for different team roles</li>
+    <li><strong>Project-Based Optimization:</strong> Configure teams for specific project requirements</li>
+    <li><strong>Historical Tracking:</strong> Monitor team performance over time</li>
+    <li><strong>Comparative Analysis:</strong> Benchmark against similar teams in your industry</li>
+</ul>
+
+<div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 20px; border-radius: 8px; margin: 25px 0;">
+    <h4>💡 Pro Tip:</h4>
+    <p>Team optimization is an ongoing process. Consider re-running this analysis every 3-6 months or when your team composition changes significantly.</p>
+</div>
+
+<h3>📚 Next Steps</h3>
+
+<div class="feature-list">
+    <h4>Continue Your Team Journey:</h4>
+    <ol>
+        <li><strong>Share with Stakeholders:</strong> Present findings to team leads and project managers</li>
+        <li><strong>Implementation Plan:</strong> Create a timeline for applying the recommendations</li>
+        <li><strong>Training Opportunities:</strong> Identify skill gaps and plan development sessions</li>
+        <li><strong>Regular Check-ins:</strong> Schedule follow-up assessments to track progress</li>
+    </ol>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <p style="margin-bottom: 15px; color: #64748b;">
+        <strong>Need help implementing these recommendations?</strong><br>
+        Our team of organizational psychologists can provide personalized guidance.
+    </p>
+    <a href="{{ consult_url }}" class="button">Schedule Consultation</a>
+</div>
+
+<div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0; border: 1px solid #e5e7eb;">
+    <h4>🔒 Data Privacy & Security</h4>
+    <p>Your team optimization data is encrypted and secure. Only authorized team members can access detailed results. You can manage sharing permissions in your account settings.</p>
+</div>
+
+<p>Thank you for using PsychSync's team optimization features. We're excited to help you build more effective, collaborative teams!</p>
+
+<p style="margin-top: 30px;">
+    Best regards,<br>
+    The PsychSync Team
+</p>
+
+<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+<p style="font-size: 14px; color: #64748b;">
+    <strong>P.S.</strong> Want to optimize your team for a different objective? Run a new analysis focused on collaboration, innovation, or conflict reduction!
+</p>
+{% endblock %}

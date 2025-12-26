@@ -1,0 +1,217 @@
+name: SAST - Semgrep Security Scan
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  semgrep-scan:
+    name: Semgrep SAST Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Semgrep scan
+        uses: returntocorp/semgrep@v1
+        with:
+          config: >-
+            --config=p/security-audit
+            --config=p/owasp-top-ten
+            --config=auto
+          publish-sarif: ${{ github.event_name == 'pull_request' }}
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Analyze results
+        if: always()
+        run: |
+          echo "## Semgrep Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f semgrep.sarif ]; then
+            # Count findings by severity
+            total=$(jq '.runs[0].results | length' semgrep.sarif)
+            error=$(jq '[.runs[0].results[] | select(.level == "error")] | length' semgrep.sarif)
+            warning=$(jq '[.runs[0].results[] | select(.level == "warning")] | length' semgrep.sarif)
+
+            echo "📊 **Summary**" >> $GITHUB_STEP_SUMMARY
+            echo "- Total Findings: $total" >> $GITHUB_STEP_SUMMARY
+            echo "- Errors: $error 🔴" >> $GITHUB_STEP_SUMMARY
+            echo "- Warnings: $warning ⚠️" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Fail on high severity
+            if [ "$error" -gt 0 ]; then
+              echo "::error::Semgrep found $error high-severity issues. Security review required."
+              echo "### ❌ Scan Failed" >> $GITHUB_STEP_SUMMARY
+              echo "Found $error high-severity issues that must be reviewed." >> $GITHUB_STEP_SUMMARY
+              exit 1
+            else
+              echo "### ✅ Scan Passed" >> $GITHUB_STEP_SUMMARY
+              echo "No high-severity issues found." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "✅ No findings detected!" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 🔍 Semgrep Security Scan Results\n\n';
+
+            try {
+              const sarif = JSON.parse(fs.readFileSync('semgrep.sarif', 'utf8'));
+              const results = sarif.runs[0].results || [];
+              const errors = results.filter(r => r.level === 'error');
+              const warnings = results.filter(r => r.level === 'warning');
+
+              comment += `**Total Findings:** ${results.length}\n`;
+              comment += `🔴 **Errors:** ${errors.length}\n`;
+              comment += `⚠️ **Warnings:** ${warnings.length}\n\n`;
+
+              if (errors.length > 0) {
+                comment += '### ❌ High Severity Issues\n\n';
+                comment += 'Security review required before merge.\n\n';
+                comment += '### Issues Found\n\n';
+
+                errors.slice(0, 10).forEach(result => {
+                  const rule = result.rule;
+                  const message = result.message.text;
+                  const location = result.locations[0].physicalLocation;
+                  const file = location.artifactLocation.uri;
+                  const line = location.region.startLine;
+
+                  comment += `- **${rule.id}**: ${message}\n`;
+                  comment += `  📁 ${file}:${line}\n\n`;
+                });
+
+                if (errors.length > 10) {
+                  comment += `\n_...and ${errors.length - 10} more issues_\n`;
+                }
+              } else {
+                comment += '### ✅ No High Severity Issues\n\n';
+                comment += 'Scan completed successfully with no critical findings.\n';
+              }
+            } catch (error) {
+              comment += '✅ No security issues found!\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  security-review-requirement:
+    name: Require Security Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: semgrep-scan
+
+    steps:
+      - name: Check for high severity findings
+        id: check_findings
+        run: |
+          if [ -f semgrep.sarif ]; then
+            errors=$(jq '[.runs[0].results[] | select(.level == "error")] | length' semgrep.sarif 2>/dev/null || echo "0")
+
+            if [ "$errors" -gt 0 ]; then
+              echo "needs_review=true" >> $GITHUB_OUTPUT
+              echo "## ⚠️ Security Review Required" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "This PR has high-severity security findings." >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Required Actions:" >> $GITHUB_STEP_SUMMARY
+              echo "1. Review Semgrep findings" >> $GITHUB_STEP_SUMMARY
+              echo "2. Fix or document exceptions" >> $GITHUB_STEP_SUMMARY
+              echo "3. Get approval from @security-team" >> $GITHUB_STEP_SUMMARY
+              echo "4. Re-run scan to verify fixes" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "needs_review=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "needs_review=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Label PR
+        if: steps.check_findings.outputs.needs_review == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['security-review-required', 'do-not-merge']
+            })
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### 🔒 Security Review Required
+
+This PR has high-severity security findings and requires security team approval before merging.
+
+**Required Steps:**
+1. Review the Semgrep scan results above
+2. Address all high-severity findings
+3. Request review from @security-team
+4. Re-run scan after fixes
+
+**Labels Applied:** \`security-review-required\`, \`do-not-merge\`
+
+📋 Checklist:
+- [ ] All findings reviewed
+- [ ] Fixes applied or exceptions documented
+- [ ] Security team approval obtained
+- [ ] Scan re-run and passed`
+            });
+
+      - name: Remove label if clean
+        if: steps.check_findings.outputs.needs_review == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'security-review-required'
+              });
+            } catch (e) {
+              // Label doesn't exist, ignore
+            }
+
+            try {
+              await github.rest.issues.removeLabel({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'do-not-merge'
+              });
+            } catch (e) {
+              // Label doesn't exist, ignore
+            }

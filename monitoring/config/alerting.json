@@ -1,0 +1,36 @@
+{
+  "enabled": true,
+  "channels": {
+    "email": {
+      "enabled": false,
+      "smtp_server": "smtp.example.com",
+      "recipients": [
+        "admin@psychsync.com"
+      ]
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    }
+  },
+  "rules": [
+    {
+      "name": "high_error_rate",
+      "condition": "error_rate > 5",
+      "severity": "critical",
+      "message": "Error rate is above 5%"
+    },
+    {
+      "name": "slow_response_time",
+      "condition": "response_time_ms > 2000",
+      "severity": "warning",
+      "message": "Response time is above 2 seconds"
+    },
+    {
+      "name": "pwa_score_low",
+      "condition": "pwa_score < 80",
+      "severity": "warning",
+      "message": "PWA score is below 80%"
+    }
+  ]
+}

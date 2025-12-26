@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Behavioral Intelligence - PsychSync</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1f2937;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-subtitle {
+            color: #6b7280;
+            margin-top: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .header-stat {
+            text-align: center;
+        }
+
+        .header-stat .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .header-stat .label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .value-proposition {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .value-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .value-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .roi-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .business-outcomes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .outcome-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #3b82f6;
+        }
+
+        .outcome-card h3 {
+            font-size: 1.2rem;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .outcome-card .metric {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #10b981;
+            margin: 0.5rem 0;
+        }
+
+        .outcome-card .description {
+            color: #6b7280;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .team-insights {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .insights-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .insights-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .team-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .metric-score {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-score.high { color: #10b981; }
+        .metric-score.medium { color: #f59e0b; }
+        .metric-score.low { color: #ef4444; }
+
+        .metric-label {
+            font-size: 1rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .chart-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+
+        .recommendations {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .recommendations-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+        }
+
+        .recommendation-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .recommendation-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #f59e0b;
+        }
+
+        .recommendation-card.high-priority {
+            border-left-color: #ef4444;
+        }
+
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .recommendation-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .priority-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .priority-badge.high {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .priority-badge.medium {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .priority-badge.low {
+            background: #f0f9ff;
+            color: #2563eb;
+        }
+
+        .recommendation-description {
+            color: #6b7280;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .recommendation-impact {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .impact-text {
+            font-size: 0.9rem;
+            color: #10b981;
+            font-weight: 500;
+        }
+
+        .timeline {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .cta-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 16px;
+            margin-top: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .cta-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+
+        .cta-description {
+            font-size: 1.1rem;
+            color: #6b7280;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .cta-button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .cta-button.primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .cta-button.secondary {
+            background: white;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .header-stats {
+                gap: 1rem;
+            }
+
+            .chart-container {
+                grid-template-columns: 1fr;
+            }
+
+            .business-outcomes {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>Team Behavioral Intelligence</h1>
+                <div class="header-subtitle">Transform team dynamics into measurable business outcomes</div>
+            </div>
+            <div class="header-stats">
+                <div class="header-stat">
+                    <div class="value">$25.7K</div>
+                    <div class="label">Monthly Value</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value">33%</div>
+                    <div class="label">Turnover Reduction</div>
+                </div>
+                <div class="header-stat">
+                    <div class="value">287%</div>
+                    <div class="label">ROI</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Value Proposition Section -->
+        <div class="value-proposition">
+            <div class="value-header">
+                <h2 class="value-title">Business Impact Dashboard</h2>
+                <div class="roi-badge">287% Annual ROI</div>
+            </div>
+
+            <div class="business-outcomes">
+                <div class="outcome-card">
+                    <h3>💼 Productivity Enhancement</h3>
+                    <div class="metric">156 hours/month saved</div>
+                    <div class="description">
+                        Improved collaboration efficiency and streamlined communication processes reduce meeting overhead by 28%, equivalent to 2 additional team members.
+                    </div>
+                </div>
+
+                <div class="outcome-card">
+                    <h3>🔄 Retention Improvement</h3>
+                    <div class="metric">$315K saved annually</div>
+                    <div class="description">
+                        33% reduction in turnover rate through early intervention and team optimization, preventing 4.2 employee departures per year.
+                    </div>
+                </div>
+
+                <div class="outcome-card">
+                    <h3>💡 Innovation Acceleration</h3>
+                    <div class="metric">45% faster idea implementation</div>
+                    <div class="description">
+                        Optimized team composition and psychological safety accelerate innovation cycles, delivering 8 new product features and 15 process improvements.
+                    </div>
+                </div>
+
+                <div class="outcome-card">
+                    <h3>😊 Employee Engagement</h3>
+                    <div class="metric">0.9 point NPS increase</div>
+                    <div class="description">
+                        Enhanced team dynamics and communication effectiveness boost engagement scores from 3.2 to 4.1, reducing absenteeism and improving productivity.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Insights Section -->
+        <div class="team-insights">
+            <div class="insights-header">
+                <h2 class="insights-title">Current Team Performance</h2>
+            </div>
+
+            <div class="team-metrics">
+                <div class="metric-card">
+                    <div class="metric-score high">0.82</div>
+                    <div class="metric-label">Team Cohesion</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-score medium">0.71</div>
+                    <div class="metric-label">Communication Effectiveness</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-score high">0.78</div>
+                    <div class="metric-label">Collaboration Quality</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-score high">0.85</div>
+                    <div class="metric-label">Psychological Safety</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-score medium">0.68</div>
+                    <div class="metric-label">Innovation Potential</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-score high">0.74</div>
+                    <div class="metric-label">Conflict Resolution</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-card">
+                    <h3 class="chart-title">Team Performance Trends</h3>
+                    <canvas id="performanceTrendChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Business Impact Breakdown</h3>
+                    <canvas id="impactBreakdownChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations Section -->
+        <div class="recommendations">
+            <h2 class="recommendations-title">AI-Powered Team Recommendations</h2>
+
+            <div class="recommendation-list">
+                <div class="recommendation-card high-priority">
+                    <div class="recommendation-header">
+                        <h3 class="recommendation-title">Enhance Innovation Potential</h3>
+                        <span class="priority-badge high">High Priority</span>
+                    </div>
+                    <div class="recommendation-description">
+                        Team shows moderate innovation potential (68%). Psychological safety is high, but diverse thinking patterns could be better leveraged for creative problem-solving.
+                    </div>
+                    <div class="recommendation-impact">
+                        <span class="impact-text">Expected: 45% increase in innovative solutions</span>
+                        <span class="timeline">Implementation: 4-6 weeks</span>
+                    </div>
+                </div>
+
+                <div class="recommendation-card">
+                    <div class="recommendation-header">
+                        <h3 class="recommendation-title">Optimize Communication Patterns</h3>
+                        <span class="priority-badge medium">Medium Priority</span>
+                    </div>
+                    <div class="recommendation-description">
+                        Communication effectiveness at 71% indicates opportunities for improvement in meeting efficiency and information sharing clarity.
+                    </div>
+                    <div class="recommendation-impact">
+                        <span class="impact-text">Expected: 30% reduction in meeting time</span>
+                        <span class="timeline">Implementation: 2-3 weeks</span>
+                    </div>
+                </div>
+
+                <div class="recommendation-card">
+                    <div class="recommendation-header">
+                        <h3 class="recommendation-title">Leverage Team Strengths</h3>
+                        <span class="priority-badge low">Low Priority</span>
+                    </div>
+                    <div class="recommendation-description">
+                        Team shows excellent cohesion and psychological safety. Focus on maximizing these strengths through cross-team knowledge sharing and mentorship programs.
+                    </div>
+                    <div class="recommendation-impact">
+                        <span class="impact-text">Expected: 15% productivity increase</span>
+                        <span class="timeline">Implementation: 6-8 weeks</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call to Action Section -->
+        <div class="cta-section">
+            <h2 class="cta-title">Ready to Transform Your Team Performance?</h2>
+            <p class="cta-description">
+                Join 500+ companies using PsychSync to optimize team dynamics, reduce turnover, and drive measurable business results.
+            </p>
+            <div class="cta-buttons">
+                <button class="cta-button primary" onclick="startTeamAssessment()">
+                    Start Free Team Assessment
+                </button>
+                <button class="cta-button secondary" onclick="scheduleDemo()">
+                    Schedule Executive Demo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts
+        function initializeCharts() {
+            // Performance Trend Chart
+            const performanceCtx = document.getElementById('performanceTrendChart').getContext('2d');
+            new Chart(performanceCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Team Cohesion',
+                        data: [0.68, 0.72, 0.75, 0.78, 0.80, 0.82],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Communication Effectiveness',
+                        data: [0.62, 0.65, 0.68, 0.70, 0.71, 0.71],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Innovation Potential',
+                        data: [0.55, 0.60, 0.62, 0.65, 0.67, 0.68],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Impact Breakdown Chart
+            const impactCtx = document.getElementById('impactBreakdownChart').getContext('2d');
+            new Chart(impactCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Productivity Savings', 'Turnover Prevention', 'Innovation Value', 'Engagement Benefits'],
+                    datasets: [{
+                        data: [308400, 315000, 193000, 40800],
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD',
+                                        minimumFractionDigits: 0
+                                    }).format(context.raw);
+                                    return label + ': ' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Interactive functions
+        function startTeamAssessment() {
+            // Navigate to team assessment or open modal
+            console.log('Starting team assessment...');
+            // Implementation would redirect to assessment flow
+        }
+
+        function scheduleDemo() {
+            // Open demo scheduling or redirect
+            console.log('Scheduling executive demo...');
+            // Implementation would open demo scheduling
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+        });
+    </script>
+</body>
+</html>

@@ -135,18 +135,21 @@ export const EmployeeRightsDashboard: React.FC<EmployeeRightsDashboardProps> = (
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <QuickActionCard
+          title="Anonymous Feedback"
           description="Submit anonymous feedback about workplace issues"
           icon={<AlertTriangle className="w-8 h-8" />}
           link="/anonymous-feedback"
           color="red"
         />
         <QuickActionCard
+          title="Download Rights Guide"
           description="Get a printable PDF of your employee rights"
           icon={<Download className="w-8 h-8" />}
           onClick={downloadRightsGuide}
           color="blue"
         />
         <QuickActionCard
+          title="Contact Agencies"
           description="Get contact information for regulatory agencies"
           icon={<Phone className="w-8 h-8" />}
           link="/reporting-guidelines"
@@ -284,7 +287,7 @@ export const EmployeeRightsDashboard: React.FC<EmployeeRightsDashboardProps> = (
               {userState} State-Specific Rights
             </h2>
           </div>
-          <StateRightsContent stateData={rights.state_rights} />
+          <StateRightsContent stateData={rights.state_rights as StateData} />
         </Card>
       )}
       {/* Reporting Resources */}
@@ -325,18 +328,22 @@ export const EmployeeRightsDashboard: React.FC<EmployeeRightsDashboardProps> = (
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <EmergencyContactCard
+            title="OSHA"
             phone="1-800-321-6742"
             description="Workplace safety and health violations"
           />
           <EmergencyContactCard
+            title="EEOC"
             phone="1-800-669-4000"
             description="Discrimination and harassment"
           />
           <EmergencyContactCard
+            title="Wage & Hour Division"
             phone="1-866-487-2365"
             description="Wage theft, overtime, minimum wage"
           />
           <EmergencyContactCard
+            title="NLRB"
             phone="1-844-762-6572"
             description="Union rights and unfair labor practices"
           />

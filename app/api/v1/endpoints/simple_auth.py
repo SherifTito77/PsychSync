@@ -1,0 +1,155 @@
+"""
+Simple authentication endpoint for testing purposes
+Minimal implementation without complex security dependencies
+"""
+
+from fastapi import APIRouter, HTTPException, Form, status, Request
+
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy import text
+from datetime import datetime, timedelta
+import jwt
+
+from app.core.config import get_database_url
+
+router = APIRouter()
+
+# Create a simple async engine for auth endpoints
+async def get_auth_db_session():
+    """Get a simple database session for authentication without complex dependencies"""
+    from app.core.database import get_async_db_with_retry
+    async for session in get_async_db_with_retry():
+        yield session
+        break
+
+
+@router.post("/simple-login")
+async def simple_login(
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    """
+    Simple login endpoint that works without complex dependencies
+    """
+    session = None
+    try:
+        # Create a simple database session
+        session = get_auth_db_session()
+
+        # Query user from database
+        result = await session.execute(
+            text("SELECT id, email, full_name FROM users WHERE email = :email"),
+            {"email": username}
+        )
+        user = result.fetchone()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+
+        # For demo purposes, accept test users with any password
+        test_emails = ['test@example.com', 'admin@example.com']
+        if username in test_emails:
+            # Create simple JWT token
+            from app.core.config import settings
+            token_data = {
+                "sub": user.email,
+                "user_id": str(user.id),
+                "name": user.full_name,
+                "exp": datetime.utcnow() + timedelta(hours=24),
+                "iat": datetime.utcnow()
+            }
+
+            token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
+
+            return {
+                "success": True,
+                "access_token": token,
+                "token_type": "bearer",
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "name": user.full_name
+                }
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Simple login error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+    finally:
+        if session:
+            await session.close()
+
+
+@router.get("/verify-token/{token}")
+async def verify_token(token: str):
+    """
+    Simple token verification endpoint
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        return {
+            "success": True,
+            "valid": True,
+            "payload": payload
+        }
+    except jwt.ExpiredSignatureError:
+        return {
+            "success": False,
+            "valid": False,
+            "error": "Token expired"
+        }
+    except jwt.InvalidTokenError:
+        return {
+            "success": False,
+            "valid": False,
+            "error": "Invalid token"
+        }
+
+@router.get("/me")
+async def get_current_user_info(request: Request):
+    """
+    Simple endpoint to get current user info from Authorization header
+    """
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authorization header"
+            )
+
+        token = auth_header.split(" ")[1]
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+
+        return {
+            "success": True,
+            "user": {
+                "id": payload.get("user_id"),
+                "email": payload.get("sub"),
+                "name": payload.get("name"),
+                "exp": payload.get("exp"),
+                "iat": payload.get("iat")
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Me endpoint error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )

@@ -1,0 +1,223 @@
+{
+  "metadata": {
+    "name": "PsychSync Frontend Dependencies Allow-List",
+    "version": "1.0.0",
+    "lastUpdated": "2024-12-25",
+    "purpose": "Master allow-list for all approved npm packages",
+    "enforcement": "New dependencies MUST be added here before PR merge"
+  },
+  "allowedDependencies": {
+    "core": {
+      "react": {
+        "minVersion": "18.2.0",
+        "maxVersion": "18.3.0",
+        "reason": "Core UI library - meta-framework stable",
+        "securityNotes": "Facebook actively maintains, regular security updates"
+      },
+      "react-dom": {
+        "minVersion": "18.2.0",
+        "maxVersion": "18.3.0",
+        "reason": "React DOM renderer",
+        "securityNotes": "Part of React ecosystem"
+      },
+      "react-router-dom": {
+        "minVersion": "6.20.0",
+        "maxVersion": "6.30.0",
+        "reason": "Client-side routing",
+        "securityNotes": "Prevents XSS through proper route handling"
+      }
+    },
+    "stateManagement": {
+      "zustand": {
+        "minVersion": "4.4.0",
+        "maxVersion": "5.0.0",
+        "reason": "Lightweight state management",
+        "securityNotes": "Minimal attack surface, no prop-drilling issues"
+      },
+      "@tanstack/react-query": {
+        "minVersion": "5.17.0",
+        "maxVersion": "5.60.0",
+        "reason": "Server state management",
+        "securityNotes": "Automatic request deduplication, caching"
+      }
+    },
+    "buildTools": {
+      "vite": {
+        "minVersion": "5.0.0",
+        "maxVersion": "5.4.0",
+        "reason": "Build tool and dev server",
+        "securityNotes": "Fast builds, modern security defaults"
+      },
+      "typescript": {
+        "minVersion": "5.3.0",
+        "maxVersion": "5.7.0",
+        "reason": "Type safety",
+        "securityNotes": "Prevents type-related vulnerabilities at compile time"
+      },
+      "@vitejs/plugin-react": {
+        "minVersion": "4.2.0",
+        "maxVersion": "4.3.0",
+        "reason": "Vite React plugin",
+        "securityNotes": "Official plugin, regularly updated"
+      }
+    },
+    "httpClients": {
+      "axios": {
+        "minVersion": "1.6.0",
+        "maxVersion": "1.7.0",
+        "reason": "HTTP client with interceptors",
+        "securityNotes": "CSRF protection, request/response transformation"
+      }
+    },
+    "testing": {
+      "vitest": {
+        "minVersion": "1.1.0",
+        "maxVersion": "2.1.0",
+        "reason": "Unit testing framework",
+        "securityNotes": "Compatible with Jest ecosystem"
+      },
+      "@testing-library/react": {
+        "minVersion": "14.1.0",
+        "maxVersion": "16.1.0",
+        "reason": "React component testing",
+        "securityNotes": "Encourages accessible, user-centric testing"
+      },
+      "@testing-library/jest-dom": {
+        "minVersion": "6.1.0",
+        "maxVersion": "6.6.0",
+        "reason": "Custom Jest matchers",
+        "securityNotes": "Part of Testing Library family"
+      },
+      "@testing-library/user-event": {
+        "minVersion": "14.5.0",
+        "maxVersion": "14.6.0",
+        "reason": "User interaction simulation",
+        "securityNotes": "More realistic than direct event firing"
+      },
+      "jsdom": {
+        "minVersion": "23.0.0",
+        "maxVersion": "25.0.0",
+        "reason": "DOM simulation for tests",
+        "securityNotes": "Isolated test environment"
+      }
+    },
+    "linting": {
+      "eslint": {
+        "minVersion": "8.56.0",
+        "maxVersion": "9.0.0",
+        "reason": "JavaScript linting",
+        "securityNotes": "Catches potential security issues"
+      },
+      "@typescript-eslint/parser": {
+        "minVersion": "6.18.0",
+        "maxVersion": "8.0.0",
+        "reason": "TypeScript ESLint parser",
+        "securityNotes": "Type-aware linting"
+      },
+      "@typescript-eslint/eslint-plugin": {
+        "minVersion": "6.18.0",
+        "maxVersion": "8.0.0",
+        "reason": "TypeScript ESLint rules",
+        "securityNotes": "Type-specific security rules"
+      },
+      "eslint-plugin-react": {
+        "minVersion": "7.33.0",
+        "maxVersion": "7.37.0",
+        "reason": "React-specific linting",
+        "securityNotes": "Catches React security anti-patterns"
+      },
+      "eslint-plugin-react-hooks": {
+        "minVersion": "4.6.0",
+        "maxVersion": "5.0.0",
+        "reason": "React Hooks linting",
+        "securityNotes": "Prevents hooks-related vulnerabilities"
+      },
+      "eslint-plugin-security": {
+        "minVersion": "1.7.0",
+        "maxVersion": "3.0.0",
+        "reason": "Security-focused linting",
+        "securityNotes": "Detects insecure patterns"
+      }
+    },
+    "formatting": {
+      "prettier": {
+        "minVersion": "3.1.0",
+        "maxVersion": "3.4.0",
+        "reason": "Code formatter",
+        "securityNotes": "Consistent formatting reduces errors"
+      }
+    },
+    "styling": {
+      "tailwindcss": {
+        "minVersion": "3.4.0",
+        "maxVersion": "3.5.0",
+        "reason": "Utility-first CSS",
+        "securityNotes": "Prevents style injection attacks"
+      },
+      "autoprefixer": {
+        "minVersion": "10.4.16",
+        "maxVersion": "10.5.0",
+        "reason": "CSS vendor prefixing",
+        "securityNotes": "Standard PostCSS plugin"
+      },
+      "postcss": {
+        "minVersion": "8.4.32",
+        "maxVersion": "8.5.0",
+        "reason": "CSS transformation",
+        "securityNotes": "Build-time processing only"
+      }
+    },
+    "typeDefinitions": {
+      "@types/react": {
+        "minVersion": "18.2.0",
+        "maxVersion": "18.3.0",
+        "reason": "React TypeScript definitions",
+        "securityNotes": "DefinitelyTyped curated definitions"
+      },
+      "@types/react-dom": {
+        "minVersion": "18.2.0",
+        "maxVersion": "18.3.0",
+        "reason": "React DOM TypeScript definitions",
+        "securityNotes": "DefinitelyTyped curated definitions"
+      }
+    },
+    "securityTools": {
+      "npm-audit-resolver": {
+        "minVersion": "2.0.0",
+        "maxVersion": "3.0.0",
+        "reason": "Automated vulnerability remediation",
+        "securityNotes": "CI/CD integration for SCA"
+      }
+    }
+  },
+  "blockedDependencies": {
+    "dangerous": [
+      "eval",
+      "evaljs",
+      "javascript-stringify"
+    ],
+    "deprecated": [
+      "request",
+      "babel-preset-es2015",
+      "react-create-class"
+    ],
+    "vulnerableHistory": [
+      "event-stream",
+      "eslint-scope"
+    ]
+  },
+  "enforcementRules": {
+    "newDependency": {
+      "requires": ["allowListEntry", "securityReview", "alternativesConsidered"],
+      "autoBlock": true
+    },
+    "majorVersionUpdate": {
+      "requiresManualReview": true,
+      "requiresSecurityAudit": true
+    },
+    "transitiveDependency": {
+      "allowListRequired": true,
+      "auditOnEveryUpdate": true
+    }
+  }
+}

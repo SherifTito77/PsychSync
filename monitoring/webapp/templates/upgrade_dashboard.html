@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrade Your Subscription - PsychSync Monitor</title>
+    <meta name="description" content="Upgrade your monitoring subscription to unlock advanced features and protect your revenue">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+
+        .current-plan {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .plan-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1a202c;
+        }
+
+        .plan-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .badge-free {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-growth {
+            background: #dcfce7;
+            color: #14532d;
+        }
+
+        .badge-enterprise {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .upgrade-recommendation {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-left: 4px solid #f59e0b;
+        }
+
+        .urgency-indicator {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .urgency-score {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .urginess-high {
+            color: #dc2626;
+        }
+
+        .urginess-medium {
+            color: #f59e0b;
+        }
+
+        .urginess-low {
+            color: #10b981;
+        }
+
+        .value-proposition {
+            background: #f0f9ff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .value-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 1rem;
+        }
+
+        .value-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .value-metric {
+            text-align: center;
+        }
+
+        .value-amount {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.25rem;
+        }
+
+        .value-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .pricing-comparison {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .comparison-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .comparison-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .comparison-card.current {
+            border-color: #6b7280;
+            background: #f9fafb;
+        }
+
+        .comparison-card.recommended {
+            border-color: #059669;
+            background: #ecfdf5;
+            transform: scale(1.05);
+        }
+
+        .tier-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 0.5rem;
+        }
+
+        .tier-price {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+
+        .tier-price-monthly {
+            font-size: 1rem;
+            color: #6b7280;
+            margin-bottom: 1rem;
+        }
+
+        .feature-list {
+            list-style: none;
+            text-align: left;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+
+        .feature-item i {
+            color: #059669;
+            font-size: 0.8rem;
+        }
+
+        .upgrade-button {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .upgrade-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(5, 150, 105, 0.3);
+        }
+
+        .upgrade-button:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .triggers-section {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .triggers-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 1.5rem;
+        }
+
+        .trigger-item {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .trigger-message {
+            font-weight: 600;
+            color: #991b1b;
+            margin-bottom: 0.5rem;
+        }
+
+        .trigger-recommendation {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .roi-chart {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(5, 150, 105, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .comparison-card.recommended {
+                transform: none;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #059669;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                <i class="fas fa-rocket"></i>
+                Upgrade Your Subscription
+            </h1>
+            <p>Unlock advanced features and protect your revenue with enhanced business intelligence</p>
+        </div>
+
+        <div class="current-plan">
+            <div class="plan-header">
+                <div>
+                    <div class="plan-title">Current Plan</div>
+                    <div class="plan-badge badge-free" id="currentPlanBadge">Free</div>
+                </div>
+                <div>
+                    <div class="tier-price" id="currentPrice">$0</div>
+                    <div class="tier-price-monthly">per month</div>
+                </div>
+            </div>
+            <div id="currentFeatures">
+                <ul class="feature-list">
+                    <li class="feature-item"><i class="fas fa-check"></i> Basic health monitoring</li>
+                    <li class="feature-item"><i class="fas fa-check"></i> Core metrics collection</li>
+                    <li class="feature-item"><i class="fas fa-check"></i> Email alerts for critical issues</li>
+                    <li class="feature-item"><i class="fas fa-check"></i> 30-day data retention</li>
+                    <li class="feature-item"><i class="fas fa-check"></i> Community support</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="upgrade-recommendation" id="upgradeRecommendation" style="display: none;">
+            <div class="urgency-indicator">
+                <div>
+                    <div class="urgency-score" id="urgencyScore">0</div>
+                    <div>Urgency Score</div>
+                </div>
+                <div>
+                    <div class="urginess-high" id="urginessText">High Priority</div>
+                    <div id="urginessMessage">Upgrade recommended for maximum value</div>
+                </div>
+            </div>
+
+            <div class="personalized-message" id="personalizedMessage">
+                <!-- Will be populated dynamically -->
+            </div>
+
+            <div class="value-proposition">
+                <div class="value-title">💰 Value Proposition</div>
+                <div class="value-metrics">
+                    <div class="value-metric">
+                        <div class="value-amount" id="additionalValue">$0</div>
+                        <div class="value-label">Additional Monthly Value</div>
+                    </div>
+                    <div class="value-metric">
+                        <div class="value-amount" id="upgradeCost">$0</div>
+                        <div class="value-label">Additional Cost</div>
+                    </div>
+                    <div class="value-metric">
+                        <div class="value-amount" id="roiAmount">0x</div>
+                        <div class="value-label">Upgrade ROI</div>
+                    </div>
+                    <div class="value-metric">
+                        <div class="value-amount" id="paybackDays">0</div>
+                        <div class="value-label">Payback Period (Days)</div>
+                    </div>
+                </div>
+                <div id="keyBenefits">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <div class="triggers-section" id="triggersSection" style="display: none;">
+            <div class="triggers-title">
+                <i class="fas fa-exclamation-triangle"></i>
+                Why Upgrade Now?
+            </div>
+            <div id="upgradeTriggers">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+
+        <div class="pricing-comparison">
+            <div class="comparison-title">Available Plans</div>
+            <div class="comparison-grid" id="pricingGrid">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+
+        <div class="roi-chart">
+            <div class="comparison-title">12-Month ROI Projection</div>
+            <canvas id="roiChart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" id="upgradeButton" onclick="performUpgrade()">
+                <i class="fas fa-rocket"></i>
+                Upgrade Now
+            </button>
+            <button class="btn btn-secondary" onclick="scheduleConsultation()">
+                <i class="fas fa-calendar"></i>
+                Schedule Consultation
+            </button>
+            <a href="/dashboard" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let recommendationData = null;
+        let pricingData = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRecommendation();
+            loadPricingTiers();
+        });
+
+        async function loadRecommendation() {
+            try {
+                // Mock recommendation data - in production, this would come from API
+                const mockRecommendation = {
+                    recommendation: {
+                        current_tier: "free",
+                        recommended_tier: "growth",
+                        urgency_score: 75,
+                        confidence_score: 85,
+                        timeline: "This month - Significant ROI opportunity",
+                        personalized_message: "With your current growth trajectory and $125K monthly revenue at risk, upgrading to Growth tier will unlock predictive analytics to prevent 80% of incidents before they impact users.",
+                        upgrade_triggers: [
+                            "You're approaching your revenue tracking limit of $50,000/month",
+                            "$125K of monthly revenue at risk - protect it with advanced monitoring",
+                            "You've had 3 critical incidents this month - advanced monitoring can prevent 80% of incidents"
+                        ]
+                    },
+                    value_proposition: {
+                        additional_monthly_value: 18750,
+                        additional_cost: 99,
+                        upgrade_roi: 189.39,
+                        payback_period_days: 1,
+                        key_benefits: [
+                            "$18,750 additional monthly value",
+                            "189.4x ROI on upgrade investment",
+                            "Payback in 1 day"
+                        ]
+                    },
+                    new_features: [
+                        "Advanced PsychSync business dashboards",
+                        "Revenue and user analytics",
+                        "Predictive analytics (outage prevention)",
+                        "Slack integration",
+                        "90-day data retention",
+                        "Priority support",
+                        "Custom alerting rules",
+                        "Team collaboration analytics"
+                    ],
+                    upgraded_limits: {
+                        revenue_tracking: "$500,000",
+                        team_members: 50,
+                        data_retention: "90 days"
+                    }
+                };
+
+                recommendationData = mockRecommendation;
+                updateRecommendationUI();
+                createROIChart();
+
+            } catch (error) {
+                console.error('Error loading recommendation:', error);
+            }
+        }
+
+        async function loadPricingTiers() {
+            try {
+                // Mock pricing data - in production, this would come from API
+                pricingData = {
+                    tiers: {
+                        free: {
+                            name: "Free",
+                            monthly_price: 0,
+                            yearly_price: 0,
+                            features: [
+                                "Basic health monitoring",
+                                "Core metrics collection",
+                                "Email alerts for critical issues",
+                                "30-day data retention",
+                                "Community support"
+                            ]
+                        },
+                        growth: {
+                            name: "Growth",
+                            monthly_price: 99,
+                            yearly_price: 990,
+                            features: [
+                                "Advanced PsychSync business dashboards",
+                                "Revenue and user analytics",
+                                "Predictive analytics (outage prevention)",
+                                "Slack integration",
+                                "90-day data retention",
+                                "Priority support",
+                                "Custom alerting rules",
+                                "Team collaboration analytics"
+                            ]
+                        },
+                        enterprise: {
+                            name: "Enterprise",
+                            monthly_price: 499,
+                            yearly_price: 4990,
+                            features: [
+                                "Complete business intelligence",
+                                "Custom metric collection",
+                                "Advanced synthetic monitoring",
+                                "Professional services setup",
+                                "1-year data retention",
+                                "Dedicated support",
+                                "SLA guarantee",
+                                "Custom integrations",
+                                "Executive reporting",
+                                "Revenue forecasting"
+                            ]
+                        }
+                    }
+                };
+
+                updatePricingComparison();
+
+            } catch (error) {
+                console.error('Error loading pricing tiers:', error);
+            }
+        }
+
+        function updateRecommendationUI() {
+            if (!recommendationData) return;
+
+            const rec = recommendationData.recommendation;
+            const valueProp = recommendationData.value_proposition;
+
+            // Show recommendation section
+            document.getElementById('upgradeRecommendation').style.display = 'block';
+            document.getElementById('triggersSection').style.display = 'block';
+
+            // Update urgency indicators
+            const urgencyScore = document.getElementById('urgencyScore');
+            const urgencyText = document.getElementById('urginessText');
+            const urgencyMessage = document.getElementById('urgidityMessage');
+
+            urgencyScore.textContent = rec.urgency_score;
+
+            if (rec.urgency_score >= 70) {
+                urgencyScore.className = 'urgency-score urginess-high';
+                urgencyText.className = 'urginess-high';
+                urgencyText.textContent = 'High Priority';
+                urgencyMessage.textContent = 'Upgrade recommended for maximum value';
+            } else if (rec.urgency_score >= 40) {
+                urgencyScore.className = 'urgency-score urginess-medium';
+                urgencyText.className = 'urginess-medium';
+                urgencyText.textContent = 'Medium Priority';
+                urgencyMessage.textContent = 'Consider upgrading for growth preparation';
+            } else {
+                urgencyScore.className = 'urgency-score urginess-low';
+                urgencyText.className = 'urginess-low';
+                urgencyText.textContent = 'Low Priority';
+                urgencyMessage.textContent = 'Upgrade when ready for advanced features';
+            }
+
+            // Update personalized message
+            document.getElementById('personalizedMessage').innerHTML = `
+                <p style="font-size: 1.1rem; margin-bottom: 1rem;">${rec.personalized_message}</p>
+                <p style="color: #6b7280; font-size: 0.9rem;">
+                    <strong>Timeline:</strong> ${rec.timeline} |
+                    <strong>Confidence:</strong> ${rec.confidence_score}%
+                </p>
+            `;
+
+            // Update value proposition
+            document.getElementById('additionalValue').textContent = `$${valueProp.additional_monthly_value.toLocaleString()}`;
+            document.getElementById('upgradeCost').textContent = `$${valueProp.additional_cost}`;
+            document.getElementById('roiAmount').textContent = `${valueProp.upgrade_roi.toFixed(1)}x`;
+            document.getElementById('paybackDays').textContent = valueProp.payback_period_days;
+
+            // Update key benefits
+            const benefitsHTML = valueProp.key_benefits.map(benefit =>
+                `<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="fas fa-check-circle" style="color: #059669;"></i>
+                    <span>${benefit}</span>
+                </div>`
+            ).join('');
+            document.getElementById('keyBenefits').innerHTML = benefitsHTML;
+
+            // Update upgrade triggers
+            const triggersHTML = rec.upgrade_triggers.map(trigger => `
+                <div class="trigger-item">
+                    <div class="trigger-message">${trigger}</div>
+                </div>
+            `).join('');
+            document.getElementById('upgradeTriggers').innerHTML = triggersHTML;
+        }
+
+        function updatePricingComparison() {
+            if (!pricingData || !recommendationData) return;
+
+            const currentTier = recommendationData.recommendation.current_tier;
+            const recommendedTier = recommendationData.recommendation.recommended_tier;
+            const grid = document.getElementById('pricingGrid');
+
+            let html = '';
+
+            Object.entries(pricingData.tiers).forEach(([tierKey, tier]) => {
+                const isCurrent = tierKey === currentTier;
+                const isRecommended = tierKey === recommendedTier;
+
+                html += `
+                    <div class="comparison-card ${isCurrent ? 'current' : ''} ${isRecommended ? 'recommended' : ''}">
+                        ${isRecommended ? '<div style="background: #059669; color: white; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.8rem; font-weight: 600;">RECOMMENDED</div>' : ''}
+                        ${isCurrent ? '<div style="background: #6b7280; color: white; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.8rem; font-weight: 600;">CURRENT PLAN</div>' : ''}
+                        <div class="tier-name">${tier.name}</div>
+                        <div class="tier-price">$${tier.monthly_price.toLocaleString()}</div>
+                        <div class="tier-price-monthly">per month</div>
+                        <ul class="feature-list">
+                            ${tier.features.map(feature =>
+                                `<li class="feature-item"><i class="fas fa-check"></i> ${feature}</li>`
+                            ).join('')}
+                        </ul>
+                        ${isCurrent ? '' : `<button class="upgrade-button" onclick="selectTier('${tierKey}')">Select ${tier.name}</button>`}
+                    </div>
+                `;
+            });
+
+            grid.innerHTML = html;
+        }
+
+        function createROIChart() {
+            const ctx = document.getElementById('roiChart').getContext('2d');
+
+            // Generate 12-month projection data
+            const months = Array.from({length: 12}, (_, i) => `Month ${i + 1}`);
+            const currentValue = Array(12).fill(0); // Free tier value
+            const upgradedValue = recommendationData.value_proposition.additional_monthly_value;
+
+            // Calculate cumulative value
+            let cumulativeUpgraded = 0;
+            const cumulativeUpgradedValue = [];
+            for (let i = 0; i < 12; i++) {
+                cumulativeUpgraded += upgradedValue;
+                cumulativeUpgradedValue.push(cumulativeUpgraded);
+            }
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Current Plan (Free)',
+                        data: currentValue,
+                        borderColor: '#d1d5db',
+                        backgroundColor: 'rgba(209, 213, 219, 0.1)',
+                        fill: false,
+                        tension: 0.4
+                    }, {
+                        label: 'Growth Plan (Upgrade)',
+                        data: cumulativeUpgradedValue,
+                        borderColor: '#059669',
+                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cumulative Value ($)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function selectTier(tierKey) {
+            // In production, this would call the upgrade API
+            console.log(`Selected tier: ${tierKey}`);
+
+            // Update recommendation with selected tier
+            if (recommendationData) {
+                recommendationData.recommendation.recommended_tier = tierKey;
+                updatePricingComparison();
+            }
+        }
+
+        function performUpgrade() {
+            const recommendedTier = recommendationData?.recommendation?.recommended_tier;
+            if (!recommendedTier) {
+                alert('No upgrade recommendation available');
+                return;
+            }
+
+            // Show loading state
+            const button = document.getElementById('upgradeButton');
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<div class="loading-spinner"></div> Processing Upgrade...';
+            button.disabled = true;
+
+            // Simulate API call
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-check"></i> Upgrade Successful!';
+                button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+
+                // Show success message
+                setTimeout(() => {
+                    alert(`Successfully upgraded to ${pricingData.tiers[recommendedTier].name} tier! You now have access to advanced features and enhanced business intelligence.`);
+
+                    // Redirect to dashboard
+                    window.location.href = '/dashboard';
+                }, 1000);
+
+            }, 2000);
+        }
+
+        function scheduleConsultation() {
+            // In production, this would open a scheduling interface
+            alert('Consultation scheduling coming soon! For now, please contact sales@psychsync.com to discuss your upgrade options.');
+        }
+    </script>
+</body>
+</html>

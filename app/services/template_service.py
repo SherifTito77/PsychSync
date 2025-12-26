@@ -1,8 +1,9 @@
 # app/services/template_service.py
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import or_
+from sqlalchemy import select, or_
 import json
+from uuid import UUID
 
 from app.db.models.template import Template
 from app.db.models.assessment import Assessment, AssessmentSection, Question
@@ -11,12 +12,12 @@ from app.schemas.template import TemplateCreate, TemplateUpdate
 
 class TemplateService:
     """Template service for database operations"""
-    
+
     @staticmethod
-    def create(
-        db: Session,
+    async def create(
+        db: AsyncSession,
         template_in: TemplateCreate,
-        creator_id: Optional[int] = None
+        creator_id: Optional[UUID] = None
     ) -> Template:
         """Create new template"""
         template = Template(
@@ -31,52 +32,63 @@ class TemplateService:
         await db.commit()
         await db.refresh(template)
         return template
-    
+
     @staticmethod
-    def get_by_id(db: Session, template_id: str) -> Optional[Template]:
+    async def get_by_id(db: AsyncSession, template_id: UUID) -> Optional[Template]:
         """Get template by ID"""
-        result = await db.execute(query)
-        return result.scalars().all()
-    
+        result = await db.execute(select(Template).where(Template.id == template_id))
+        return result.scalar_one_or_none()
+
     @staticmethod
-    def get_all(
-        db: Session,
+    async def get_all(
+        db: AsyncSession,
         template_type: Optional[str] = None,
         is_public: Optional[bool] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[Template]:
         """Get all templates"""
-        query = db.query(Template)
+        query = select(Template)
 
         if template_type:
-            query = query.filter(Template.template_type == template_type)
+            query = query.where(Template.template_type == template_type)
 
         if is_public is not None:
-            query = query.filter(Template.is_public == is_public)
+            query = query.where(Template.is_public == is_public)
 
-        return query.order_by(Template.created_at.desc()).offset(skip).limit(limit).all()
-    
+        query = query.offset(skip).limit(limit).order_by(Template.created_at.desc())
+
+        result = await db.execute(query)
+        return result.scalars().all()
+
     @staticmethod
-    def search(db: Session, query: str) -> List[Template]:
-        """Search templates"""
-        search_term = f"%{query}%"
-        return db.query(Template).filter(
-            or_(
-                Template.name.ilike(search_term),
-                Template.description.ilike(search_term)
-            )
-        ).limit(50).all()
-    
+    async def get_user_templates(
+        db: AsyncSession,
+        user_id: UUID,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Template]:
+        """Get templates created by a user"""
+        query = select(Template).where(Template.created_by_id == user_id)
+        query = query.offset(skip).limit(limit).order_by(Template.created_at.desc())
+
+        result = await db.execute(query)
+        return result.scalars().all()
+
     @staticmethod
-    def update(
-        db: Session,
-        template: Template,
+    async def update(
+        db: AsyncSession,
+        template_id: UUID,
         template_in: TemplateUpdate
-    ) -> Template:
+    ) -> Optional[Template]:
         """Update template"""
-        update_data = template_in.dict(exclude_unset=True)
+        result = await db.execute(select(Template).where(Template.id == template_id))
+        template = result.scalar_one_or_none()
 
+        if not template:
+            return None
+
+        update_data = template_in.dict(exclude_unset=True)
         for field, value in update_data.items():
             if hasattr(template, field):
                 setattr(template, field, value)
@@ -86,58 +98,66 @@ class TemplateService:
         return template
 
     @staticmethod
-    def delete(db: Session, template: Template) -> None:
+    async def delete(db: AsyncSession, template_id: UUID) -> bool:
         """Delete template"""
-        db.delete(template)
-        await db.commit()
-    
-    @staticmethod
-    def create_assessment_from_template(
-        db: Session,
-        template: Template,
-        creator_id: int,
-        team_id: Optional[int] = None
-    ) -> Assessment:
-        """Create assessment from template"""
-        # Create basic assessment from template
-        assessment = Assessment(
-            title=template.name,
-            description=template.description or f"Based on template: {template.name}",
-            created_by_id=creator_id,
-            team_id=team_id
-        )
-        db.add(assessment)
-        await db.commit()
-        await db.refresh(assessment)
-        return assessment
-    
-    @staticmethod
-    def create_template_from_assessment(
-        db: Session,
-        assessment: Assessment,
-        template_name: str,
-        template_description: Optional[str],
-        creator_id: int
-    ) -> Template:
-        """Create template from existing assessment"""
-        # Create simple template data from assessment
-        template_data = {
-            'title': assessment.title,
-            'description': assessment.description,
-            'sections': []
-        }
+        result = await db.execute(select(Template).where(Template.id == template_id))
+        template = result.scalar_one_or_none()
 
-        # Create template
-        template = Template(
-            name=template_name,
-            description=template_description or assessment.description,
-            template_type='assessment',
-            content=template_data,
-            is_public=False,
+        if not template:
+            return False
+
+        await db.delete(template)
+        await db.commit()
+        return True
+
+    @staticmethod
+    async def duplicate(
+        db: AsyncSession,
+        template_id: UUID,
+        new_name: str,
+        creator_id: UUID
+    ) -> Optional[Template]:
+        """Duplicate a template"""
+        original = await TemplateService.get_by_id(db, template_id)
+
+        if not original:
+            return None
+
+        new_template = Template(
+            name=new_name,
+            description=original.description,
+            template_type=original.template_type,
+            content=original.content.copy() if original.content else {},
+            is_public=False,  # Duplicated templates are private by default
             created_by_id=creator_id
         )
-        db.add(template)
+
+        db.add(new_template)
         await db.commit()
-        await db.refresh(template)
-        return template
-        
+        await db.refresh(new_template)
+        return new_template
+
+    @staticmethod
+    def to_dict(template: Template) -> Dict[str, Any]:
+        """Convert template to dictionary"""
+        return {
+            "id": str(template.id),
+            "name": template.name,
+            "description": template.description,
+            "template_type": template.template_type,
+            "content": template.content,
+            "is_public": template.is_public,
+            "created_by_id": str(template.created_by_id) if template.created_by_id else None,
+            "created_at": template.created_at.isoformat() if template.created_at else None,
+            "updated_at": template.updated_at.isoformat() if template.updated_at else None
+        }
+
+
+# Backward compatibility functions
+async def create_template(db: AsyncSession, template_in: TemplateCreate, creator_id: Optional[UUID] = None) -> Template:
+    """Backward compatibility wrapper"""
+    return await TemplateService.create(db, template_in, creator_id)
+
+async def get_template_by_id(db: AsyncSession, template_id: UUID) -> Optional[Template]:
+    """Backward compatibility wrapper"""
+    return await TemplateService.get_by_id(db, template_id)

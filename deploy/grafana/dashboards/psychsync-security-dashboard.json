@@ -1,0 +1,304 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "PsychSync Security Dashboard",
+    "tags": ["security", "psychsync"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "5m",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Security Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "psychsync_security_score",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 60},
+                {"color": "green", "value": 80}
+              ]
+            },
+            "unit": "score"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Security Grade",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "psychsync_security_grade",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "5", "text": "A+"},
+              {"type": "value", "value": "4", "text": "A"},
+              {"type": "value", "value": "3", "text": "B"},
+              {"type": "value", "value": "2", "text": "C"},
+              {"type": "value", "value": "1", "text": "F"}
+            ],
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 1},
+                {"color": "yellow", "value": 2},
+                {"color": "green", "value": 4}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 4, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Total Vulnerabilities",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "psychsync_vulnerabilities_total",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 10},
+                {"color": "red", "value": 50}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 4, "w": 4, "x": 10, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Last Scan",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "psychsync_last_scan_timestamp * 1000",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "dateTimeAsIso"
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 14, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Vulnerabilities by Severity",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "psychsync_vulnerabilities_by_severity",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "mappings": []
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Vulnerabilities by Source",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "psychsync_vulnerabilities_by_source",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"}
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Security Score Trend",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "psychsync_security_score",
+            "refId": "A",
+            "legendFormat": "Security Score"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "fillOpacity": 50,
+              "lineWidth": 2,
+              "scaleDistribution": {
+                "type": "linear"
+              }
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "yAxes": [
+          {
+            "min": 0,
+            "max": 100
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Vulnerabilities Trend",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "psychsync_vulnerabilities_by_severity",
+            "refId": "A",
+            "legendFormat": "{{severity}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "fillOpacity": 10,
+              "lineWidth": 2,
+              "stacking": {
+                "mode": "normal"
+              }
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "Vulnerabilities by Tool",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "psychsync_vulnerabilities_by_tool",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "orientation": "horizontal"
+          }
+        },
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 24}
+      },
+      {
+        "id": 10,
+        "title": "Compliance Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(psychsync_compliance_status == 1)",
+            "refId": "A",
+            "legendFormat": "Compliant"
+          },
+          {
+            "expr": "count(psychsync_compliance_status == 0)",
+            "refId": "B",
+            "legendFormat": "Non-Compliant"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [
+              {"type": "value", "value": "0", "text": "Not Compliant"},
+              {"type": "value", "value": "7", "text": "Fully Compliant"}
+            ],
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 5},
+                {"color": "green", "value": 7}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 34}
+      },
+      {
+        "id": 11,
+        "title": "Compliance by Standard",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "psychsync_compliance_status",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {},
+              "renameByName": {
+                "Value": "Status",
+                "standard": "Standard"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "custom": {
+              "align": "left"
+            },
+            "mappings": [
+              {"type": "value", "value": "0", "text": "❌ Non-Compliant"},
+              {"type": "value", "value": "1", "text": "✅ Compliant"}
+            ],
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 34}
+      }
+    ]
+  }
+}

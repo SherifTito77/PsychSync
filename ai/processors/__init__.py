@@ -4,19 +4,20 @@
 
 # app/ai/processors/__init__.py - Processor Registry
 
-from ai.processors.base import PersonalityFrameworkProcessor
-from ai.processors.enneagram import EnneagramProcessor
-from ai.processors.mbti import MBTIProcessor
-from ai.processors.big_five import BigFiveProcessor
+from ai.processors.processors_base import PersonalityFrameworkProcessor
+from ai.processors.mbti_processor import MBTIProcessor
+from ai.processors.enneagram_processor import EnneagramProcessor
+# from ai.processors.big_five_processor import BigFiveProcessor  # TODO: Create this file
 from ai.processors.predictive_index import PredictiveIndexProcessor
 from ai.processors.strengths import StrengthsProcessor
 from ai.processors.social_styles import SocialStylesProcessor
+from typing import List
 
 # Processor registry for dynamic loading
 PROCESSOR_REGISTRY = {
     'enneagram': EnneagramProcessor,
     'mbti': MBTIProcessor,
-    'big_five': BigFiveProcessor,
+    # 'big_five': BigFiveProcessor,  # TODO: Create this file
     'predictive_index': PredictiveIndexProcessor,
     'strengths': StrengthsProcessor,
     'social_styles': SocialStylesProcessor
@@ -37,8 +38,8 @@ def get_available_frameworks() -> List[str]:
 __all__ = [
     'PersonalityFrameworkProcessor',
     'EnneagramProcessor',
-    'MBTIProcessor', 
-    'BigFiveProcessor',
+    'MBTIProcessor',
+    # 'BigFiveProcessor',  # TODO: Create this file
     'PredictiveIndexProcessor',
     'StrengthsProcessor',
     'SocialStylesProcessor',

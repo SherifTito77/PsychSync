@@ -400,7 +400,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     color: 'gray',
     label: status
   };
-  return <Badge color={config.color} size="sm">{config.label}</Badge>;
+  return <Badge color={config.color as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">{config.label}</Badge>;
 };
 interface FeedbackDetailPanelProps {
   feedback: AnonymousFeedback;
@@ -458,7 +458,7 @@ const FeedbackDetailPanel: React.FC<FeedbackDetailPanelProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Type of Issue
             </label>
-            <p className="text-gray-900">{feedback.feedback_type.replace('_', ' ').title()}</p>
+            <p className="text-gray-900">{feedback.feedback_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

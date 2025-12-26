@@ -23,31 +23,43 @@ class Team(Base):
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text('NOW()'), nullable=True)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
 
-    # Relationships - Temporarily disabled
-    # created_by = relationship(
-    #     "User",
-    #     back_populates="teams_created",
-    #     foreign_keys=[created_by_id]
-    # )
+    # Relationships
+    created_by = relationship(
+        "User",
+        back_populates="teams_created",
+        foreign_keys=[created_by_id],
+        lazy="select"
+    )
 
-    # organization = relationship(
-    #     "Organization",
-    #     back_populates="teams",
-    #     foreign_keys=[organization_id]
-    # )
-    
-    # members = relationship(
-    #     "TeamMember",
-    #     back_populates="team",
-    #     cascade="all, delete-orphan",
-    #     foreign_keys="[TeamMember.team_id]"
-    # )
-    
-    # assessments = relationship(
-    #     "Assessment",
-    #     back_populates="team",
-    #     foreign_keys="[Assessment.team_id]"
-    # )
+    organization = relationship(
+        "Organization",
+        back_populates="teams",
+        foreign_keys=[organization_id],
+        lazy="select"
+    )
+
+    members = relationship(
+        "TeamMember",
+        back_populates="team",
+        cascade="all, delete-orphan",
+        foreign_keys="[TeamMember.team_id]"
+    )
+
+    # Employee Safety relationships - Temporarily disabled due to circular import
+    # safety_incidents = relationship("SafetyIncident", back_populates="team")
+    # wellness_assessments = relationship("WellnessAssessment", back_populates="team")
+
+    # Growth trajectory relationships
+    growth_trajectories = relationship("GrowthTrajectory", back_populates="team")
+
+    assessments = relationship(
+        "Assessment",
+        back_populates="team",
+        foreign_keys="[Assessment.team_id]"
+    )
+
+    # Intervention relationships
+    interventions = relationship("Intervention", back_populates="team")
 
     # Email Analysis Relationships - Temporarily disabled
     # communication_patterns = relationship("CommunicationPatterns", back_populates="team", cascade="all, delete-orphan")

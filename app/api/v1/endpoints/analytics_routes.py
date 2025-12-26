@@ -7,6 +7,10 @@ Installation:
 """
 
 from fastapi import APIRouter, HTTPException, status, Depends
+
+from app.api.v1.deps import get_current_user
+
+from app.middleware.rate_limiter import check_rate_limit
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict
 from datetime import datetime, date
@@ -20,7 +24,7 @@ import numpy as np
 # from ai.longitudinal_analysis import LongitudinalAnalyzer, TimeSeriesForecaster
 
 # Initialize routers
-router = APIRouter(prefix="/api/v1/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
 # ============================================================================
@@ -111,6 +115,8 @@ class InterventionAnalysisRequest(BaseModel):
 # Predictive Analytics Endpoints
 # ============================================================================
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/predict/outcome", status_code=status.HTTP_200_OK)
 async def predict_outcome(request: PredictOutcomeRequest):
     """
@@ -169,7 +175,9 @@ async def predict_outcome(request: PredictOutcomeRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error predicting outcome: {str(e)}"
+     
+@check_rate_limit(identifier="public", endpoint_type="public")
+       detail=f"Error predicting outcome: {str(e)}"
         )
 
 
@@ -230,12 +238,14 @@ async def predict_dropout_risk(request: PredictDropoutRequest):
         
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error predicting dropout risk: {str(e)}"
+         
+@check_rate_limit(identifier="public", endpoint_type="public")
+   status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error predicting dropout risk: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
 
-@router.post("/predict/trajectory", status_code=status.HTTP_200_OK)
+@router.post("/predict/trajectory", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
 async def predict_trajectory(request: ClientFeaturesRequest):
     """
     Predict symptom trajectory for next several weeks.
@@ -460,7 +470,7 @@ async def detect_anomaly(request: AnomalyDetectionRequest):
 # Longitudinal Analysis Endpoints
 # ============================================================================
 
-@router.post("/longitudinal/trajectory", status_code=status.HTTP_200_OK)
+@router.post("/longitudinal/trajectory", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
 async def analyze_trajectory(request: TrajectoryAnalysisRequest):
     """
     Analyze growth trajectory and predict future values.
@@ -523,11 +533,11 @@ async def analyze_trajectory(request: TrajectoryAnalysisRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing trajectory: {str(e)}"
+            detail=f"Error analyzing trajectory: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
 
-@router.post("/longitudinal/intervention", status_code=status.HTTP_200_OK)
+@router.post("/longitudinal/intervention", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
 async def analyze_intervention(request: InterventionAnalysisRequest):
     """
     Analyze effectiveness of an intervention.
@@ -602,11 +612,11 @@ async def analyze_intervention(request: InterventionAnalysisRequest):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing intervention: {str(e)}"
+            detail=f"Error analyzing intervention: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
 
-@router.get("/health", status_code=status.HTTP_200_OK)
+@router.get("/health", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
 async def health_check():
     """Health check for analytics service."""
     return {

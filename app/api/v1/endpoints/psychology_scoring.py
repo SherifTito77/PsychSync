@@ -5,6 +5,10 @@ Replaces basketball scoring with psychological wellness analytics
 """
 
 from typing import Dict, Any, List, Optional
+
+from app.api.v1.deps import get_current_user
+
+from app.middleware.rate_limiter import check_rate_limit
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,7 +65,9 @@ class TeamPsychologyResponse(BaseModel):
     recommendations: List[str]
 
 
-@router.get("/assessment/{assessment_id}/score", response_model=PsychologicalScoreResponse)
+
+@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
+@router.get("/assessment/{assessment_id}/score", response_model=PsychologicalScoreResponse, dependencies=[Depends(get_current_user)])
 async def get_assessment_psychological_score(
     assessment_id: str,
     db: AsyncSession = Depends(get_async_db),
@@ -97,7 +103,9 @@ async def get_assessment_psychological_score(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error calculating psychological score: {str(e)}"
+            detail
+@check_rate_limit(identifier="public", endpoint_type="public")
+=f"Error calculating psychological score: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
 
@@ -129,8 +137,10 @@ async def get_psychometric_profile(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating psychometric profile: {str(e)}"
+            statu
+@check_rate_limit(identifier="public", endpoint_type="public")
+s_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating psychometric profile: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
 
@@ -158,7 +168,7 @@ async def get_team_psychology_analysis(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing team psychology: {str(e)}"
+            detail=f"Error analyzing team psychology: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
 
@@ -196,11 +206,11 @@ async def get_wellness_trends(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving wellness trends: {str(e)}"
+            detail=f"Error retrieving wellness trends: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
 
-@router.post("/assessment/{assessment_id}/insights/generate")
+@router.post("/assessment/{assessment_id}/insights/generate", dependencies=[Depends(get_current_user)])
 async def generate_assessment_insights(
     assessment_id: str,
     db: AsyncSession = Depends(get_async_db),

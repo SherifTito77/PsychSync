@@ -18,7 +18,7 @@ const AnonymousFeedbackStatus: React.FC = () => {
     try {
       const data = await anonymousFeedbackService.checkFeedbackStatus(trackingId.trim());
       if (data) {
-        setStatusData(data);
+        setStatusData(data as unknown as AnonymousFeedbackStatus);
       } else {
         setError('Tracking ID not found. Please check your tracking ID or contact support.');
       }

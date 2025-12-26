@@ -1,0 +1,92 @@
+{
+  "timestamp": "2025-12-24T10:45:36.851460",
+  "project_root": "/Users/sheriftito/Downloads/psychsync",
+  "overall_score": 70,
+  "total_tests": 5,
+  "passed": 1,
+  "failed": 4,
+  "severity_breakdown": {
+    "critical": 0,
+    "high": 1,
+    "medium": 3,
+    "low": 0,
+    "info": 1
+  },
+  "test_results": [
+    {
+      "category": "Phishing",
+      "test_name": "Phishing Scenario Testing",
+      "severity": "medium",
+      "status": "fail",
+      "description": "Tests for email-based phishing vulnerabilities",
+      "evidence": [
+        "Email tokens may not be sufficiently unique"
+      ],
+      "recommendations": [
+        "Use cryptographically secure random tokens (UUID4, secrets.token_urlsafe)"
+      ],
+      "location": null
+    },
+    {
+      "category": "Social Manipulation",
+      "test_name": "Forgotten Password Social Manipulation Testing",
+      "severity": "medium",
+      "status": "info",
+      "description": "Tests for social engineering vulnerabilities in password reset flows",
+      "evidence": [
+        "User model has reset token field"
+      ],
+      "recommendations": [
+        "Ensure only one valid reset token exists at a time"
+      ],
+      "location": null
+    },
+    {
+      "category": "Impersonation",
+      "test_name": "Helpdesk Impersonation Testing",
+      "severity": "medium",
+      "status": "warning",
+      "description": "Tests for helpdesk/admin impersonation vulnerabilities",
+      "evidence": [
+        "Admin password reset in security_monitoring.py",
+        "No MFA enforcement for admin operations detected"
+      ],
+      "recommendations": [
+        "Require user confirmation for admin-initiated password changes",
+        "Require MFA for all admin actions and impersonation"
+      ],
+      "location": null
+    },
+    {
+      "category": "Identity Verification",
+      "test_name": "Recovery Flow Identity Verification Testing",
+      "severity": "high",
+      "status": "fail",
+      "description": "Tests for identity verification weaknesses in account recovery",
+      "evidence": [
+        "No 2FA system detected"
+      ],
+      "recommendations": [
+        "Implement TOTP-based 2FA with recovery codes"
+      ],
+      "location": null
+    },
+    {
+      "category": "Phone Verification",
+      "test_name": "Phone Verification Bypass Testing",
+      "severity": "info",
+      "status": "warning",
+      "description": "Tests for SMS/phone verification bypass vulnerabilities",
+      "evidence": [
+        "No phone/SMS verification system detected",
+        "No TOTP authenticator app option (only SMS?)"
+      ],
+      "recommendations": [
+        "Consider implementing SMS verification as 2FA factor",
+        "If using SMS, be aware of SS7 vulnerabilities and SIM swapping risks",
+        "Implement TOTP (Google Authenticator) as more secure 2FA alternative"
+      ],
+      "location": null
+    }
+  ]
+}

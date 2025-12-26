@@ -1,0 +1,224 @@
+{
+  "timestamp": "2025-12-23T12:46:30.063739",
+  "overall_score": 55.0,
+  "overall_status": "AT RISK \u274c",
+  "test_results": [
+    {
+      "test_name": "Password Hashing Algorithm",
+      "status": "PASS",
+      "score": 100,
+      "findings": [
+        "\u2705 Using bcrypt for password hashing",
+        "\u2705 bcrypt rounds: 12 (secure)",
+        "\u2705 Password hashing includes salt (bcrypt auto-generates salt)",
+        "\u2705 No weak algorithms (MD5, SHA1, crypt) detected"
+      ],
+      "recommendations": [
+        "Continue monitoring for best practices in password hashing"
+      ],
+      "details": {
+        "schemes": "\"bcrypt\"",
+        "bcrypt_rounds": 12
+      }
+    },
+    {
+      "test_name": "Database Field Encryption",
+      "status": "WARN",
+      "score": 50,
+      "findings": [
+        "\u2705 Found 19 encrypted field(s)",
+        "\u2705 Using Fernet encryption (AES-128)",
+        "\u26a0\ufe0f  Found 29 potentially unencrypted sensitive field(s)",
+        "   - organization_secure.py: phone",
+        "   - organization_secure.py: address",
+        "   - organization_secure.py: email",
+        "   - user.py: token",
+        "   - user.py: full_name"
+      ],
+      "recommendations": [
+        "Encrypt all sensitive PII fields at rest"
+      ],
+      "details": {
+        "encrypted_fields_count": 19,
+        "encrypted_fields": [
+          "_phone",
+          "_description",
+          "_answer_data",
+          "_website",
+          "_display_name",
+          "_full_name",
+          "_phone_number",
+          "_social_security_number",
+          "backup_codes",
+          "_email",
+          "access_token_encrypted",
+          "mfa_secret",
+          "refresh_token_encrypted",
+          "_scoring_config",
+          "_answer_text",
+          "_scoring_notes",
+          "_address"
+        ],
+        "unencrypted_sensitive_fields": [
+          {
+            "file": "organization_secure.py",
+            "field": "phone"
+          },
+          {
+            "file": "organization_secure.py",
+            "field": "address"
+          },
+          {
+            "file": "organization_secure.py",
+            "field": "email"
+          },
+          {
+            "file": "user.py",
+            "field": "token"
+          },
+          {
+            "file": "user.py",
+            "field": "full_name"
+          },
+          {
+            "file": "user.py",
+            "field": "email"
+          },
+          {
+            "file": "slack_workspace.py",
+            "field": "token"
+          },
+          {
+            "file": "email_connection.py",
+            "field": "token"
+          },
+          {
+            "file": "email_connection.py",
+            "field": "address"
+          },
+          {
+            "file": "email_connection.py",
+            "field": "email"
+          }
+        ]
+      }
+    },
+    {
+      "test_name": "Secure Random Token Generation",
+      "status": "FAIL",
+      "score": 40,
+      "findings": [
+        "\u2705 Found 44 secure token generation usage(s)",
+        "\u274c Found 36 insecure random usage(s)",
+        "   - psychsync_platform_regression_suite.py: random.randint() - not cryptographically secure",
+        "   - library_dependency_regression_scenarios.py: random.random() - not cryptographically secure",
+        "   - critical_release_validation_framework.py: random.random() - not cryptographically secure",
+        "   - advanced_team_member_integration.py: random.randint() - not cryptographically secure",
+        "   - advanced_team_member_integration.py: random.choice() - not cryptographically secure",
+        "\u2705 Token generation test: all tokens unique",
+        "\u2705 Token length: 43 chars (secure)"
+      ],
+      "recommendations": [
+        "Replace all 'random' module usage with 'secrets' module"
+      ],
+      "details": {
+        "secure_usage_count": 44,
+        "insecure_usage_count": 36,
+        "test_token_length": 43,
+        "test_token_bytes": 32
+      }
+    },
+    {
+      "test_name": "Weak Cipher Detection",
+      "status": "FAIL",
+      "score": 0,
+      "findings": [
+        "\u274c Found 31 weak cipher usage(s)",
+        "   - minimal_app_enhanced.py: MD5 (Message Digest 5 - broken, collisions possible)",
+        "   - enhanced_wellness_questions.py: MD5 (Message Digest 5 - broken, collisions possible)",
+        "   - network_layer_security_audit.py: DES (Data Encryption Standard - 56-bit key, broken)",
+        "   - network_layer_security_audit.py: RC4 (Rivest Cipher 4 - broken, prohibited)",
+        "   - network_layer_security_audit.py: MD5 (Message Digest 5 - broken, collisions possible)",
+        "\u2705 Found 23 files using strong crypto"
+      ],
+      "recommendations": [
+        "Remove all weak cipher usage"
+      ],
+      "details": {
+        "weak_crypto_found": [
+          {
+            "file": "minimal_app_enhanced.py",
+            "cipher": "MD5",
+            "description": "Message Digest 5 - broken, collisions possible"
+          },
+          {
+            "file": "enhanced_wellness_questions.py",
+            "cipher": "MD5",
+            "description": "Message Digest 5 - broken, collisions possible"
+          },
+          {
+            "file": "network_layer_security_audit.py",
+            "cipher": "DES",
+            "description": "Data Encryption Standard - 56-bit key, broken"
+          },
+          {
+            "file": "network_layer_security_audit.py",
+            "cipher": "RC4",
+            "description": "Rivest Cipher 4 - broken, prohibited"
+          },
+          {
+            "file": "network_layer_security_audit.py",
+            "cipher": "MD5",
+            "description": "Message Digest 5 - broken, collisions possible"
+          },
+          {
+            "file": "network_layer_security_audit.py",
+            "cipher": "SHA1",
+            "description": "Secure Hash Algorithm 1 - deprecated, broken"
+          },
+          {
+            "file": "tls_configuration_audit.py",
+            "cipher": "MD5",
+            "description": "Message Digest 5 - broken, collisions possible"
+          },
+          {
+            "file": "ai/experimental_features.py",
+            "cipher": "MD5",
+            "description": "Message Digest 5 - broken, collisions possible"
+          },
+          {
+            "file": "scripts/infrastructure_security_scanner.py",
+            "cipher": "MD5",
+            "description": "Message Digest 5 - broken, collisions possible"
+          },
+          {
+            "file": "scripts/infrastructure_security_scanner.py",
+            "cipher": "SHA1",
+            "description": "Secure Hash Algorithm 1 - deprecated, broken"
+          }
+        ]
+      }
+    },
+    {
+      "test_name": "Encryption Key Rotation",
+      "status": "PASS",
+      "score": 85,
+      "findings": [
+        "\u2705 Credential rotation module exists",
+        "\u26a0\ufe0f  Rotation interval not clearly defined",
+        "\u2705 Automated rotation scheduling available",
+        "\u2705 Secure key generation patterns found"
+      ],
+      "recommendations": [
+        "Consider implementing automated key rotation"
+      ],
+      "details": {}
+    }
+  ],
+  "summary": {
+    "total_tests": 5,
+    "passed": 2,
+    "warnings": 1,
+    "failed": 2
+  }
+}

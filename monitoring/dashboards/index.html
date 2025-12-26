@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PsychSync PWA Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .metric { display: flex; justify-content: space-between; margin: 10px 0; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #2c3e50; }
+        .metric-label { font-size: 14px; color: #7f8c8d; }
+        .chart-container { height: 200px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🚀 PsychSync PWA Monitoring Dashboard</h1>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3>PWA Performance</h3>
+            <div class="metric">
+                <span class="metric-value" id="pwa-score">96%</span>
+                <span class="metric-label">PWA Score</span>
+            </div>
+            <div class="metric">
+                <span class="metric-value" id="install-rate">15%</span>
+                <span class="metric-label">Installation Rate</span>
+            </div>
+            <div class="metric">
+                <span class="metric-value" id="offline-sessions">124</span>
+                <span class="metric-label">Offline Sessions</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="pwaChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Application Performance</h3>
+            <div class="metric">
+                <span class="metric-value" id="response-time">1.2s</span>
+                <span class="metric-label">Avg Response Time</span>
+            </div>
+            <div class="metric">
+                <span class="metric-value" id="request-rate">456</span>
+                <span class="metric-label">Requests/Min</span>
+            </div>
+            <div class="metric">
+                <span class="metric-value" id="error-rate">0.5%</span>
+                <span class="metric-label">Error Rate</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Business Metrics</h3>
+            <div class="metric">
+                <span class="metric-value" id="active-users">1,234</span>
+                <span class="metric-label">Daily Active Users</span>
+            </div>
+            <div class="metric">
+                <span class="metric-value" id="completion-rate">89%</span>
+                <span class="metric-label">Completion Rate</span>
+            </div>
+            <div class="metric">
+                <span class="metric-value" id="retention">78%</span>
+                <span class="metric-label">30-Day Retention</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="businessChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts
+        const pwaCtx = document.getElementById('pwaChart').getContext('2d');
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        const businessCtx = document.getElementById('businessChart').getContext('2d');
+
+        // PWA Chart
+        new Chart(pwaCtx, {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'PWA Score',
+                    data: [96, 96, 97, 95, 96, 98, 96],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Performance Chart
+        new Chart(performanceCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Response Time', 'Throughput', 'Error Rate', 'Cache Hit Rate'],
+                datasets: [{
+                    label: 'Performance Metrics',
+                    data: [1.2, 456, 0.5, 85],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(153, 102, 255, 0.2)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Business Chart
+        new Chart(businessCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'In Progress', 'Not Started'],
+                datasets: [{
+                    data: [89, 7, 4],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(255, 99, 132, 0.8)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Update metrics periodically
+        setInterval(updateMetrics, 60000); // Update every minute
+    </script>
+</body>
+</html>

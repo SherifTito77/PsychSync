@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Monitoring - PsychSync Monitor</title>
+    <meta name="description" content="Set up business intelligence monitoring for your PsychSync platform">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: borderbox;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .setup-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        select.form-control {
+            cursor: pointer;
+        }
+
+        .value-props {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 2rem 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .value-props h3 {
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .value-props p {
+            color: #6b7280;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .benefits-list {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .benefits-list li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            color: #6b7280;
+        }
+
+        .benefits-list i {
+            color: #10b981;
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.875rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .team-size-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .team-option {
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .team-option:hover {
+            border-color: #667eea;
+            background-color: #f0f9ff;
+        }
+
+        .team-option.selected {
+            border-color: #667eea;
+            background-color: #667eea;
+            color: white;
+        }
+
+        .team-option h4 {
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .team-option p {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .goal-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .goal-option {
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .goal-option:hover {
+            border-color: #667eea;
+            background-color: #f0f9ff;
+        }
+
+        .goal-option.selected {
+            border-color: #667eea;
+            background-color: #667eea;
+            color: white;
+        }
+
+        .testimonial {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            border-left: 4px solid #10b981;
+            margin-bottom: 2rem;
+        }
+
+        .testimonial p {
+            font-style: italic;
+            color: #6b7280;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .testimonial .author {
+            font-weight: 600;
+            color: #374151;
+            text-align: right;
+        }
+
+        .testimonial .company {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .team-size-selector {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .goal-selector {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="setup-card">
+            <div class="header">
+                <div class="logo">🔧</div>
+                <h1>Setup Business Intelligence</h1>
+                <p>Get insights into your PsychSync platform performance in just 2 minutes</p>
+            </div>
+
+            <form action="/setup" method="post">
+                <div class="form-group">
+                    <label for="app_url" class="form-label">
+                        PsychSync App URL
+                    </label>
+                    <input
+                        type="url"
+                        id="app_url"
+                        name="app_url"
+                        class="form-control"
+                        placeholder="https://yourapp.psychsync.com"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Team Size</label>
+                    <div class="team-size-selector">
+                        <div class="team-option" onclick="selectTeamSize(this, 'small')">
+                            <h4>Small</h4>
+                            <p>1-10 users</p>
+                        </div>
+                        <div class="team-option selected" onclick="selectTeamSize(this, 'medium')">
+                            <h4>Medium</h4>
+                            <p>11-50 users</p>
+                        </div>
+                        <div class="team-option" onclick="selectTeamSize(this, 'large')">
+                            <h4>Large</h4>
+                            <p>51-200 users</p>
+                        </div>
+                        <div class="team-option" onclick="selectTeamSize(this, 'enterprise')">
+                            <h4>Enterprise</h4>
+                            <p>200+ users</p>
+                        </div>
+                    </div>
+                    <input type="hidden" name="team_size" id="team_size" value="medium" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Primary Goal</label>
+                    <div class="goal-selector">
+                        <div class="goal-option selected" onclick="selectGoal(this, 'performance')">
+                            <h4>Performance</h4>
+                            <p>Optimize speed and reliability</p>
+                        </div>
+                        <div class="goal-option" onclick="selectGoal(this, 'revenue')">
+                            <h4>Revenue</h4>
+                            <p>Track business metrics</p>
+                        </div>
+                        <div class="goal-option" onclick="selectGoal(this, 'engagement')">
+                            <h4>Engagement</h4>
+                            <p>Improve user adoption</p>
+                        </div>
+                        <div class="goal-option" onclick="selectGoal(this, 'compliance')">
+                            <h4>Compliance</h4>
+                            <p>Meet SLA requirements</p>
+                        </div>
+                    </div>
+                    <input type="hidden" name="business_goal" id="business_goal" value="performance" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="company_name" class="form-label">Company Name</label>
+                    <input
+                        type="text"
+                        id="company_name"
+                        name="company_name"
+                        class="form-control"
+                        placeholder="Your Company Name"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="contact_email" class="form-label">
+                        Email for Dashboard Access
+                    </label>
+                    <input
+                        type="email"
+                        id="contact_email"
+                        name="contact_email"
+                        class="form-control"
+                        placeholder="your@company.com"
+                        required
+                    >
+                </div>
+
+                <div class="value-props">
+                    <h3>🎯️ Instant Business Insights</h3>
+                    <p>Once connected, you'll immediately see:</p>
+                    <ul class="benefits-list">
+                        <li><i class="fas fa-chart-line"></i> Revenue impact of downtime</li>
+                        <li><i class="fas fa-users"></i> User journey analytics</li>
+                        <li><i class="fas fa-tachometer-alt"></i> Performance vs competitors</li>
+                        <li><i class="fas fa-dollar-sign"></i> ROI calculator</li>
+                    </ul>
+                </div>
+
+                <div class="testimonial">
+                    <p>"We went from reactive monitoring to proactive business intelligence. The insights helped us increase user satisfaction by 27% and reduce support tickets by 45%."</p>
+                    <div class="author">— Sarah Chen, CEO, TechCorp</div>
+                    <div class="company">PsychSync Enterprise Customer</div>
+                </div>
+
+                <div class="testimonial">
+                    <p>"The revenue impact dashboard made it easy to justify our investment in the platform. We saw a 40% increase in team productivity within the first month."</p>
+                    <div class="author">— Michael Rodriguez, Director</div>
+                    <div class="company">Consulting Firm</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-rocket"></i> Start Free Setup
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Team size selection
+        function selectTeamSize(element, size) {
+            // Remove selected class from all options
+            document.querySelectorAll('.team-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Add selected class to clicked option
+            element.classList.add('selected');
+
+            // Update hidden input
+            document.getElementById('team_size').value = size;
+        }
+
+        // Goal selection
+        function selectGoal(element, goal) {
+            // Remove selected class from all options
+            document.querySelectorAll('.goal-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Add selected class to clicked option
+            element.classList.add('selected');
+
+            // Update hidden input
+            document.getElementById('business_goal').value = goal;
+        }
+
+        // Auto-select medium team size on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const mediumOption = document.querySelector('.team-option:nth-child(2)');
+            const performanceGoal = document.querySelector('.goal-option:first-child');
+            if (mediumOption) selectTeamSize(mediumOption, 'medium');
+            if (performanceGoal) selectGoal(performanceGoal, 'performance');
+        });
+    </script>
+</body>
+</html>

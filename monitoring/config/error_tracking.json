@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "log_level": "INFO",
+  "error_types": [
+    "critical",
+    "error",
+    "warning",
+    "exception"
+  ],
+  "channels": {
+    "file": true,
+    "console": true,
+    "slack": false,
+    "email": false
+  },
+  "retention_days": 30,
+  "max_file_size_mb": 100
+}

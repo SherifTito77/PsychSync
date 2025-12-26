@@ -1,0 +1,83 @@
+{
+  "timestamp": "2025-12-24T11:44:55.730212",
+  "project_root": "/Users/sheriftito/Downloads/psychsync",
+  "overall_score": 85,
+  "total_tests": 5,
+  "passed": 0,
+  "failed": 5,
+  "severity_breakdown": {
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "low": 1,
+    "info": 0
+  },
+  "test_results": [
+    {
+      "category": "Dependency Security",
+      "test_name": "Known Vulnerable Dependencies (CVEs)",
+      "severity": "high",
+      "status": "warning",
+      "description": "Tests for known vulnerabilities in dependencies",
+      "evidence": [
+        "Potentially vulnerable package: jinja2 (CVE-2019-8341)",
+        "Potentially vulnerable package: pyyaml (CVE-2020-14343)",
+        "Potentially vulnerable package: pillow (CVE-2021-34552)",
+        "Found 79 Python dependencies",
+        "Node.js dependencies found",
+        "Package \"axios\" found - verify version"
+      ],
+      "recommendations": [
+        "Update jinja2 to latest secure version",
+        "Update pyyaml to latest secure version",
+        "Update pillow to latest secure version"
+      ],
+      "location": null
+    },
+    {
+      "category": "Dependency Security",
+      "test_name": "Outdated Packages",
+      "severity": "low",
+      "status": "warning",
+      "description": "Tests for outdated packages",
+      "evidence": [
+        "Found 19 packages with old version pins",
+        "Found caret (^) version ranges - allows updates"
+      ],
+      "recommendations": [
+        "Review and update outdated packages"
+      ],
+      "location": null
+    },
+    {
+      "category": "Supply Chain Attacks",
+      "test_name": "Supply Chain Attacks",
+      "severity": "error",
+      "status": "error",
+      "description": "Test failed with error: name 'DataProtectionTestResult' is not defined",
+      "evidence": [],
+      "recommendations": [],
+      "location": null
+    },
+    {
+      "category": "Dependency Confusion",
+      "test_name": "Dependency Confusion",
+      "severity": "error",
+      "status": "error",
+      "description": "Test failed with error: name 'DataProtectionTestResult' is not defined",
+      "evidence": [],
+      "recommendations": [],
+      "location": null
+    },
+    {
+      "category": "License Compliance",
+      "test_name": "License Compliance",
+      "severity": "error",
+      "status": "error",
+      "description": "Test failed with error: name 'DataProtectionTestResult' is not defined",
+      "evidence": [],
+      "recommendations": [],
+      "location": null
+    }
+  ]
+}

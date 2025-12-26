@@ -1,0 +1,413 @@
+# PsychSync Enterprise Alert Rules
+# Comprehensive alerting for all platform components
+
+groups:
+- name: psychsync_api_alerts
+  rules:
+  # API Performance Alerts
+  - alert: HighResponseTime
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1.0
+    for: 5m
+    labels:
+      severity: warning
+      service: api
+      component: fastapi
+    annotations:
+      summary: "High API response time detected"
+      description: "95th percentile response time is {{ $value }}s for the last 5 minutes"
+      runbook_url: "https://docs.psychsync.com/runbooks/api-performance"
+
+  - alert: VeryHighResponseTime
+    expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[2m])) > 2.0
+    for: 2m
+    labels:
+      severity: critical
+      service: api
+      component: fastapi
+    annotations:
+      summary: "Very high API response time"
+      description: "95th percentile response time is {{ $value }}s for the last 2 minutes"
+      runbook_url: "https://docs.psychsync.com/runbooks/api-performance"
+
+  - alert: HighErrorRate
+    expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+    for: 3m
+    labels:
+      severity: warning
+      service: api
+      component: fastapi
+    annotations:
+      summary: "High API error rate"
+      description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+      runbook_url: "https://docs.psychsync.com/runbooks/api-errors"
+
+  - alert: CriticalErrorRate
+    expr: rate(http_requests_total{status=~"5.."}[2m]) / rate(http_requests_total[2m]) > 0.10
+    for: 1m
+    labels:
+      severity: critical
+      service: api
+      component: fastapi
+    annotations:
+      summary: "Critical API error rate"
+      description: "Error rate is {{ $value | humanizePercentage }} for the last 2 minutes"
+      runbook_url: "https://docs.psychsync.com/runbooks/api-errors"
+
+  # API Availability Alerts
+  - alert: APIDown
+    expr: up{job="psychsync-api"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: api
+      component: fastapi
+    annotations:
+      summary: "FastAPI service is down"
+      description: "The PsychSync API has been down for more than 1 minute"
+      runbook_url: "https://docs.psychsync.com/runbooks/api-down"
+
+  - alert: HighMemoryUsage
+    expr: (process_resident_memory_bytes / 1024 / 1024) > 1000
+    for: 10m
+    labels:
+      severity: warning
+      service: api
+      component: fastapi
+    annotations:
+      summary: "High memory usage detected"
+      description: "API memory usage is {{ $value }}MB"
+      runbook_url: "https://docs.psychsync.com/runbooks/high-memory"
+
+  # Database Connection Alerts
+  - alert: DatabaseConnectionsHigh
+    expr: pg_stat_activity_count > 80
+    for: 5m
+    labels:
+      severity: warning
+      service: api
+      component: database
+    annotations:
+      summary: "High database connection count"
+      description: "{{ $value }} active database connections"
+      runbook_url: "https://docs.psycsync.com/runbooks/db-connections"
+
+- name: psychsync_frontend_alerts
+  rules:
+  # Frontend Performance Alerts
+  - alert: FrontendHighResponseTime
+    expr: histogram_quantile(0.95, rate(frontend_response_time_seconds_bucket[5m])) > 3.0
+    for: 5m
+    labels:
+      severity: warning
+      service: frontend
+      component: react
+    annotations:
+      summary: "High frontend response time"
+      description: "95th percentile frontend response time is {{ $value }}s"
+      runbook_url: "https://docs.psychsync.com/runbooks/frontend-performance"
+
+  - alert: FrontendDown
+    expr: up{job="psychsync-frontend"} == 0
+    for: 2m
+    labels:
+      severity: critical
+      service: frontend
+      component: react
+    annotations:
+      summary: "Frontend service is down"
+      description: "The React frontend has been down for more than 2 minutes"
+      runbook_url: "https://docs.psychsync.com/runbooks/frontend-down"
+
+  - alert: HighJavaScriptErrorRate
+    expr: rate(frontend_javascript_errors_total[5m]) > 5
+    for: 3m
+    labels:
+      severity: warning
+      service: frontend
+      component: react
+    annotations:
+      summary: "High JavaScript error rate"
+      description: "{{ $value }} JavaScript errors per second"
+      runbook_url: "https://docs.psychsync.com/runbooks/js-errors"
+
+- name: psychsync_database_alerts
+  rules:
+  # PostgreSQL Performance Alerts
+  - alert: PostgreSQLDown
+    expr: up{job="postgresql-exporter"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: database
+      component: postgresql
+    annotations:
+      summary: "PostgreSQL is down"
+      description: "PostgreSQL database has been down for more than 1 minute"
+      runbook_url: "https://docs.psychsync.com/runbooks/postgresql-down"
+
+  - alert: PostgreSQLHighCPU
+    expr: rate(cpu_seconds_total{mode="user"}[5m]) > 80
+    for: 5m
+    labels:
+      severity: warning
+      service: database
+      component: postgresql
+    annotations:
+      summary: "PostgreSQL high CPU usage"
+      description: "PostgreSQL CPU usage is {{ $value }}%"
+      runbook_url: "https://docs.psychsync.com/runbooks/postgresql-cpu"
+
+  - alert: PostgreSQLSlowQueries
+    expr: rate(pg_stat_statements_mean_time_seconds[5m]) > 1.0
+    for: 5m
+    labels:
+      severity: warning
+      service: database
+      component: postgresql
+    annotations:
+      summary: "PostgreSQL slow queries detected"
+      description: "Average query time is {{ $value }}s"
+      runbook_url: "https://docs.psychsync.com/runbooks/slow-queries"
+
+  - alert: PostgreSQLConnectionsExhausted
+    expr: pg_stat_activity_count / pg_settings_max_connections > 0.9
+    for: 2m
+    labels:
+      severity: critical
+      service: database
+      component: postgresql
+    annotations:
+      summary: "PostgreSQL connection pool nearly exhausted"
+      description: "{{ $value | humanizePercentage }} of connections used"
+      runbook_url: "https://docs.psychsync.com/runbooks/connection-pool"
+
+  - alert: PostgreSQLDiskSpaceHigh
+    expr: (pg_database_size_bytes / 1024 / 1024 / 1024) > 50
+    for: 10m
+    labels:
+      severity: warning
+      service: database
+      component: postgresql
+    annotations:
+      summary: "PostgreSQL disk usage high"
+      description: "Database size is {{ $value }}GB"
+      runbook_url: "https://docs.psychsync.com/runbooks/disk-space"
+
+- name: psychsync_redis_alerts
+  rules:
+  # Redis Performance Alerts
+  - alert: RedisDown
+    expr: up{job="redis-exporter"} == 0
+    for: 1m
+    labels:
+      severity: critical
+      service: cache
+      component: redis
+    annotations:
+      summary: "Redis is down"
+      description: "Redis cache has been down for more than 1 minute"
+      runbook_url: "https://docs.psychsync.com/runbooks/redis-down"
+
+  - alert: RedisHighMemoryUsage
+    expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+    for: 5m
+    labels:
+      severity: critical
+      service: cache
+      component: redis
+    annotations:
+      summary: "Redis high memory usage"
+      description: "Redis memory usage is {{ $value | humanizePercentage }}"
+      runbook_url: "https://docs.psychsync.com/runbooks/redis-memory"
+
+  - alert: RedisHighConnectionCount
+    expr: redis_connected_clients > 80
+    for: 5m
+    labels:
+      severity: warning
+      service: cache
+      component: redis
+    annotations:
+      summary: "Redis high connection count"
+      description: "{{ $value }} connected clients"
+      runbook_url: "https://docs.psychsync.com/runbooks/redis-connections"
+
+- name: psychsync_stripe_alerts
+  rules:
+  # Stripe Integration Alerts
+  - alert: StripeHighFailureRate
+    expr: rate(stripe_requests_failed_total[5m]) / rate(stripe_requests_total[5m]) > 0.05
+    for: 3m
+    labels:
+      severity: warning
+      service: billing
+      component: stripe
+    annotations:
+      summary: "High Stripe API failure rate"
+      description: "Stripe API failure rate is {{ $value | humanizePercentage }}"
+      runbook_url: "https://docs.psychsync.com/runbooks/stripe-failures"
+
+  - alert: StripeWebhookProcessingDelay
+    expr: stripe_webhook_processing_duration_seconds > 60
+    for: 5m
+    labels:
+      severity: warning
+      service: billing
+      component: stripe
+    annotations:
+      summary: "Stripe webhook processing delay"
+      description: "Webhook processing taking {{ $value }}s"
+      runbook_url: "https://docs.psychsync.com/runbooks/webhook-delay"
+
+  - alert: StripePaymentFailureRate
+    expr: rate(stripe_payments_failed_total[10m]) / rate(stripe_payments_total[10m]) > 0.10
+    for: 5m
+    labels:
+      severity: warning
+      service: billing
+      component: stripe
+    annotations:
+      summary: "High payment failure rate"
+      description: "Payment failure rate is {{ $value | humanizePercentage }}"
+      runbook_url: "https://docs.psychsync.com/runbooks/payment-failures"
+
+- name: psychsync_infrastructure_alerts
+  rules:
+  # Infrastructure Health Alerts
+  - alert: HighCPUUsage
+    expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+      component: system
+    annotations:
+      summary: "High CPU usage"
+      description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+      runbook_url: "https://docs.psychsync.com/runbooks/high-cpu"
+
+  - alert: HighMemoryUsage
+    expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+      component: system
+    annotations:
+      summary: "High memory usage"
+      description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+      runbook_url: "https://docs.psychsync.com/runbooks/high-memory"
+
+  - alert: DiskSpaceHigh
+    expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85
+    for: 10m
+    labels:
+      severity: warning
+      service: infrastructure
+      component: system
+    annotations:
+      summary: "High disk usage"
+      description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+      runbook_url: "https://docs.psychsync.com/runbooks/disk-space"
+
+  - alert: DiskSpaceCritical
+    expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 95
+    for: 5m
+    labels:
+      severity: critical
+      service: infrastructure
+      component: system
+    annotations:
+      summary: "Critical disk usage"
+      description: "Disk usage is {{ $value }}% on {{ $labels.instance }}"
+      runbook_url: "https://docs.psychsync.com/runbooks/disk-space-critical"
+
+  - alert: NetworkLatencyHigh
+    expr: probe_duration_seconds > 1.0
+    for: 5m
+    labels:
+      severity: warning
+      service: infrastructure
+      component: network
+    annotations:
+      summary: "High network latency"
+      description: "Network latency to {{ $labels.instance }} is {{ $value }}s"
+      runbook_url: "https://docs.psychsync.com/runbooks/network-latency"
+
+- name: psychsync_business_alerts
+  rules:
+  # Business Metrics Alerts
+  - alert: UserRegistrationDrop
+    expr: rate(user_registrations_total[1h]) < 10
+    for: 30m
+    labels:
+      severity: warning
+      service: business
+      component: user-activity
+    annotations:
+      summary: "User registration rate dropped"
+      description: "User registration rate is {{ $value }} per hour"
+      runbook_url: "https://docs.psychsync.com/runbooks/registration-drop"
+
+  - alert: AssessmentCompletionDrop
+    expr: rate(assessments_completed_total[1h]) < 20
+    for: 45m
+    labels:
+      severity: warning
+      service: business
+      component: user-activity
+    annotations:
+      summary: "Assessment completion rate dropped"
+      description: "Assessment completion rate is {{ $value }} per hour"
+      runbook_url: "https://docs.psychsync.com/runbooks/assessment-drop"
+
+  - alert: RevenueDrop
+    expr: rate(revenue_total[1h]) < 100
+    for: 2h
+    labels:
+      severity: warning
+      service: business
+      component: revenue
+    annotations:
+      summary: "Revenue generation dropped"
+      description: "Revenue rate is ${{ $value }} per hour"
+      runbook_url: "https://docs.psychsync.com/runbooks/revenue-drop"
+
+- name: psychsync_security_alerts
+  rules:
+  # Security Alerts
+  - alert: HighFailedLoginRate
+    expr: rate(login_attempts_failed_total[5m]) > 10
+    for: 3m
+    labels:
+      severity: warning
+      service: security
+      component: authentication
+    annotations:
+      summary: "High failed login rate"
+      description: "{{ $value }} failed login attempts per minute"
+      runbook_url: "https://docs.psychsync.com/runbooks/failed-logins"
+
+  - alert: SuspiciousActivityDetected
+    expr: rate(suspicious_requests_total[5m]) > 5
+    for: 2m
+    labels:
+      severity: critical
+      service: security
+      component: authentication
+    annotations:
+      summary: "Suspicious activity detected"
+      description: "{{ $value }} suspicious requests per minute"
+      runbook_url: "https://docs.psychsync.com/runbooks/suspicious-activity"
+
+  - alert: UnauthorizedAPICalls
+    expr: rate(http_requests_total{status="401"}[5m]) > 5
+    for: 3m
+    labels:
+      severity: warning
+      service: security
+      component: authentication
+    annotations:
+      summary: "High unauthorized API call rate"
+      description: "{{ $value }} unauthorized calls per minute"
+      runbook_url: "https://docs.psychsync.com/runbooks/unauthorized-calls"

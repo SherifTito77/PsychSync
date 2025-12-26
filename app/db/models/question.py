@@ -1,15 +1,14 @@
 # app/db/models/question.py
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
-from ..base import Base
+from app.core.database import Base
 from sqlalchemy import Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from app.db.base_class import Base
 
 
 
 class Question(Base):
-    __tablename__ = "questions"
+    __tablename__ = "framework_questions"
 
     id = sa.Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()"))
     text = sa.Column(sa.String, nullable=False)
@@ -19,4 +18,4 @@ class Question(Base):
     type = Column(String, nullable=False)
     assessment_id = Column(Integer, ForeignKey("assessments.id", ondelete="CASCADE"))
 
-    assessment = relationship("Assessment", back_populates="questions")
+    # assessment relationship removed to avoid conflicts with Assessment.assessments_questions relationship

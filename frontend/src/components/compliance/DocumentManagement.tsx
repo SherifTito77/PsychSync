@@ -213,7 +213,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({ classNam
       showNotification('Action failed', 'error');
     }
   };
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (status) {
       case 'published': return 'green';
       case 'draft': return 'gray';
@@ -233,7 +233,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({ classNam
       default: return <FileText className="w-4 h-4" />;
     }
   };
-  const getAccessLevelColor = (level: string) => {
+  const getAccessLevelColor = (level: string): 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow' => {
     switch (level) {
       case 'public': return 'green';
       case 'internal': return 'blue';
@@ -367,21 +367,25 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({ classNam
       {/* Document Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard
+          title="Total Documents"
           value={documents.length}
           icon={<FileText className="w-5 h-5" />}
           color="blue"
         />
         <StatCard
+          title="Published"
           value={documents.filter(d => d.status === 'published').length}
           icon={<CheckCircle className="w-5 h-5" />}
           color="green"
         />
         <StatCard
+          title="Required Reading"
           value={documents.filter(d => d.requiredReading).length}
           icon={<Bookmark className="w-5 h-5" />}
           color="yellow"
         />
         <StatCard
+          title="Encrypted"
           value={documents.filter(d => d.encrypted).length}
           icon={<Lock className="w-5 h-5" />}
           color="red"
@@ -531,14 +535,14 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
         )}
         {/* Status and Access Level */}
         <div className="flex items-center justify-between mb-4">
-          <Badge color={getStatusColor(document.status)} size="sm">
+          <Badge color={getStatusColor(document.status) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">
             {document.status.charAt(0).toUpperCase() + document.status.slice(1)}
           </Badge>
           <div className="flex items-center space-x-2">
             {document.encrypted && (
               <Lock className="w-4 h-4 text-red-500"  />
             )}
-            <Badge color={getAccessLevelColor(document.accessLevel)} size="sm" variant="outline">
+            <Badge color={getAccessLevelColor(document.accessLevel) as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm" variant="outline">
               {document.accessLevel}
             </Badge>
           </div>

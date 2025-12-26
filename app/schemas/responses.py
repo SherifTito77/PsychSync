@@ -89,7 +89,7 @@ class TokenResponse(BaseModel):
     """Authentication token response"""
 
     access_token: str = Field(..., description="JWT access token")
-    refresh_token: str = Field(..., description="JWT refresh token")
+    refresh_token: str = Field(write_only=True, ..., description="JWT refresh token")
     token_type: str = Field("bearer", description="Token type")
     expires_in: Optional[int] = Field(None, description="Token expiration time in seconds")
 
@@ -150,7 +150,6 @@ def create_success_response(
         SuccessResponse instance
     """
     return SuccessResponse(
-        success=True,
         message=message,
         data=data,
         request_id=request_id,
@@ -179,7 +178,6 @@ def create_error_response(
         ErrorResponse instance
     """
     return ErrorResponse(
-        success=False,
         message=message,
         data=None,
         error_code=error_code,
@@ -225,7 +223,6 @@ def create_paginated_response(
     )
 
     return PaginatedResponse(
-        success=True,
         message=message,
         data=data,
         timestamp=datetime.utcnow(),
@@ -252,7 +249,6 @@ def create_validation_error_response(
         ValidationErrorResponse instance
     """
     return ValidationErrorResponse(
-        success=False,
         message=message,
         data=None,
         error_code="VALIDATION_ERROR",

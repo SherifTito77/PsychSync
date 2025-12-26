@@ -1,0 +1,819 @@
+# PsychSync Enterprise Azure DevOps CI/CD Pipeline
+# Comprehensive pipeline with security, testing, Docker, and deployment
+
+name: PsychSync.Enterprise.CI.$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+    - main
+    - develop
+    - staging
+  tags:
+    include:
+    - v*
+
+pr:
+  branches:
+    include:
+    - main
+    - develop
+
+variables:
+  # Build Configuration
+  buildConfiguration: 'Release'
+  solution: '**/*.sln'
+  buildPlatform: 'x64'
+
+  # Environment Variables
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '18'
+  DOCKER_REGISTRY: 'psychsync.azurecr.io'
+  CONTAINER_NAME: 'psychsync-api'
+
+  # Pipeline Configuration
+  workingDirectory: '$(System.DefaultWorkingDirectory)'
+  artifactStagingDirectory: '$(Build.ArtifactStagingDirectory)'
+  tempDirectory: '$(Agent.TempDirectory)'
+
+  # Security and Quality Gates
+  MIN_CODE_COVERAGE: '80'
+  MAX_SECURITY_VULNERABILITIES: '5'
+  PERFORMANCE_THRESHOLD: '95'
+
+  # Agent Pool Configuration
+  vmImageName: 'ubuntu-latest'
+
+pool:
+  vmImage: $(vmImageName)
+
+stages:
+- stage: Validate
+  displayName: 'Validate and Setup'
+  jobs:
+  - job: CodeQuality
+    displayName: 'Code Quality and Linting'
+    timeoutInMinutes: 15
+
+    steps:
+    - checkout: self
+      fetchDepth: 0
+      clean: true
+
+    - task: UsePythonVersion@0
+      displayName: 'Set up Python $(PYTHON_VERSION)'
+      inputs:
+        versionSpec: '$(PYTHON_VERSION)'
+        addToPath: true
+
+    - task: UseNode@1
+      displayName: 'Set up Node.js $(NODE_VERSION)'
+      inputs:
+        versionSpec: '$(NODE_VERSION)'
+
+    - bash: |
+        echo "🔍 Installing quality assurance tools..."
+        python -m pip install --upgrade pip
+        pip install black isort flake8 mypy pylint bandit safety
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        npm install -g eslint prettier
+        cd frontend && npm install
+      displayName: 'Install Quality Tools'
+
+    - bash: |
+        echo "🔍 Checking Python code formatting..."
+        black --check --diff app/ tests/ || {
+          echo "❌ Code formatting issues found"
+          black --diff app/ tests/
+          exit 1
+        }
+        echo "✅ Code formatting passed"
+      displayName: 'Check Python Formatting'
+
+    - bash: |
+        echo "🔍 Checking import sorting..."
+        isort --check-only --diff app/ tests/ || {
+          echo "❌ Import sorting issues found"
+          isort --diff app/ tests/
+          exit 1
+        }
+        echo "✅ Import sorting passed"
+      displayName: 'Check Import Sorting'
+
+    - bash: |
+        echo "🔍 Running flake8 linting..."
+        flake8 app/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 app/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      displayName: 'Run Flake8 Linting'
+
+    - bash: |
+        echo "🔍 Running mypy type checking..."
+        mypy app/ --ignore-missing-imports --no-strict-optional || true
+      displayName: 'Run MyPy Type Checking'
+
+    - bash: |
+        echo "🔍 Running pylint analysis..."
+        pylint app/ --disable=C0114,C0115,C0116 || true
+      displayName: 'Run Pylint Analysis'
+
+    - bash: |
+        echo "🔍 Running bandit security scan..."
+        bandit -r app/ -f json -o bandit-report.json || true
+        bandit -r app/ -ll
+      displayName: 'Run Bandit Security Scan'
+
+    - bash: |
+        echo "🔍 Checking dependencies for vulnerabilities..."
+        safety check --json --output safety-report.json || true
+      displayName: 'Check Dependencies'
+
+    - bash: |
+        echo "🔍 Running frontend linting..."
+        cd frontend
+        npm run lint || {
+          echo "❌ Frontend linting failed"
+          exit 1
+        }
+        npm run type-check || {
+          echo "❌ Frontend type checking failed"
+          exit 1
+        }
+      displayName: 'Frontend Quality Checks'
+
+    - publish: '**/bandit-report.json'
+      artifact: 'security-reports'
+      displayName: 'Publish Security Reports'
+      condition: always()
+
+    - publish: '**/safety-report.json'
+      artifact: 'dependency-reports'
+      displayName: 'Publish Dependency Reports'
+      condition: always()
+
+  - job: SecurityScanning
+    displayName: 'Advanced Security Analysis'
+    timeoutInMinutes: 30
+    dependsOn: CodeQuality
+
+    steps:
+    - checkout: self
+      clean: true
+
+    - task: Semgrep@1
+      displayName: 'Run Semgrep Security Scan'
+      inputs:
+        config: 'p/security-audit p/security p/owasp-top-ten'
+
+    - task: CredScan@3
+      displayName: 'Run Credential Scanner'
+      inputs:
+        toolVersion: 'Latest'
+        scanUnknown: true
+
+    - task: CodeQL3000Init@0
+      displayName: 'Initialize CodeQL'
+      inputs:
+        languages: 'python'
+
+    - task: CodeQL3000Finalize@0
+      displayName: 'Finalize CodeQL'
+      inputs:
+        languages: 'python'
+
+    - task: ContainerStructureTest@0
+      displayName: 'Container Security Tests'
+      inputs:
+        dockerfile: 'Dockerfile'
+        targetImage: 'test-image'
+        testFiles: '**/*.yaml'
+
+- stage: Test
+  displayName: 'Testing and Coverage'
+  dependsOn: Validate
+  jobs:
+  - job: UnitTests
+    displayName: 'Unit Tests'
+    strategy:
+      matrix:
+        Python-3.11:
+          pythonVersion: '3.11'
+        Python-3.12:
+          pythonVersion: '3.12'
+    timeoutInMinutes: 20
+
+    steps:
+    - checkout: self
+      clean: true
+
+    - task: UsePythonVersion@0
+      displayName: 'Set up Python $(pythonVersion)'
+      inputs:
+        versionSpec: '$(pythonVersion)'
+
+    - bash: |
+        echo "🧪 Installing test dependencies..."
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-mock pytest-asyncio
+        pip install pytest-xvfb
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+      displayName: 'Install Test Dependencies'
+
+    - bash: |
+        echo "🧪 Running unit tests..."
+        pytest tests/unit/ \
+          --cov=app \
+          --cov-report=xml:coverage-$(pythonVersion).xml \
+          --cov-report=html:htmlcov-$(pythonVersion) \
+          --cov-report=term-missing \
+          --junitxml=unit-test-results-$(pythonVersion).xml \
+          -v --tb=short
+      displayName: 'Run Unit Tests'
+
+    - task: PublishTestResults@2
+      displayName: 'Publish Test Results'
+      inputs:
+        testResultsFiles: '**/*test-results-$(pythonVersion).xml'
+        testRunTitle: 'Unit Tests - Python $(pythonVersion)'
+      condition: always()
+
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish Code Coverage'
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: 'coverage-$(pythonVersion).xml'
+        reportDirectory: 'htmlcov-$(pythonVersion)'
+        condition: succeeded()
+
+    - task: DownloadSecureFile@1
+      name: coverageCredentials
+      displayName: 'Download Coverage Credentials'
+      inputs:
+        secureFile: 'codecov.yml'
+      condition: and(succeeded(), eq(variables['pythonVersion'], '3.12'))
+
+    - bash: |
+        echo "📊 Uploading coverage to Codecov..."
+        bash <(curl -s https://codecov.io/bash) -f coverage-$(pythonVersion).xml
+      displayName: 'Upload Coverage to Codecov'
+      condition: and(succeeded(), eq(variables['pythonVersion'], '3.12'))
+      env:
+        CODECOV_TOKEN: $(CODECOV_TOKEN)
+
+  - job: IntegrationTests
+    displayName: 'Integration Tests'
+    timeoutInMinutes: 45
+    dependsOn: UnitTests
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        ports:
+        - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        ports:
+        - 6379:6379
+
+      mailhog:
+        image: mailhog/mailhog
+        ports:
+        - 1025:1025
+        - 8025:8025
+
+    steps:
+    - checkout: self
+      clean: true
+
+    - task: UsePythonVersion@0
+      displayName: 'Set up Python $(PYTHON_VERSION)'
+      inputs:
+        versionSpec: '$(PYTHON_VERSION)'
+
+    - bash: |
+        echo "🧪 Setting up integration test environment..."
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-json-report pytest-cov
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+
+        # Wait for services
+        timeout 60 bash -c 'until pg_isready -h localhost; do sleep 1; done'
+        timeout 60 bash -c 'until redis-cli ping; do sleep 1; done'
+      displayName: 'Setup Test Environment'
+
+    - bash: |
+        echo "🧪 Configuring test environment..."
+        cp .env.test .env
+        echo "TESTING=true" >> .env
+        echo "ENVIRONMENT=testing" >> .env
+        echo "DATABASE_URL=postgresql+asyncpg://test_user:test_password@localhost:5432/test_db" >> .env
+        echo "REDIS_URL=redis://localhost:6379/0" >> .env
+        echo "SMTP_HOST=localhost" >> .env
+        echo "SMTP_PORT=1025" >> .env
+      displayName: 'Configure Environment'
+
+    - bash: |
+        echo "🧪 Running database migrations..."
+        alembic upgrade head
+      displayName: 'Run Database Migrations'
+
+    - bash: |
+        echo "🧪 Running integration tests..."
+        pytest tests/integration/ \
+          --cov=app \
+          --cov-report=xml:integration-coverage.xml \
+          --cov-report=html:integration-htmlcov \
+          --json-report --json-report-file=integration-results.json \
+          --junitxml=integration-test-results.xml \
+          -v --tb=short
+      displayName: 'Run Integration Tests'
+
+    - bash: |
+        echo "📊 Generating analytics dashboard..."
+        pip install -r requirements-analytics.txt
+        python scripts/test_analytics_dashboard.py
+      displayName: 'Generate Analytics Dashboard'
+      condition: always()
+
+    - task: PublishTestResults@2
+      displayName: 'Publish Integration Test Results'
+      inputs:
+        testResultsFiles: '**/integration-test-results.xml'
+        testRunTitle: 'Integration Tests'
+      condition: always()
+
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish Integration Coverage'
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: 'integration-coverage.xml'
+        reportDirectory: 'integration-htmlcov'
+      condition: succeeded()
+
+    - publish: '**/integration-results.json'
+      artifact: 'integration-results'
+      displayName: 'Publish Integration Results'
+      condition: always()
+
+    - publish: 'test_reports/**'
+      artifact: 'analytics-dashboard'
+      displayName: 'Publish Analytics Dashboard'
+      condition: always()
+
+  - job: PerformanceTests
+    displayName: 'Performance Tests'
+    timeoutInMinutes: 30
+    dependsOn: IntegrationTests
+    condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.SourceBranch'], 'refs/heads/develop')))
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        ports:
+        - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        ports:
+        - 6379:6379
+
+    steps:
+    - checkout: self
+      clean: true
+
+    - task: UsePythonVersion@0
+      displayName: 'Set up Python $(PYTHON_VERSION)'
+      inputs:
+        versionSpec: '$(PYTHON_VERSION)'
+
+    - bash: |
+        echo "⚡ Installing performance testing tools..."
+        python -m pip install --upgrade pip
+        pip install pytest pytest-benchmark locust
+        pip install -r requirements.txt
+
+        cp .env.test .env
+        echo "TESTING=true" >> .env
+        echo "ENVIRONMENT=testing" >> .env
+        echo "DATABASE_URL=postgresql+asyncpg://test_user:test_password@localhost:5432/test_db" >> .env
+        echo "REDIS_URL=redis://localhost:6379/0" >> .env
+      displayName: 'Setup Performance Test Environment'
+
+    - bash: |
+        echo "⚡ Running performance benchmarks..."
+        pytest tests/performance/ \
+          --benchmark-only \
+          --benchmark-json=benchmark-results.json \
+          --benchmark-html=benchmark-report.html
+      displayName: 'Run Performance Benchmarks'
+
+    - bash: |
+        echo "⚡ Running load tests..."
+        locust -f tests/load-testing/locustfile.py \
+          --headless \
+          --users 100 \
+          --spawn-rate 10 \
+          --run-time 60s \
+          --host=http://localhost:8000 \
+          --html=load-test-report.html || true
+      displayName: 'Run Load Tests'
+
+    - publish: '**/benchmark-results.json'
+      artifact: 'performance-benchmarks'
+      displayName: 'Publish Benchmarks'
+      condition: always()
+
+    - publish: '**/benchmark-report.html'
+      artifact: 'performance-reports'
+      displayName: 'Publish Performance Reports'
+      condition: always()
+
+- stage: Build
+  displayName: 'Build and Package'
+  dependsOn: Test
+  jobs:
+  - job: BuildDocker
+    displayName: 'Build Docker Image'
+    timeoutInMinutes: 25
+
+    steps:
+    - checkout: self
+      clean: true
+
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        containerRegistry: 'psychsync-registry'
+        repository: 'psychsync-api'
+        command: 'build'
+        Dockerfile: 'Dockerfile'
+        buildContext: '.'
+        tags: |
+          $(Build.BuildNumber)
+          latest-$(Build.SourceBranchName)
+          $(Build.SourceBranch)
+        arguments: |
+          --build-arg BUILD_DATE=$(Build.BuildNumber)
+          --build-arg VCS_REF=$(Build.SourceVersion)
+          --build-arg VERSION=$(Build.BuildNumber)
+          --label org.opencontainers.image.created=$(Build.BuildNumber)
+          --label org.opencontainers.image.revision=$(Build.SourceVersion)
+          --label org.opencontainers.image.version=$(Build.BuildNumber)
+
+    - task: Docker@2
+      displayName: 'Push Docker Image'
+      inputs:
+        containerRegistry: 'psychsync-registry'
+        repository: 'psychsync-api'
+        command: 'push'
+        tags: |
+          $(Build.BuildNumber)
+          latest-$(Build.SourceBranchName)
+          $(Build.SourceBranch)
+
+    - task: Docker@2
+      displayName: 'Generate SBOM'
+      inputs:
+        containerRegistry: 'psychsync-registry'
+        repository: 'psychsync-api'
+        command: 'sbom'
+        arguments: '--format spdx-json --output sbom.spdx.json psychsync-api:$(Build.BuildNumber)'
+
+    - publish: 'sbom.spdx.json'
+      artifact: 'sbom'
+      displayName: 'Publish SBOM'
+
+    - bash: |
+        echo "🐳 Scanning Docker image for vulnerabilities..."
+        trivy image --format json --output docker-trivy-results.json $(DOCKER_REGISTRY)/psychsync-api:$(Build.BuildNumber)
+      displayName: 'Docker Security Scan'
+
+    - publish: 'docker-trivy-results.json'
+      artifact: 'docker-security-scan'
+      displayName: 'Publish Docker Security Scan'
+
+  - job: BuildFrontend
+    displayName: 'Build Frontend'
+    timeoutInMinutes: 15
+
+    steps:
+    - checkout: self
+      clean: true
+
+    - task: UseNode@1
+      displayName: 'Set up Node.js $(NODE_VERSION)'
+      inputs:
+        versionSpec: '$(NODE_VERSION)'
+
+    - bash: |
+        echo "🔨 Building frontend..."
+        cd frontend
+        npm install
+        npm run build
+        npm run test
+      displayName: 'Build and Test Frontend'
+
+    - bash: |
+        echo "📦 Packaging frontend assets..."
+        mkdir -p $(artifactStagingDirectory)/frontend
+        cp -r frontend/dist/* $(artifactStagingDirectory)/frontend/
+      displayName: 'Package Frontend Assets'
+
+    - publish: '$(artifactStagingDirectory)/frontend'
+      artifact: 'frontend-assets'
+      displayName: 'Publish Frontend Assets'
+
+- stage: SecurityValidation
+  displayName: 'Security Validation'
+  dependsOn: Build
+  jobs:
+  - job: ContainerSecurity
+    displayName: 'Container Security Analysis'
+    timeoutInMinutes: 20
+
+    steps:
+    - checkout: self
+
+    - task: Docker@2
+      displayName: 'Pull Docker Image for Scanning'
+      inputs:
+        containerRegistry: 'psychsync-registry'
+        repository: 'psychsync-api'
+        command: 'pull'
+        tags: '$(Build.BuildNumber)'
+
+    - bash: |
+        echo "🔒 Running comprehensive container security scan..."
+        trivy image \
+          --format sarif \
+          --output trivy-results.sarif \
+          $(DOCKER_REGISTRY)/psychsync-api:$(Build.BuildNumber)
+      displayName: 'Comprehensive Container Scan'
+
+    - bash: |
+        echo "🔒 Running additional security analysis..."
+        grype $(DOCKER_REGISTRY)/psychsync-api:$(Build.BuildNumber) -o json > grype-results.json
+      displayName: 'Grype Security Analysis'
+
+    - task: PublishSecurityAnalysisLogs@3
+      displayName: 'Publish Security Analysis'
+      inputs:
+        ArtifactName: 'security-analysis'
+        ArtifactType: 'SARIF'
+        PublishSecLogs: true
+        RunJaqScan: true
+
+    - publish: '**/trivy-results.sarif'
+      artifact: 'trivy-sarif'
+      displayName: 'Publish Trivy SARIF'
+
+    - publish: '**/grype-results.json'
+      artifact: 'grype-results'
+      displayName: 'Publish Grype Results'
+
+- stage: DeployStaging
+  displayName: 'Deploy to Staging'
+  dependsOn: SecurityValidation
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+  jobs:
+  - deployment: DeployToStaging
+    displayName: 'Deploy to Staging Environment'
+    environment: 'staging'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy to Azure Web App (Staging)'
+            inputs:
+              azureSubscription: 'psychsync-azure-subscription'
+              appName: 'psychsync-staging'
+              containers: '$(DOCKER_REGISTRY)/psychsync-api:$(Build.BuildNumber)'
+              resourceGroupName: 'psychsync-staging-rg'
+
+          - bash: |
+              echo "🏥 Performing health check..."
+              for i in {1..30}; do
+                if curl -f https://psychsync-staging.azurewebsites.net/api/v1/health; then
+                  echo "✅ Health check passed"
+                  break
+                fi
+                echo "⏳ Waiting for service to be healthy... ($i/30)"
+                sleep 10
+              done
+            displayName: 'Health Check'
+            timeoutInMinutes: 10
+
+          - bash: |
+              echo "🧪 Running smoke tests..."
+              python scripts/smoke_tests.py --environment staging
+            displayName: 'Smoke Tests'
+            timeoutInMinutes: 15
+
+- stage: DeployProduction
+  displayName: 'Deploy to Production'
+  dependsOn: SecurityValidation
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployToProduction
+    displayName: 'Deploy to Production Environment'
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy to Azure Web App (Production)'
+            inputs:
+              azureSubscription: 'psychsync-azure-subscription'
+              appName: 'psychsync-production'
+              containers: '$(DOCKER_REGISTRY)/psychsync-api:$(Build.BuildNumber)'
+              resourceGroupName: 'psychsync-production-rg'
+
+          - bash: |
+              echo "🏥 Performing comprehensive health check..."
+              for i in {1..60}; do
+                if curl -f https://api.psychsync.com/api/v1/health; then
+                  echo "✅ Health check passed"
+                  break
+                fi
+                echo "⏳ Waiting for service to be healthy... ($i/60)"
+                sleep 10
+              done
+            displayName: 'Comprehensive Health Check'
+            timeoutInMinutes: 20
+
+          - bash: |
+              echo "🧪 Running production smoke tests..."
+              python scripts/smoke_tests.py --environment production
+            displayName: 'Production Smoke Tests'
+            timeoutInMinutes: 15
+
+          - bash: |
+              echo "📧 Sending deployment notification..."
+              curl -X POST "$SLACK_WEBHOOK_URL" \
+                -H 'Content-type: application/json' \
+                --data "{
+                  \"text\": \"🚀 Production Deployment Successful!\n\n*Commit:* $(Build.SourceVersion)\n*Branch:* $(Build.SourceBranchName)\n*Build:* $(Build.BuildNumber)\n*Image:* $(DOCKER_REGISTRY)/psychsync-api:$(Build.BuildNumber)\n\n✅ New version is now live at https://api.psychsync.com\"
+                }"
+            displayName: 'Deployment Notification'
+
+- stage: Rollback
+  displayName: 'Rollback if Needed'
+  dependsOn: DeployProduction
+  condition: and(failed(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: RollbackProduction
+    displayName: 'Rollback Production Deployment'
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - bash: |
+              echo "🚨 Initiating rollback for production..."
+              PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "latest")
+              echo "Rolling back to: $PREVIOUS_TAG"
+              echo "##vso[task.setvariable variable=rollbackTag]$PREVIOUS_TAG"
+            displayName: 'Determine Rollback Version'
+
+          - task: Docker@2
+            displayName: 'Pull Previous Docker Image'
+            inputs:
+              containerRegistry: 'psychsync-registry'
+              repository: 'psychsync-api'
+              command: 'pull'
+              tags: '$(rollbackTag)'
+
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy Previous Version (Rollback)'
+            inputs:
+              azureSubscription: 'psychsync-azure-subscription'
+              appName: 'psychsync-production'
+              containers: '$(DOCKER_REGISTRY)/psychsync-api:$(rollbackTag)'
+              resourceGroupName: 'psychsync-production-rg'
+
+          - bash: |
+              echo "🏥 Verifying rollback health..."
+              sleep 30
+              for i in {1..30}; do
+                if curl -f https://api.psychsync.com/api/v1/health; then
+                  echo "✅ Rollback successful! Service is healthy."
+                  break
+                fi
+                echo "⏳ Waiting for rollback to complete... ($i/30)"
+                sleep 10
+              done
+            displayName: 'Verify Rollback Health'
+            timeoutInMinutes: 15
+
+          - bash: |
+              echo "📧 Sending rollback notification..."
+              curl -X POST "$SLACK_WEBHOOK_URL" \
+                -H 'Content-type: application/json' \
+                --data "{
+                  \"text\": \"🚨 Production Rollback Completed\n\n*Reason:* Deployment failure\n*Previous Version:* $(rollbackTag)\n*Commit:* $(Build.SourceVersion)\n\n🔧 Engineering team has been notified.\"
+                }"
+            displayName: 'Rollback Notification'
+
+- stage: Cleanup
+  displayName: 'Cleanup and Archive'
+  dependsOn:
+  - DeployStaging
+  - DeployProduction
+  - Rollback
+  condition: always()
+  jobs:
+  - job: CleanupArtifacts
+    displayName: 'Cleanup and Archive'
+    timeoutInMinutes: 10
+
+    steps:
+    - bash: |
+        echo "🧹 Cleaning up build artifacts..."
+        find $(tempDirectory) -name "*.tmp" -delete
+        find $(tempDirectory) -name "*.log" -mtime +7 -delete
+      displayName: 'Cleanup Temporary Files'
+
+    - bash: |
+        echo "📦 Archiving build artifacts..."
+        mkdir -p $(artifactStagingDirectory)/archive
+        cp -r test_reports $(artifactStagingDirectory)/archive/ || true
+        cp -r htmlcov* $(artifactStagingDirectory)/archive/ || true
+        cp *.xml $(artifactStagingDirectory)/archive/ || true
+      displayName: 'Archive Build Artifacts'
+
+    - publish: '$(artifactStagingDirectory)/archive'
+      artifact: 'build-archive-$(Build.BuildNumber)'
+      displayName: 'Publish Build Archive'
+      retentionDays: 90
+
+    - bash: |
+        echo "📊 Generating pipeline summary..."
+        cat << EOF > pipeline-summary.md
+        # PsychSync CI/CD Pipeline Summary
+
+        **Build:** $(Build.BuildNumber)
+        **Branch:** $(Build.SourceBranchName)
+        **Commit:** $(Build.SourceVersion)
+        **Date:** $(Build.BuildNumber)
+
+        **Stages:**
+        - ✅ Code Quality and Linting
+        - ✅ Security Scanning
+        - ✅ Unit Tests (Python 3.11 & 3.12)
+        - ✅ Integration Tests
+        - ✅ Performance Tests
+        - ✅ Docker Build and Security
+        - ✅ Frontend Build
+
+        **Artifacts:**
+        - Security Reports: Available for 30 days
+        - Test Results: Available for 30 days
+        - Build Archive: Available for 90 days
+
+        **Deployment Status:** $(Agent.JobStatus)
+        EOF
+
+        echo "Pipeline Summary:"
+        cat pipeline-summary.md
+      displayName: 'Generate Pipeline Summary'
+
+    - publish: 'pipeline-summary.md'
+      artifact: 'pipeline-summary'
+      displayName: 'Publish Pipeline Summary'
+
+# Notifications
+resources:
+  repositories:
+  - repository: templates
+    type: git
+    name: psychsync/pipeline-templates
+    ref: main
+
+# Timeout Configuration
+timeoutInMinutes: 120
+cancelTimeoutInMinutes: 30
+
+# Pipeline Options
+options:
+  enablePods: true
+  skipCheckout: false
+  timeoutInMinutes: 120

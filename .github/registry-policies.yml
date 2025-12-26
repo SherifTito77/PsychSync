@@ -1,0 +1,286 @@
+# Container Registry Policies
+#
+# Policies to control which container registries can be used in builds.
+# Blocks unknown/untrusted registries to prevent supply chain attacks.
+#
+# Compliance:
+# - NIST IR 8278: Artifact integrity verification
+# - SLSA Level 3: Source policy requirements
+# - CISA: Container image security
+
+version: "1"
+
+policies:
+  # Allowed container registries
+  allowed_registries:
+    - name: GitHub Container Registry
+      url: ghcr.io
+      trust_level: high
+      signature_required: true
+      sbom_required: true
+      description: "Primary registry for PsychSync containers"
+
+    - name: Docker Hub Official
+      url: docker.io
+      trust_level: medium
+      signature_required: true
+      allowed_namespaces:
+        - library
+        - bitnami
+        - nginx
+        - postgres
+        - redis
+      description: "Only official images from Docker Hub"
+
+    - name: Red Hat Registry
+      url: registry.redhat.io
+      trust_level: high
+      signature_required: true
+      sbom_required: true
+      description: "Red Hat certified images"
+
+    - name: Amazon ECR Public
+      url: public.ecr.aws
+      trust_level: medium
+      signature_required: true
+      description: "AWS public registry"
+
+  # Blocked container registries
+  blocked_registries:
+    - name: Unknown Docker Hub registries
+      url: docker.io
+      blocked_namespaces:
+        - "*"  # Block all except official
+      exceptions:
+        - docker.io/library/*
+        - docker.io/bitnami/*
+        - docker.io/nginx/*
+        - docker.io/postgres/*
+        - docker.io/redis/*
+      reason: "Only official Docker Hub images allowed"
+
+    - name: Untrusted registries
+      urls:
+        - gcr.io  # Google Cloud Registry (not approved)
+        - quay.io  # Quay (not approved)
+        - "*.dkr.ecr.*.amazonaws.com"  # Private ECR (not approved)
+      reason: "Registries not in approved list"
+
+  # Image verification policies
+  verification:
+    # Signature verification required
+    signatures:
+      enabled: true
+      tool: cosign
+      verify_on_pull: true
+      trusted_signers:
+        - issuer: https://token.actions.githubusercontent.com
+          identity: "https://github.com/psychsync/*"
+
+    # SBOM verification
+    sbom:
+      enabled: true
+      required_format: cyclonedx
+      verify_on_pull: true
+
+    # Vulnerability scanning
+    vulnerability_scan:
+      enabled: true
+      tool: trivy
+      block_on_severity:
+        - CRITICAL
+        - HIGH
+      allow_list:
+        # CVEs that are mitigated in our environment
+        - "CVE-2021-xxxxx"  # Example: Not reachable
+
+# Policy enforcement
+enforcement:
+  # CI/CD enforcement
+  ci_cd:
+    # Check Dockerfile for allowed registries
+    dockerfile_check:
+      enabled: true
+      fail_on_violation: true
+
+    # Check Kubernetes manifests
+    k8s_check:
+      enabled: true
+      fail_on_violation: true
+
+    # Check docker-compose files
+    compose_check:
+      enabled: true
+      fail_on_violation: true
+
+  # Runtime enforcement (via admission controller)
+  runtime:
+    # Kubernetes admission controller
+    k8s_admission:
+      enabled: true
+      mode: enforce  # Options: audit, warn, enforce
+      webhook_timeout: 10
+
+# Image allowlist (specific images)
+image_allowlist:
+  # Base images
+  base:
+    - image: python:3.14-slim
+      registry: docker.io
+      signature: true
+      min_version: 3.14.0
+      max_version: 3.14.999
+
+    - image: node:20-alpine
+      registry: docker.io
+      signature: true
+      min_version: 20.0.0
+      max_version: 20.999.999
+
+    - image: nginx:alpine
+      registry: docker.io
+      signature: true
+      min_version: 1.25.0
+      max_version: 1.99.999
+
+  # Database images
+  databases:
+    - image: postgres:15-alpine
+      registry: docker.io
+      signature: true
+      min_version: 15.0.0
+      max_version: 15.999.999
+
+    - image: redis:7-alpine
+      registry: docker.io
+      signature: true
+      min_version: 7.0.0
+      max_version: 7.99.999
+
+# Image blocklist (known vulnerable images)
+image_blocklist:
+  - image: python:3.6
+    reason: "End of life, no security updates"
+
+  - image: node:14
+    reason: "End of life, no security updates"
+
+  - image: postgres:10
+    reason: "End of life, no security updates"
+
+# Signature verification
+signature_verification:
+  # Using cosign
+  cosign:
+    # Trusted certificate identities
+    trusted_identities:
+      - "https://github.com/psychsync/*"
+
+    # Trusted OIDC issuers
+    trusted_issuers:
+      - "https://token.actions.githubusercontent.com"
+      - "https://oauth2.sigstore.dev/auth"
+
+    # Verification options
+    options:
+      - --certificate-identity-regexp "https://github.com/psychsync/.*"
+      - --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+# Pre-pull policies
+pre_pull:
+  # Pre-pull approved images to reduce runtime risk
+  enabled: true
+  images:
+    - docker.io/library/python:3.14-slim
+    - docker.io/library/node:20-alpine
+    - docker.io/library/nginx:alpine
+    - docker.io/library/postgres:15-alpine
+    - docker.io/library/redis:7-alpine
+  schedule: "0 2 * * *"  # Daily at 2AM UTC
+
+# Audit logging
+audit:
+  enabled: true
+  log_events:
+    - image_pull
+    - image_verify
+    - policy_violation
+    - signature_failure
+  retention_days: 365
+
+# Integration with CI/CD
+ci_integration:
+  github_actions:
+    # Check Dockerfile
+    - name: Check Dockerfile registries
+      run: |
+        #!/bin/bash
+        while read -r line; do
+          if [[ $line =~ FROM[[:space:]]+([^[:space:]]+) ]]; then
+            image="${BASH_REMATCH[1]}"
+            if ! scripts/check-registry-policy.sh "$image"; then
+              echo "::error::Image not in allowlist: $image"
+              exit 1
+            fi
+          fi
+        done < Dockerfile.prod
+
+    # Verify images before use
+    - name: Verify container images
+      run: |
+        #!/bin/bash
+        images=(
+          "python:3.14-slim"
+          "node:20-alpine"
+        )
+
+        for image in "${images[@]}"; do
+          if ! cosign verify \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$image"; then
+            echo "::error::Failed to verify $image"
+            exit 1
+          fi
+        done
+
+# Monitoring and alerting
+monitoring:
+  # Policy violation metrics
+  metrics:
+    - name: registry_policy_violations
+      type: counter
+      description: "Count of registry policy violations"
+
+    - name: signature_verification_failures
+      type: counter
+      description: "Count of signature verification failures"
+
+  # Alerts
+  alerts:
+    - name: BlockedRegistryAttempt
+      condition: |
+        count(registry_policy_violations) > 0
+      severity: warning
+      message: "Attempt to use blocked registry detected"
+
+    - name: SignatureVerificationFailed
+      condition: |
+        count(signature_verification_failures) > 0
+      severity: critical
+      message: "Container image signature verification failed"
+
+# Exception handling
+exceptions:
+  # Process for requesting exceptions
+  process:
+    1. "Submit exception request with justification"
+    2. "Security team reviews within 7 days"
+    3. "Approved exceptions added to allowlist temporarily"
+    4. "Exceptions expire after 90 days"
+
+  # Temporary exceptions (with expiry)
+  temporary:
+    - image: untrusted/image:1.0
+      reason: "Required for migration"
+      approved_by: security@psychsync.com
+      expires: "2024-12-31"

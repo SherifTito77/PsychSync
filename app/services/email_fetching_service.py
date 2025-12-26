@@ -9,7 +9,7 @@ import imaplib
 import email
 from email.header import decode_header
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 import re
 from dateutil import parser as date_parser
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +33,7 @@ class EmailFetchingService:
 
     async def fetch_emails_batch(
         self,
-        db: Session,
+        db: AsyncSession,
         connection: EmailConnection,
         max_messages: int = 1000,
         days_back: int = 30
@@ -67,7 +67,7 @@ class EmailFetchingService:
 
     async def _fetch_gmail_emails(
         self,
-        db: Session,
+        db: AsyncSession,
         connection: EmailConnection,
         max_messages: int,
         days_back: int
@@ -231,7 +231,7 @@ class EmailFetchingService:
 
     async def _fetch_outlook_emails(
         self,
-        db: Session,
+        db: AsyncSession,
         connection: EmailConnection,
         max_messages: int,
         days_back: int
@@ -359,7 +359,7 @@ class EmailFetchingService:
 
     async def _fetch_imap_emails(
         self,
-        db: Session,
+        db: AsyncSession,
         connection: EmailConnection,
         max_messages: int,
         days_back: int
@@ -395,7 +395,7 @@ class EmailFetchingService:
         else:
             return "incoming"
 
-    async def _save_email_metadata(...db: AsyncSession...):
+    async def _save_email_metadata(self, db: AsyncSession, email_data: Dict[str, Any]):
         """Save email metadata to database, avoiding duplicates"""
 
         # Check if already exists
@@ -408,14 +408,14 @@ class EmailFetchingService:
 
         try:
             db.add(email_metadata)
-        await db.commit()
+            await db.commit()
             logger.debug(f"Saved email metadata for {email_metadata.message_id}")
         except Exception as e:
             logger.error(f"Error saving email metadata: {e}")
             await db.rollback()
             raise
 
-    async def calculate_response_times(...db: AsyncSession...):
+    async def calculate_response_times(self, db: AsyncSession, user_id: str):
         """Calculate response times for emails by analyzing thread patterns"""
 
         # Get all emails for the user

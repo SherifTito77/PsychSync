@@ -1,0 +1,148 @@
+{
+  "test_summary": {
+    "total_scenarios_tested": 6,
+    "total_hallucinations_detected": 18,
+    "expected_hallucinations": 20,
+    "detection_accuracy_rate": 0.9,
+    "avg_hallucination_score": 0.732625,
+    "avg_factual_accuracy": 0.26737500000000003,
+    "target_accuracy": 0.8,
+    "meets_target": false
+  },
+  "severity_distribution": {
+    "critical": 7,
+    "high": 6,
+    "medium": 5
+  },
+  "hallucination_type_distribution": {
+    "impossible_metrics": 6,
+    "factual_incorrectness": 4,
+    "contradictory_statements": 4,
+    "invented_data": 1,
+    "impossible_correlations": 3
+  },
+  "risk_assessment": {
+    "critical_risk_scenarios": 4,
+    "high_risk_scenarios": 1,
+    "low_risk_scenarios": 1
+  },
+  "detailed_results": [
+    {
+      "test_id": "hallucination_test_valid_team_001",
+      "scenario_id": "valid_team_001",
+      "hallucinations_found": 1,
+      "hallucination_score": 0.98,
+      "factual_accuracy": 0.020000000000000018,
+      "severity_breakdown": {
+        "critical": 1
+      },
+      "recommendations": [
+        "Critical hallucination issues detected - review model training data",
+        "Implement metric validation constraints"
+      ],
+      "hallucination_types": [
+        "impossible_metrics"
+      ]
+    },
+    {
+      "test_id": "hallucination_test_impossible_metrics_001",
+      "scenario_id": "impossible_metrics_001",
+      "hallucinations_found": 5,
+      "hallucination_score": 0.882,
+      "factual_accuracy": 0.118,
+      "severity_breakdown": {
+        "high": 2,
+        "critical": 3
+      },
+      "recommendations": [
+        "Critical hallucination issues detected - review model training data",
+        "Implement metric validation constraints"
+      ],
+      "hallucination_types": [
+        "impossible_metrics"
+      ]
+    },
+    {
+      "test_id": "hallucination_test_invalid_types_001",
+      "scenario_id": "invalid_types_001",
+      "hallucinations_found": 3,
+      "hallucination_score": 0.7124999999999999,
+      "factual_accuracy": 0.2875000000000001,
+      "severity_breakdown": {
+        "high": 3
+      },
+      "recommendations": [
+        "Critical hallucination issues detected - review model training data",
+        "Enhance knowledge base with verified facts"
+      ],
+      "hallucination_types": [
+        "factual_incorrectness"
+      ]
+    },
+    {
+      "test_id": "hallucination_test_contradictions_001",
+      "scenario_id": "contradictions_001",
+      "hallucinations_found": 4,
+      "hallucination_score": 0.3375,
+      "factual_accuracy": 0.6625,
+      "severity_breakdown": {
+        "medium": 4
+      },
+      "recommendations": [
+        "Minor hallucination risk - enhance fact-checking mechanisms",
+        "Add consistency checking for output coherence"
+      ],
+      "hallucination_types": [
+        "contradictory_statements"
+      ]
+    },
+    {
+      "test_id": "hallucination_test_invented_data_001",
+      "scenario_id": "invented_data_001",
+      "hallucinations_found": 2,
+      "hallucination_score": 0.49374999999999997,
+      "factual_accuracy": 0.5062500000000001,
+      "severity_breakdown": {
+        "high": 1,
+        "medium": 1
+      },
+      "recommendations": [
+        "Moderate hallucination risk - implement output validation",
+        "Enhance knowledge base with verified facts"
+      ],
+      "hallucination_types": [
+        "invented_data",
+        "factual_incorrectness"
+      ]
+    },
+    {
+      "test_id": "hallucination_test_impossible_correlations_001",
+      "scenario_id": "impossible_correlations_001",
+      "hallucinations_found": 3,
+      "hallucination_score": 0.9899999999999999,
+      "factual_accuracy": 0.01000000000000012,
+      "severity_breakdown": {
+        "critical": 3
+      },
+      "recommendations": [
+        "Critical hallucination issues detected - review model training data"
+      ],
+      "hallucination_types": [
+        "impossible_correlations"
+      ]
+    }
+  ],
+  "recommendations": [
+    "\u274c Significant factual accuracy issues - immediate action required",
+    "Implement real-time hallucination detection in production",
+    "Create comprehensive fact-checking knowledge base",
+    "Add output validation constraints for metrics and percentages",
+    "Develop contradiction detection algorithms",
+    "Establish regular model audit procedures"
+  ],
+  "quality_metrics": {
+    "detection_precision": 0.9,
+    "high_severity_rate": 0.3888888888888889,
+    "consistency_issues": 5
+  }
+}

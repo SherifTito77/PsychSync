@@ -3,11 +3,13 @@ File Path: app/api/v1/endpoints/team_optimization.py
 API endpoints for team optimization
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+
+from app.middleware.rate_limiter import check_rate_limit
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 import logging
 
-from app.api.deps import get_db, get_current_user
+from app.api.v1.deps import get_db, get_current_active_user, get_current_user
 from app.db.models.user import User
 from app.services.team_optimization_service import TeamOptimizationService
 from pydantic import BaseModel, Field
@@ -125,10 +127,12 @@ class CompatibilityResponse(BaseModel):
 # ENDPOINTS
 # =================================================================
 
+
+@check_rate_limit(identifier="public", endpoint_type="public")
 @router.post("/optimize", response_model=OptimizedTeamResponse, status_code=status.HTTP_200_OK)
 async def optimize_team(
     request: TeamOptimizationRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -231,14 +235,16 @@ async def optimize_team(
         logger.error(f"Error optimizing team: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to optimize team composition"
+     
+@check_rate_limit(identifier="public", endpoint_type="public")
+       detail="Failed to optimize team composition"
         )
 
 
 @router.post("/analyze", status_code=status.HTTP_200_OK)
 async def analyze_team(
     request: TeamAnalysisRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -281,7 +287,9 @@ async def analyze_team(
         )
     except Exception as e:
         logger.error(f"Error analyzing team: {str(e)}", exc_info=True)
-        raise HTTPException(
+        raise HTTPEx
+@check_rate_limit(identifier="public", endpoint_type="public")
+ception(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze team"
         )
@@ -290,7 +298,7 @@ async def analyze_team(
 @router.post("/compatibility", response_model=CompatibilityResponse)
 async def check_compatibility(
     request: CompatibilityRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -337,7 +345,7 @@ async def get_candidates(
     department: Optional[str] = Query(None),
     skills: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -403,7 +411,7 @@ async def get_candidates(
 @router.get("/recommendations/{team_id}")
 async def get_team_recommendations(
     team_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -446,7 +454,7 @@ async def simulate_team_change(
     team_id: int,
     add_user_ids: List[int] = [],
     remove_user_ids: List[int] = [],
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """

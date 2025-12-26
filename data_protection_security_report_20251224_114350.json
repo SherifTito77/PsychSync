@@ -1,0 +1,169 @@
+{
+  "timestamp": "2025-12-24T11:43:50.829995",
+  "project_root": "/Users/sheriftito/Downloads/psychsync",
+  "overall_score": 65,
+  "total_tests": 5,
+  "passed": 3,
+  "failed": 2,
+  "severity_breakdown": {
+    "critical": 0,
+    "high": 1,
+    "medium": 4,
+    "low": 0,
+    "info": 0
+  },
+  "test_results": [
+    {
+      "category": "Data Protection",
+      "test_name": "Sensitive Data at Rest Encryption",
+      "severity": "medium",
+      "status": "warning",
+      "description": "Tests for encryption of data at rest",
+      "evidence": [
+        "Sensitive field 'token' appears protected in assessment_secure.py",
+        "Sensitive field 'secret' appears protected in assessment_secure.py",
+        "Sensitive field 'key' appears protected in assessment_secure.py",
+        "Sensitive field 'key' in team_member.py - verify encryption",
+        "Sensitive field 'key' in wellness_burnout.py - verify encryption",
+        "Sensitive field 'token' appears protected in organization_secure.py",
+        "Sensitive field 'secret' appears protected in organization_secure.py",
+        "Sensitive field 'key' appears protected in organization_secure.py",
+        "Sensitive field 'key' in assessment.py - verify encryption",
+        "Sensitive field 'key' in culture_metrics.py - verify encryption",
+        "Sensitive field 'password' appears protected in user.py",
+        "Sensitive field 'token' appears protected in user.py",
+        "Sensitive field 'secret' appears protected in user.py",
+        "Sensitive field 'key' appears protected in user.py",
+        "Sensitive field 'key' in psychometric_session.py - verify encryption",
+        "Sensitive field 'token' appears protected in slack_workspace.py",
+        "Sensitive field 'key' appears protected in slack_workspace.py",
+        "Sensitive field 'key' in toxicity_detection.py - verify encryption",
+        "Sensitive field 'token' appears protected in email_connection.py",
+        "Sensitive field 'key' appears protected in email_connection.py",
+        "Sensitive field 'token' appears protected in team_secure.py",
+        "Sensitive field 'secret' appears protected in team_secure.py",
+        "Sensitive field 'key' appears protected in team_secure.py",
+        "Sensitive field 'key' in organization.py - verify encryption",
+        "Sensitive field 'key' in communication_alerts.py - verify encryption",
+        "Sensitive field 'key' in scoring.py - verify encryption",
+        "Sensitive field 'token' in gdpr.py - verify encryption",
+        "Sensitive field 'key' in gdpr.py - verify encryption",
+        "Sensitive field 'key' in question.py - verify encryption",
+        "Sensitive field 'key' in framework.py - verify encryption",
+        "Sensitive field 'key' appears protected in anonymous_feedback.py",
+        "Sensitive field 'ssn' appears protected in response_secure.py",
+        "Sensitive field 'token' appears protected in response_secure.py",
+        "Sensitive field 'secret' appears protected in response_secure.py",
+        "Sensitive field 'key' appears protected in response_secure.py",
+        "Sensitive field 'key' in response.py - verify encryption",
+        "Sensitive field 'key' appears protected in email_metadata.py",
+        "Sensitive field 'key' in communication_analysis.py - verify encryption",
+        "Sensitive field 'key' in role.py - verify encryption",
+        "Sensitive field 'key' in communication_patterns.py - verify encryption",
+        "Sensitive field 'key' in team.py - verify encryption",
+        "Sensitive field 'key' in prediction.py - verify encryption",
+        "Sensitive field 'key' in employee_safety.py - verify encryption",
+        "Sensitive field 'key' in team_dynamics.py - verify encryption",
+        "Sensitive field 'key' in org_member.py - verify encryption",
+        "Sensitive field 'key' in irt_models.py - verify encryption",
+        "Sensitive field 'key' appears protected in reports.py",
+        "Sensitive field 'key' in template.py - verify encryption",
+        "Sensitive field 'key' in permissions.py - verify encryption",
+        "Sensitive field 'key' in growth_trajectories.py - verify encryption",
+        "Sensitive field 'key' appears protected in data_anonymization.py",
+        "Sensitive field 'key' in notifications.py - verify encryption",
+        "Sensitive field 'key' in response_score.py - verify encryption",
+        "Sensitive field 'key' in analytics.py - verify encryption",
+        "Sensitive field 'key' in question_option.py - verify encryption",
+        "Sensitive field 'token' in invitation.py - verify encryption",
+        "Sensitive field 'key' in invitation.py - verify encryption",
+        "Sensitive field 'key' appears protected in clinical_screening.py",
+        "Sensitive field 'key' in assessments.py - verify encryption",
+        "Sensitive field 'key' in audit_log.py - verify encryption",
+        "Sensitive field 'password' appears protected in user_secure.py",
+        "Sensitive field 'ssn' appears protected in user_secure.py",
+        "Sensitive field 'token' appears protected in user_secure.py",
+        "Sensitive field 'secret' appears protected in user_secure.py",
+        "Sensitive field 'key' appears protected in user_secure.py",
+        "Sensitive field 'key' in score.py - verify encryption",
+        "Sensitive field 'key' in intervention_effectiveness.py - verify encryption",
+        "Sensitive field 'key' in coaching_recommendations.py - verify encryption",
+        "Found 2 backup files",
+        "No encrypted backups found"
+      ],
+      "recommendations": [
+        "Encrypt database backups"
+      ],
+      "location": null
+    },
+    {
+      "category": "Data Protection",
+      "test_name": "TLS/SSL Configuration",
+      "severity": "medium",
+      "status": "pass",
+      "description": "Tests for TLS/SSL configuration",
+      "evidence": [
+        "SSL/HTTPS configuration found",
+        "HSTS header configured",
+        "SSL certificate configured in nginx",
+        "Modern TLS protocols configured (1.2+)"
+      ],
+      "recommendations": [],
+      "location": null
+    },
+    {
+      "category": "Data Protection",
+      "test_name": "API Response Data Leakage",
+      "severity": "high",
+      "status": "warning",
+      "description": "Tests for sensitive data leakage in API responses",
+      "evidence": [
+        "Password field may be exposed in auth.py",
+        "Password field may be exposed in user.py",
+        "Password field may be exposed in onboarding.py",
+        "Password field properly protected in user_service.py",
+        "Password field may be exposed in user_secure.py"
+      ],
+      "recommendations": [
+        "Use exclude=True or write_only=True for password fields",
+        "Use exclude=True or write_only=True for password fields",
+        "Use exclude=True or write_only=True for password fields",
+        "Use exclude=True or write_only=True for password fields"
+      ],
+      "location": null
+    },
+    {
+      "category": "Data Protection",
+      "test_name": "Hash Algorithm Strength",
+      "severity": "medium",
+      "status": "pass",
+      "description": "Tests for hash algorithm strength",
+      "evidence": [
+        "Using bcrypt for password hashing (good)",
+        "Using passlib (password hashing library)"
+      ],
+      "recommendations": [],
+      "location": null
+    },
+    {
+      "category": "Data Protection",
+      "test_name": "PII Handling Compliance",
+      "severity": "medium",
+      "status": "info",
+      "description": "Tests for PII handling and GDPR compliance",
+      "evidence": [
+        "GDPR/privacy endpoints found",
+        "Data deletion endpoint in gdpr.py",
+        "Data export endpoint in gdpr.py",
+        "Data deletion endpoint in users_gdpr.py",
+        "Data export endpoint in users_gdpr.py",
+        "Found 49 models with PII fields",
+        "Data anonymization service found"
+      ],
+      "recommendations": [
+        "Ensure PII fields are encrypted at rest"
+      ],
+      "location": null
+    }
+  ]
+}

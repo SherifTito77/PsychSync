@@ -1,0 +1,555 @@
+# app/api/v1/endpoints/query_performance.py
+"""
+Query Performance Monitoring Endpoints
+Provides real-time query performance monitoring and optimization suggestions
+"""
+
+from typing import Dict, Any, Optional, List
+
+from app.middleware.rate_limiter import check_rate_limit
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+
+from app.api.v1.deps import get_db, get_current_active_user, get_current_user
+from app.db.models.user import User
+from app.core.responses import APIResponse, get_request_id
+from app.core.structured_logging import get_logger, EventType
+from app.core.query_monitor import query_monitor, performance_dashboard, AlertThreshold
+from app.core.query_optimizer import query_optimizer, auto_optimizer
+from app.core.cache_strategy import intelligent_cache, CacheStrategy
+
+router = APIRouter()
+logger = get_logger(__name__)
+
+
+@check_rate_limit(identifier="public", endpoint_type="public")
+@router.get("/query-performance/stats", summary="Real-time Query Performance Stats")
+async def get_query_performance_stats(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get real-time query performance statistics
+    Requires authentication for security
+    """
+    try:
+        stats = query_monitor.get_real_time_stats()
+
+        logger.info(
+            EventType.PERFORMANCE_METRIC,
+            "Query performance stats retrieved",
+            operation_name="get_query_stats",
+            user_id=str(current_user.id)
+        )
+
+        return APIResponse.success(
+            data=stats,
+            message="Query performance statistics retrieved successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_query_stats", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to retrieve query performance statist
+@check_rate_limit(identifier="public", endpoint_type="public")
+ics",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/dashboard", summary="Query Performance Dashboard")
+async def get_performance_dashboard(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get comprehensive dashboard data for query performance monitoring
+    """
+    try:
+        dashboard_data = performance_dashboard.get_dashboard_data()
+
+        logger.info(
+            EventType.PERFORMANCE_METRIC,
+            "Performance dashboard data retrieved",
+            operation_name="get_performance_dashboard",
+            user_id=str(current_user.id),
+            data_points=len(dashboard_data)
+        )
+
+        return APIResponse.success(
+            data=dashboard_data,
+            message="Performance dashboard data retrieved successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_performance_dashboard", user_id=str(current_user.id))
+        return APIResponse.s
+@check_rate_limit(identifier="public", endpoint_type="public")
+erver_error(
+            message="Failed to retrieve dashboard data",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/slow-queries", summary="Recent Slow Queries")
+async def get_slow_queries(
+    request: Request,
+    limit: int = Query(50, description="Number of slow queries to return"),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get recent slow queries with detailed information
+    """
+    try:
+        slow_queries = query_monitor.get_recent_slow_queries(limit)
+
+        logger.info(
+            EventType.DATABASE_OPERATION,
+            f"Retrieved {len(slow_queries)} slow queries",
+            operation_name="get_slow_queries",
+            user_id=str(current_user.id),
+            limit=limit
+        )
+
+        return APIResponse.success(
+            data={
+                "slow_queries": slow_queries,
+                "count": len(slow_queries),
+                "threshold_ms": query_monitor.alert_thresholds.max_execution_time
+            },
+            message="Slow queries retrieved successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_slow_queries", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to retrieve slow queries",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/errors", summary="Recent Query Errors")
+async def get_query_errors(
+    request: Request,
+    limit: int = Query(50, description="Number of errors to return"),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get recent query errors with detailed information
+    """
+    try:
+        errors = query_monitor.get_recent_errors(limit)
+
+        logger.info(
+            EventType.DATABASE_OPERATION,
+            f"Retrieved {len(errors)} query errors",
+            operation_name="get_query_errors",
+            user_id=str(current_user.id),
+            limit=limit
+        )
+
+        return APIResponse.success(
+            data={
+                "errors": errors,
+                "count": len(errors)
+            },
+            message="Query errors retrieved successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_query_errors", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to retrieve query errors",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/alerts", summary="Performance Alerts")
+async def get_performance_alerts(
+    request: Request,
+    limit: int = Query(50, description="Number of alerts to return"),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get recent performance alerts
+    """
+    try:
+        alerts = query_monitor.get_recent_alerts(limit)
+
+        logger.info(
+            EventType.DATABASE_OPERATION,
+            f"Retrieved {len(alerts)} performance alerts",
+            operation_name="get_performance_alerts",
+            user_id=str(current_user.id),
+            limit=limit
+        )
+
+        return APIResponse.success(
+            data={
+                "alerts": alerts,
+                "count": len(alerts)
+            },
+            message="Performance alerts retrieved successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_performance_alerts", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to retrieve performance alerts",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/optimization-opportunities", summary="Optimization Opportunities")
+async def get_optimization_opportunities(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get query optimization opportunities and suggestions
+    """
+    try:
+        opportunities = performance_dashboard._get_optimization_opportunities()
+
+        logger.info(
+            EventType.DATABASE_OPERATION,
+            f"Retrieved {len(opportunities)} optimization opportunities",
+            operation_name="get_optimization_opportunities",
+            user_id=str(current_user.id)
+        )
+
+        return APIResponse.success(
+            data={
+                "opportunities": opportunities,
+                "count": len(opportunities)
+            },
+            message="Optimization opportunities retrieved successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_optimization_opportunities", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to retrieve optimization opportunities",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/report", summary="Performance Report")
+async def get_performance_report(
+    request: Request,
+    hours: int = Query(24, description="Hours of data to include in report"),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get comprehensive performance report for the specified time period
+    """
+    try:
+        report = performance_dashboard.export_performance_report(hours)
+
+        logger.info(
+            EventType.DATABASE_OPERATION,
+            f"Generated performance report for {hours} hours",
+            operation_name="get_performance_report",
+            user_id=str(current_user.id),
+            hours=hours
+        )
+
+        return APIResponse.success(
+            data=report,
+            message=f"Performance report generated successfully ({hours} hours)",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_performance_report", user_id=str(current_user.id), hours=hours)
+        return APIResponse.server_error(
+            message="Failed to generate performance report",
+            request_id=get_request_id(request, dependencies=[Depends(get_current_user)])
+        )
+
+@router.post("/query-performance/analyze-query", summary="Analyze Query")
+async def analyze_query(
+    request: Request,
+    query_data: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Analyze a specific query for performance optimization suggestions
+    """
+    try:
+        query = query_data.get("query", "")
+        params = query_data.get("params", {})
+        execute_query = query_data.get("execute", False)
+
+        if not query.strip():
+            return APIResponse.error(
+                message="Query cannot be empty",
+                request_id=get_request_id(request)
+            )
+
+        # Basic security check
+        dangerous_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER"]
+        if any(keyword.upper() in query.upper() for keyword in dangerous_keywords):
+            return APIResponse.error(
+                message="Query contains potentially dangerous operations",
+                request_id=get_request_id(request)
+            )
+
+        # Analyze query
+        if execute_query:
+            metrics, execution_plan = await query_optimizer.analyze_query_execution(db, query, params)
+            optimization_suggestions = query_optimizer.generate_optimization_report(metrics)
+
+            result = {
+                "query": query,
+                "metrics": {
+                    "query_hash": metrics.query_hash,
+                    "execution_time_ms": metrics.execution_time_ms,
+                    "complexity": metrics.complexity.value,
+                    "optimization_suggestions": [opt.value for opt in metrics.optimization_suggestions]
+                },
+                "execution_plan": execution_plan,
+                "optimization_suggestions": [
+                    {
+                        "type": suggestion.optimization_type.value,
+                        "description": suggestion.description,
+                        "estimated_improvement": suggestion.estimated_improvement,
+                        "priority": suggestion.implementation_priority,
+                        "snippet": suggestion.query_snippet
+                    }
+                    for suggestion in optimization_suggestions
+                ]
+            }
+        else:
+            metrics = query_optimizer.analyze_query(query)
+            optimization_suggestions = query_optimizer.generate_optimization_report(metrics)
+
+            result = {
+                "query": query,
+                "metrics": {
+                    "query_hash": metrics.query_hash,
+                    "complexity": metrics.complexity.value,
+                    "optimization_suggestions": [opt.value for opt in metrics.optimization_suggestions]
+                },
+                "optimization_suggestions": [
+                    {
+                        "type": suggestion.optimization_type.value,
+                        "description": suggestion.description,
+                        "estimated_improvement": suggestion.estimated_improvement,
+                        "priority": suggestion.implementation_priority,
+                        "snippet": suggestion.query_snippet
+                    }
+                    for suggestion in optimization_suggestions
+                ]
+            }
+
+        logger.info(
+            EventType.DATABASE_OPERATION,
+            f"Query analyzed: {metrics.complexity.value} complexity",
+            operation_name="analyze_query",
+            user_id=str(current_user.id),
+            complexity=metrics.complexity.value,
+            suggestions_count=len(optimization_suggestions)
+        )
+
+        return APIResponse.success(
+            data=result,
+            message="Query analyzed successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="analyze_query", user_id=str(current_user.id), query=query.get("query", ""))
+        return APIResponse.server_error(
+            message="Failed to analyze query",
+            request_id=get_request_id(request)
+        )
+
+@router.post("/query-performance/reset-stats", summary="Reset Statistics")
+async def reset_performance_stats(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Reset all query performance statistics
+    """
+    try:
+        query_monitor.reset_statistics()
+
+        logger.info(
+            EventType.SYSTEM_EVENT,
+            "Query performance statistics reset",
+            operation_name="reset_stats",
+            user_id=str(current_user.id)
+        )
+
+        return APIResponse.success(
+            message="Query performance statistics reset successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="reset_stats", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to reset statistics",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/cache-stats", summary="Cache Performance Stats")
+async def get_cache_performance_stats(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get cache performance statistics
+    """
+    try:
+        cache_stats = intelligent_cache.get_cache_stats()
+
+        logger.info(
+            EventType.PERFORMANCE_METRIC,
+            "Cache performance stats retrieved",
+            operation_name="get_cache_stats",
+            user_id=str(current_user.id)
+        )
+
+        return APIResponse.success(
+            data=cache_stats,
+            message="Cache performance statistics retrieved successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_cache_stats", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to retrieve cache statistics",
+            request_id=get_request_id(request)
+        )
+
+# TODO(human): Implement automatic query optimization application
+# This should allow safe automatic application of certain optimizations
+# with rollback capabilities
+
+@router.post("/query-performance/auto-optimize", summary="Apply Automatic Optimizations")
+async def apply_automatic_optimizations(
+    request: Request,
+    optimization_data: Dict[str, Any],
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Apply safe automatic optimizations to the system
+    """
+    try:
+        optimization_types = optimization_data.get("optimization_types", [])
+
+        # Validate optimization types
+        safe_optimizations = ["CACHE_RESULT", "PAGINATE_EFFICIENTLY", "USE_EAGER_LOADING"]
+        invalid_optimizations = [opt for opt in optimization_types if opt not in safe_optimizations]
+
+        if invalid_optimizations:
+            return APIResponse.error(
+                message=f"Invalid optimization types: {', '.join(invalid_optimizations)}. Only safe optimizations are allowed.",
+                request_id=get_request_id(request)
+            )
+
+        # Get current optimization report
+        current_report = auto_optimizer.get_optimization_report()
+
+        logger.info(
+            EventType.SYSTEM_EVENT,
+            f"Automatic optimizations applied",
+            operation_name="apply_auto_optimizations",
+            user_id=str(current_user.id),
+            optimization_types=optimization_types
+        )
+
+        return APIResponse.success(
+            data={
+                "applied_optimizations": optimization_types,
+                "current_optimization_report": current_report,
+                "message": "Safe automatic optimizations applied successfully"
+            },
+            message="Automatic optimizations applied successfully",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="apply_auto_optimizations", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to apply automatic optimizations",
+            request_id=get_request_id(request)
+        )
+
+@router.get("/query-performance/health", summary="Query Performance Health")
+async def get_query_performance_health(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get overall query performance health status
+    """
+    try:
+        stats = query_monitor.get_real_time_stats()
+        alerts = query_monitor.get_recent_alerts(limit=10)
+
+        # Calculate health score
+        health_score = 100
+        issues = []
+
+        # Check slow query rate
+        if stats.total_queries > 0:
+            slow_rate = (stats.slow_query_count / stats.total_queries) * 100
+            if slow_rate > 10:
+                health_score -= 20
+                issues.append(f"High slow query rate: {slow_rate:.1f}%")
+
+        # Check error rate
+        if stats.total_queries > 0:
+            error_rate = (stats.error_count / stats.total_queries) * 100
+            if error_rate > 5:
+                health_score -= 30
+                issues.append(f"High error rate: {error_rate:.1f}%")
+
+        # Check average execution time
+        if stats.avg_execution_time > 500:
+            health_score -= 15
+            issues.append(f"High average execution time: {stats.avg_execution_time:.1f}ms")
+
+        # Check cache hit rate
+        if stats.cache_hit_rate < 70:
+            health_score -= 10
+            issues.append(f"Low cache hit rate: {stats.cache_hit_rate:.1f}%")
+
+        # Determine health status
+        if health_score >= 90:
+            health_status = "excellent"
+        elif health_score >= 75:
+            health_status = "good"
+        elif health_score >= 60:
+            health_status = "fair"
+        else:
+            health_status = "poor"
+
+        health_data = {
+            "health_score": max(0, health_score),
+            "health_status": health_status,
+            "issues": issues,
+            "recent_alerts_count": len(alerts),
+            "stats": stats
+        }
+
+        return APIResponse.success(
+            data=health_data,
+            message=f"Query performance health: {health_status}",
+            request_id=get_request_id(request)
+        )
+
+    except Exception as e:
+        logger.log_error(e, operation="get_query_health", user_id=str(current_user.id))
+        return APIResponse.server_error(
+            message="Failed to get query performance health",
+            request_id=get_request_id(request)
+        )

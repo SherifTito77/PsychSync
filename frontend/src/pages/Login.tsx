@@ -1,10 +1,12 @@
 // frontend/src/pages/Login.tsx
+// frontend/src/pages/Login.tsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import Button from '../components/common/Button';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import '../styles/mobile-utils.css'; // Import mobile utilities
 const Login: React.FC = () => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -36,8 +38,8 @@ const Login: React.FC = () => {
     }
   };
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:py-12 mobile-container">
+      <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg w-full max-w-md mobile-form-container">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
@@ -96,7 +98,7 @@ const Login: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="mobile-input text-base"
               placeholder="your@email.com"
               required
               disabled={isLoading}
@@ -116,7 +118,7 @@ const Login: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="mobile-input text-base"
               placeholder="••••••••"
               required
               disabled={isLoading}
@@ -129,7 +131,7 @@ const Login: React.FC = () => {
               <input
                 id="remember-me"
                 type="checkbox"
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mobile-touch-target"
               />
               <label
                 htmlFor="remember-me"
@@ -149,7 +151,9 @@ const Login: React.FC = () => {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center"
+            className="w-full"
+            fullWidth
+            mobileLarge
           >
             {isLoading ? (
               <>
@@ -178,7 +182,7 @@ const Login: React.FC = () => {
         <div className="mt-6">
           <Link
             to="/register"
-            className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+            className="w-full flex justify-center py-3 px-4 border border-indigo-600 rounded-md shadow-sm text-base font-medium text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors mobile-touch-target"
           >
             Create an account
           </Link>

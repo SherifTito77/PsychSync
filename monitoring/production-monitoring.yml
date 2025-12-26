@@ -1,0 +1,182 @@
+# PsychSync Production Monitoring Configuration
+# Prometheus + Grafana + Alertmanager configuration
+
+# Prometheus Configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "psychsync_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # PsychSync Application Metrics
+  - job_name: 'psychsync-app'
+    static_configs:
+      - targets: ['app:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # System Metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Docker Container Metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Redis Metrics
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # PostgreSQL Metrics
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Nginx Metrics
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+# Recording Rules for PsychSync
+recording_rules:
+  - name: psychsync_rules.yml
+    rules:
+      # API Response Time
+      - record: psychsync:http_request_duration_seconds:rate5m
+        expr: rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m])
+
+      # API Error Rate
+      - record: psychsync:http_requests_errors:rate5m
+        expr: rate(http_requests_total{status=~"5.."}[5m])
+
+      # Database Connection Pool
+      - record: psychsync:db_connections_active
+        expr: db_pool_active_connections
+
+      # Cache Hit Rate
+      - record: psychsync:cache_hit_rate:rate5m
+        expr: rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m]))
+
+      # User Authentication Rate
+      - record: psychsync:auth_attempts:rate5m
+        expr: rate(auth_attempts_total[5m])
+
+      # Failed Login Rate
+      - record: psychsync:auth_failures:rate5m
+        expr: rate(auth_failures_total[5m])
+
+# Alerting Rules
+alerting_rules:
+  - name: psychsync_alerts.yml
+    rules:
+      # High Error Rate Alert
+      - alert: PsychSyncHighErrorRate
+        expr: psychsync:http_requests_errors:rate5m > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected in PsychSync"
+          description: "Error rate is {{ $value }} errors per second"
+
+      # High Response Time Alert
+      - alert: PsychSyncHighResponseTime
+        expr: psychsync:http_request_duration_seconds:rate5m > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected in PsychSync"
+          description: "Average response time is {{ $value }} seconds"
+
+      # Database Connection Issues
+      - alert: PsychSyncDatabaseConnectionsHigh
+        expr: psychsync:db_connections_active > 80
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High database connection usage"
+          description: "Database connections: {{ $value }}"
+
+      # Low Cache Hit Rate
+      - alert: PsychSyncLowCacheHitRate
+        expr: psychsync:cache_hit_rate:rate5m < 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate: {{ $value }}"
+
+      # Authentication Failure Rate
+      - alert: PsychSyncHighAuthFailureRate
+        expr: psychsync:auth_failures:rate5m > 10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failures: {{ $value }} per second"
+
+      # Application Down
+      - alert: PsychSyncApplicationDown
+        expr: up{job="psychsync-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PsychSync application is down"
+          description: "PsychSync application has been down for more than 1 minute"
+
+      # Memory Usage High
+      - alert: PsychSyncHighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90%"
+
+      # CPU Usage High
+      - alert: PsychSyncHighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80%"
+
+      # Redis Connection Issues
+      - alert: PsychSyncRedisDown
+        expr: up{job="redis-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis connection has been lost"
+
+      # Database Connection Issues
+      - alert: PsychSyncDatabaseDown
+        expr: up{job="postgres-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database is down"
+          description: "Database connection has been lost"

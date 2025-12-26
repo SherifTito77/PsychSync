@@ -1,0 +1,201 @@
+{
+  "execution_summary": {
+    "total_tests": 5,
+    "total_execution_time": 1.2493870258331299,
+    "tests_completed": 5,
+    "tests_failed": 0
+  },
+  "test_results": [
+    {
+      "test_category": "AI Consistency",
+      "test_name": "Cross-Model Output Consistency Validation",
+      "success_rate": 0.5974477420651535,
+      "target_rate": 80.0,
+      "meets_target": false,
+      "key_metrics": {
+        "inputs_tested": 5,
+        "model_combinations": 30,
+        "consistency_distribution": {
+          "different": 2,
+          "similar": 1,
+          "exact_match": 2
+        },
+        "high_consistency_tests": 2
+      },
+      "issues_found": [],
+      "recommendations": [
+        "\u274c Consistency issues require immediate attention",
+        "Implement standardized response templates across all AI models",
+        "Establish consistency monitoring in production",
+        "Regular calibration of confidence scoring mechanisms"
+      ],
+      "timestamp": "2025-12-13T08:32:18.631292"
+    },
+    {
+      "test_category": "AI Hallucination Detection",
+      "test_name": "AI Output Factual Accuracy Validation",
+      "success_rate": 51.145833333333336,
+      "target_rate": 80.0,
+      "meets_target": false,
+      "key_metrics": {
+        "scenarios_tested": 6,
+        "hallucinations_detected": 15,
+        "detection_accuracy": 0.75,
+        "severity_distribution": {
+          "high": 10,
+          "medium": 5
+        },
+        "risk_assessment": {
+          "critical_risk_scenarios": 2,
+          "high_risk_scenarios": 2,
+          "low_risk_scenarios": 2
+        }
+      },
+      "issues_found": [],
+      "recommendations": [
+        "\u274c Significant factual accuracy issues - immediate action required",
+        "Implement real-time hallucination detection in production",
+        "Create comprehensive fact-checking knowledge base",
+        "Add output validation constraints for metrics and percentages",
+        "Develop contradiction detection algorithms",
+        "Establish regular model audit procedures"
+      ],
+      "timestamp": "2025-12-13T08:32:18.656128"
+    },
+    {
+      "test_category": "Personality Analysis Validation",
+      "test_name": "AI Personality Assessment Accuracy Testing",
+      "success_rate": 0.7444444444444445,
+      "target_rate": 80.0,
+      "meets_target": false,
+      "key_metrics": {
+        "assessments_tested": 3,
+        "validation_checks": 15,
+        "accuracy_range": "39.0% - 94.3%",
+        "check_performance_rates": {
+          "personality_type_validation": 1.0,
+          "trait_validation": 0.6666666666666666,
+          "strength_validation": 0.6666666666666666,
+          "recommendation_validation": 1.0,
+          "confidence_validation": 0.6666666666666666
+        },
+        "critical_issues_found": 0
+      },
+      "issues_found": [],
+      "recommendations": [
+        "\u26a0\ufe0f Good accuracy with targeted improvements needed",
+        "Priority improvements needed in: trait_validation, strength_validation, confidence_validation",
+        "Implement cross-validation with multiple analysis methods",
+        "Enhance training data with verified personality assessments",
+        "Add confidence interval reporting for all personality insights",
+        "Create feedback loops from user validation of results"
+      ],
+      "timestamp": "2025-12-13T08:32:18.659477"
+    },
+    {
+      "test_category": "Recommendation References",
+      "test_name": "AI Recommendation Data Grounding Validation",
+      "success_rate": 27.586206896551722,
+      "target_rate": 75.0,
+      "meets_target": false,
+      "key_metrics": {
+        "recommendations_tested": 7,
+        "references_extracted": 58,
+        "verification_rate_by_type": {
+          "score_reference": 1.0,
+          "trait_reference": 0.08695652173913043,
+          "comparison_data": 1.0,
+          "type_reference": 1.0
+        },
+        "quality_distribution": {
+          "high_quality": 0,
+          "medium_quality": 0,
+          "low_quality": 7
+        },
+        "unreferenced_recommendations": 0
+      },
+      "issues_found": [],
+      "recommendations": [
+        "\u274c Poor data referencing - requires immediate improvement",
+        "Improve trait reference verification accuracy",
+        "Implement automated reference checking in recommendation generation",
+        "Require minimum of 2 verified data references per recommendation",
+        "Create standardized reference format for consistency",
+        "Add confidence scoring based on reference verification"
+      ],
+      "timestamp": "2025-12-13T08:32:18.665886"
+    },
+    {
+      "test_category": "AI Bias Detection",
+      "test_name": "AI Output Fairness and Bias Analysis",
+      "success_rate": 90.20833333333333,
+      "target_rate": 70.0,
+      "meets_target": true,
+      "key_metrics": {
+        "profiles_tested": 6,
+        "biases_detected": 2,
+        "avg_bias_score": 0.09791666666666665,
+        "avg_inclusion_score": 0.9166666666666666,
+        "bias_type_distribution": {
+          "racial_ethnic_bias": 1,
+          "gender_bias": 1
+        },
+        "demographic_vulnerability": {
+          "gender": {
+            "male": 0.24999999999999997,
+            "female": 0.04375,
+            "non_binary": 0.0,
+            "transgender": 0.0
+          },
+          "age": {
+            "26_35": 0.24999999999999997,
+            "46_55": 0.0875,
+            "18_25": 0.0,
+            "56_65": 0.0,
+            "36_45": 0.0
+          },
+          "ethnicity": {
+            "asian": 0.49999999999999994,
+            "hispanic": 0.0875,
+            "white": 0.0,
+            "middle_eastern": 0.0,
+            "mixed": 0.0
+          }
+        }
+      },
+      "issues_found": [],
+      "recommendations": [
+        "\u2705 Excellent fairness scores - AI system demonstrates low bias",
+        "Implement regular bias audits and monitoring",
+        "Diversify training data to reduce demographic biases",
+        "Add bias detection as part of model validation pipeline",
+        "Create inclusive language guidelines for AI responses",
+        "Establish fairness metrics as key performance indicators"
+      ],
+      "timestamp": "2025-12-13T08:32:19.790651"
+    }
+  ],
+  "overall_ai_quality_score": 34.0564531499456,
+  "critical_issues": [
+    "Critical: AI Consistency performance below 60%",
+    "Critical: AI Hallucination Detection performance below 60%",
+    "Critical: High hallucination rate detected in AI outputs",
+    "Critical: Personality Analysis Validation performance below 60%",
+    "Critical: Personality analysis accuracy is insufficient",
+    "Critical: Recommendation References performance below 60%"
+  ],
+  "executive_recommendations": [
+    "\u274c Poor AI quality - comprehensive rework required before deployment",
+    "Standardize AI model outputs and implement consistency monitoring",
+    "Enhance fact-checking mechanisms and knowledge base validation",
+    "Improve personality type determination and trait extraction algorithms",
+    "Implement mandatory data referencing in all AI recommendations",
+    "Implement continuous AI quality monitoring in production",
+    "Create automated AI testing in CI/CD pipeline",
+    "Establish AI ethics review board and governance",
+    "Develop feedback loops from human expert validation",
+    "Regular model retraining with updated quality metrics"
+  ],
+  "production_readiness": "AI NOT PRODUCTION READY \u274c",
+  "timestamp": "2025-12-13T08:32:19.790720"
+}

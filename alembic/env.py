@@ -73,16 +73,13 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode using async SQLAlchemy.
+    """Run migrations in 'online' mode using sync SQLAlchemy.
 
-    This creates an async engine and runs migrations using run_sync.
+    This creates a sync engine and runs migrations directly.
     """
-    # Override the database URL to use sync driver for Alembic
-    sync_db_url = get_database_url(async_driver=False)
-
-    # Create a sync engine for Alembic (Alembic doesn't support async yet)
+    # Use the URL directly from config file (which is now sync)
     connectable = engine_from_config(
-        {**config.get_section(config.config_ini_section, {}), "sqlalchemy.url": sync_db_url},
+        config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
