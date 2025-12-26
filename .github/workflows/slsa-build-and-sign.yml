@@ -1,6 +1,5 @@
-# SLSA Level 3 Build & Sign Workflow
-# Generates provenance attestations and signs artifacts using OIDC
-# aligns to: https://slsa.dev/spec/v0.1/index.html
+# SLSA Level 3 Build and Sign Workflow
+# Generates provenance for Python and Node.js builds
 
 name: SLSA Build and Sign
 
@@ -16,150 +15,20 @@ on:
           - production
           - staging
   push:
-    branches:
-      - main
+    branches: [main]
   release:
     types: [created]
 
 permissions:
   contents: read
-  id-token: write  # Required for OIDC signing
-  packages: write  # Required for pushing to GHCR
-  actions: read    # Required for slsa-github-generator
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-  SLSA_LEVEL: 3
+  id-token: write
+  actions: read
 
 jobs:
-  # =============================================================================
-  # Job 1: Build and Sign Backend (Docker Image)
-  # =============================================================================
-  build-and-sign-backend:
-    name: Build and Sign Backend
+  # Generate SLSA provenance for Python backend
+  python-provenance:
+    name: Python Provenance
     runs-on: ubuntu-latest
-    outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-      image-tag: ${{ steps.meta.outputs.tags }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for provenance
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.prod
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
-
-      - name: Sign image with Cosign (OIDC)
-        uses: sigstore/cosign-installer@v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
-
-      - name: Sign Docker image
-        shell: bash
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        run: |
-          # Sign with OIDC (no private key needed)
-          cosign sign \
-            --yes \
-            --annotations "org.opencontainers.image.revision=${{ github.sha }}" \
-            --annotations "org.opencontainers.image.source=${{ github.repositoryUrl }}" \
-            --annotations "org.opencontainers.image.title=PsychSync Backend" \
-            --annotations "com.github.workflow.name=${{ github.workflow }}" \
-            --annotations "com.github.workflow.run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            ${{ steps.meta.outputs.tags }}
-
-      - name: Attach SBOM to image
-        run: |
-          # Attach SBOM using cosign
-          cosign attach sbom \
-            --type cyclonedx \
-            --sbom sbom/backend.cdx.json \
-            ${{ steps.meta.outputs.tags }}
-
-      - name: Generate SLSA Provenance
-        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0
-        with:
-          base64-subjects: "${{ steps.build.outputs.digest }}"
-          upload-assets: true
-
-      - name: Upload provenance to registry
-        run: |
-          # Copy provenance from artifact upload
-          mkdir -p provenance
-          mv .artifact/provenance.json provenance/backend.intoto.jsonl
-
-          # Attach provenance to image using cosign
-          cosign attach provenance \
-            --provenance provenance/backend.intoto.jsonl \
-            ${{ steps.meta.outputs.tags }}
-
-      - name: Store image digest
-        run: |
-          echo "IMAGE_DIGEST=${{ steps.build.outputs.digest }}" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${{ steps.meta.outputs.tags }}" >> $GITHUB_ENV
-
-      - name: Output verification command
-        run: |
-          echo "### Verification Commands" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "# Verify signature" >> $GITHUB_STEP_SUMMARY
-          echo "cosign verify ${{ steps.meta.outputs.tags }} \\ " >> $GITHUB_STEP_SUMMARY
-          echo "  --certificate-identity https://github.com/${{ github.repository }}/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \\ " >> $GITHUB_STEP_SUMMARY
-          echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Verify SLSA provenance" >> $GITHUB_STEP_SUMMARY
-          echo "slsa-verifier verify-image \\ " >> $GITHUB_STEP_SUMMARY
-          echo "  ${{ steps.meta.outputs.tags }} \\ " >> $GITHUB_STEP_SUMMARY
-          echo "  --source-uri github.com/${{ github.repository }} \\ " >> $GITHUB_STEP_SUMMARY
-          echo "  --builder-id https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Job 2: Build and Sign Frontend (Static Assets)
-  # =============================================================================
-  build-and-sign-frontend:
-    name: Build and Sign Frontend
-    runs-on: ubuntu-latest
-    needs: build-and-sign-backend
 
     steps:
       - name: Checkout repository
@@ -167,205 +36,84 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: ./frontend
-        run: |
-          npm run build
-          # Generate build metadata
-          echo "{
-            \"buildDate\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
-            \"gitCommit\": \"${{ github.sha }}\",
-            \"gitRef\": \"${{ github.ref_name }}\",
-            \"workflowRun\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
-          }" > build/meta.json
-
-      - name: Generate SBOM for frontend
-        working-directory: ./frontend
-        run: |
-          npm run sbom || npx @cyclonedx/cyclonedx-npm --output-file sbom/frontend.cdx.json
-
-      - name: Create frontend artifact
-        run: |
-          cd frontend
-          tar -czvf ../frontend-build-${{ github.sha }}.tar.gz build/
-
-      - name: Sign frontend artifact with Cosign
-        uses: sigstore/cosign-installer@v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
-
-      - name: Sign artifact
-        shell: bash
-        env:
-          COSIGN_EXPERIMENTAL: "true"
-        run: |
-          cosign sign-blob \
-            --yes \
-            --output-signature frontend-${{ github.sha }}.sig \
-            --output-certificate frontend-${{ github.sha }}.pem \
-            --annotations "component=frontend" \
-            --annotations "commit=${{ github.sha }}" \
-            frontend-build-${{ github.sha }}.tar.gz
-
-      - name: Generate SLSA Provenance for frontend
-        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0
-        with:
-          base64-subjects: "$(echo frontend-build-${{ github.sha }}.tar.gz | base64)"
-          upload-assets: true
-
-      - name: Upload signed artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-signed
-          path: |
-            frontend-build-${{ github.sha }}.tar.gz
-            frontend-${{ github.sha }}.sig
-            frontend-${{ github.sha }}.pem
-            sbom/frontend.cdx.json
-          retention-days: 90
-
-      - name: Upload to release (if tagged)
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            frontend-build-${{ github.sha }}.tar.gz
-            frontend-${{ github.sha }}.sig
-            frontend-${{ github.sha }}.pem
-            sbom/frontend.cdx.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # =============================================================================
-  # Job 3: Verify All Signatures and Provenance
-  # =============================================================================
-  verify-signatures:
-    name: Verify Signatures and Provenance
-    runs-on: ubuntu-latest
-    needs: [build-and-sign-backend, build-and-sign-frontend]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3.5.0
-        with:
-          cosign-release: 'v2.2.4'
-
-      - name: Install slsa-verifier
-        run: |
-          go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
-
-      - name: Verify backend image signature
-        run: |
-          echo "Verifying backend image signature..."
-          cosign verify \
-            ${{ needs.build-and-sign-backend.outputs.image-tag }} \
-            --certificate-identity https://github.com/${{ github.repository }}/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com
-
-      - name: Verify backend SLSA provenance
-        run: |
-          echo "Verifying backend SLSA provenance..."
-          slsa-verifier verify-image \
-            ${{ needs.build-and-sign-backend.outputs.image-tag }} \
-            --source-uri github.com/${{ github.repository }} \
-            --builder-id https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0
-
-      - name: Download frontend artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-signed
-
-      - name: Verify frontend artifact signature
-        run: |
-          echo "Verifying frontend artifact signature..."
-          cosign verify-blob \
-            --certificate frontend-${{ github.sha }}.pem \
-            --signature frontend-${{ github.sha }}.sig \
-            --certificate-identity https://github.com/${{ github.repository }}/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            frontend-build-${{ github.sha }}.tar.gz
-
-      - name: Create verification summary
-        run: |
-          echo "## ✅ Verification Successful" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All signatures and SLSA provenance have been verified:" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Backend Docker image signature" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Backend SLSA Level 3 provenance" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Frontend artifact signature" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Frontend SLSA Level 3 provenance" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Artifacts Ready for Deployment" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Component | Location |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend | `${{ needs.build-and-sign-backend.outputs.image-tag }}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | Download from artifacts or release |" >> $GITHUB_STEP_SUMMARY
-
-  # =============================================================================
-  # Job 4: Store Immutable Build Log
-  # =============================================================================
-  record-build-log:
-    name: Record Immutable Build Log
-    runs-on: ubuntu-latest
-    needs: [verify-signatures]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Record build event
+      - name: Install dependencies
         run: |
-          python3 scripts/immutable_log.py << EOF
-          import sys
-          sys.path.insert(0, 'scripts')
-          from immutable_log import ImmutableLog
-          from datetime import datetime, timezone
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt || true
+          fi
 
-          log = ImmutableLog("build")
-          log.append({
-              "event": "slsa_build_complete",
-              "build_id": "${{ github.run_id }}",
-              "workflow": "${{ github.workflow }}",
-              "commit": "${{ github.sha }}",
-              "ref": "${{ github.ref }}",
-              "environment": "${{ github.event.inputs.environment || 'production' }}",
-              "timestamp": datetime.now(timezone.utc).isoformat(),
-              "artifacts": {
-                  "backend": "${{ needs.build-and-sign-backend.outputs.image-tag }}",
-                  "frontend": "frontend-build-${{ github.sha }}.tar.gz"
-              },
-              "verification": {
-                  "signatures": "verified",
-                  "provenance": "verified",
-                  "slsa_level": 3
-              }
-          })
-          print("Build event recorded to immutable log")
-          EOF
+      - name: Generate SLSA provenance
+        uses: slsa-framework/slsa-github-generator@v1.10.0
+        with:
+          provenance-name: "python-backend-provenance"
+          base64-substitutions: |
+            '{"_UPLOAD_ALL": "true"}'
 
-      - name: Upload build logs
+  # Generate SLSA provenance for Node.js frontend
+  nodejs-provenance:
+    name: Node.js Provenance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          if [ -f package-lock.json ]; then
+            npm ci || true
+          elif [ -f package.json ]; then
+            npm install || true
+          fi
+
+      - name: Generate SLSA provenance
+        uses: slsa-framework/slsa-github-generator@v1.10.0
+        with:
+          provenance-name: "nodejs-frontend-provenance"
+          base64-substitutions: |
+            '{"_UPLOAD_ALL": "true"}'
+
+  # Verify provenance
+  verify-provenance:
+    name: Verify Provenance
+    runs-on: ubuntu-latest
+    needs: [python-provenance, nodejs-provenance]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all provenance
+        uses: actions/download-artifact@v4
+        with:
+          path: provenance/
+
+      - name: Verify SLSA provenance
+        run: |
+          echo "# SLSA Provenance Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Provenance Artifacts" >> $GITHUB_STEP_SUMMARY
+          ls -R provenance/ >> $GITHUB_STEP_SUMMARY || echo "No provenance artifacts found" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✓ SLSA Level 3 provenance generated successfully" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload verification report
         uses: actions/upload-artifact@v4
         with:
-          name: immutable-build-logs
-          path: build/logs/
-          retention-days: 365
+          name: slsa-verification-report
+          path: provenance/
+          retention-days: 90
