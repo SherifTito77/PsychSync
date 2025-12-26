@@ -1,0 +1,448 @@
+name: Integration Tests with Analytics
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run comprehensive tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_paths:
+        description: 'Specific test paths to run'
+        required: false
+        type: string
+        default: ''
+      generate_dashboard:
+        description: 'Generate visual dashboard'
+        required: false
+        type: boolean
+        default: true
+      send_notifications:
+        description: 'Send email notifications'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '18'
+  POETRY_VERSION: '1.6.1'
+
+jobs:
+  setup-and-validate:
+    name: Setup and Validate Environment
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+      test-changed: ${{ steps.changes.outputs.tests }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-json-report pytest-cov
+        pip install -r requirements.txt
+        pip install -r requirements-analytics.txt
+
+    - name: Validate test structure
+      run: |
+        python test_basic_integration.py
+
+    - name: Detect changes
+      uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          tests:
+            - 'tests/integration/**'
+            - 'app/**'
+            - 'requirements*.txt'
+
+    - name: Generate cache key
+      id: cache-key
+      run: |
+        key="integration-tests-${{ hashFiles('requirements*.txt', 'tests/integration/**', 'app/**') }}"
+        echo "key=$key" >> $GITHUB_OUTPUT
+
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: setup-and-validate
+    if: needs.setup-and-validate.outputs.test-changed == 'true'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run security scan
+      run: |
+        pip install safety bandit semgrep
+        safety check --json --output safety-report.json || true
+        bandit -r app/ -f json -o bandit-report.json || true
+        semgrep --config=auto --json --output=semgrep-report.json app/ || true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: |
+          safety-report.json
+          bandit-report.json
+          semgrep-report.json
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [setup-and-validate, security-scan]
+    if: needs.setup-and-validate.outputs.test-changed == 'true'
+    strategy:
+      matrix:
+        test-module:
+          - 'test_api_endpoints'
+          - 'test_database_crud'
+          - 'test_authentication_flow'
+          - 'test_token_refresh'
+          - 'test_file_upload'
+          - 'test_stripe_billing'
+          - 'test_email_sending'
+        include:
+          - test-module: 'security-focus'
+            test-paths: 'tests/integration/test_api_endpoints.py::TestSecurityEndpoints tests/integration/test_authentication_flow.py::TestSecurityFeatures'
+            security-focused: true
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-json-report pytest-cov pytest-xdist
+        pip install -r requirements.txt
+        pip install -r requirements-analytics.txt
+
+    - name: Wait for services
+      run: |
+        timeout 60 bash -c 'until pg_isready -h localhost; do sleep 1; done'
+        timeout 60 bash -c 'until redis-cli ping; do sleep 1; done'
+
+    - name: Set up environment
+      run: |
+        cp .env.test .env
+        echo "TESTING=true" >> .env
+        echo "ENVIRONMENT=testing" >> .env
+        echo "DATABASE_URL=postgresql+asyncpg://test_user:test_password@localhost:5432/test_db" >> .env
+        echo "REDIS_URL=redis://localhost:6379/0" >> .env
+
+    - name: Run specific integration tests
+      id: tests
+      run: |
+        if [ "${{ matrix.security-focused }}" == "true" ]; then
+          TEST_PATHS="${{ matrix.test-paths }}"
+        else
+          TEST_PATHS="tests/integration/${{ matrix.test-module }}.py"
+        fi
+
+        # Create output directory
+        mkdir -p test_reports/${{ matrix.test-module }}
+
+        # Run tests with analytics
+        python scripts/run_integration_tests.py \
+          --paths $TEST_PATHS \
+          --output test_reports/${{ matrix.test-module }} \
+          --timeout 25 \
+          > test_reports/${{ matrix.test-module }}/execution.log 2>&1
+
+        echo "status=$?" >> $GITHUB_OUTPUT
+      continue-on-error: true
+
+    - name: Process test results
+      if: always()
+      run: |
+        mkdir -p test_results_combined/${{ matrix.test-module }}
+
+        # Copy all reports
+        cp -r test_reports/${{ matrix.test-module }}/* test_results_combined/${{ matrix.test-module }}/ || true
+
+        # Generate module-specific summary
+        python -c "
+        import json
+        from pathlib import Path
+
+        results_dir = Path('test_reports/${{ matrix.test-module }}')
+        summary_file = results_dir / 'summary.json'
+
+        if summary_file.exists():
+            with open(summary_file) as f:
+                data = json.load(f)
+            print(f'${{ matrix.test-module }}: {data.get(\"summary\", {}).get(\"status\", \"UNKNOWN\")}')
+        else:
+            print(f'${{ matrix.test-module }}: NO RESULTS')
+        "
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results-${{ matrix.test-module }}
+        path: |
+          test_reports/${{ matrix.test-module }}/
+          test_results_combined/${{ matrix.test-module }}/
+        retention-days: 30
+
+  analytics-and-reporting:
+    name: Analytics and Reporting
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: always() && needs.integration-tests.result == 'success'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements-analytics.txt
+
+    - name: Download all test results
+      uses: actions/download-artifact@v3
+      with:
+        path: test_artifacts/
+
+    - name: Consolidate test results
+      run: |
+        mkdir -p test_results_combined
+        find test_artifacts/ -name "*.json" -exec cp {} test_results_combined/ \;
+        find test_artifacts/ -name "*.png" -exec cp {} test_results_combined/ \;
+        find test_artifacts/ -name "*.html" -exec cp {} test_results_combined/ \;
+
+    - name: Generate comprehensive analytics dashboard
+      run: |
+        python scripts/test_analytics_dashboard.py
+
+    - name: Generate executive summary
+      run: |
+        python -c "
+        from datetime import datetime
+        import json
+        from pathlib import Path
+
+        # Generate executive summary
+        summary = f'''
+# PsychSync Integration Test Executive Summary
+
+**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+**Commit:** ${{ github.sha }}
+**Branch:** ${{ github.ref_name }}
+
+## Test Execution Results
+
+'''
+
+        # Analyze results
+        results_dir = Path('test_results_combined')
+        if results_dir.exists():
+            json_files = list(results_dir.glob('*.json'))
+
+            total_tests = 0
+            total_passed = 0
+            total_failed = 0
+
+            for json_file in json_files:
+                try:
+                    with open(json_file) as f:
+                        data = json.load(f)
+
+                    if 'summary' in data:
+                        total_tests += data['summary'].get('total_tests', 0)
+                        total_passed += data['summary'].get('passed', 0)
+                        total_failed += data['summary'].get('failed', 0)
+                except:
+                    pass
+
+            pass_rate = (total_passed / total_tests * 100) if total_tests > 0 else 0
+
+            summary += f'''
+- **Total Tests:** {total_tests}
+- **Passed:** {total_passed}
+- **Failed:** {total_failed}
+- **Pass Rate:** {pass_rate:.1f}%
+
+## Status: {"✅ EXCELLENT" if pass_rate >= 95 else "✅ GOOD" if pass_rate >= 90 else "⚠️ NEEDS ATTENTION" if pass_rate >= 80 else "❌ CRITICAL"}
+'''
+
+        # Save summary
+        with open('test_reports/executive_summary.md', 'w') as f:
+            f.write(summary)
+
+        print(summary)
+        "
+
+    - name: Upload comprehensive reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: comprehensive-test-reports
+        path: |
+          test_reports/
+          test_results_combined/
+        retention-days: 90
+
+  performance-benchmarking:
+    name: Performance Benchmarking
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-benchmark
+        pip install -r requirements.txt
+
+    - name: Run performance benchmarks
+      run: |
+        pytest tests/integration/ \
+          --benchmark-only \
+          --benchmark-json=benchmark_results.json \
+          --benchmark-html=benchmark_report.html
+
+    - name: Compare with previous benchmarks
+      run: |
+        # Download previous benchmark results
+        # This would typically be stored in a cache or artifact store
+        echo "Benchmark comparison logic would go here"
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-benchmarks
+        path: |
+          benchmark_results.json
+          benchmark_report.html
+
+  notify-stakeholders:
+    name: Notify Stakeholders
+    runs-on: ubuntu-latest
+    needs: analytics-and-reporting
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+
+    steps:
+    - name: Download reports
+      uses: actions/download-artifact@v3
+      with:
+        name: comprehensive-test-reports
+        path: reports/
+
+    - name: Send notification
+      if: failure()
+      run: |
+        echo "❌ Test execution failed!"
+        echo "Sending failure notification to stakeholders..."
+
+        # Here you would implement actual notification logic
+        # Examples: Slack webhook, email, Teams notification, etc.
+
+        # Create notification summary
+        cat > notification.txt << EOF
+        PsychSync Integration Test Execution - FAILED
+
+        Commit: ${{ github.sha }}
+        Branch: ${{ github.ref_name }}
+        Run: ${{ github.run_id }}
+
+        Reports are available in the GitHub Actions artifacts.
+        EOF
+
+    - name: Upload notification
+      uses: actions/upload-artifact@v3
+      with:
+        name: failure-notification
+        path: notification.txt
+
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [analytics-and-reporting, performance-benchmarking]
+    if: always()
+
+    steps:
+    - name: Cleanup old artifacts
+      run: |
+        echo "Cleaning up old test artifacts..."
+        # This would typically remove old reports to save space
+        echo "Cleanup completed"
+
+# Optional: Deployment trigger if tests pass
+deploy-on-success:
+    name: Deploy on Test Success
+    runs-on: ubuntu-latest
+    needs: [analytics-and-reporting]
+    if: success() && github.ref == 'refs/heads/main'
+    environment: staging
+
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "All integration tests passed successfully!"
+        # Add your deployment logic here

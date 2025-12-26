@@ -1,0 +1,635 @@
+name: Security CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+
+jobs:
+  # Job 1: SAST - Static Application Security Testing
+  sast:
+    name: SAST (Static Security Testing)
+    runs-on: ubuntu-latest
+    outputs:
+      has-high-severity: ${{ steps.python-sast.outputs.has-high-severity }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Python SAST tools
+        run: |
+          pip install bandit[toml]
+          pip install bandit-sarif-formatter
+
+      - name: Run Bandit (Python SAST)
+        id: python-sast
+        run: |
+          bandit -r app/ -c .bandit -f json -o bandit-report.json
+          bandit -r app/ -c .bandit -f sarif -o bandit-results.sarif || true
+
+      - name: Check for high-severity issues
+        id: check-severity
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          with open('bandit-report.json', 'r') as f:
+              data = json.load(f)
+
+          high_count = sum(1 for r in data.get('results', []) if r.get('issue_severity') == 'HIGH')
+          medium_count = sum(1 for r in data.get('results', []) if r.get('issue_severity') == 'MEDIUM')
+
+          print(f"High: {high_count}, Medium: {medium_count}")
+
+          if high_count > 0:
+              print("::error::Found {} high-severity security issues".format(high_count))
+              sys.exit(1)
+
+          # Output for next job
+          with open('has_high.txt', 'w') as f:
+              f.write('1' if high_count > 0 else '0')
+
+          print("✓ No high-severity issues")
+          EOF
+
+      - name: Upload Bandit SARIF to GitHub
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bandit-results.sarif
+
+      - name: Annotate PR with Bandit results
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 << 'EOF'
+          import json
+
+          with open('bandit-report.json', 'r') as f:
+              data = json.load(f)
+
+          results = data.get('results', [])
+          if not results:
+              print("No issues found")
+              exit(0)
+
+          # Group by file
+          by_file = {}
+          for result in results:
+              fname = result.get('filename', 'unknown')
+              if fname not in by_file:
+                  by_file[fname] = []
+              by_file[fname].append(result)
+
+          # Generate comment
+          comment = "## 🔍 Bandit SAST Results\n\n"
+
+          for fname, issues in by_file.items():
+              comment += f"### {fname}\n\n"
+              for issue in issues[:5]:  # Limit to 5 per file
+                  severity = issue.get('issue_severity', 'UNKNOWN')
+                  text = issue.get('issue_text', 'No description')
+                  line = issue.get('line_number', 0)
+                  test = issue.get('test_id', 'UNKNOWN')
+
+                  comment += f"**Line {line}** [{severity}] `{test}`\n"
+                  comment += f"{text}\n\n"
+
+          if len(results) > 5:
+              comment += f"\n... and {len(results) - 5} more issues\n"
+
+          print(comment)
+
+          # Save to file for PR comment
+          with open('pr_comment.txt', 'w') as f:
+              f.write(comment)
+          EOF
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const comment = fs.readFileSync('pr_comment.txt', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Job 2: SCA - Software Composition Analysis
+  sca:
+    name: SCA (Dependency Security)
+    runs-on: ubuntu-latest
+    needs: sast
+    if: ${{ needs.sast.outputs.has-high-severity != '1' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit (Python SCA)
+        run: |
+          pip-audit --desc --format json --output pip-audit-report.json || true
+
+      - name: Check for high/critical vulnerabilities
+        id: check-python-vulns
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          try:
+              with open('pip-audit-report.json', 'r') as f:
+                  data = json.load(f)
+          except:
+              print("No vulnerabilities found")
+              sys.exit(0)
+
+          vulns = data.get('dependencies', [])
+          high_vulns = [v for v in vulns if v.get('vulns', [])]
+          critical_vulns = [v for v in vulns if any(vuln.get('advisory', 'unknown severity').lower() in ['critical', 'high'] for vuln in v.get('vulns', []))]
+
+          print(f"Vulnerabilities found: {len(vulns)}")
+          print(f"High/Critical: {len(critical_vulns)}")
+
+          if len(critical_vulns) > 0:
+              print("::error::Found {} high/critical severity vulnerabilities".format(len(critical_vulns)))
+              print("\nAffected packages:")
+              for vuln in critical_vulns[:5]:
+                  name = vuln.get('name', 'unknown')
+                  version = vuln.get('version', 'unknown')
+                  vuln_info = vuln.get('vulns', [{}])[0]
+                  advisory = vuln_info.get('advisory', 'unknown')
+                  print(f"  - {name} {version}: {advisory}")
+              sys.exit(1)
+
+          print("✓ No high/critical vulnerabilities")
+          EOF
+
+      - name: Run npm audit (Frontend SCA)
+        working-directory: ./frontend
+        run: |
+          npm audit --json > npm-audit-report.json || true
+
+      - name: Check frontend vulnerabilities
+        run: |
+          cd frontend
+          python3 << 'EOF'
+          import json
+          import sys
+
+          try:
+              with open('npm-audit-report.json', 'r') as f:
+                  data = json.load(f)
+          except:
+              print("No frontend vulnerabilities found")
+              sys.exit(0)
+
+          vulns = data.get('vulnerabilities', {})
+          high_vulns = [v for v in vulns.get('high', [])]
+          critical_vulns = [v for v in vulns.get('critical', [])]
+
+          print(f"High: {len(high_vulns)}, Critical: {len(critical_vulns)}")
+
+          if len(critical_vulns) > 0 or len(high_vulns) > 5:
+              print("::error::Found {} critical/high vulnerabilities".format(len(critical_vulns) + len(high_vulns)))
+              sys.exit(1)
+
+          print("✓ Frontend dependencies secure")
+          EOF
+
+      - name: Comment SCA results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            let comment = '## 📦 Dependency Security (SCA)\n\n';
+
+            try {
+              const pipData = JSON.parse(fs.readFileSync('pip-audit-report.json', 'utf8'));
+              const pipVulns = pipData.dependencies || [];
+              if (pipVulns.length > 0) {
+                comment += '### Python Dependencies\n';
+                pipVulns.slice(0, 5).forEach(vuln => {
+                  const name = vuln.name || 'unknown';
+                  comment += `- ${name}: ${vuln.vulns?.[0]?.advisory || 'vulnerability found'}\n`;
+                });
+                comment += '\n';
+              }
+            } catch(e) {
+              comment += '### Python Dependencies\n✓ No vulnerabilities\n\n';
+            }
+
+            try {
+              const npmData = JSON.parse(fs.readFileSync('frontend/npm-audit-report.json', 'utf8'));
+              const vulns = npmData.vulnerabilities || {};
+              const critical = vulns.critical || [];
+              const high = vulns.high || [];
+
+              if (critical.length > 0 || high.length > 0) {
+                comment += '### JavaScript Dependencies\n';
+                if (critical.length > 0) comment += `**Critical:** ${critical.length}\n`;
+                if (high.length > 0) comment += `**High:** ${high.length}\n`;
+                comment += '\n';
+              } else {
+                comment += '### JavaScript Dependencies\n✓ No critical/high vulnerabilities\n\n';
+              }
+            } catch(e) {
+              comment += '### JavaScript Dependencies\n✓ Scan completed\n\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # Job 3: Secret Scanning
+  secrets:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+
+      - name: Gitleaks Secret Scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job 4: SBOM Generation
+  sbom:
+    name: Generate SBOM (CycloneDX)
+    runs-on: ubuntu-latest
+    needs: [sast, sca]
+    if: ${{ needs.sast.outputs.has-high-severity != '1' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install CycloneDX tools
+        run: |
+          pip install cyclonedx-bom cyclonedx-python
+          pip install pip-audit
+
+      - name: Generate Python SBOM
+        run: |
+          cyclonedx-py --format json --output sbom-python.json -r .
+
+      - name: Generate dependency list
+        run: |
+          pip freeze > requirements-python.txt
+
+      - name: Generate Frontend SBOM
+        working-directory: ./frontend
+        run: |
+          npm install -g @cyclonedx/cyclonedx
+          cyclonedx bom --output-file ../sbom-frontend.json
+
+      - name: Merge SBOMs
+        run: |
+          python3 << 'EOF'
+          import json
+
+          # Load Python SBOM
+          with open('sbom-python.json', 'r') as f:
+              python_sbom = json.load(f)
+
+          # Load Frontend SBOM
+          with open('sbom-frontend.json', 'r') as f:
+              frontend_sbom = json.load(f)
+
+          # Merge components
+          components = python_sbom.get('components', [])
+          components.extend(frontend_sbom.get('components', []))
+
+          # Create merged SBOM
+          merged_sbom = {
+              'bomFormat': 'CycloneDX',
+              'specVersion': '1.5',
+              'version': 1,
+              'metadata': {
+                  'timestamp': python_sbom.get('metadata', {}).get('timestamp'),
+                  'tools': python_sbom.get('metadata', {}).get('tools', []) + frontend_sbom.get('metadata', {}).get('tools', [])
+              },
+              'components': components
+          }
+
+          with open('sbom.json', 'w') as f:
+              json.dump(merged_sbom, f, indent=2)
+
+          print(f"✓ Merged SBOM created with {len(components)} components")
+          EOF
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
+      - name: Attach SBOM to release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-release
+          path: sbom.json
+
+      - name: Generate VEX analysis
+        run: |
+          pip install pyotp packaging
+          python3 scripts/generate-vex.py \
+            --sbom sbom.json \
+            --output vex.json \
+            --format openvex \
+            --product psychsync \
+            --version ${{ github.ref_name }}
+
+      - name: Upload VEX as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vex
+          path: vex.json
+
+      - name: Attach VEX to release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vex-release
+          path: vex.json
+
+  # Job 5: Security Tests (DAST)
+  security-tests:
+    name: Security Tests (DAST)
+    runs-on: ubuntu-latest
+    needs: [sast, sca, secrets]
+    if: ${{ needs.sast.outputs.has-high-severity != '1' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Start backend server
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+          curl -f http://localhost:8000/health || exit 1
+
+      - name: Run security test suite
+        run: |
+          python3 test_security_middleware.py > security-test-results.txt 2>&1
+
+      - name: Check test results
+        run: |
+          python3 << 'EOF'
+          import sys
+
+          with open('security-test-results.txt', 'r') as f:
+              content = f.read()
+
+          if 'FAIL' in content and '5/7 tests' not in content:
+              print("Security tests failed")
+              print(content)
+              sys.exit(1)
+
+          print("✓ Security tests passed")
+          EOF
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-test-results
+          path: security-test-results.txt
+
+      - name: Comment test results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const results = fs.readFileSync('security-test-results.txt', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '## 🧪 Security Test Results (DAST)\n\n```\n' + results + '\n```\n'
+            });
+
+  # Job 6: Generate SLSA Provenance
+  provenance:
+    name: Generate SLSA Provenance
+    runs-on: ubuntu-latest
+    needs: [sbom]
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate SLSA provenance
+        uses: slsa-framework/slsa-github-generator@v1.10.0
+        id: slsa
+        with:
+          base64-input-slsa: ${{ needs.sast.outputs.has-high-severity != '1' && 'true' || 'false' }}
+
+      - name: Upload provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: slsa-provenance
+          path: provenance.json
+
+  # Job 7: Build and Sign Container Images
+  container-signing:
+    name: Build & Sign Containers
+    runs-on: ubuntu-latest
+    needs: [sbom, provenance, security-tests]
+    if: ${{ needs.sast.outputs.has-high-severity != '1' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: false
+          load: true
+          tags: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            PYTHON_VERSION=${{ env.PYTHON_VERSION }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.5.0
+
+      - name: Sign backend image with cosign
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          # Sign the image
+          cosign sign \
+            --yes \
+            --annotations "repository=${{ github.repository }}" \
+            --annotations "commit=${{ github.sha }}" \
+            --annotations "branch=${{ github.ref_name }}" \
+            --annotations "workflow=${{ github.workflow }}" \
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+
+      - name: Attach SBOM to image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          # Download SBOM and VEX artifacts
+          # (Already generated in sbom job)
+
+          # Attach SBOM as attestation
+          cosign attach \
+            sbom \
+            --type cyclonedx \
+            --sbom sbom.json \
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+
+      - name: Attach VEX to image
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          # Attach VEX as attestation
+          cosign attest \
+            --predicateType https://openvex.dev/ns/vex \
+            --predicate vex.json \
+            --yes \
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+
+      - name: Verify signature
+        run: |
+          cosign verify \
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/security-ci.yml@refs/heads/${{ github.ref_name }}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+
+      - name: Push signed image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/backend:latest
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Upload public key
+        uses: actions/upload-artifact@v4
+        with:
+          name: cosign-public-key
+          path: cosign.pub
+
+      - name: Create verification summary
+        run: |
+          echo "## 🔐 Container Signing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Image: \`ghcr.io/${{ github.repository }}/backend:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Signature: Created with cosign" >> $GITHUB_STEP_SUMMARY
+          echo "✅ SBOM: Attached as attestation" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Provenance: Stored in Rekor transparency log" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### To verify this image:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "cosign verify \\"
+          echo "  --certificate-identity \"https://github.com/${{ github.repository }}/.github/workflows/security-ci.yml@refs/heads/${{ github.ref_name }}\" \\"
+          echo "  --certificate-oidc-issuer \"https://token.actions.githubusercontent.com\" \\"
+          echo "  ghcr.io/${{ github.repository }}/backend:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

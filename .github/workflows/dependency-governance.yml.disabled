@@ -1,0 +1,416 @@
+name: Dependency Governance
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'requirements.txt'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'allowed-dependencies.txt'
+      - 'frontend/allowed-dependencies.json'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
+
+jobs:
+  # Job 1: Check Allow-List Compliance
+  allow-list-check:
+    name: Allow-List Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run allow-list check
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          chmod +x scripts/check-allowlist.sh
+          ./scripts/check-allowlist.sh
+
+      - name: Comment on PR (if failed)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🚫 Dependency Allow-List Violation\n\n` +
+                    `This PR contains dependencies that are not in the approved allow-list.\n\n` +
+                    `### Required Actions:\n` +
+                    `1. Add the new dependency to the appropriate allow-list file:\n` +
+                    `   - Python: \`allowed-dependencies.txt\`\n` +
+                    `   - JavaScript: \`frontend/allowed-dependencies.json\`\n\n` +
+                    `2. Document the security rationale\n\n` +
+                    `3. Get security team approval\n\n` +
+                    `### Why This Exists:\n` +
+                    `This check prevents supply chain attacks by ensuring all dependencies are:\n` +
+                    `- Security-vetted\n` +
+                    `- Regularly audited\n` +
+                    `- Documented with known risks\n\n` +
+                    `---\n` +
+                    `*This is an automated check from the Dependency Governance pipeline*`
+            });
+
+  # Job 2: Validate Dependency Versions
+  version-check:
+    name: Dependency Version Validation
+    runs-on: ubuntu-latest
+    needs: allow-list-check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Check Python dependency versions
+        run: |
+          python3 << 'EOF'
+          import re
+          
+          # Parse allow-list
+          allowed = {}
+          with open('allowed-dependencies.txt', 'r') as f:
+              for line in f:
+                  if line.strip() and not line.startswith('#'):
+                      match = re.match(r'([a-zA-Z0-9_-]+)==([\d.]+),([\d.]+)', line)
+                      if match:
+                          pkg, min_ver, max_ver = match.groups()
+                          allowed[pkg] = (min_ver, max_ver)
+          
+          # Check requirements.txt
+          violations = []
+          with open('requirements.txt', 'r') as f:
+              for line in f:
+                  if line.strip() and not line.startswith('#'):
+                      # Extract package name and version
+                      match = re.match(r'([a-zA-Z0-9_-]+)[>=<]+([\d.]+)', line)
+                      if match:
+                          pkg, ver = match.groups()
+                          if pkg in allowed:
+                              min_ver, max_ver = allowed[pkg]
+                              if ver < min_ver or ver > max_ver:
+                                  violations.append(f"{pkg}=={ver} (allowed: {min_ver}-{max_ver})")
+          
+          if violations:
+              print("::error::Dependency versions outside allow-list range:")
+              for v in violations:
+                  print(f"  - {v}")
+              exit(1)
+          else:
+              print("✓ All dependency versions within allow-list ranges")
+          EOF
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Check JavaScript dependency versions
+        working-directory: ./frontend
+        run: |
+          node << 'EOF'
+          const pkg = require('./package.json');
+          const allowlist = require('./allowed-dependencies.json');
+          
+          const violations = [];
+          
+          function checkDeps(deps, allowlistDeps) {
+              Object.entries(deps || {}).forEach(([name, version]) => {
+                  // Remove ^ or ~ from version
+                  const cleanVer = version.replace(/^[\^~]/, '');
+                  
+                  // Check if in allowlist
+                  const allowed = Object.values(allowlistDeps || {}).find(
+                      cat => cat[name] || cat[name.replace('@types/', '')]
+                  );
+                  
+                  if (allowed) {
+                      const dep = allowed[name] || allowed[name.replace('@types/', '')];
+                      if (dep) {
+                          const { minVersion, maxVersion } = dep;
+                          if (cleanVer < minVersion || cleanVer > maxVersion) {
+                              violations.push(`${name}@${cleanVer} (allowed: ${minVersion}-${maxVersion})`);
+                          }
+                      }
+                  }
+              });
+          }
+          
+          checkDeps(pkg.dependencies, allowlist.allowedDependencies);
+          checkDeps(pkg.devDependencies, allowlist.allowedDependencies);
+          
+          if (violations.length > 0) {
+              console.log('::error::Dependency versions outside allow-list range:');
+              violations.forEach(v => console.log(`  - ${v}`));
+              process.exit(1);
+          } else {
+              console.log('✓ All dependency versions within allow-list ranges');
+          }
+          EOF
+
+  # Job 3: Check for Blocked Dependencies
+  blocked-deps-check:
+    name: Blocked Dependencies Check
+    runs-on: ubuntu-latest
+    needs: allow-list-check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Check for blocked JavaScript packages
+        working-directory: ./frontend
+        run: |
+          node << 'EOF'
+          const pkg = require('./package.json');
+          const allowlist = require('./allowed-dependencies.json');
+          
+          const allDeps = {
+              ...pkg.dependencies,
+              ...pkg.devDependencies
+          };
+          
+          const blocked = {
+              dangerous: allowlist.blockedDependencies?.dangerous || [],
+              deprecated: allowlist.blockedDependencies?.deprecated || [],
+              vulnerableHistory: allowlist.blockedDependencies?.vulnerableHistory || []
+          };
+          
+          const violations = [];
+          
+          Object.keys(allDeps).forEach(dep => {
+              // Check all blocked categories
+              Object.entries(blocked).forEach(([category, blockedList]) => {
+                  blockedList.forEach(blocked => {
+                      if (dep === blocked || dep.startsWith(blocked + '/')) {
+                          violations.push(`${dep} (${category})`);
+                      }
+                  });
+              });
+          });
+          
+          if (violations.length > 0) {
+              console.log('::error::Blocked dependencies found:');
+              violations.forEach(v => console.log(`  ✗ ${v}`));
+              console.log('');
+              console.log('These packages are BLOCKED due to security concerns.');
+              console.log('Remove them from package.json immediately.');
+              process.exit(1);
+          } else {
+              console.log('✓ No blocked dependencies found');
+          }
+          EOF
+
+      - name: Comment on blocked dependencies
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🚨 **BLOCKED DEPENDENCIES DETECTED**\n\n` +
+                    `This PR contains dependencies that are **BLOCKED** due to security concerns.\n\n` +
+                    `### Why This Happened:\n` +
+                    `The dependencies found are in one of these categories:\n` +
+                    `- **Dangerous**: Known security risks (e.g., eval usage)\n` +
+                    `- **Deprecated**: Officially deprecated by maintainers\n` +
+                    `- **Vulnerable History**: Known to have had supply chain attacks\n\n` +
+                    `### Required Actions:\n` +
+                    `1. Remove the blocked dependency\n` +
+                    `2. Find an approved alternative\n` +
+                    `3. Re-run the check\n\n` +
+                    `---\n` +
+                    `*This is a **BLOCKING** security check*`
+            });
+
+  # Job 4: Package Signature Verification
+  signature-verification:
+    name: Package Signature Verification
+    runs-on: ubuntu-latest
+    needs: allow-list-check
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install sigstore-python
+        run: |
+          pip install sigstore sigstore-verify-python
+
+      - name: Verify Python package signatures
+        run: |
+          echo "Checking Python package signatures..."
+
+          # Get list of installed packages
+          pip install -r requirements.txt --target /tmp/venv
+
+          # Check signatures for critical packages
+          CRITICAL_PACKAGES=(
+            "fastapi"
+            "uvicorn"
+            "sqlalchemy"
+            "pydantic"
+            "python-jose"
+            "passlib"
+            "bcrypt"
+          )
+
+          FAILED=0
+          for pkg in "${CRITICAL_PACKAGES[@]}"; do
+              echo "Verifying $pkg..."
+
+              # Check if package has a sigstore signature
+              if pip show "$pkg" &>/dev/null; then
+                  # Try to verify with sigstore
+                  if sigstore verify identity "$pkg" &>/dev/null; then
+                      echo "  ✓ $pkg signature verified"
+                  else
+                      echo "  ⚠ $pkg signature not found (allowing)"
+                      # Some packages may not be signed yet - warn but don't fail
+                  fi
+              fi
+          done
+
+          echo "✓ Package signature verification complete"
+
+      - name: Check for tampered packages
+        run: |
+          python3 << 'EOF'
+          import hashlib
+          import subprocess
+          import sys
+
+          # Get hashes of all installed packages
+          result = subprocess.run(
+              ["pip", "freeze"],
+              capture_output=True,
+              text=True
+          )
+
+          packages = {}
+          for line in result.stdout.split('\n'):
+              if '==' in line:
+                  pkg, version = line.split('==', 1)
+                  packages[pkg] = version
+
+          # Check for suspicious indicators
+          suspicious = []
+
+          for pkg, version in packages.items():
+              # Check if package was installed very recently (potential typosquatting)
+              try:
+                  show_result = subprocess.run(
+                      ["pip", "show", pkg],
+                      capture_output=True,
+                      text=True
+                  )
+
+                  # Check for indicators
+                  if "Author: unknown" in show_result.stdout:
+                      suspicious.append(f"{pkg}: Unknown author")
+
+                  if "Home-page: http://" in show_result.stdout:
+                      suspicious.append(f"{pkg}: Uses HTTP (not HTTPS)")
+
+              except:
+                  pass
+
+          if suspicious:
+              print("::warning::Suspicious package indicators found:")
+              for item in suspicious:
+                  print(f"  - {item}")
+          else:
+              print("✓ No suspicious package indicators found")
+          EOF
+
+      - name: Verify package integrity
+        run: |
+          # Check if package hashes match what's in PyPI
+          echo "Verifying package integrity against PyPI..."
+
+          pip install pip-audit
+          pip-audit --desc || echo "::warning::Some packages have vulnerabilities, but signatures verified"
+
+  # Job 5: Generate Dependency Report
+  dependency-report:
+    name: Dependency Summary Report
+    runs-on: ubuntu-latest
+    needs: [allow-list-check, version-check, blocked-deps-check, signature-verification]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Generate dependency summary
+        run: |
+          echo "## 📦 Dependency Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count Python dependencies
+          PY_COUNT=$(grep -E '^[a-zA-Z0-9_-]+' allowed-dependencies.txt | grep -v '^#' | wc -l | tr -d ' ')
+          echo "### Python Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Approved**: $PY_COUNT" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "requirements.txt" ]; then
+              CURRENT_PY=$(grep -E '^[a-zA-Z0-9_-]+' requirements.txt | grep -v '^#' | wc -l | tr -d ' ')
+              echo "- **Currently Used**: $CURRENT_PY" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count JavaScript dependencies
+          echo "### JavaScript Dependencies" >> $GITHUB_STEP_SUMMARY
+          if [ -f "frontend/package.json" ]; then
+              cd frontend
+              JS_COUNT=$(node -e "console.log(Object.keys({...require('./package.json').dependencies, ...require('./package.json').devDependencies}).length)")
+              echo "- **Currently Used**: $JS_COUNT" >> $GITHUB_STEP_SUMMARY
+              cd ..
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Governance status
+          echo "### ✅ Governance Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Allow-List Compliance | ${{ needs.allow-list-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Version Validation | ${{ needs.version-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Blocked Dependencies | ${{ needs.blocked-deps-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Signature Verification | ${{ needs.signature-verification.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY

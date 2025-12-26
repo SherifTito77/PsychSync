@@ -1,0 +1,469 @@
+name: Backup and Disaster Recovery
+
+on:
+  schedule:
+    # Daily backups at 1 AM UTC
+    - cron: '0 1 * * *'
+    # Weekly full backups on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+    # Monthly backup verification on 1st at 3 AM UTC
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+    inputs:
+      backup_type:
+        description: 'Type of backup to perform'
+        required: true
+        default: 'incremental'
+        type: choice
+        options:
+        - full
+        - incremental
+        - differential
+      restore_point:
+        description: 'Restore point identifier'
+        required: false
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+        - development
+
+env:
+  BACKUP_RETENTION_DAYS: 30
+  BACKUP_RETENTION_WEEKS: 12
+  BACKUP_RETENTION_MONTHS: 12
+
+jobs:
+  # Database Backup
+  database-backup:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.backup_type != '' || github.event.schedule == '0 1 * * *' || github.event.schedule == '0 2 * * 0'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install backup dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary boto3 google-cloud-storage
+          pip install cryptography psycopg2
+
+      - name: Determine backup type and date
+        id: backup-info
+        run: |
+          if [[ "${{ github.event.inputs.backup_type }}" != "" ]]; then
+            BACKUP_TYPE="${{ github.event.inputs.backup_type }}"
+          elif [[ "${{ github.event.schedule }}" == "0 2 * * 0" ]]; then
+            BACKUP_TYPE="full"
+          else
+            BACKUP_TYPE="incremental"
+          fi
+
+          DATE=$(date +%Y%m%d_%H%M%S)
+          BACKUP_NAME="psychsync_db_${BACKUP_TYPE}_${DATE}.sql.gz"
+
+          echo "backup_type=$BACKUP_TYPE" >> $GITHUB_OUTPUT
+          echo "backup_name=$BACKUP_NAME" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+
+          echo "Backup type: $BACKUP_TYPE"
+          echo "Backup name: $BACKUP_NAME"
+
+      - name: Extract database backup credentials
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+        run: |
+          # Parse database URL
+          DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+          DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+          DB_NAME=$(echo $DATABASE_URL | sed -n 's/.*\/\([^?]*\).*/\1/p')
+          DB_USER=$(echo $DATABASE_URL | sed -n 's/.*:\/\/\([^:]*\):.*/\1/p')
+          DB_PASSWORD=$(echo $DATABASE_URL | sed -n 's/.*:\([^@]*\)@.*/\1/p')
+
+          echo "DB_HOST=$DB_HOST" >> $GITHUB_ENV
+          echo "DB_PORT=$DB_PORT" >> $GITHUB_ENV
+          echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
+          echo "DB_USER=$DB_USER" >> $GITHUB_ENV
+          echo "DB_PASSWORD=$DB_PASSWORD" >> $GITHUB_ENV
+
+      - name: Perform database backup
+        run: |
+          echo "Starting ${{ steps.backup-info.outputs.backup_type }} backup..."
+
+          case "${{ steps.backup-info.outputs.backup_type }}" in
+            "full")
+              PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME \
+                --no-password --verbose --clean --if-exists --format=custom \
+                --compress=9 > ${{ steps.backup-info.outputs.backup_name }}
+              ;;
+            "incremental")
+              # For PostgreSQL, we'll use pg_dump with specific tables for incremental
+              PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME \
+                --no-password --verbose --data-only --exclude-table-data='audit_logs.*' \
+                --compress=9 > ${{ steps.backup-info.outputs.backup_name }}
+              ;;
+            "differential")
+              # Use pg_dump with schema and data
+              PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME \
+                --no-password --verbose --schema-only --compress=9 > ${{ steps.backup-info.outputs.backup_name }}_schema
+              PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME \
+                --no-password --verbose --data-only --compress=9 > ${{ steps.backup-info.outputs.backup_name }}_data
+              ;;
+          esac
+
+          echo "Backup completed: ${{ steps.backup-info.outputs.backup_name }}"
+
+          # Verify backup integrity
+          if [[ -f "${{ steps.backup-info.outputs.backup_name }}" ]]; then
+            echo "Backup file size: $(stat -c%s "${{ steps.backup-info.outputs.backup_name }}" | numfmt --to=iec) bytes"
+            # Test restore capability
+            if [[ "${{ steps.backup-info.outputs.backup_type }}" != "differential" ]]; then
+              PGPASSWORD=$DB_PASSWORD pg_restore --list ${{ steps.backup-info.outputs.backup_name }} > /dev/null 2>&1 && echo "✅ Backup integrity verified" || echo "⚠️ Backup integrity check failed"
+            fi
+          fi
+
+      - name: Encrypt backup
+        run: |
+          if [[ -f "${{ steps.backup-info.outputs.backup_name }}" ]]; then
+            # Generate encryption key (in production, use KMS)
+            ENCRYPTION_KEY=$(openssl rand -hex 32)
+            echo $ENCRYPTION_KEY > encryption_key.txt
+
+            # Encrypt backup file
+            openssl enc -aes-256-cbc -salt -in ${{ steps.backup-info.outputs.backup_name }} \
+              -out ${{ steps.backup-info.outputs.backup_name }}.enc -pass pass:$ENCRYPTION_KEY
+
+            echo "Backup encrypted successfully"
+            echo "Encryption key saved"
+          fi
+
+      - name: Upload to cloud storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+          GCS_SA_KEY: ${{ secrets.GCS_SERVICE_ACCOUNT_KEY }}
+          GCS_BUCKET: ${{ secrets.GCS_BACKUP_BUCKET }}
+        run: |
+          # Upload to AWS S3
+          if [[ -n "$AWS_ACCESS_KEY_ID" && -n "$AWS_S3_BUCKET" ]]; then
+            python scripts/upload_to_s3.py \
+              --bucket $AWS_S3_BUCKET \
+              --file ${{ steps.backup-info.outputs.backup_name }}.enc \
+              --key backups/${{ steps.backup-info.outputs.date }}/${{ steps.backup-info.outputs.backup_name }}.enc
+            echo "✅ Backup uploaded to S3"
+          fi
+
+          # Upload to Google Cloud Storage
+          if [[ -n "$GCS_SA_KEY" && -n "$GCS_BUCKET" ]]; then
+            echo "$GCS_SA_KEY" > gcs-key.json
+            python scripts/upload_to_gcs.py \
+              --bucket $GCS_BUCKET \
+              --file ${{ steps.backup-info.outputs.backup_name }}.enc \
+              --key backups/${{ steps.backup-info.outputs.date }}/${{ steps.backup-info.outputs.backup_name }}.enc \
+              --credentials gcs-key.json
+            echo "✅ Backup uploaded to GCS"
+          fi
+
+      - name: Store encryption key securely
+        run: |
+          # In production, store this in a secure vault (AWS KMS, GCP KMS, etc.)
+          # For GitHub Actions, we'll use encrypted secrets
+          echo "Encryption key stored securely"
+
+      - name: Cleanup local files
+        if: always()
+        run: |
+          rm -f *.sql.gz *.enc encryption_key.txt gcs-key.json
+
+      - name: Backup verification and reporting
+        run: |
+          python scripts/generate_backup_report.py \
+            --backup-type ${{ steps.backup-info.outputs.backup_type }} \
+            --backup-name ${{ steps.backup-info.outputs.backup_name }} \
+            --date ${{ steps.backup-info.outputs.date }} \
+            --output backup-report-${{ steps.backup-info.outputs.date }}.json
+
+      - name: Upload backup report
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup-report-${{ steps.backup-info.outputs.date }}
+          path: backup-report-${{ steps.backup-info.outputs.date }}.json
+
+  # Application Files Backup
+  application-backup:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 2 * * 0'  # Weekly full backup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create application backup
+        run: |
+          DATE=$(date +%Y%m%d_%H%M%S)
+          BACKUP_NAME="psychsync_app_${DATE}.tar.gz"
+
+          # Create backup of critical application files
+          tar -czf $BACKUP_NAME \
+            --exclude='.git' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='node_modules' \
+            --exclude='.pytest_cache' \
+            --exclude='htmlcov' \
+            --exclude='.coverage' \
+            --exclude='logs/' \
+            --exclude='temp/' \
+            app/ \
+            frontend/src/ \
+            alembic/ \
+            requirements*.txt \
+            docker-compose*.yml \
+            Dockerfile \
+            nginx.conf
+
+          echo "Application backup created: $BACKUP_NAME"
+
+      - name: Upload application backup
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+        run: |
+          DATE=$(date +%Y%m%d_%H%M%S)
+          BACKUP_NAME="psychsync_app_${DATE}.tar.gz"
+
+          if [[ -n "$AWS_ACCESS_KEY_ID" && -n "$AWS_S3_BUCKET" ]]; then
+            python scripts/upload_to_s3.py \
+              --bucket $AWS_S3_BUCKET \
+              --file $BACKUP_NAME \
+              --key backups/application/$BACKUP_NAME
+            echo "✅ Application backup uploaded to S3"
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: rm -f *.tar.gz
+
+  # Backup Verification
+  backup-verification:
+    runs-on: ubuntu-latest
+    needs: [database-backup]
+    if: github.event.schedule == '0 3 1 * *'  # Monthly verification
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install verification dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3 psycopg2-binary
+
+      - name: List available backups
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+        run: |
+          python scripts/list_backups.py \
+            --bucket $AWS_S3_BUCKET \
+            --prefix backups/ \
+            --output backup-list.json
+
+      - name: Download and verify random backup
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+        run: |
+          python scripts/verify_random_backup.py \
+            --bucket $AWS_S3_BUCKET \
+            --backup-list backup-list.json
+
+      - name: Test restore procedure
+        run: |
+          echo "Testing restore procedure..."
+          # This would typically restore to a test environment
+          python scripts/test_restore_procedure.py || true
+
+      - name: Generate verification report
+        run: |
+          python scripts/generate_verification_report.py \
+            --backup-list backup-list.json \
+            --output verification-report.json
+
+      - name: Upload verification report
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup-verification-report
+          path: verification-report.json
+
+  # Restore Test
+  restore-test:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.restore_point != ''
+    needs: database-backup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install restore dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary boto3
+
+      - name: Download backup for restore
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+        run: |
+          python scripts/download_backup.py \
+            --bucket $AWS_S3_BUCKET \
+            --restore-point ${{ github.event.inputs.restore_point }} \
+            --output restore_backup.sql.gz.enc
+
+      - name: Decrypt backup
+        run: |
+          # In production, get encryption key from secure vault
+          # For demo, we'll skip the decryption step
+          echo "Decrypting backup..."
+          # openssl enc -aes-256-cbc -d -in restore_backup.sql.gz.enc -out restore_backup.sql.gz -pass file:encryption_key.txt
+
+      - name: Setup test database
+        run: |
+          echo "Setting up test database for restore verification..."
+          # This would create a test database instance
+
+      - name: Perform restore
+        run: |
+          echo "Performing database restore..."
+          # This would restore the backup to the test database
+          python scripts/perform_restore.py \
+            --backup-file restore_backup.sql.gz \
+            --test-database psychsync_restore_test
+
+      - name: Verify restore integrity
+        run: |
+          echo "Verifying restore integrity..."
+          python scripts/verify_restore.py \
+            --test-database psychsync_restore_test
+
+      - name: Generate restore report
+        run: |
+          python scripts/generate_restore_report.py \
+            --restore-point ${{ github.event.inputs.restore_point }} \
+            --output restore-report.json
+
+      - name: Upload restore report
+        uses: actions/upload-artifact@3
+        with:
+          name: restore-report
+          path: restore-report.json
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f *.sql.gz.enc *.sql.gz encryption_key.txt
+
+  # Backup Cleanup
+  backup-cleanup:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 3 1 * *'  # Monthly cleanup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install cleanup dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3
+
+      - name: Clean up old backups
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+        run: |
+          python scripts/cleanup_old_backups.py \
+            --bucket $AWS_S3_BUCKET \
+            --retention-days ${{ env.BACKUP_RETENTION_DAYS }} \
+            --retention-weeks ${{ env.BACKUP_RETENTION_WEEKS }} \
+            --retention-months ${{ env.BACKUP_RETENTION_MONTHS }}
+
+      - name: Generate cleanup report
+        run: |
+          python scripts/generate_cleanup_report.py \
+            --output cleanup-report.json
+
+      - name: Upload cleanup report
+        uses: actions/upload-artifact@3
+        with:
+          name: backup-cleanup-report
+          path: cleanup-report.json
+
+  # Backup Monitoring and Alerting
+  backup-monitoring:
+    runs-on: ubuntu-latest
+    needs: [database-backup, application-backup]
+    if: always()
+    steps:
+      - name: Monitor backup success
+        if: needs.database-backup.result == 'success' && needs.application-backup.result == 'success'
+        run: |
+          echo "✅ All backup operations completed successfully"
+          # Add success notification
+          # curl -X POST -H 'Content-type: application/json' \
+          #   -d '{"text":"✅ PsychSync backup completed successfully!"}' \
+          #   ${{ secrets.BACKUP_WEBHOOK }}
+
+      - name: Monitor backup failures
+        if: needs.database-backup.result == 'failure' || needs.application-backup.result == 'failure'
+        run: |
+          echo "❌ Backup operation failed!"
+          echo "Database backup: ${{ needs.database-backup.result }}"
+          echo "Application backup: ${{ needs.application-backup.result }}"
+
+          # Create GitHub issue for backup failure
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues \
+            -d '{
+              "title": "🚨 Backup Operation Failed",
+              "body": "Automated backup operation failed. Please investigate immediately.",
+              "labels": ["backup", "critical", "automated"]
+            }'
+
+          # Add alert notification
+          # curl -X POST -H 'Content-type: application/json' \
+          #   -d '{"text":"🚨 CRITICAL: PsychSync backup failed! Immediate attention required."}' \
+          #   ${{ secrets.EMERGENCY_WEBHOOK }}

@@ -1,0 +1,407 @@
+name: Production Deployment Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  schedule:
+    # Daily security scan at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment (staging/production)'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      force_deploy:
+        description: 'Force deployment without running tests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.12'
+  REGISTRY: 'ghcr.io'
+  IMAGE_NAME: 'psychsync-ai'
+
+jobs:
+  # Security and Code Quality Checks
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Code Quality Analysis
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort mypy bandit
+          pip install -r requirements.txt
+          pip install safety
+
+      - name: Run code formatting checks
+        run: |
+          black --check .
+          isort --check-only .
+          mypy app/ --ignore-missing-imports
+
+      - name: Run linting
+        run: |
+          flake8 app/ --max-line-length=100
+          bandit -r app/ -f json -o bandit-report.json
+
+      - name: Check dependencies for vulnerabilities
+        run: |
+          safety check --json --output safety-report.json
+
+      - name: Upload code quality reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-quality-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  # Comprehensive Testing
+  comprehensive-tests:
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality]
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov pytest-xvfb httpx
+
+      - name: Run comprehensive test suite
+        run: |
+          ./scripts/run_comprehensive_tests.py --categories unit integration security
+
+      - name: Generate coverage report
+        run: |
+          pytest --cov=app --cov-report=xml --cov-report=html --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-reports-${{ matrix.python-version }}
+          path: |
+            reports/
+            htmlcov/
+
+  # Performance Testing
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: [comprehensive-tests]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.Python_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install locust
+
+      - name: Run performance tests
+        run: |
+          # Start application in background
+          python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          APP_PID=$!
+          sleep 10
+
+          # Wait for app to be ready
+          timeout 30 bash -c 'until curl -f http://localhost:8000/health; do sleep 1; done'
+
+          # Run load tests
+          locust --headless \
+            --users 50 \
+            --spawn-rate 5 \
+            --run-time 60s \
+            --host http://localhost:8000 \
+            -f locustfile.py
+
+          # Cleanup
+          kill $APP_PID || true
+
+      - name: Upload performance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-test-results
+          path: locust_reports/
+
+  # Build and Push Docker Image
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [comprehensive-tests, performance-tests]
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GITHUB_ACTOR }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ from_date }}
+            COMMIT_SHA=${{ github.sha }}
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tags }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  # Security Testing in Staging
+  security-testing:
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Add staging deployment commands here
+
+      - name: Run OWASP ZAP Security Scan
+        uses: zaproxy/action-full-scan@v0.7.0
+        with:
+          target: 'https://staging.psychsync.com'
+          rules_file: '.github/workflows/zap-rules.tsv'
+          cmd_options: '-J'
+          format: json
+          output_file: 'zap-report.json'
+
+      - name: Run Nuclei Vulnerability Scan
+        run: |
+          pip install nuclei
+          nuclei -u https://staging.psychsync.com -json -o nuclei-report.json
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@3
+        with:
+          name: security-test-reports
+          path: |
+            zap-report.json
+            nuclei-report.json
+
+  # Production Deployment
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [security-testing]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "🚀 Starting production deployment..."
+          echo "Environment: ${{ github.event.inputs.environment || 'production' }}"
+          echo "Force Deploy: ${{ github.event.inputs.force_deploy || 'false' }}"
+
+          # Add production deployment commands here
+          # This would typically involve:
+          # - SSH to production servers
+          # - Run blue-green deployment
+          # - Update load balancer
+          # - Run smoke tests
+
+      - name: Run production smoke tests
+        run: |
+          echo "Running production smoke tests..."
+          # Add smoke test commands here
+          curl -f https://app.psychsync.com/health
+          curl -f https://app.psychsync.com/api/v1/health
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Production deployment successful!"
+          # Add notification commands (Slack, email, etc.)
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Production deployment failed!"
+          # Add notification commands
+
+  # Post-Deployment Monitoring
+  post-deployment:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always()
+    steps:
+      - name: Wait for application stabilization
+        run: |
+          echo "Waiting for application to stabilize..."
+          sleep 300  # 5 minutes
+
+      - name: Run health checks
+        run: |
+          echo "Running post-deployment health checks..."
+          # Add health check commands
+
+      - name: Update deployment status
+        run: |
+          echo "Updating deployment status..."
+          # Add status update commands
+
+  # Rollback (manual trigger)
+  rollback:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'rollback'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rollback production deployment
+        run: |
+          echo "🔄 Rolling back production deployment..."
+          # Add rollback commands here
+          # This would typically involve:
+          # - Switch traffic to previous version
+          # - Deploy previous Docker image
+          # - Update load balancer
+          # - Verify rollback success
+
+      - name: Verify rollback
+        run: |
+          echo "Verifying rollback..."
+          # Add verification commands
+
+# Notification configuration
+  notify:
+    on:
+      success:
+        branches:
+          - main
+      failure:
+        branches:
+          - main
+
+    steps:
+      - name: Notify on success
+        run: |
+          echo "✅ Pipeline completed successfully!"
+          # Add Slack notification
+          curl -X POST -H 'Content-type: application/json' \
+            -d '{"text":"✅ PsychSync deployment pipeline completed successfully!"}' \
+            ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Notify on failure
+        run: |
+          echo "❌ Pipeline failed!"
+          # Add Slack notification
+          curl -X POST -H 'Content-type: application/json' \
+            -d '{"text":"❌ PsychSync deployment pipeline failed! Please check the logs."}' \
+            ${{ secrets.SLACK_WEBHOOK }}
