@@ -1,0 +1,202 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-12-26T00:00:00Z",
+    "maintainer": "security@psychsync.com",
+    "review_frequency": "quarterly",
+    "next_review": "2026-03-26T00:00:00Z"
+  },
+  "approved": [
+    {
+      "name": "react",
+      "version": ">=18.0.0",
+      "justification": "Core UI framework for React frontend",
+      "risk_level": "low",
+      "approved_by": "security-team",
+      "approved_date": "2025-01-15"
+    },
+    {
+      "name": "fastapi",
+      "version": ">=0.100.0",
+      "justification": "Backend API framework with async support",
+      "risk_level": "low",
+      "approved_by": "security-team",
+      "approved_date": "2025-01-15"
+    },
+    {
+      "name": "pydantic",
+      "version": ">=2.0.0",
+      "justification": "Data validation and serialization",
+      "risk_level": "low",
+      "approved_by": "security-team",
+      "approved_date": "2025-01-15"
+    },
+    {
+      "name": "sqlalchemy",
+      "version": ">=2.0.0",
+      "justification": "ORM for database operations",
+      "risk_level": "medium",
+      "mitigations": [
+        "Parameterized queries only",
+        "Input validation via Pydantic",
+        "Row-level security"
+      ],
+      "approved_by": "security-team",
+      "approved_date": "2025-01-15"
+    },
+    {
+      "name": "axios",
+      "version": ">=1.0.0",
+      "justification": "HTTP client for API calls",
+      "risk_level": "low",
+      "approved_by": "security-team",
+      "approved_date": "2025-01-15"
+    },
+    {
+      "name": "@mui/material",
+      "version": ">=7.0.0",
+      "justification": "UI component library",
+      "risk_level": "low",
+      "approved_by": "security-team",
+      "approved_date": "2025-01-15"
+    },
+    {
+      "name": "redis",
+      "version": ">=5.0.0",
+      "justification": "Caching and session storage",
+      "risk_level": "low",
+      "approved_by": "security-team",
+      "approved_date": "2025-01-15"
+    }
+  ],
+  "prohibited": [
+    {
+      "name": "event-stream",
+      "justification": "Known critical security vulnerabilities (CVE-2021-45932)",
+      "prohibited_date": "2021-11-01",
+      "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2021-45932"
+      ]
+    },
+    {
+      "name": "lodash",
+      "version": "<4.17.21",
+      "justification": "Prototype pollution vulnerability (CVE-2021-23337)",
+      "prohibited_date": "2021-02-01",
+      "alternatives": "lodash >= 4.17.21"
+    },
+    {
+      "name": "request",
+      "justification": "Deprecated, multiple vulnerabilities, unmaintained",
+      "prohibited_date": "2020-02-01",
+      "alternatives": "axios, fetch, node-fetch"
+    },
+    {
+      "name": "axios",
+      "version": "<0.19.0",
+      "justification": " SSRF vulnerability (CVE-2020-28195)",
+      "prohibited_date": "2020-01-05",
+      "alternatives": "axios >= 0.19.0"
+    },
+    {
+      "name": "log4j",
+      "version": "<2.17.1",
+      "justification": "Log4Shell critical vulnerability (CVE-2021-44228)",
+      "prohibited_date": "2021-12-10",
+      "alternatives": "log4j >= 2.17.1, structured logging"
+    }
+  ],
+  "exemptions": [
+    {
+      "id": "EXEMPT-2025-001",
+      "dependency": "some-legacy-package",
+      "version": "1.2.3",
+      "cve": "CVE-2024-12345",
+      "justification": "Vulnerable code not in execute path. Feature is disabled by default and not accessible to users.",
+      "mitigations": [
+        "Feature flag disabled",
+        "Network segmentation",
+        "Input validation layer"
+      ],
+      "vex_status": "not_affected",
+      "vex_justification": "vulnerable_code_not_in_execute_path",
+      "expires": "2025-12-31",
+      "approved_by": "cto",
+      "review_schedule": "monthly"
+    }
+  ],
+  "policies": {
+    "new_dependencies": {
+      "require_approval": true,
+      "approval_required_from": ["security-lead", "tech-lead"],
+      "justification_required": true,
+      "risk_assessment_required": true,
+      "alternatives_considered": true
+    },
+    "vulnerability_response": {
+      "critical": {
+        "sla": "24_hours",
+        "action": "remediate",
+        "deployment_blocked": true
+      },
+      "high": {
+        "sla": "72_hours",
+        "action": "remediate_or_explain",
+        "deployment_blocked": true
+      },
+      "medium": {
+        "sla": "30_days",
+        "action": "schedule_fix",
+        "deployment_blocked": false
+      },
+      "low": {
+        "sla": "90_days",
+        "action": "monitor",
+        "deployment_blocked": false
+      }
+    },
+    "exemptions": {
+      "max_duration": "90_days",
+      "require_business_justification": true,
+      "require_mitigation_plan": true,
+      "require_cto_approval": true,
+      "auto_expire": true
+    }
+  },
+  "vex_rules": {
+    "auto_not_affected": [
+      {
+        "condition": "cvss_score < 4.0",
+        "justification": "protected_at_runtime_perimeter",
+        "impact": "Low severity, monitoring in place"
+      },
+      {
+        "condition": "component_not_imported",
+        "justification": "component_not_present",
+        "impact": "Vulnerable code not included in build"
+      },
+      {
+        "condition": "has_waf_protection",
+        "justification": "protected_by_mitigating_control",
+        "impact": "WAF rules prevent exploitation"
+      }
+    ],
+    "require_manual_review": [
+      {
+        "condition": "cvss_score >= 7.0",
+        "reviewer": "security-lead",
+        "justification_required": true
+      },
+      {
+        "condition": "authentication_or_authorization",
+        "reviewer": "security-lead",
+        "justification_required": true
+      },
+      {
+        "condition": "data_access",
+        "reviewer": "security-lead",
+        "justification_required": true
+      }
+    ]
+  }
+}

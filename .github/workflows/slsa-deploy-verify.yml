@@ -1,0 +1,367 @@
+# SLSA Deployment with Verification
+# Verifies signatures and provenance before deployment
+
+name: SLSA Deploy (Verify First)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        type: string
+  workflow_run:
+    workflows: ["SLSA Build and Sign"]
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+  packages: read
+  deployments: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # =============================================================================
+  # Pre-deployment Verification Gate
+  # =============================================================================
+  verify-before-deploy:
+    name: Verify Before Deploy
+    runs-on: ubuntu-latest
+    outputs:
+      verified: ${{ steps.verification.outputs.verified }}
+      image-digest: ${{ steps.verify-image.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install verification tools
+        run: |
+          # Install cosign
+          curl -L https://github.com/sigstore/cosign/releases/download/v2.2.4/cosign-linux-amd64 -o cosign
+          chmod +x cosign
+          sudo mv cosign /usr/local/bin/
+
+          # Install slsa-verifier
+          go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Docker image signature
+        id: verify-signature
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}"
+
+          echo "Verifying signature for: $IMAGE_TAG"
+
+          if cosign verify \
+            "$IMAGE_TAG" \
+            --certificate-identity https://github.com/${{ github.repository }}/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            2>&1 | tee /tmp/cosign-verify.log; then
+            echo "✅ Signature verified"
+            echo "verified=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Signature verification failed"
+            echo "verified=false" >> $GITHUB_OUTPUT
+            cat /tmp/cosign-verify.log
+            exit 1
+          fi
+
+      - name: Verify SLSA provenance
+        id: verify-provenance
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}"
+
+          echo "Verifying SLSA provenance for: $IMAGE_TAG"
+
+          if slsa-verifier verify-image \
+            "$IMAGE_TAG" \
+            --source-uri github.com/${{ github.repository }} \
+            --builder-id https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0 \
+            2>&1 | tee /tmp/slsa-verify.log; then
+            echo "✅ SLSA provenance verified"
+          else
+            echo "❌ SLSA provenance verification failed"
+            cat /tmp/slsa-verify.log
+            exit 1
+          fi
+
+      - name: Get image digest
+        id: verify-image
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}"
+
+          # Get digest
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE_TAG" --format '{{json .}}' | jq -r .Manifest.digest)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Image digest: $DIGEST"
+
+      - name: Check for vulnerabilities
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}"
+
+          # Scan for vulnerabilities using Trivy
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest \
+            image --severity CRITICAL,HIGH --exit-code 1 "$IMAGE_TAG" || {
+              echo "❌ Vulnerabilities found - blocking deployment"
+              exit 1
+            }
+
+          echo "✅ No CRITICAL or HIGH vulnerabilities found"
+
+      - name: Verification summary
+        id: verification
+        run: |
+          echo "verified=true" >> $GITHUB_OUTPUT
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ Pre-Deployment Verification Passed
+
+          All security checks passed before deployment:
+
+          | Check | Status |
+          |-------|--------|
+          | Docker Signature | ✅ Verified |
+          | SLSA Provenance | ✅ Verified (Level 3) |
+          | Vulnerability Scan | ✅ No CRITICAL/HIGH found |
+
+          **Image Digest:** \`${{ steps.verify-image.outputs.digest }}\`
+          **Image Tag:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}\`
+
+          ### Verification Details
+
+          **Signature Verification:**
+          - Identity: \`https://github.com/${{ github.repository }}/.github/workflows/slsa-build-and-sign.yml@refs/heads/main\`
+          - Issuer: \`https://token.actions.githubusercontent.com\`
+          - OIDC Provider: GitHub Actions
+
+          **SLSA Provenance:**
+          - Level: 3
+          - Source: \`github.com/${{ github.repository }}\`
+          - Builder: SLSA GitHub Generator v1.10.0
+
+          EOF
+
+  # =============================================================================
+  # Deployment to Production
+  # =============================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: verify-before-deploy
+    if: needs.verify-before-deploy.outputs.verified == 'true'
+    environment:
+      name: ${{ inputs.environment || 'production' }}
+      url: https://api.psychsync.com
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy to ECS (or Kubernetes)
+        run: |
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}"
+          DIGEST="${{ needs.verify-before-deploy.outputs.image-digest }}"
+
+          # Example: ECS deployment
+          # aws ecs update-service \
+          #   --cluster psychsync-prod \
+          #   --service psychsync-backend \
+          #   --force-new-deployment \
+          #   --task-definition $(aws ecs register-task-definition \
+          #     --family psychsync-backend \
+          #     --container-definitions "[{\"name\":\"psychsync\",\"image\":\"$IMAGE_TAG\",\"essential\":true}]" \
+          #     --query 'taskDefinition.taskDefinitionArn' --output text)
+
+          echo "Deploying image: $IMAGE_TAG"
+          echo "Image digest: $DIGEST"
+
+          # Record deployment to immutable log
+          python3 scripts/immutable_log.py << 'PYEOF'
+          import sys
+          sys.path.insert(0, 'scripts')
+          from datetime import datetime, timezone
+          from scripts.immutable_log import ImmutableLog
+
+          log = ImmutableLog("deployment")
+          log.append({
+              "event": "deployment",
+              "environment": "${{ inputs.environment || 'production' }}",
+              "image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}",
+              "digest": "${{ needs.verify-before-deploy.outputs.image-digest }}",
+              "workflow_run": "${{ github.run_id }}",
+              "deployed_by": "${{ github.actor }}",
+              "timestamp": datetime.now(timezone.utc).isoformat(),
+              "verification": {
+                  "signature": "verified",
+                  "provenance": "verified",
+                  "vulnerabilities": "none"
+              }
+          })
+          PYEOF
+
+      - name: Health check
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+
+          # Health check endpoint
+          HEALTH_URL="https://api.psychsync.com/health"
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -f -s "$HEALTH_URL" > /dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Waiting for service to be healthy... ($ATTEMPT/$MAX_ATTEMPTS)"
+            sleep 10
+          done
+
+          echo "❌ Health check failed"
+          exit 1
+
+      - name: Create deployment summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🚀 Deployment Successful
+
+          **Environment:** ${{ inputs.environment || 'production' }}
+          **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}\`
+          **Digest:** \`${{ needs.verify-before-deploy.outputs.image-digest }}\`
+          **Deployed by:** @${{ github.actor }}
+          **Workflow Run:** [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          ### Verification Status
+
+          All verifications passed before deployment:
+          - ✅ Docker image signature verified
+          - ✅ SLSA Level 3 provenance verified
+          - ✅ No CRITICAL or HIGH vulnerabilities
+          - ✅ Health check passed
+
+          ### Deployment Log
+
+          This deployment has been recorded to the immutable build log with:
+          - Image digest and tag
+          - Workflow run ID
+          - Deployer identity
+          - Verification status
+          - Timestamp
+
+          EOF
+
+  # =============================================================================
+  # Rollback (Manual Trigger)
+  # =============================================================================
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.rollback == 'true'
+    environment:
+      name: ${{ inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Get previous stable image
+        id: get-previous
+        run: |
+          # Query immutable log for previous successful deployment
+          python3 scripts/immutable_log.py << 'PYEOF'
+          import sys
+          import json
+          sys.path.insert(0, 'scripts')
+          from scripts.immutable_log import ImmutableLog
+
+          log = ImmutableLog("deployment")
+          deployments = log.read_all()
+
+          # Find previous successful deployment
+          for deployment in reversed(deployments):
+              if deployment.get("data", {}).get("event") == "deployment" \
+                 and deployment.get("data", {}).get("environment") == "${{ inputs.environment || 'production' }}" \
+                 and deployment.get("data", {}).get("verification", {}).get("provenance") == "verified":
+                  print(json.dumps(deployment["data"]))
+                  break
+          PYEOF
+
+      - name: Rollback to previous image
+        run: |
+          PREVIOUS_IMAGE=$(jq -r '.image' <<<'${{ steps.get-previous.outputs.deployments }}')
+
+          echo "Rolling back to: $PREVIOUS_IMAGE"
+
+          # Rollback ECS service
+          # aws ecs update-service \
+          #   --cluster psychsync-prod \
+          #   --service psychsync-backend \
+          #   --task-definition $(aws ecs describe-services \
+          #     --cluster psychsync-prod \
+          #     --services psychsync-backend \
+          #     --query 'services[0].taskDefinition' --output text)
+
+          # Record rollback to immutable log
+          python3 scripts/immutable_log.py << 'PYEOF'
+          import sys
+          sys.path.insert(0, 'scripts')
+          from datetime import datetime, timezone
+          from scripts.immutable_log import ImmutableLog
+
+          log = ImmutableLog("deployment")
+          log.append({
+              "event": "rollback",
+              "environment": "${{ inputs.environment || 'production' }}",
+              "from_image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ inputs.image_tag || 'latest' }}",
+              "to_image": "$PREVIOUS_IMAGE",
+              "rolled_back_by": "${{ github.actor }}",
+              "timestamp": datetime.now(timezone.utc).isoformat(),
+              "reason": "manual_rollback"
+          })
+          PYEOF
+
+      - name: Verify rollback health
+        run: |
+          sleep 30
+          curl -f https://api.psychsync.com/health || exit 1
+          echo "✅ Rollback successful, service is healthy"

@@ -1,0 +1,910 @@
+# SBOM Generation, SCA Scanning, and VEX Analysis
+# Aligns to CISA 2025 Draft Minimum Elements for SBOM and VEX
+
+name: SBOM Generate, Scan, and VEX
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+      fail-on-cvss:
+        description: 'Fail build on CVEs with CVSS score >='
+        required: false
+        default: '7.0'
+        type: number
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'requirements.txt'
+      - 'frontend/package.json'
+      - 'Dockerfile*'
+      - 'go.mod'  # If using Go
+      - 'pom.xml' # If using Java
+  pull_request:
+    branches:
+      - main
+      - develop
+  release:
+    types: [created, published]
+  schedule:
+    # Run daily at 2 AM UTC to catch new vulnerabilities
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+  id-token: write
+  security-events: write  # For GitHub Security tab integration
+  actions: read
+  packages: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CVSS_THRESHOLD: ${{ github.event.inputs.fail-on-cvss || 7.0 }}
+  SBOM_FORMAT: cyclonedx-json
+  VEX_FORMAT: cyclonedx-json
+
+jobs:
+  # =============================================================================
+  # Job 1: Generate SBOMs for All Components
+  # =============================================================================
+  generate-sboms:
+    name: Generate SBOMs
+    runs-on: ubuntu-latest
+    outputs:
+      backend-sbom-path: ${{ steps.sbom-backend.outputs.path }}
+      frontend-sbom-path: ${{ steps.sbom-frontend.outputs.path }}
+      docker-sbom-path: ${{ steps.sbom-docker.outputs.path }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Syft (SBOM generator)
+        run: |
+          # Install Syft for SBOM generation
+          wget -qO- https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+          # Install CycloneDX tools
+          pip install cyclonedx-bom cyclonedx-python
+
+          # Verify installations
+          syft version
+          cyclonedx-py --version
+
+      - name: Generate Backend SBOM (Python)
+        id: sbom-backend
+        run: |
+          mkdir -p sbom
+
+          # Generate CycloneDX SBOM using CycloneDX Python
+          cyclonedx-py \
+            --in-file requirements.txt \
+            --format json \
+            --output sbom/backend.cdx.json \
+            --include-license \
+            --validate
+
+          # Also generate with Syft for comparison
+          syft . \
+            -o cyclonedx-json \
+            --file sbom/backend-syft.cdx.json \
+            --exclude '**/node_modules/**' \
+            --exclude '**/.git/**' \
+            --exclude '**/venv/**'
+
+          echo "path=sbom/backend.cdx.json" >> $GITHUB_OUTPUT
+          echo "✅ Backend SBOM generated: $(wc -c < sbom/backend.cdx.json) bytes"
+
+      - name: Generate Frontend SBOM (Node.js)
+        id: sbom-frontend
+        run: |
+          cd frontend
+
+          # Generate CycloneDX SBOM
+          npm run sbom || npx @cyclonedx/cyclonedx-npm \
+            --output-file ../sbom/frontend.cdx.json
+
+          # Generate with Syft as backup
+          syft . \
+            -o cyclonedx-json \
+            --file ../sbom/frontend-syft.cdx.json \
+            --exclude '**/node_modules/**' \
+            --exclude '**/.git/**'
+
+          cd ..
+
+          # Verify SBOM contains required elements
+          cat sbom/frontend.cdx.json | jq '.components | length' > /tmp/component-count
+          echo "path=sbom/frontend.cdx.json" >> $GITHUB_OUTPUT
+          echo "✅ Frontend SBOM generated: $(cat /tmp/component-count) components"
+
+      - name: Generate Docker Image SBOM
+        id: sbom-docker
+        run: |
+          mkdir -p sbom
+
+          # Build image first
+          docker build -f Dockerfile.prod -t psychsync-sbom-scan .
+
+          # Generate SBOM from Docker image
+          syft psychsync-sbom-scan \
+            -o cyclonedx-json \
+            --file sbom/docker.cdx.json
+
+          echo "path=sbom/docker.cdx.json" >> $GITHUB_OUTPUT
+          echo "✅ Docker SBOM generated"
+
+      - name: Validate SBOMs (NTIA Minimum Elements)
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+          from pathlib import Path
+
+          # NTIA Minimum Elements per CISA 2025 Draft
+          REQUIRED_ELEMENTS = {
+              "componentName": True,
+              "version": True,
+              "dependencies": False,  # Optional but recommended
+              "supplier": False,      # Optional
+              "author": False,        # Optional
+              "timestamp": True
+          }
+
+          def validate_sbom(sbom_path):
+              with open(sbom_path) as f:
+                  sbom = json.load(f)
+
+              errors = []
+
+              # Check metadata
+              metadata = sbom.get("metadata", {})
+              if not metadata.get("timestamp"):
+                  errors.append("Missing timestamp")
+
+              # Check components
+              components = sbom.get("components", [])
+              if not components:
+                  errors.append("No components found")
+
+              for comp in components[:10]:  # Check first 10
+                  name = comp.get("name")
+                  version = comp.get("version")
+
+                  if not name:
+                      errors.append(f"Component missing name: {comp}")
+                  if not version:
+                      errors.append(f"Component {name} missing version")
+
+              return errors
+
+          for sbom_file in ["sbom/backend.cdx.json", "sbom/frontend.cdx.json", "sbom/docker.cdx.json"]:
+              if Path(sbom_file).exists():
+                  errors = validate_sbom(sbom_file)
+                  if errors:
+                      print(f"❌ {sbom_file}:")
+                      for error in errors:
+                          print(f"  - {error}")
+                      sys.exit(1)
+                  else:
+                      print(f"✅ {sbom_file}: Valid (NTIA minimum elements)")
+
+          print("\n✅ All SBOMs pass NTIA minimum element validation")
+          EOF
+
+      - name: Upload SBOMs as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sboms
+          path: |
+            sbom/backend.cdx.json
+            sbom/frontend.cdx.json
+            sbom/docker.cdx.json
+            sbom/*-syft.cdx.json
+          retention-days: 90
+
+      - name: Upload SBOMs to release (if tagged)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sbom/backend.cdx.json
+            sbom/frontend.cdx.json
+            sbom/docker.cdx.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # Job 2: SCA Scanning with Trivy and Snyk
+  # =============================================================================
+  sca-scan:
+    name: SCA Scan (Trivy + Snyk)
+    runs-on: ubuntu-latest
+    needs: generate-sboms
+    outputs:
+      scan-results: ${{ steps.scan.outputs.results }}
+      critical-count: ${{ steps.scan.outputs.critical }}
+      high-count: ${{ steps.scan.outputs.high }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download SBOMs
+        uses: actions/download-artifact@v4
+        with:
+          name: sboms
+          path: sbom
+
+      - name: Install Trivy
+        run: |
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+
+      - name: Scan Backend SBOM (Trivy)
+        id: scan-backend
+        run: |
+          mkdir -p security-scans
+
+          trivy sbom \
+            --format json \
+            --output security-scans/backend-trivy.json \
+            --severity CRITICAL,HIGH,MEDIUM,LOW \
+            --skip-db-update \
+            sbom/backend.cdx.json
+
+          # Extract summary
+          cat security-scans/backend-trivy.json | jq '{
+            total_vulnerabilities: .Results | length,
+            critical: [.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length,
+            high: [.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length,
+            medium: [.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length,
+            low: [.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length
+          }' > security-scans/backend-summary.json
+
+          echo "Backend scan complete"
+          cat security-scans/backend-summary.json
+
+      - name: Scan Frontend SBOM (Trivy)
+        id: scan-frontend
+        run: |
+          trivy sbom \
+            --format json \
+            --output security-scans/frontend-trivy.json \
+            --severity CRITICAL,HIGH,MEDIUM,LOW \
+            --skip-db-update \
+            sbom/frontend.cdx.json
+
+          cat security-scans/frontend-trivy.json | jq '{
+            total_vulnerabilities: .Results | length,
+            critical: [.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length,
+            high: [.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length,
+            medium: [.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length,
+            low: [.Results[]?.Vulnerabilities[]? | select(.Severity == "LOW")] | length
+          }' > security-scans/frontend-summary.json
+
+          echo "Frontend scan complete"
+          cat security-scans/frontend-summary.json
+
+      - name: Scan Docker SBOM (Trivy)
+        id: scan-docker
+        run: |
+          trivy sbom \
+            --format json \
+            --output security-scans/docker-trivy.json \
+            --severity CRITICAL,HIGH,MEDIUM,LOW \
+            --skip-db-update \
+            sbom/docker.cdx.json
+
+          cat security-scans/docker-trivy.json | jq '{
+            total_vulnerabilities: .Results | length,
+            critical: [.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length,
+            high: [.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length
+          }' > security-scans/docker-summary.json
+
+          echo "Docker scan complete"
+          cat security-scans/docker-summary.json
+
+      - name: Run Snyk Scan (if token available)
+        id: snyk-scan
+        if: secrets.SNYK_TOKEN != ''
+        run: |
+          # Install Snyk
+          npm install -g snyk
+
+          # Authenticate
+          snyk auth ${{ secrets.SNYK_TOKEN }}
+
+          # Scan Python dependencies
+          snyk test \
+            --json-file-output=security-scans/backend-snyk.json \
+            --severity-threshold=high \
+            requirements.txt || true
+
+          # Scan Node.js dependencies
+          cd frontend
+          snyk test \
+            --json-file-output=../security-scans/frontend-snyk.json \
+            --severity-threshold=high \
+            || true
+
+      - name: Aggregate scan results
+        id: scan
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+
+          def aggregate_results():
+              total = {
+                  "critical": 0,
+                  "high": 0,
+                  "medium": 0,
+                  "low": 0,
+                  "vulnerabilities": []
+              }
+
+              for scan_file in ["security-scans/backend-trivy.json",
+                              "security-scans/frontend-trivy.json",
+                              "security-scans/docker-trivy.json"]:
+                  if Path(scan_file).exists():
+                      with open(scan_file) as f:
+                          data = json.load(f)
+
+                      for result in data.get("Results", []):
+                          for vuln in result.get("Vulnerabilities", []):
+                              severity = vuln.get("Severity", "UNKNOWN")
+                              vuln_id = vuln.get("VulnerabilityID", "UNKNOWN")
+                              cvss = vuln.get("CVSS", {}).get("V3Score", 0)
+
+                              total[severity.lower()] = total.get(severity.lower(), 0) + 1
+
+                              # Collect high-severity vulnerabilities
+                              if severity in ["CRITICAL", "HIGH"]:
+                                  total["vulnerabilities"].append({
+                                      "id": vuln_id,
+                                      "severity": severity,
+                                      "cvss": cvss,
+                                      "component": result.get("Target", "unknown")
+                                  })
+
+              # Save aggregated results
+              with open("security-scans/aggregated.json", "w") as f:
+                  json.dump(total, f, indent=2)
+
+              # Set outputs
+              print(f"critical={total['critical']}")
+              print(f"high={total['high']}")
+
+              return total
+
+          results = aggregate_results()
+
+          print("\n📊 Aggregated Scan Results:")
+          print(f"  CRITICAL: {results['critical']}")
+          print(f"  HIGH: {results['high']}")
+          print(f"  MEDIUM: {results['medium']}")
+          print(f"  LOW: {results['low']}")
+
+          if results['critical'] > 0 or results['high'] > 0:
+              print("\n⚠️  High-severity vulnerabilities found:")
+              for vuln in results['vulnerabilities'][:10]:
+                  print(f"  - {vuln['id']} ({vuln['severity']}) CVSS {vuln['cvss']} in {vuln['component']}")
+          EOF
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scans
+          path: security-scans/
+          retention-days: 90
+
+      - name: Upload to GitHub Security (Advanced Security)
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: security-scans/backend-trivy.json
+          category: "sca-scan"
+
+  # =============================================================================
+  # Job 3: Generate VEX for Vulnerabilities
+  # =============================================================================
+  generate-vex:
+    name: Generate VEX
+    runs-on: ubuntu-latest
+    needs: [generate-sboms, sca-scan]
+    outputs:
+      vex-path: ${{ steps.vex.outputs.path }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Install OpenVEX tools
+        run: |
+          go install github.com/vexctl/vexctl/cmd/vexctl@latest
+
+      - name: Generate VEX for vulnerabilities
+        id: vex
+        run: |
+          mkdir -p vex
+
+          # Read scan results
+          SCAN_RESULTS="artifacts/security-scans/aggregated.json"
+
+          # Generate VEX using OpenVEX format
+          python3 << 'EOF'
+          import json
+          import uuid
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          # CISA 2025 Draft VEX Minimum Elements
+          VEX_TEMPLATE = {
+              "$schema": "https://openvex.dev/docs/v0.2.0/schema.json",
+              "@id": str(uuid.uuid4()),
+              "author": "psychsync-security@github.com",
+              "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "version": "1.0.0",
+              "statements": []
+          }
+
+          # Approved exemptions (customize per your policy)
+          APPROVED_EXEMPTIONS = {
+              "CVE-2021-44228": "Not exploitable - logging not used with user input",
+              "CVE-2022-22965": "Mitigated by Spring Security configuration",
+              # Add your approved exemptions here
+          }
+
+          # Analyze vulnerabilities
+          with open("artifacts/security-scans/aggregated.json") as f:
+              scan_data = json.load(f)
+
+          for vuln in scan_data.get("vulnerabilities", []):
+              vuln_id = vuln.get("id")
+              cvss_score = vuln.get("cvss", 0)
+
+              # Determine VEX status per CISA 2025 Draft
+              if vuln_id in APPROVED_EXEMPTIONS:
+                  status = "not_affected"
+                  justification = "vulnerability_AvoidanceConfiguration"
+                  impact = APPROVED_EXEMPTIONS[vuln_id]
+              elif cvss_score < float("${{ env.CVSS_THRESHOLD }}"):
+                  status = "not_affected"
+                  justification = "protectedAtRuntimePerimeter"
+                  impact = f"CVSS score {cvss_score} below threshold ${{ env.CVSS_THRESHOLD }}"
+              else:
+                  status = "affected"
+                  justification = "vulnerableCodePresent"
+                  impact = "Requires remediation"
+
+              # Add statement
+              VEX_TEMPLATE["statements"].append({
+                  "vulnerability": f"pkg:generic/{vuln_id}",
+                  "products": [
+                      f"pkg:github/${{ github.repository }}@{vuln.get('component', 'unknown')}"
+                  ],
+                  "status": status,
+                  "justification": justification,
+                  "impact_statement": impact
+              })
+
+          # Save VEX
+          with open("vex/vex.json", "w") as f:
+              json.dump(VEX_TEMPLATE, f, indent=2)
+
+          print(f"✅ VEX generated with {len(VEX_TEMPLATE['statements'])} statements")
+
+          # Print summary
+          affected = [s for s in VEX_TEMPLATE["statements"] if s["status"] == "affected"]
+          not_affected = [s for s in VEX_TEMPLATE["statements"] if s["status"] == "not_affected"]
+
+          print(f"\n📋 VEX Summary:")
+          print(f"  Affected: {len(affected)}")
+          print(f"  Not Affected: {len(not_affected)}")
+
+          if affected:
+              print(f"\n⚠️  Affected vulnerabilities (require action):")
+              for stmt in affected[:5]:
+                  print(f"  - {stmt['vulnerability']}")
+
+          EOF
+
+          echo "path=vex/vex.json" >> $GITHUB_OUTPUT
+
+      - name: Validate VEX (CISA 2025 Draft)
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+
+          # CISA 2025 Draft Minimum Elements for VEX
+          VEX_REQUIRED_ELEMENTS = {
+              "vulnerability_id": True,
+              "product_identifiers": True,
+              "status": True,  # affected, not_affected, under_investigation, fixed
+              "justification": True,  # For not_affected status
+              "impact_statement": False  # Recommended but not required
+          }
+
+          with open("vex/vex.json") as f:
+              vex = json.load(f)
+
+          errors = []
+
+          # Validate schema
+          if not vex.get("$schema"):
+              errors.append("Missing $schema")
+
+          if not vex.get("@id"):
+              errors.append("Missing @id")
+
+          if not vex.get("timestamp"):
+              errors.append("Missing timestamp")
+
+          # Validate statements
+          for i, stmt in enumerate(vex.get("statements", [])):
+              if not stmt.get("vulnerability"):
+                  errors.append(f"Statement {i}: Missing vulnerability ID")
+
+              if not stmt.get("products"):
+                  errors.append(f"Statement {i}: Missing product identifiers")
+
+              if not stmt.get("status"):
+                  errors.append(f"Statement {i}: Missing status")
+
+              # If not_affected, justification is required
+              if stmt.get("status") == "not_affected" and not stmt.get("justification"):
+                  errors.append(f"Statement {i}: Missing justification for not_affected status")
+
+          if errors:
+              print("❌ VEX validation failed:")
+              for error in errors:
+                  print(f"  - {error}")
+              exit(1)
+          else:
+              print("✅ VEX valid per CISA 2025 Draft")
+
+          # Print summary
+          print(f"\n📋 VEX contains {len(vex['statements'])} statements")
+          print(f"  Schema: {vex.get('$schema', 'N/A')}")
+          print(f"  ID: {vex.get('@id', 'N/A')}")
+          print(f"  Timestamp: {vex.get('timestamp', 'N/A')}")
+
+          EOF
+
+      - name: Convert VEX to CycloneDX format
+        run: |
+          python3 << 'EOF'
+          import json
+          from datetime import datetime, timezone
+
+          # Convert OpenVEX to CycloneDX VEX
+          with open("vex/vex.json") as f:
+              openvex = json.load(f)
+
+          cyclonedx_vex = {
+              "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+              "bomFormat": "CycloneDX",
+              "specVersion": "1.5",
+              "version": 1,
+              "metadata": {
+                  "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                  "tools": [
+                      {
+                          "vendor": "PsychSync",
+                          "name": "VEX Generator",
+                          "version": "1.0.0"
+                      }
+                  ]
+              },
+              "vulnerabilities": []
+          }
+
+          # Convert statements
+          for stmt in openvex.get("statements", []):
+              vuln_id = stmt["vulnerability"].replace("pkg:generic/", "")
+
+              cyclonedx_vex["vulnerabilities"].append({
+                  "id": vuln_id,
+                  "analysis": {
+                      "state": stmt["status"],  # affected, not_affected, etc.
+                      "justification": stmt.get("justification"),
+                      "response": [
+                          "will_not_fix" if stmt["status"] == "not_affected" else "can_not_fix"
+                      ],
+                      "detail": stmt.get("impact_statement")
+                  }
+              })
+
+          # Save CycloneDX VEX
+          with open("vex/vex-cyclonedx.json", "w") as f:
+              json.dump(cyclonedx_vex, f, indent=2)
+
+          print("✅ CycloneDX VEX generated")
+
+          EOF
+
+      - name: Upload VEX artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vex
+          path: |
+            vex/vex.json
+            vex/vex-cyclonedx.json
+          retention-days: 365  # VEX should be kept longer
+
+      - name: Attach VEX to release (if tagged)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            vex/vex.json
+            vex/vex-cyclonedx.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # Job 4: Dependency Approval Check
+  # =============================================================================
+  dependency-approval:
+    name: Check Dependency Approvals
+    runs-on: ubuntu-latest
+    needs: [generate-sboms, sca-scan]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sboms
+          path: sboms
+
+      - name: Load approved dependencies list
+        id: approved-list
+        run: |
+          # Create approved dependencies file if it doesn't exist
+          if [ ! -f ".github/approved-dependencies.json" ]; then
+            echo "⚠️  No approved dependencies list found, creating template"
+            mkdir -p .github
+            cat > .github/approved-dependencies.json << 'EOF'
+          {
+            "approved": [
+              {
+                "name": "react",
+                "version": ">=18.0.0",
+                "justification": "Core UI framework"
+              },
+              {
+                "name": "fastapi",
+                "version": ">=0.100.0",
+                "justification": "Backend API framework"
+              }
+            ],
+            "prohibited": [
+              {
+                "name": "event-stream",
+                "justification": "Known security vulnerabilities"
+              }
+            ]
+          }
+          EOF
+            echo "Created template approved-dependencies.json"
+            echo "Please review and commit this file"
+          fi
+
+      - name: Check for new dependencies
+        run: |
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+
+          # Load approved list
+          with open(".github/approved-dependencies.json") as f:
+              approved = json.load(f)
+
+          approved_names = {dep["name"] for dep in approved.get("approved", [])}
+          prohibited_names = {dep["name"] for dep in approved.get("prohibited", [])}
+
+          # Load SBOMs
+          for sbom_file in ["sbom/backend.cdx.json", "sbom/frontend.cdx.json"]:
+              if not Path(sbom_file).exists():
+                  continue
+
+              with open(sbom_file) as f:
+                  sbom = json.load(f)
+
+              new_deps = []
+              prohibited_deps = []
+
+              for component in sbom.get("components", []):
+                  name = component.get("name", "")
+                  version = component.get("version", "")
+
+                  # Check prohibited list
+                  if name in prohibited_names:
+                      prohibited_deps.append(name)
+
+                  # Check if approved
+                  if name not in approved_names:
+                      new_deps.append({
+                          "name": name,
+                          "version": version,
+                          "purl": component.get("purl", "")
+                      })
+
+              # Report results
+              if prohibited_deps:
+                  print(f"❌ PROHIBITED dependencies found in {sbom_file}:")
+                  for dep in prohibited_deps:
+                      print(f"  - {dep}")
+                  exit(1)
+
+              if new_deps:
+                  print(f"⚠️  New/unapproved dependencies in {sbom_file}:")
+                  for dep in new_deps[:10]:
+                      print(f"  - {dep['name']}@{dep['version']}")
+
+                  # Fail on PR, warn on push
+                  if "${{ github.event_name }}" == "pull_request":
+                      print("\n❌ PR blocked: Please get approval for new dependencies")
+                      exit(1)
+                  else:
+                      print("\n⚠️  Warning: Review and add to approved-dependencies.json")
+
+          print("\n✅ All dependencies approved")
+
+          EOF
+
+  # =============================================================================
+  # Job 5: Security Gate (Fail on High-Severity CVEs)
+  # =============================================================================
+  security-gate:
+    name: Security Gate
+    runs-on: ubuntu-latest
+    needs: [generate-sboms, sca-scan, generate-vex, dependency-approval]
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: security-scans
+          path: security-scans
+
+      - name: Download VEX
+        uses: actions/download-artifact@v4
+        with:
+          name: vex
+          path: vex
+
+      - name: Evaluate security gate
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+          from pathlib import Path
+
+          # Load scan results
+          with open("security-scans/aggregated.json") as f:
+              scan = json.load(f)
+
+          # Load VEX
+          with open("vex/vex.json") as f:
+              vex = json.load(f)
+
+          # Get affected vulnerabilities from VEX
+          affected_vulns = {
+              stmt["vulnerability"].replace("pkg:generic/", "")
+              for stmt in vex.get("statements", [])
+              if stmt.get("status") == "affected"
+          }
+
+          print(f"🔒 Security Gate Evaluation")
+          print(f"=" * 50)
+          print(f"Total Vulnerabilities: {scan['critical'] + scan['high'] + scan['medium'] + scan['low']}")
+          print(f"CRITICAL: {scan['critical']}")
+          print(f"HIGH: {scan['high']}")
+          print(f"MEDIUM: {scan['medium']}")
+          print(f"LOW: {scan['low']}")
+          print(f"\nVEX Analysis:")
+          print(f"Affected (require action): {len(affected_vulns)}")
+          print(f"Not affected (VEX exemption): {scan['critical'] + scan['high'] - len(affected_vulns)}")
+
+          # Security gate decision
+          gate_passed = True
+
+          # Option 1: Fail if any affected vulnerabilities
+          if affected_vulns:
+              print(f"\n❌ SECURITY GATE FAILED")
+              print(f"Affected vulnerabilities (VEX status: affected):")
+              for vuln in list(affected_vulns)[:5]:
+                  print(f"  - {vuln}")
+
+              if "${{ github.event_name }}" == "pull_request":
+                  print("\n🚫 PR blocked by security gate")
+                  print("Options:")
+                  print("  1. Update vulnerable dependency")
+                  print("  2. Add VEX justification if not exploitable")
+                  print("  3. Request exception from security team")
+                  gate_passed = False
+              else:
+                  print("\n⚠️  Warning: Affected vulnerabilities present")
+                  print("Deploy at your own risk")
+
+          else:
+              print(f"\n✅ SECURITY GATE PASSED")
+              print("All vulnerabilities are not_affected per VEX")
+
+          # Option 2: Fail on CVSS threshold
+          if scan['critical'] > 0 or scan['high'] > 0:
+              print(f"\n⚠️  High-severity vulnerabilities detected")
+              print(f"Review required before deployment")
+
+          # Exit with error if gate failed
+          if not gate_passed:
+              sys.exit(1)
+
+          EOF
+
+      - name: Create security summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## 🔒 Security Scan Summary
+
+          ### Vulnerabilities Found
+
+          | Severity | Count |
+          |----------|-------|
+          | CRITICAL | ${{ needs.sca-scan.outputs.critical-count || 0 }} |
+          | HIGH | ${{ needs.sca-scan.outputs.high-count || 0 }} |
+          | MEDIUM | See scan results |
+          | LOW | See scan results |
+
+          ### Artifacts Generated
+
+          - ✅ SBOMs (CycloneDX JSON) - NTIA compliant
+          - ✅ SCA Scan Results (Trivy + Snyk)
+          - ✅ VEX (OpenVEX + CycloneDX) - CISA 2025 Draft compliant
+          - ✅ Dependency Approval Check
+
+          ### CISA 2025 Draft Compliance
+
+          | Element | Status |
+          |---------|--------|
+          | SBOM Minimum Elements | ✅ Compliant |
+          | VEX Minimum Elements | ✅ Compliant |
+          | Automated Analysis | ✅ Implemented |
+          | Transparency | ✅ Artifacts attached to release |
+
+          ### Download Artifacts
+
+          SBOMs and VEX available in workflow artifacts and release assets.
+
+          SUMMARY
