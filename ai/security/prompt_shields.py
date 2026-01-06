@@ -426,17 +426,20 @@ class ComprehensiveAISecurityGuard:
         Args:
             tool_scope_manager: Optional pre-configured tool scope manager
         """
-        # Import with proper path handling
+        # Import security components with flexible path handling
+        # This pattern supports both package imports and standalone execution
         try:
-            # Try absolute import first (when installed as package)
-            from ai.security.spotlighting import SpotlightingEngine
+            from ai.security.spotlighting import SpotlightingEngine, SpotlightTemplateType
             from ai.security.tool_scoping import ToolScopeManager
             from ai.security.human_in_the_loop import ApprovalWorkflow
         except ImportError:
-            # Fall back to relative imports (when running from source)
-            from spotlighting import SpotlightingEngine
+            from spotlighting import SpotlightingEngine, SpotlightTemplateType
             from tool_scoping import ToolScopeManager
             from human_in_the_loop import ApprovalWorkflow
+
+        # Store module references for later use
+        self._spotlighting_module = SpotlightingEngine
+        self._template_type_class = SpotlightTemplateType
 
         self.spotlighting = SpotlightingEngine(strict_mode=True)
         self.tool_scoping = tool_scope_manager or ToolScopeManager()
@@ -549,19 +552,14 @@ class ComprehensiveAISecurityGuard:
 
         # Stage 4: Execute with Spotlighting
         try:
-            # Create spotlighted prompt
-            try:
-                from ai.security.spotlighting import SpotlightTemplateType
-            except ImportError:
-                from spotlighting import SpotlightTemplateType
-
+            # Create spotlighted prompt using cached template type
             template_map = {
-                "sentiment_analysis": SpotlightTemplateType.SENTIMENT_ANALYSIS,
-                "clinical_assessment": SpotlightTemplateType.CLINICAL_ANALYSIS,
-                "personality_profiling": SpotlightTemplateType.PERSONALITY_ASSESSMENT
+                "sentiment_analysis": self._template_type_class.SENTIMENT_ANALYSIS,
+                "clinical_assessment": self._template_type_class.CLINICAL_ANALYSIS,
+                "personality_profiling": self._template_type_class.PERSONALITY_ASSESSMENT
             }
 
-            template_type = template_map.get(operation_type, SpotlightTemplateType.GENERAL_QUERY)
+            template_type = template_map.get(operation_type, self._template_type_class.GENERAL_QUERY)
             spotlighted_prompt = self.spotlighting.create_spotlighted_prompt(
                 template_type=template_type,
                 user_input=safe_input

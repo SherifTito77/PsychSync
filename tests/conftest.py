@@ -17,11 +17,12 @@ from datetime import datetime, timedelta
 import json
 import tempfile
 import os
+import hashlib
 
 # Set test environment before importing application modules
 os.environ['ENVIRONMENT'] = 'testing'
 os.environ['TESTING'] = 'True'
-os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///:memory:'
+os.environ['DATABASE_URL'] = 'postgresql+asyncpg://sheriftito@localhost:5432/psychsync_test'
 os.environ['REDIS_URL'] = 'redis://localhost:6379/1'  # Test database
 
 from fastapi.testclient import TestClient
@@ -37,40 +38,41 @@ from aiofiles import tempfile as aiotempfile
 from app.main import app
 from app.core.database import Base, get_async_db
 from app.core.config import settings
-from app.core.security import create_access_token, get_password_hash
+from app.core.security import create_access_token
 from app.db.models.user import User, UserRole
 from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.organization import Organization
 from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
 from app.schemas.user import UserCreate
-from app.services.user_service import create_user
 from app.services.team_service import TeamService
+
+
+# Simple password hashing for tests (avoids bcrypt compatibility issues)
+def get_test_password_hash(password: str) -> str:
+    """Simple SHA256 hash for test passwords only"""
+    return hashlib.sha256(password.encode()).hexdigest()
 
 # Initialize Faker
 fake = Faker()
 
 # Test Database Configuration
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-SQLALCHEMY_SYNC_DATABASE_URL = "sqlite:///:memory:"
+SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg://sheriftito@localhost:5432/psychsync_test"
+SQLALCHEMY_SYNC_DATABASE_URL = "postgresql://sheriftito@localhost:5432/psychsync_test"
 
 # Create async test engine
 test_engine = create_async_engine(
     SQLALCHEMY_TEST_DATABASE_URL,
     echo=False,
-    poolclass=StaticPool,
-    connect_args={
-        "check_same_thread": False,
-    },
+    pool_size=5,
+    max_overflow=10,
 )
 
 # Create sync test engine for migrations
 sync_test_engine = create_engine(
     SQLALCHEMY_SYNC_DATABASE_URL,
     echo=False,
-    poolclass=StaticPool,
-    connect_args={
-        "check_same_thread": False,
-    },
+    pool_size=5,
+    max_overflow=10,
 )
 
 # Create session factories
@@ -140,7 +142,10 @@ async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     app.dependency_overrides[get_async_db] = lambda: test_db
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    from httpx import ASGITransport
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=False) as ac:
         yield ac
 
     app.dependency_overrides.clear()
@@ -171,9 +176,7 @@ def sample_user_data():
     return {
         "email": fake.email(),
         "full_name": fake.name(),
-        "role": UserRole.USER,
-        "is_active": True,
-        "password": "TestPassword123!"
+        "password": "SecureP@ss99!"  # Meets validation: no common patterns, has uppercase, lowercase, number, special char
     }
 
 
@@ -181,10 +184,7 @@ def sample_user_data():
 def sample_organization_data():
     """Generate sample organization data for testing"""
     return {
-        "name": fake.company(),
-        "description": fake.text(max_nb_chars=200),
-        "is_active": True,
-        "settings": {}
+        "name": fake.company()
     }
 
 
@@ -192,31 +192,43 @@ def sample_organization_data():
 def sample_team_data():
     """Generate sample team data for testing"""
     return {
-        "name": f"Team {fake.company()}",
-        "description": fake.text(max_nb_chars=200),
-        "is_active": True
+        "name": f"Team {fake.company()}"
     }
 
 
 @pytest.fixture
 async def test_user(test_db: AsyncSession, sample_user_data: Dict[str, Any]) -> User:
     """Create a test user in the database"""
-    user_data = UserCreate(**sample_user_data)
-    user = await create_user(user_data, test_db)
+    # Hash the password
+    password_hash = get_test_password_hash(sample_user_data["password"])
+
+    # Create user directly in database
+    user = User(
+        email=sample_user_data["email"],
+        full_name=sample_user_data["full_name"],
+        password_hash=password_hash
+    )
+    test_db.add(user)
+    await test_db.commit()
+    await test_db.refresh(user)
     return user
 
 
 @pytest.fixture
 async def test_admin(test_db: AsyncSession) -> User:
     """Create a test admin user in the database"""
-    admin_data = UserCreate(
+    # Hash the password
+    password_hash = get_test_password_hash("AdminSec99!")
+
+    # Create admin directly in database
+    admin = User(
         email=fake.email(),
         full_name=fake.name(),
-        role=UserRole.ADMIN,
-        is_active=True,
-        password="AdminPassword123!"
+        password_hash=password_hash
     )
-    admin = await create_user(admin_data, test_db)
+    test_db.add(admin)
+    await test_db.commit()
+    await test_db.refresh(admin)
     return admin
 
 
@@ -243,18 +255,22 @@ async def test_team(test_db: AsyncSession, sample_team_data: Dict[str, Any], tes
 
 
 @pytest.fixture
-def auth_headers(test_user: User) -> Dict[str, str]:
+async def auth_headers(test_user: User) -> Dict[str, str]:
     """Generate authentication headers for a test user"""
-    token_data = {"sub": test_user.email, "user_id": test_user.id}
-    access_token = create_access_token(data=token_data)
+    access_token = await create_access_token(
+        subject=str(test_user.id),
+        user_id=str(test_user.id)
+    )
     return {"Authorization": f"Bearer {access_token}"}
 
 
 @pytest.fixture
-def admin_auth_headers(test_admin: User) -> Dict[str, str]:
+async def admin_auth_headers(test_admin: User) -> Dict[str, str]:
     """Generate authentication headers for a test admin"""
-    token_data = {"sub": test_admin.email, "user_id": test_admin.id}
-    access_token = create_access_token(data=token_data)
+    access_token = await create_access_token(
+        subject=str(test_admin.id),
+        user_id=str(test_admin.id)
+    )
     return {"Authorization": f"Bearer {access_token}"}
 
 
@@ -336,21 +352,29 @@ def user_factory():
     """Factory for creating multiple test users"""
     created_users = []
 
-    async def create_user(test_db: AsyncSession, role: UserRole = UserRole.USER, **kwargs) -> User:
+    async def create_user_factory(test_db: AsyncSession, **kwargs) -> User:
         user_data = {
             "email": fake.email(),
             "full_name": fake.name(),
-            "role": role,
-            "is_active": True,
-            "password": "TestPassword123!",
+            "password": "SecureP@ss99!",  # Meets validation
             **kwargs
         }
-        user_create = UserCreate(**user_data)
-        user = await create_user(user_create, test_db)
+        # Hash the password
+        password_hash = get_test_password_hash(user_data["password"])
+
+        # Create user directly in database
+        user = User(
+            email=user_data["email"],
+            full_name=user_data["full_name"],
+            password_hash=password_hash
+        )
+        test_db.add(user)
+        await test_db.commit()
+        await test_db.refresh(user)
         created_users.append(user)
         return user
 
-    yield create_user
+    yield create_user_factory
 
     # Cleanup
     # Note: Users are automatically cleaned up with test database

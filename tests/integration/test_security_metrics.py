@@ -417,31 +417,82 @@ class TestComplianceChecking:
     @pytest.mark.asyncio
     async def test_compliance_with_no_vulnerabilities(self):
         """Test compliance when no vulnerabilities"""
-        # TODO(human): Implement this test to verify that get_compliance_status()
-        # returns all True values when there are no vulnerabilities.
-        #
-        # Requirements:
-        # 1. Create a SecurityMetricsCollector instance
-        # 2. Mock the collect_all_metrics() method to return metrics with zero findings
-        # 3. Call get_compliance_status() and verify all standards return True
-        # 4. Expected standards to check: owasp_asvs_1_4_1, owasp_asvs_5_2_1,
-        #    owasp_asvs_7_1_1, owasp_a08_2021, nist_800_53_cm, soc_2_cc7_2,
-        #    hipaa_security
-        pass
+        from unittest.mock import AsyncMock, patch
+
+        # Create a collector
+        collector = SecurityMetricsCollector()
+
+        # Create perfect metrics (no vulnerabilities)
+        perfect_metrics = SecurityMetrics(
+            scan_date=datetime.utcnow(),
+            sast_findings=[],
+            dast_findings=[],
+            sca_findings=[]
+        )
+
+        # Mock the collect_all_metrics method
+        with patch.object(collector, 'collect_all_metrics', new=AsyncMock(return_value=perfect_metrics)):
+            compliance = await collector.get_compliance_status()
+
+        # All standards should be compliant when there are no vulnerabilities
+        expected_standards = [
+            'owasp_asvs_1_4_1',
+            'owasp_asvs_5_2_1',
+            'owasp_asvs_7_1_1',
+            'owasp_a08_2021',
+            'nist_800_53_cm',
+            'soc_2_cc7_2',
+            'hipaa_security'
+        ]
+
+        for standard in expected_standards:
+            assert standard in compliance, f"Missing standard: {standard}"
+            assert compliance[standard] is True, f"Standard {standard} should be compliant with zero vulnerabilities"
+
+        # Verify all are True
+        assert all(compliance.values()) is True, "All standards should be True with no vulnerabilities"
 
     @pytest.mark.asyncio
     async def test_compliance_with_critical_vulnerabilities(self):
         """Test compliance fails with critical vulnerabilities"""
-        # TODO(human): Implement this test to verify that get_compliance_status()
-        # returns False for standards that require zero critical vulnerabilities.
-        #
-        # Requirements:
-        # 1. Create mock metrics with at least one critical vulnerability
-        # 2. Call get_compliance_status() on the collector
-        # 3. Verify that owasp_a08_2021, nist_800_53_cm, soc_2_cc7_2, and
-        #    hipaa_security all return False
-        # 4. SAST compliance (owasp_asvs_1_4_1) should still return True
-        pass
+        from unittest.mock import AsyncMock, patch
+
+        # Create a collector
+        collector = SecurityMetricsCollector()
+
+        # Create metrics with critical vulnerabilities
+        critical_finding = VulnerabilityFinding(
+            source="SCA",
+            tool="trivy",
+            severity=SeverityLevel.CRITICAL,
+            title="Critical vulnerability in package",
+            location="requirements.txt"
+        )
+
+        metrics_with_critical = SecurityMetrics(
+            scan_date=datetime.utcnow(),
+            sast_findings=[critical_finding],
+            dast_findings=[],
+            sca_findings=[]
+        )
+
+        # Mock the collect_all_metrics method
+        with patch.object(collector, 'collect_all_metrics', new=AsyncMock(return_value=metrics_with_critical)):
+            compliance = await collector.get_compliance_status()
+
+        # These standards require zero critical vulnerabilities, so should be False
+        strict_standards = [
+            'owasp_a08_2021',
+            'nist_800_53_cm',
+            'soc_2_cc7_2',
+            'hipaa_security'
+        ]
+
+        for standard in strict_standards:
+            assert compliance[standard] is False, f"{standard} should be non-compliant with critical vulnerabilities"
+
+        # SAST compliance checks if SAST is running (not if vulns exist), so should be True
+        assert compliance['owasp_asvs_1_4_1'] is True, "SAST compliance should be True (SAST is running)"
 
 
 class TestPrometheusMetrics:
@@ -463,20 +514,32 @@ class TestPrometheusMetrics:
     @pytest.mark.asyncio
     async def test_generate_metrics_contains_all_metrics(self):
         """Test that all expected metrics are generated"""
-        # TODO(human): Implement this test to verify all expected metrics
-        # are present in the Prometheus output.
-        #
-        # Requirements:
-        # 1. Call generate_prometheus_metrics()
-        # 2. Verify the output contains these metric names:
-        #    - psychsync_security_score
-        #    - psychsync_vulnerabilities_total
-        #    - psychsync_vulnerabilities_by_severity
-        #    - psychsync_vulnerabilities_by_source
-        #    - psychsync_compliance_status
-        # 3. Verify HELP and TYPE comments exist for each metric
-        # 4. Use 'in' operator to check substring presence
-        pass
+        # Generate Prometheus metrics
+        metrics_text = await generate_prometheus_metrics()
+
+        # Verify all expected metric names are present
+        expected_metrics = [
+            'psychsync_security_score',
+            'psychsync_vulnerabilities_total',
+            'psychsync_vulnerabilities_by_severity',
+            'psychsync_vulnerabilities_by_source',
+            'psychsync_compliance_status'
+        ]
+
+        for metric_name in expected_metrics:
+            assert metric_name in metrics_text, f"Missing metric: {metric_name}"
+
+        # Verify HELP comments exist for key metrics
+        assert '# HELP psychsync_security_score' in metrics_text
+        assert '# HELP psychsync_vulnerabilities_total' in metrics_text
+
+        # Verify TYPE comments exist for key metrics
+        assert '# TYPE psychsync_security_score gauge' in metrics_text
+        assert '# TYPE psychsync_vulnerabilities_total gauge' in metrics_text
+
+        # Verify the format contains Prometheus elements
+        assert '# HELP' in metrics_text
+        assert '# TYPE' in metrics_text
 
 
 class TestConvenienceFunctions:
@@ -522,16 +585,97 @@ class TestEndToEndWorkflow:
         # 5. Dashboard data is generated
         # 6. Prometheus metrics are exported
 
-        # TODO(human): Implement the complete end-to-end test.
-        #
-        # Requirements:
-        # 1. Create temporary files with mock scan results (SAST, DAST, SCA)
-        # 2. Use SecurityMetricsCollector to collect from all sources
-        # 3. Verify SecurityMetrics contains all findings
-        # 4. Verify security score is calculated correctly
-        # 5. Verify compliance status reflects findings
-        # 6. Generate Prometheus metrics and verify format
-        # 7. Clean up temporary files
-        #
-        # This should test the ENTIRE pipeline from scan to display.
-        pass
+        # Step 1: Create temporary files with mock scan results (SAST, DAST, SCA)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(mock_sast_results, f)
+            sast_path = f.name
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+            f.write(create_mock_dast_results())
+            dast_path = f.name
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(mock_sca_results, f)
+            sca_path = f.name
+
+        try:
+            # Step 2: Use SecurityMetricsCollector to collect from all sources
+            collector = SecurityMetricsCollector()
+
+            sast_findings = await collector.collect_from_sast(sast_path)
+            dast_findings = await collector.collect_from_dast(dast_path)
+            sca_findings = await collector.collect_from_sca(sca_path)
+
+            # Step 3: Verify SecurityMetrics contains all findings
+            metrics = SecurityMetrics(
+                scan_date=datetime.utcnow(),
+                sast_findings=sast_findings,
+                dast_findings=dast_findings,
+                sca_findings=sca_findings
+            )
+
+            total_findings = len(sast_findings) + len(dast_findings) + len(sca_findings)
+            assert total_findings > 0, "Should have collected some findings"
+
+            # Step 4: Verify security score is calculated correctly
+            summary = metrics.get_summary()
+            assert 'security_score' in summary
+            assert 'security_grade' in summary
+            assert 0 <= summary['security_score'] <= 100
+            assert summary['security_grade'] in ['A+', 'A', 'B', 'C', 'F']
+
+            # Step 5: Verify compliance status reflects findings
+            # Create a collector with our metrics and check compliance
+            from unittest.mock import AsyncMock, patch
+            with patch.object(collector, 'collect_all_metrics', new=AsyncMock(return_value=metrics)):
+                compliance = await collector.get_compliance_status()
+
+            # Should have compliance status for all standards
+            assert len(compliance) > 0
+            assert all(isinstance(v, bool) for v in compliance.values())
+
+            # Step 6: Generate Prometheus metrics and verify format
+            prometheus_text = await generate_prometheus_metrics()
+
+            # Verify Prometheus format
+            assert isinstance(prometheus_text, str)
+            assert '# HELP' in prometheus_text
+            assert '# TYPE' in prometheus_text
+            assert 'psychsync_security_score' in prometheus_text
+
+            # Step 7: Dashboard data generation
+            # Note: generate_dashboard_data calls collect_all_metrics internally,
+            # so we need to handle that appropriately or just verify the structure
+            dashboard_data = await collector.generate_dashboard_data()
+
+            assert 'overview' in dashboard_data
+            assert 'severity_breakdown' in dashboard_data
+            assert 'by_source' in dashboard_data
+            assert 'compliance' in dashboard_data
+
+        finally:
+            # Clean up temporary files
+            os.unlink(sast_path)
+            os.unlink(dast_path)
+            os.unlink(sca_path)
+
+
+def create_mock_dast_results():
+    """Helper function to create mock DAST results"""
+    return '''<?xml version="1.0"?>
+<OWASPZAPReport>
+    <site name="http://staging.psychsync.com">
+        <alerts>
+            <alert>
+                <pluginid>10021</pluginid>
+                <riskcode>2</riskcode>
+                <name>X-Content-Type-Options Header Missing</name>
+                <desc>The X-Content-Type-Options header is not set</desc>
+                <solution>Add the header</solution>
+                <location>
+                    <uri>http://staging.psychsync.com/api/v1/auth/login</uri>
+                </location>
+            </alert>
+        </alerts>
+    </site>
+</OWASPZAPReport>'''

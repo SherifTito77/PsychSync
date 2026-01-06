@@ -1,48 +1,45 @@
 # app/api/v1/endpoints/assessments.py
 
-from typing import List, Optional
 
-from app.middleware.rate_limiter import check_rate_limit
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 from datetime import datetime
 
-from app.api.v1.deps import (, get_current_user
-    get_current_active_user,
-    get_db
-)
-from app.db.models.user import User
-from app.db.models.assessment import Assessment
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+# import app.services.assessment_service as AssessmentService  # Temporarily disabled for testing
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.api.v1.deps import get_current_active_user, get_current_user, get_db
 from app.core.api_utils import (
-    PaginationParams, SortParams, get_pagination_params, get_sort_params,
-    create_paginated_list_response, measure_performance, cache_response
+    PaginationParams,
+    SortParams,
+    create_paginated_list_response,
+    get_pagination_params,
+    get_sort_params,
+    measure_performance,
+    serialize_model,
 )
+from app.core.async_cache import async_cached  # ✅ ASYNC: Non-blocking cache
+
+# Enhanced Core - Response utilities
+from app.core.response import create_error_response, create_success_response
+from app.db.models.assessment import Assessment
+from app.db.models.user import User
+from app.schemas.assessment import Assessment as AssessmentSchema
 from app.schemas.assessment import (
     AssessmentCreate,
     AssessmentUpdate,
-    Assessment as AssessmentSchema,
-    AssessmentWithSections,
-    AssessmentList,
-    SectionCreate,
-    QuestionCreate,
-    Section as SectionSchema,
-    Question as QuestionSchema,
     AssignmentCreate,
-    Assignment as AssignmentSchema,
+    QuestionCreate,
     ResponseSubmit,
-    Response as ResponseSchema
+    SectionCreate,
 )
-# import app.services.assessment_service as AssessmentService  # Temporarily disabled for testing
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-
-# Enhanced Core - Response utilities
-from app.core.response import (
-    create_success_response, create_error_response, create_paginated_response
-)
-from app.core.api_utils import (
-    serialize_model, validate_permissions, measure_performance, cache_response
-)
+from app.schemas.assessment import Assignment as AssignmentSchema
+from app.schemas.assessment import Question as QuestionSchema
+from app.schemas.assessment import Response as ResponseSchema
+from app.schemas.assessment import Section as SectionSchema
 
 # ==================== SIMPLE SERVICE IMPLEMENTATIONS ====================
 
@@ -78,7 +75,6 @@ class AssessmentService:
     @staticmethod
     def delete(db: AsyncSession, assessment: dict) -> None:
         """Delete assessment"""
-        pass
 
     @staticmethod
     def publish(db: AsyncSession, assessment: dict) -> dict:
@@ -108,7 +104,6 @@ class AssessmentService:
     @staticmethod
     def delete_section(db: AsyncSession, section_id: int) -> None:
         """Delete section"""
-        pass
 
     @staticmethod
     def add_question(db: AsyncSession, section_id: int, question_data: dict) -> dict:
@@ -118,7 +113,6 @@ class AssessmentService:
     @staticmethod
     def delete_question(db: AsyncSession, question_id: int) -> None:
         """Delete question"""
-        pass
 
     @staticmethod
     def create_assignment(db: AsyncSession, **kwargs) -> dict:
@@ -210,23 +204,23 @@ async def check_assessment_edit_permission(
     )
 
 router = APIRouter(tags=["assessments"])
+logger = logging.getLogger(__name__)
 
 # ==================== IMPROVED ENDPOINTS WITH STANDARDIZED PATTERNS ====================
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
 @router.get("/")
 @measure_performance
-@cache_response(expire_seconds=60, key_prefix="assessments")
+@async_cached(expire=60, key_prefix="assessments")  # ✅ ASYNC: Non-blocking cache
 async def get_assessments(
     pagination: PaginationParams = Depends(get_pagination_params),
     sort_params: SortParams = Depends(get_sort_params),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-    search: Optional[str] = Query(None, description="Search assessments by title or description"),
-    category: Optional[str] = Query(None, description="Filter by assessment category"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    created_by: Optional[int] = Query(None, description="Filter by creator ID")
+    search: str | None = Query(None, description="Search assessments by title or description"),
+    category: str | None = Query(None, description="Filter by assessment category"),
+    status: str | None = Query(None, description="Filter by status"),
+    created_by: int | None = Query(None, description="Filter by creator ID")
 ):
     """
     Get paginated list of assessments with filtering and sorting
@@ -245,22 +239,22 @@ async def get_assessments(
     filter_params = {}
 
     if search:
-        filter_params['search'] = search
+        filter_params["search"] = search
         query = query.where(
             Assessment.title.ilike(f"%{search}%") |
             Assessment.description.ilike(f"%{search}%")
         )
 
     if category:
-        filter_params['category'] = category
+        filter_params["category"] = category
         query = query.where(Assessment.category == category)
 
     if status:
-        filter_params['status'] = status
+        filter_params["status"] = status
         query = query.where(Assessment.status == status)
 
     if created_by:
-        filter_params['created_by'] = created_by
+        filter_params["created_by"] = created_by
         query = query.where(Assessment.created_by_id == created_by)
 
     # Apply date filters if provided
@@ -268,11 +262,11 @@ async def get_assessments(
     created_before = Query(None, description="Filter assessments created before this date")
 
     if created_after:
-        filter_params['created_after'] = created_after
+        filter_params["created_after"] = created_after
         query = query.where(Assessment.created_at >= created_after)
 
     if created_before:
-        filter_params['created_before'] = created_before
+        filter_params["created_before"] = created_before
         query = query.where(Assessment.created_at <= created_before)
 
     # Create paginated response
@@ -289,9 +283,7 @@ async def get_assessments(
 # The real one is below.
 
 # FIX 3: Changed path from "" to "/".
-# This is the main fix for the FastAPIErr
-@check_rate_limit(identifier="public", endpoint_type="public")
-or.
+# This is the main fix for the FastAPIError
 # A POST to the collection's root ("/") creates a new item.
 @router.post("/", status_code=status.HTTP_201_CREATED)
 @measure_performance
@@ -316,24 +308,19 @@ async def create_assessment(
         )
 
         return create_success_response(
-            data=serialize_model(assessment),
-            message="Assessment created successfully",
-            status_code=status.HTTP_201_CREATED
+            data=assessment,  # Service already returns a dict
+            message="Assessment created successfully"
         )
     except ValueError as e:
         return create_error_response(
             message=str(e),
-            error_code="VALIDATION_ERROR",
-            status_code=status.HTTP_400_BAD_REQUEST
+            error_code="VALIDATION_ERROR"
         )
     except Exception as e:
-        logger.error(f"Assessment creation failed: {str(e)}")
+        logger.error(f"Assessment creation failed: {e!s}")
         return create_error_response(
             message="Failed to create assessment. Please try again.",
-            error_code="CREATION_FAILED",
-            status_code=status.HTTP_500_
-@check_rate_limit(identifier="public", endpoint_type="public")
-INTERNAL_SERVER_ERROR
+            error_code="CREATION_FAILED"
         )
 
 
@@ -341,10 +328,10 @@ INTERNAL_SERVER_ERROR
 # A GET to the collection's root ("/") lists the items.
 @router.get("/")
 @measure_performance
-@cache_response(expire_seconds=60, key_prefix="assessments_list")
+@async_cached(expire=60, key_prefix="assessments_list")  # ✅ ASYNC: Non-blocking cache
 async def list_assessments(
-    category: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
+    category: str | None = Query(None),
+    status: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
@@ -378,7 +365,7 @@ async def list_assessments(
             message="Assessments retrieved successfully"
         )
     except Exception as e:
-        logger.error(f"Assessment listing failed: {str(e)}")
+        logger.error(f"Assessment listing failed: {e!s}")
         return create_error_response(
             message="Failed to retrieve assessments. Please try again.",
             error_code="LIST_FAILED",
@@ -388,7 +375,7 @@ async def list_assessments(
 
 @router.get("/{assessment_id}")
 @measure_performance
-@cache_response(expire_seconds=300, key_prefix="assessment_detail")
+@async_cached(expire=300, key_prefix="assessment_detail")  # ✅ ASYNC: Non-blocking cache
 async def get_assessment(
     assessment: Assessment = Depends(check_assessment_access),
     db: AsyncSession = Depends(get_db)
@@ -406,15 +393,15 @@ async def get_assessment(
         question_count = sum(len(section.questions) for section in assessment.sections)
 
         assessment_data = serialize_model(assessment)
-        assessment_data['sections'] = [serialize_model(section) for section in assessment.sections]
-        assessment_data['question_count'] = question_count
+        assessment_data["sections"] = [serialize_model(section) for section in assessment.sections]
+        assessment_data["question_count"] = question_count
 
         return create_success_response(
             data=assessment_data,
             message="Assessment retrieved successfully"
         )
     except Exception as e:
-        logger.error(f"Assessment retrieval failed: {str(e)}")
+        logger.error(f"Assessment retrieval failed: {e!s}")
         return create_error_response(
             message="Failed to retrieve assessment. Please try again.",
             error_code="RETRIEVAL_FAILED",
@@ -450,7 +437,6 @@ def delete_assessment(
     Requires creator or team admin permission.
     """
     AssessmentService.delete(db, assessment=assessment)
-    return None
 
 
 @router.post("/{assessment_id}/publish", response_model=AssessmentSchema)
@@ -466,7 +452,7 @@ def publish_assessment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Assessment is already published"
         )
-    
+
     published_assessment = AssessmentService.publish(db, assessment=assessment)
     return published_assessment
 
@@ -531,7 +517,6 @@ def delete_section(
     Delete a section from the assessment.
     """
     AssessmentService.delete_section(db, section_id=section_id)
-    return None
 
 
 # ==================== QUESTION MANAGEMENT ====================
@@ -567,7 +552,6 @@ def delete_question(
     Delete a question from the assessment.
     """
     AssessmentService.delete_question(db, question_id=question_id)
-    return None
 
 
 # ==================== ASSIGNMENT MANAGEMENT ====================
@@ -589,7 +573,7 @@ def create_assignment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only assign published assessments"
         )
-    
+
     assignment = AssessmentService.create_assignment(
         db,
         assessment_id=assessment_id,
@@ -601,9 +585,9 @@ def create_assignment(
     return assignment
 
 
-@router.get("/assignments/me", response_model=List[AssignmentSchema])
+@router.get("/assignments/me", response_model=list[AssignmentSchema])
 def get_my_assignments(
-    is_active: Optional[bool] = Query(None),
+    is_active: bool | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -637,7 +621,7 @@ def submit_response(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only respond to published assessments"
         )
-    
+
     response = AssessmentService.create_response(
         db,
         assessment_id=assessment_id,
@@ -649,7 +633,7 @@ def submit_response(
     return response
 
 
-@router.get("/{assessment_id}/responses", response_model=List[ResponseSchema])
+@router.get("/{assessment_id}/responses", response_model=list[ResponseSchema])
 def get_assessment_responses(
     assessment_id: int,
     assessment: Assessment = Depends(check_assessment_edit_permission),
@@ -674,7 +658,7 @@ async def get_mbti_assessment_questions():
         mbti_assessment = {
             "success": True,
             "status": "ok",
-            "data": {
+            "assessment": {
                 "id": "mbti-standard",
                 "title": "Myers-Briggs Type Indicator (MBTI) Assessment",
                 "description": "Discover your MBTI personality type",
@@ -954,6 +938,792 @@ async def get_mbti_assessment_questions():
                 ]
             }
         }
-        return create_success_response(mbti_assessment)
+        return mbti_assessment
     except Exception as e:
-        return create_error_response(f"Failed to load MBTI assessment: {str(e)}")
+        return create_error_response(f"Failed to load MBTI assessment: {e!s}")
+
+
+@router.get("/assessment-questions/enneagram")
+async def get_enneagram_assessment_questions():
+    """
+    Get Enneagram assessment questions
+    """
+    try:
+        enneagram_assessment = {
+            "success": True,
+            "status": "ok",
+            "assessment": {
+                "id": "enneagram-standard",
+                "title": "Enneagram Personality Assessment",
+                "description": "Discover your Enneagram personality type",
+                "instructions": "Choose the option that best describes you most of the time",
+                "estimated_time": "20-25 minutes",
+                "questions": [
+                    {
+                        "id": 1,
+                        "question_text": "I have a strong inner critic that constantly evaluates my actions",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type1"},
+                            {"text": "Somewhat true", "value": "type1_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "question_text": "I find it essential to help others and meet their needs",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type2"},
+                            {"text": "Somewhat true", "value": "type2_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "question_text": "I am driven to achieve success and be recognized for my accomplishments",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type3"},
+                            {"text": "Somewhat true", "value": "type3_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "question_text": "I often feel misunderstood and different from others",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type4"},
+                            {"text": "Somewhat true", "value": "type4_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 5,
+                        "question_text": "I prefer to observe and analyze rather than actively participate",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type5"},
+                            {"text": "Somewhat true", "value": "type5_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 6,
+                        "question_text": "I am constantly vigilant for potential threats or dangers",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type6"},
+                            {"text": "Somewhat true", "value": "type6_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 7,
+                        "question_text": "I always look for new adventures and experiences",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type7"},
+                            {"text": "Somewhat true", "value": "type7_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 8,
+                        "question_text": "I take charge of situations and don't back down from challenges",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type8"},
+                            {"text": "Somewhat true", "value": "type8_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 9,
+                        "question_text": "I avoid conflict and prefer to go along with others to maintain peace",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type9"},
+                            {"text": "Somewhat true", "value": "type9_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 10,
+                        "question_text": "I feel a strong need to follow rules and do things the 'right' way",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type1"},
+                            {"text": "Somewhat true", "value": "type1_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 11,
+                        "question_text": "I often put others' needs before my own",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type2"},
+                            {"text": "Somewhat true", "value": "type2_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 12,
+                        "question_text": "I am highly concerned with how others perceive me",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type3"},
+                            {"text": "Somewhat true", "value": "type3_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 13,
+                        "question_text": "I have intense emotions and can be melodramatic at times",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type4"},
+                            {"text": "Somewhat true", "value": "type4_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 14,
+                        "question_text": "I need plenty of alone time to recharge and think",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type5"},
+                            {"text": "Somewhat true", "value": "type5_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 15,
+                        "question_text": "I often doubt my own decisions and seek reassurance from others",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type6"},
+                            {"text": "Somewhat true", "value": "type6_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 16,
+                        "question_text": "I dislike routine and prefer to keep my options open",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type7"},
+                            {"text": "Somewhat true", "value": "type7_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 17,
+                        "question_text": "I confront problems directly and don't mind making tough decisions",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type8"},
+                            {"text": "Somewhat true", "value": "type8_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    },
+                    {
+                        "id": 18,
+                        "question_text": "I tend to procrastinate and avoid difficult tasks",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Very true", "value": "type9"},
+                            {"text": "Somewhat true", "value": "type9_moderate"},
+                            {"text": "Not very true", "value": "other"}
+                        ]
+                    }
+                ]
+            }
+        }
+        return enneagram_assessment
+    except Exception as e:
+        return create_error_response(f"Failed to load Enneagram assessment: {e!s}")
+
+
+@router.get("/assessment-questions/big-five")
+async def get_big_five_assessment_questions():
+    """
+    Get Big Five (OCEAN) assessment questions
+    """
+    try:
+        big_five_assessment = {
+            "success": True,
+            "status": "ok",
+            "assessment": {
+                "id": "big-five-standard",
+                "title": "Big Five Personality Assessment (OCEAN)",
+                "description": "Discover your Big Five personality traits",
+                "instructions": "Rate how much each statement describes you",
+                "estimated_time": "15-20 minutes",
+                "questions": [
+                    {
+                        "id": 1,
+                        "question_text": "I am the life of the party",
+                        "type": "likert",
+                        "trait": "E",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "question_text": "I sympathize with others' feelings",
+                        "type": "likert",
+                        "trait": "A",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "question_text": "I get chores done right away",
+                        "type": "likert",
+                        "trait": "C",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "question_text": "I have a vivid imagination",
+                        "type": "likert",
+                        "trait": "O",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 5,
+                        "question_text": "I worry about things",
+                        "type": "likert",
+                        "trait": "N",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 6,
+                        "question_text": "I start conversations",
+                        "type": "likert",
+                        "trait": "E",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 7,
+                        "question_text": "I feel others' emotions",
+                        "type": "likert",
+                        "trait": "A",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 8,
+                        "question_text": "I like order",
+                        "type": "likert",
+                        "trait": "C",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 9,
+                        "question_text": "I have excellent ideas",
+                        "type": "likert",
+                        "trait": "O",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    },
+                    {
+                        "id": 10,
+                        "question_text": "I am easily disturbed",
+                        "type": "likert",
+                        "trait": "N",
+                        "options": [
+                            {"text": "Strongly Disagree", "value": 1},
+                            {"text": "Disagree", "value": 2},
+                            {"text": "Neutral", "value": 3},
+                            {"text": "Agree", "value": 4},
+                            {"text": "Strongly Agree", "value": 5}
+                        ]
+                    }
+                ]
+            }
+        }
+        return big_five_assessment
+    except Exception as e:
+        return create_error_response(f"Failed to load Big Five assessment: {e!s}")
+
+
+@router.get("/assessment-questions/disc")
+async def get_disc_assessment_questions():
+    """
+    Get DISC assessment questions
+    """
+    try:
+        disc_assessment = {
+            "success": True,
+            "status": "ok",
+            "assessment": {
+                "id": "disc-standard",
+                "title": "DISC Personality Assessment",
+                "description": "Discover your DISC personality type",
+                "instructions": "Choose the answer that is most true for you",
+                "estimated_time": "15-20 minutes",
+                "questions": [
+                    {
+                        "id": 1,
+                        "question_text": "In group situations, I tend to be",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Direct and assertive", "value": "D"},
+                            {"text": "Optimistic and friendly", "value": "I"},
+                            {"text": "Patient and reliable", "value": "S"},
+                            {"text": "Analytical and precise", "value": "C"}
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "question_text": "When faced with a problem, I",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Take immediate action", "value": "D"},
+                            {"text": "Involve others for solutions", "value": "I"},
+                            {"text": "Maintain stability and support", "value": "S"},
+                            {"text": "Analyze all details first", "value": "C"}
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "question_text": "My communication style is typically",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Bold and straightforward", "value": "D"},
+                            {"text": "Enthusiastic and inspiring", "value": "I"},
+                            {"text": "Calm and supportive", "value": "S"},
+                            {"text": "Logical and detailed", "value": "C"}
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "question_text": "When making decisions, I prefer to",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Decide quickly and act", "value": "D"},
+                            {"text": "Consider impact on people", "value": "I"},
+                            {"text": "Take time to decide", "value": "S"},
+                            {"text": "Research thoroughly first", "value": "C"}
+                        ]
+                    },
+                    {
+                        "id": 5,
+                        "question_text": "In conflict situations, I tend to",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Confront it directly", "value": "D"},
+                            {"text": "Try to smooth things over", "value": "I"},
+                            {"text": "Avoid confrontation", "value": "S"},
+                            {"text": "Analyze the causes", "value": "C"}
+                        ]
+                    },
+                    {
+                        "id": 6,
+                        "question_text": "I work best when I can",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Lead and direct others", "value": "D"},
+                            {"text": "Inspire and motivate people", "value": "I"},
+                            {"text": "Support and help the team", "value": "S"},
+                            {"text": "Focus on accuracy and quality", "value": "C"}
+                        ]
+                    },
+                    {
+                        "id": 7,
+                        "question_text": "My approach to deadlines is",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Work intensely to finish early", "value": "D"},
+                            {"text": "Rely on last-minute energy", "value": "I"},
+                            {"text": "Plan and work steadily", "value": "S"},
+                            {"text": "Need extra time for perfection", "value": "C"}
+                        ]
+                    },
+                    {
+                        "id": 8,
+                        "question_text": "When receiving feedback, I typically",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Defend my position", "value": "D"},
+                            {"text": "Take it personally at first", "value": "I"},
+                            {"text": "Accept it quietly", "value": "S"},
+                            {"text": "Want detailed explanations", "value": "C"}
+                        ]
+                    }
+                ]
+            }
+        }
+        return disc_assessment
+    except Exception as e:
+        return create_error_response(f"Failed to load DISC assessment: {e!s}")
+
+
+@router.get("/assessment-questions/predictive-index")
+async def get_predictive_index_assessment_questions():
+    """
+    Get Predictive Index assessment questions
+    """
+    try:
+        predictive_index_assessment = {
+            "success": True,
+            "status": "ok",
+            "assessment": {
+                "id": "predictive-index-standard",
+                "title": "Predictive Index Behavioral Assessment",
+                "description": "Understand your workplace behaviors and drives",
+                "instructions": "Choose the word that describes you MOST and LEAST in each set",
+                "estimated_time": "10-15 minutes",
+                "questions": [
+                    {
+                        "id": 1,
+                        "question_text": "Which word BEST describes you?",
+                        "type": "word-selection",
+                        "options": [
+                            {"text": "Analytical", "value": "A"},
+                            {"text": "Social", "value": "B"},
+                            {"text": "Patient", "value": "C"},
+                            {"text": "Formal", "value": "D"}
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "question_text": "Which word LEAST describes you?",
+                        "type": "word-selection",
+                        "options": [
+                            {"text": "Analytical", "value": "A"},
+                            {"text": "Social", "value": "B"},
+                            {"text": "Patient", "value": "C"},
+                            {"text": "Formal", "value": "D"}
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "question_text": "Which word BEST describes you?",
+                        "type": "word-selection",
+                        "options": [
+                            {"text": "Driving", "value": "A"},
+                            {"text": "Warm", "value": "B"},
+                            {"text": "Peaceful", "value": "C"},
+                            {"text": "Precise", "value": "D"}
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "question_text": "Which word LEAST describes you?",
+                        "type": "word-selection",
+                        "options": [
+                            {"text": "Driving", "value": "A"},
+                            {"text": "Warm", "value": "B"},
+                            {"text": "Peaceful", "value": "C"},
+                            {"text": "Precise", "value": "D"}
+                        ]
+                    },
+                    {
+                        "id": 5,
+                        "question_text": "Which word BEST describes you?",
+                        "type": "word-selection",
+                        "options": [
+                            {"text": "Forceful", "value": "A"},
+                            {"text": "Empathetic", "value": "B"},
+                            {"text": "Consistent", "value": "C"},
+                            {"text": "Structured", "value": "D"}
+                        ]
+                    },
+                    {
+                        "id": 6,
+                        "question_text": "Which word LEAST describes you?",
+                        "type": "word-selection",
+                        "options": [
+                            {"text": "Forceful", "value": "A"},
+                            {"text": "Empathetic", "value": "B"},
+                            {"text": "Consistent", "value": "C"},
+                            {"text": "Structured", "value": "D"}
+                        ]
+                    }
+                ]
+            }
+        }
+        return predictive_index_assessment
+    except Exception as e:
+        return create_error_response(f"Failed to load Predictive Index assessment: {e!s}")
+
+
+@router.get("/assessment-questions/social-styles")
+async def get_social_styles_assessment_questions():
+    """
+    Get Social Styles assessment questions
+    """
+    try:
+        social_styles_assessment = {
+            "success": True,
+            "status": "ok",
+            "assessment": {
+                "id": "social-styles-standard",
+                "title": "Social Styles Assessment",
+                "description": "Discover your social style and communication preferences",
+                "instructions": "Choose the response that is most like you",
+                "estimated_time": "10-15 minutes",
+                "questions": [
+                    {
+                        "id": 1,
+                        "question_text": "When working with others, I tend to be",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Direct and fast-paced", "value": "Driver"},
+                            {"text": "Direct and slower-paced", "value": "Analytical"},
+                            {"text": "Indirect and slower-paced", "value": "Amiable"},
+                            {"text": "Indirect and fast-paced", "value": "Expressive"}
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "question_text": "In meetings, I usually",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Focus on results and efficiency", "value": "Driver"},
+                            {"text": "Focus on facts and details", "value": "Analytical"},
+                            {"text": "Focus on relationships and harmony", "value": "Amiable"},
+                            {"text": "Focus on ideas and enthusiasm", "value": "Expressive"}
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "question_text": "When making decisions, I prefer",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Quick decisions based on logic", "value": "Driver"},
+                            {"text": "Careful analysis of all options", "value": "Analytical"},
+                            {"text": "Considering everyone's feelings", "value": "Amiable"},
+                            {"text": "Trusting my intuition and vision", "value": "Expressive"}
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "question_text": "My communication style is",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Brief and to the point", "value": "Driver"},
+                            {"text": "Detailed and thorough", "value": "Analytical"},
+                            {"text": "Supportive and listening", "value": "Amiable"},
+                            {"text": "Animated and storytelling", "value": "Expressive"}
+                        ]
+                    },
+                    {
+                        "id": 5,
+                        "question_text": "When dealing with conflict, I",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Address it head-on", "value": "Driver"},
+                            {"text": "Analyze the situation first", "value": "Analytical"},
+                            {"text": "Try to maintain harmony", "value": "Amiable"},
+                            {"text": "Express my feelings openly", "value": "Expressive"}
+                        ]
+                    },
+                    {
+                        "id": 6,
+                        "question_text": "I prefer to work",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Independently with clear goals", "value": "Driver"},
+                            {"text": "Alone with detailed instructions", "value": "Analytical"},
+                            {"text": "In a supportive team environment", "value": "Amiable"},
+                            {"text": "With people and variety", "value": "Expressive"}
+                        ]
+                    },
+                    {
+                        "id": 7,
+                        "question_text": "When receiving feedback, I",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Want it direct and actionable", "value": "Driver"},
+                            {"text": "Appreciate data and specifics", "value": "Analytical"},
+                            {"text": "Need reassurance and support", "value": "Amiable"},
+                            {"text": "Prefer positive recognition", "value": "Expressive"}
+                        ]
+                    },
+                    {
+                        "id": 8,
+                        "question_text": "My approach to time is",
+                        "type": "single-choice",
+                        "options": [
+                            {"text": "Time-conscious and efficient", "value": "Driver"},
+                            {"text": "Plan ahead and stick to schedule", "value": "Analytical"},
+                            {"text": "Flexible and accommodating", "value": "Amiable"},
+                            {"text": "Spontaneous and energetic", "value": "Expressive"}
+                        ]
+                    }
+                ]
+            }
+        }
+        return social_styles_assessment
+    except Exception as e:
+        return create_error_response(f"Failed to load Social Styles assessment: {e!s}")
+
+
+@router.get("/assessment-questions/strengthsfinder")
+async def get_strengthsfinder_assessment_questions():
+    """
+    Get CliftonStrengths (StrengthsFinder) assessment questions
+    """
+    try:
+        strengthsfinder_assessment = {
+            "success": True,
+            "status": "ok",
+            "assessment": {
+                "id": "strengthsfinder-standard",
+                "title": "CliftonStrengths Assessment",
+                "description": "Discover your top 5 talent themes",
+                "instructions": "Choose the statement that best describes you between each pair",
+                "estimated_time": "30-45 minutes",
+                "questions": [
+                    {
+                        "id": 1,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I can quickly sense what others are feeling", "value": "Empathy"},
+                            {"text": "I enjoy thinking about complex problems", "value": "Analytical"}
+                        ]
+                    },
+                    {
+                        "id": 2,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I love to start new projects", "value": "Activator"},
+                            {"text": "I work hard to complete what I start", "value": "Focus"}
+                        ]
+                    },
+                    {
+                        "id": 3,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I enjoy being the center of attention", "value": "Woo"},
+                            {"text": "I prefer deep one-on-one conversations", "value": "Individualization"}
+                        ]
+                    },
+                    {
+                        "id": 4,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I am always looking for ways to improve", "value": "Maximizer"},
+                            {"text": "I am satisfied with good enough", "value": "Consistency"}
+                        ]
+                    },
+                    {
+                        "id": 5,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I need to understand the 'why' before acting", "value": "Analytical"},
+                            {"text": "I trust my instincts and act quickly", "value": "Activator"}
+                        ]
+                    },
+                    {
+                        "id": 6,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I set ambitious goals for myself", "value": "Achiever"},
+                            {"text": "I go with the flow and adapt easily", "value": "Adaptability"}
+                        ]
+                    },
+                    {
+                        "id": 7,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I enjoy organizing people and resources", "value": "Arranger"},
+                            {"text": "I enjoy thinking strategically about the future", "value": "Strategic"}
+                        ]
+                    },
+                    {
+                        "id": 8,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I believe everyone has potential", "value": "Developer"},
+                            {"text": "I recognize and celebrate others' achievements", "value": "Positivity"}
+                        ]
+                    },
+                    {
+                        "id": 9,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I confidently take charge of situations", "value": "Command"},
+                            {"text": "I build trust through consistency", "value": "Responsibility"}
+                        ]
+                    },
+                    {
+                        "id": 10,
+                        "question_text": "Which statement is more like you?",
+                        "type": "paired-choice",
+                        "options": [
+                            {"text": "I learn for the joy of learning", "value": "Learner"},
+                            {"text": "I love to share what I've learned", "value": "Input"}
+                        ]
+                    }
+                ]
+            }
+        }
+        return strengthsfinder_assessment
+    except Exception as e:
+        return create_error_response(f"Failed to load StrengthsFinder assessment: {e!s}")
