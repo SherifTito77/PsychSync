@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Download, Eye } from 'lucide-react';
 import { Report } from '../types';
-import { getStatusColor, getFormatIcon } from '../utils/displayHelpers';
+import { getStatusColor, getFormatIcon } from '../utils/displayHelpers.tsx';
 
 interface ReportListCardProps {
   report: Report;

@@ -214,7 +214,6 @@ async def list_reports(
     except Exception as e:
         raise HTTPException(
 
-status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list reports: {str(e)}"
         )
 
@@ -247,7 +246,6 @@ async def get_report(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get report: {str(e)}"
         )
 
@@ -305,7 +303,6 @@ async def download_report(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to download report: {str(e)}"
         )
 
@@ -363,7 +360,6 @@ async def create_template(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create template: {str(e)}"
         )
 
@@ -397,7 +393,6 @@ async def get_templates(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get templates: {str(e)}"
         )
 
@@ -458,7 +453,6 @@ async def create_schedule(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create schedule: {str(e)}"
         )
 
@@ -486,7 +480,6 @@ async def get_schedules(
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get schedules: {str(e)}"
         )
 
@@ -529,7 +522,6 @@ async def get_report_analytics(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get report analytics: {str(e)}"
         )
 
@@ -568,7 +560,6 @@ async def execute_scheduled_reports(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to execute scheduled reports: {str(e)}"
         )
 
@@ -606,7 +597,6 @@ async def cleanup_expired_reports(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to cleanup reports: {str(e)}"
         )
 

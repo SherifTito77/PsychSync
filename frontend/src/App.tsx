@@ -206,32 +206,32 @@ const App: React.FC = memo(() => {
             <TeamProvider>
               <AssessmentProvider>
                 {showDevNavigation && <OnboardingNavigation />}
-              <PWAInstaller
-                onInstallComplete={() => console.log('PWA installed successfully')}
-                onInstallDismissed={() => console.log('PWA install dismissed')}
-              />
-              <OfflineStatusIndicator showDetailedInfo={true} />
-              <Routes>
-              {/* Public Routes */}
-              <Route
-                path="/test-wellness"
-                element={
-                  <Suspense fallback={<div>Loading test wellness form...</div>}>
-                    <TestWellnessForm />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/test-stress-assessment"
-                element={
-                  <Suspense fallback={<div>Loading Stress Assessment...</div>}>
-                    <StressAssessmentTest />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/test-wellbeing-assessment"
-                element={
+                <PWAInstaller
+                  onInstallComplete={() => console.log('PWA installed successfully')}
+                  onInstallDismissed={() => console.log('PWA install dismissed')}
+                />
+                <OfflineStatusIndicator showDetailedInfo={true} />
+                <Routes>
+                  {/* Public Routes */}
+                  <Route
+                    path="/test-wellness"
+                    element={
+                      <Suspense fallback={<div>Loading test wellness form...</div>}>
+                        <TestWellnessForm />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/test-stress-assessment"
+                    element={
+                      <Suspense fallback={<div>Loading Stress Assessment...</div>}>
+                        <StressAssessmentTest />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/test-wellbeing-assessment"
+                    element={
                   <Suspense fallback={<div>Loading Wellbeing Assessment...</div>}>
                     <WellbeingAssessment />
                   </Suspense>

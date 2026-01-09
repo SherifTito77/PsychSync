@@ -1,0 +1,101 @@
+/**
+ * Simple Responsive List - CSS Module
+ *
+ * Migrated from global CSS to CSS module with Tailwind utilities.
+ * All styles are now scoped to this component.
+ */
+
+.container {
+  @apply w-full max-w-md mx-auto;
+}
+
+.title {
+  @apply text-2xl font-semibold mb-4 text-gray-900;
+}
+
+.list {
+  @apply list-none p-0 m-0 bg-white rounded-lg shadow-md overflow-hidden;
+}
+
+.item {
+  @apply flex items-center justify-between px-4 py-3 border-b border-gray-200 min-h-[44px] leading-relaxed break-words text-gray-800 transition-colors duration-200;
+}
+
+.item:lastChild {
+  @apply border-b-0;
+}
+
+.itemInteractive {
+  @apply cursor-pointer;
+}
+
+.itemInteractive:hover {
+  @apply bg-gray-50;
+}
+
+.itemInteractive:focus {
+  @apply outline-2 outline-offset-[-2px] outline-blue-600 bg-blue-50;
+}
+
+.itemSelected {
+  @apply bg-blue-50 border-l-4 border-blue-600 pl-[13px];
+}
+
+.itemContent {
+  @apply flex-1 min-w-0;
+}
+
+.itemIndicator {
+  @apply ml-3 text-base text-blue-600 font-semibold;
+}
+
+/* Responsive padding */
+@media (min-width: 768px) {
+  .item {
+    @apply px-5 text-base;
+  }
+}
+
+@media (min-width: 1024px) {
+  .item {
+    @apply px-6 py-4;
+  }
+
+  .itemInteractive:hover {
+    @apply translate-x-0.5;
+  }
+}
+
+/* Accessibility: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    @apply transition-none;
+  }
+
+  .itemInteractive:hover {
+    @apply translate-x-0;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .title {
+    @apply text-gray-50;
+  }
+
+  .list {
+    @apply bg-gray-800 shadow-xl;
+  }
+
+  .item {
+    @apply text-gray-200 border-gray-700;
+  }
+
+  .itemInteractive:hover {
+    @apply bg-gray-700;
+  }
+
+  .itemSelected {
+    @apply bg-blue-900;
+  }
+}

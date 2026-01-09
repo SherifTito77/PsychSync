@@ -30,7 +30,7 @@ export const getStatusColor = (status: string): string => {
 /**
  * Get icon component for file format
  */
-export const getFormatIcon = (format: string): React.ReactElement => {
+export const getFormatIcon = (format: string): JSX.Element => {
   switch (format.toLowerCase()) {
     case 'pdf':
       return <FileText className="h-4 w-4" />;
@@ -48,7 +48,7 @@ export const getFormatIcon = (format: string): React.ReactElement => {
 /**
  * Get icon component for delivery method
  */
-export const getDeliveryIcon = (method: string): React.ReactElement => {
+export const getDeliveryIcon = (method: string): JSX.Element => {
   switch (method.toLowerCase()) {
     case 'email':
       return <Mail className="h-4 w-4" />;

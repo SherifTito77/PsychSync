@@ -10,7 +10,7 @@ import { Smile, Frown, Meh } from 'lucide-react';
 /**
  * Get sentiment icon component
  */
-export const getSentimentIcon = (sentiment: string): React.ReactElement => {
+export const getSentimentIcon = (sentiment: string): JSX.Element => {
   switch (sentiment) {
     case 'positive':
       return <Smile className="h-4 w-4 text-green-500" />;

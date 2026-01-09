@@ -24,7 +24,7 @@ import {
   prepareEmotionTimeline,
   prepareSentimentTimeline,
   prepareEmotionDistribution,
-} from './utils/displayHelpers';
+} from './utils/displayHelpers.tsx';
 
 const VoiceVideoAnalysis: React.FC = () => {
   const [activeTab, setActiveTab] = useState('recording');

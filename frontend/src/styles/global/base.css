@@ -11,13 +11,15 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-size: var(--font-size-base);
   line-height: 1.5;
   color: var(--color-gray-900);
   background-color: var(--color-gray-50);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Font display optimization: show text immediately with fallback font */
+  font-display: swap;
 
   /* PWA Optimizations */
   overscroll-behavior: contain;

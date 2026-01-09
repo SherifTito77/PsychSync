@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Play } from 'lucide-react';
 import { ReportSchedule } from '../types';
-import { getDeliveryIcon } from '../utils/displayHelpers';
+import { getDeliveryIcon } from '../utils/displayHelpers.tsx';
 
 interface ScheduleCardProps {
   schedule: ReportSchedule;

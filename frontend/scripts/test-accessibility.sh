@@ -16,8 +16,8 @@ echo "♿ Running Accessibility Tests..."
 echo ""
 
 # Check if dev server is running
-if ! curl -s http://localhost:5173 > /dev/null; then
-  echo -e "${YELLOW}⚠️  Dev server not running. Starting it now...${NC}"
+if ! curl -s http://localhost:5174 > /dev/null; then
+  echo -e "${YELLOW}⚠️  Dev server not running on port 5174. Starting it now...${NC}"
   npm run dev &
   DEV_SERVER_PID=$!
   echo "Waiting for dev server to start..."
@@ -82,10 +82,10 @@ EOL
 
 # Array of pages to test
 declare -a pages=(
-  "http://localhost:5173|Home Page"
-  "http://localhost:5173/login|Login Page"
-  "http://localhost:5173/register|Registration Page"
-  "http://localhost:5173/dashboard|Dashboard"
+  "http://localhost:5174/|Home Page"
+  "http://localhost:5174/login|Login Page"
+  "http://localhost:5174/register|Registration Page"
+  "http://localhost:5174/dashboard|Dashboard"
 )
 
 echo "📋 Testing Key Pages:"
