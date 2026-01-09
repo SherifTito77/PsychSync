@@ -126,14 +126,16 @@ async def get_security_alerts(
             try:
                 severity_enum = AlertSeverity(severity)
             except ValueError:
-                raise HTTPException(status_code=400, detail=f"Invalid severity level: {severity}")
+                raise HTTPException(status_code=400, detail=f"Invalid severity level: {severity}") from e
+
 
         anomaly_type_enum = None
         if anomaly_type:
             try:
                 anomaly_type_enum = AnomalyType(anomaly_type)
             except ValueError:
-                raise HTTPException(status_code=400, detail=f"Invalid anomaly type: {anomaly_type}")
+                raise HTTPException(status_code=400, detail=f"Invalid anomaly type: {anomaly_type}") from e
+
 
         # Get alerts
         alerts = await security_monitor.get_security_alerts(
@@ -217,7 +219,8 @@ async def resolve_security_alert(
         success = await security_monitor.resolve_alert(alert_id, resolution_note)
 
         if not success:
-            raise HTTPException(status_code=404, detail=f"Security alert not found: {alert_id}")
+            raise HTTPException(status_code=404, detail=f"Security alert not found: {alert_id}") from e
+
 
         logger.info(
             EventType.SECURITY_EVENT,
