@@ -106,10 +106,8 @@ async def get_sentiment_summary(
         logger.error(f"Error getting sentiment summary: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-
-@check_rate_limit(identifier="public", limit_name="public")
-       detail="Failed to generate sentiment summary"
-        )
+            detail="Failed to generate sentiment summary"
+        ) from e
 
 @router.get("/patterns/analysis", response_model=CommunicationPatternsResponse)
 async def get_communication_patterns(
@@ -146,11 +144,9 @@ async def get_communication_patterns(
     except Exception as e:
         logger.error(f"Error getting communication patterns: {e}")
         raise HTTPException(
-
-@check_rate_limit(identifier="public", limit_name="public")
-    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze communication patterns"
-        )
+        ) from e
 
 @router.get("/patterns/behavioral", response_model=BehavioralIndicatorsResponse)
 async def get_behavioral_indicators(

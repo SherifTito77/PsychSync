@@ -3,16 +3,18 @@ Usability Testing Service
 Provides comprehensive usability testing frameworks, user feedback collection, and UX analysis tools
 """
 
-import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
+from datetime import datetime
 from enum import Enum
+import json
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class UsabilityTestType(str, Enum):
     """Types of usability tests"""
+
     MODERATED_TEST = "moderated_test"
     UNMODERATED_TEST = "unmoderated_test"
     A_B_TEST = "ab_test"
@@ -26,8 +28,10 @@ class UsabilityTestType(str, Enum):
     SURVEY = "survey"
     INTERVIEW = "interview"
 
+
 class UsabilityMetric(str, Enum):
     """Usability metrics to measure"""
+
     TASK_SUCCESS_RATE = "task_success_rate"
     TIME_ON_TASK = "time_on_task"
     ERROR_RATE = "error_rate"
@@ -39,12 +43,15 @@ class UsabilityMetric(str, Enum):
     NAVIGATION_EFFICIENCY = "navigation_efficiency"
     COMPLETION_RATE = "completion_rate"
 
+
 class TaskDifficulty(str, Enum):
     """Task difficulty levels"""
+
     BEGINNER = "beginner"
     INTERMEDIATE = "intermediate"
     ADVANCED = "advanced"
     EXPERT = "expert"
+
 
 class UsabilityTask:
     """Individual usability test task"""
@@ -57,11 +64,11 @@ class UsabilityTask:
         instructions: str,
         difficulty: TaskDifficulty,
         category: str,
-        success_criteria: List[str],
+        success_criteria: list[str],
         expected_time: int,  # in seconds
-        prerequisites: List[str] = None,
-        test_data: Dict = None,
-        screenshots: List[str] = None
+        prerequisites: list[str] = None,
+        test_data: dict = None,
+        screenshots: list[str] = None,
     ):
         self.task_id = task_id
         self.title = title
@@ -75,7 +82,7 @@ class UsabilityTask:
         self.test_data = test_data or {}
         self.screenshots = screenshots or []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "title": self.title,
@@ -87,8 +94,9 @@ class UsabilityTask:
             "expected_time": self.expected_time,
             "prerequisites": self.prerequisites,
             "test_data": self.test_data,
-            "screenshots": self.screenshots
+            "screenshots": self.screenshots,
         }
+
 
 class UsabilityTestSession:
     """Complete usability test session with participant"""
@@ -98,13 +106,13 @@ class UsabilityTestSession:
         session_id: str,
         test_type: UsabilityTestType,
         participant_id: str,
-        participant_info: Dict,
+        participant_info: dict,
         test_date: datetime,
         moderator_id: str = None,
         environment: str = "lab",
         device: str = "desktop",
         browser: str = "chrome",
-        tasks: List[UsabilityTask] = None
+        tasks: list[UsabilityTask] = None,
     ):
         self.session_id = session_id
         self.test_type = test_type
@@ -125,20 +133,22 @@ class UsabilityTestSession:
         self.started_at = None
         self.completed_at = None
 
-    def add_task_result(self, task_result: Dict[str, Any]):
+    def add_task_result(self, task_result: dict[str, Any]):
         """Add result for completed task"""
         self.task_results.append(task_result)
 
-    def add_session_note(self, note: str, timestamp: datetime = None, note_type: str = "observation"):
+    def add_session_note(
+        self, note: str, timestamp: datetime = None, note_type: str = "observation"
+    ):
         """Add observation note during session"""
         note_entry = {
             "note": note,
             "timestamp": timestamp or datetime.utcnow(),
-            "note_type": note_type
+            "note_type": note_type,
         }
         self.session_notes.append(note_entry)
 
-    def calculate_session_metrics(self) -> Dict[str, Any]:
+    def calculate_session_metrics(self) -> dict[str, Any]:
         """Calculate overall session metrics"""
         if not self.task_results:
             return {}
@@ -158,10 +168,10 @@ class UsabilityTestSession:
             "avg_time_on_task": avg_time_on_task,
             "total_errors": errors,
             "error_rate": (errors / total_tasks) * 100 if total_tasks > 0 else 0,
-            "session_duration": self.session_duration
+            "session_duration": self.session_duration,
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "test_type": self.test_type.value,
@@ -178,8 +188,9 @@ class UsabilityTestSession:
             "session_duration": self.session_duration,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
-            "metrics": self.calculate_session_metrics()
+            "metrics": self.calculate_session_metrics(),
         }
+
 
 class SUS量表:
     """System Usability Scale (SUS) questionnaire"""
@@ -194,11 +205,11 @@ class SUS量表:
             "I thought there was too much inconsistency in this system.",
             "I would imagine that most people would learn to use this system very quickly.",
             "I found the system very cumbersome to use.",
-            "I felt very confident using the system."
+            "I felt very confident using the system.",
         ]
         self.scoring = [1, 5, 1, 5, 1, 5, 1, 5, 1]  # Odd-numbered questions positive, even negative
 
-    def calculate_score(self, responses: List[int]) -> float:
+    def calculate_score(self, responses: list[int]) -> float:
         """Calculate SUS score from questionnaire responses"""
         if len(responses) != len(self.questions):
             raise ValueError("Must have 10 responses")
@@ -218,7 +229,7 @@ class SUS量表:
 
         return total_score * 2.5  # Convert to 0-100 scale
 
-    def interpret_score(self, score: float) -> Dict[str, Any]:
+    def interpret_score(self, score: float) -> dict[str, Any]:
         """Interpret SUS score with adjective ratings"""
         if score >= 90:
             adjective = "Excellent"
@@ -241,21 +252,21 @@ class SUS量表:
             "adjective": adjective,
             "grade": grade,
             "acceptability": "Acceptable" if score >= 70 else "Not Acceptable",
-            "interpretation": self._get_interpretation(score)
+            "interpretation": self._get_interpretation(score),
         }
 
     def _get_interpretation(self, score: float) -> str:
         """Get detailed interpretation of SUS score"""
         if score >= 90:
             return "Users are extremely satisfied with the system. Minimal UX improvements needed."
-        elif score >= 80:
+        if score >= 80:
             return "Users are satisfied with the system. Minor UX improvements may be beneficial."
-        elif score >= 70:
+        if score >= 70:
             return "Users are moderately satisfied. Some UX improvements are recommended."
-        elif score >= 60:
+        if score >= 60:
             return "Users have significant usability concerns. Major UX improvements needed."
-        else:
-            return "Users have serious usability problems. Complete UX overhaul recommended."
+        return "Users have serious usability problems. Complete UX overhaul recommended."
+
 
 class UsabilityTestingService:
     """Comprehensive usability testing service"""
@@ -266,7 +277,7 @@ class UsabilityTestingService:
         self.test_environments = ["lab", "remote", "field", "online"]
         self.device_types = ["desktop", "laptop", "tablet", "mobile"]
 
-    def create_core_usability_test_suite(self) -> List[UsabilityTask]:
+    def create_core_usability_test_suite(self) -> list[UsabilityTask]:
         """Create core usability test suite for PsychSync"""
 
         tasks = [
@@ -282,12 +293,11 @@ class UsabilityTestingService:
                     "User can find registration page",
                     "Registration form is clear and understandable",
                     "Email verification process works smoothly",
-                    "User successfully creates account"
+                    "User successfully creates account",
                 ],
                 expected_time=180,
-                prerequisites=[]
+                prerequisites=[],
             ),
-
             UsabilityTask(
                 task_id="UT_002",
                 title="First Assessment Experience",
@@ -300,12 +310,11 @@ class UsabilityTestingService:
                     "Assessment interface is intuitive",
                     "Questions are clear and unambiguous",
                     "User can complete assessment without help",
-                    "Results are displayed clearly"
+                    "Results are displayed clearly",
                 ],
                 expected_time=300,
-                prerequisites=["User has active account"]
+                prerequisites=["User has active account"],
             ),
-
             # Team Management
             UsabilityTask(
                 task_id="UT_003",
@@ -318,12 +327,11 @@ class UsabilityTestingService:
                     "User can find team creation option",
                     "Team creation form is easy to complete",
                     "Team member invitation process works",
-                    "Team dashboard is clear and informative"
+                    "Team dashboard is clear and informative",
                 ],
                 expected_time=240,
-                prerequisites=["User has active account"]
+                prerequisites=["User has active account"],
             ),
-
             UsabilityTask(
                 task_id="UT_004",
                 title="Run Team Optimization",
@@ -336,12 +344,11 @@ class UsabilityTestingService:
                     "Progress indicators are clear",
                     "Results are easy to understand",
                     "Recommendations are actionable",
-                    "User can save or apply recommendations"
+                    "User can save or apply recommendations",
                 ],
                 expected_time=180,
-                prerequisites=["User has active team"]
+                prerequisites=["User has active team"],
             ),
-
             # Data Management
             UsabilityTask(
                 task_id="UT_005",
@@ -355,12 +362,11 @@ class UsabilityTestingService:
                     "Export request process is clear",
                     "Download link works correctly",
                     "Exported file contains all expected data",
-                    "Data format is readable and well-structured"
+                    "Data format is readable and well-structured",
                 ],
                 expected_time=120,
-                prerequisites=["User has active account"]
+                prerequisites=["User has active account"],
             ),
-
             UsabilityTask(
                 task_id="UT_006",
                 title="Update Privacy Settings",
@@ -373,12 +379,11 @@ class UsabilityTestingService:
                     "Consent options are clearly explained",
                     "Settings changes are saved successfully",
                     "Consent history is accessible",
-                    "Changes take effect immediately"
+                    "Changes take effect immediately",
                 ],
                 expected_time=150,
-                prerequisites=["User has active account"]
+                prerequisites=["User has active account"],
             ),
-
             # Dashboard and Analytics
             UsabilityTask(
                 test_id="UT_007",
@@ -392,12 +397,11 @@ class UsabilityTestingService:
                     "Key information is easy to find",
                     "Navigation between sections is smooth",
                     "User can find personal analytics",
-                    "System status indicators are clear"
+                    "System status indicators are clear",
                 ],
                 expected_time=120,
-                prerequisites=["User has active account"]
+                prerequisites=["User has active account"],
             ),
-
             UsabilityTask(
                 test_id="UT_008",
                 title="Generate Assessment Report",
@@ -410,16 +414,16 @@ class UsabilityTestingService:
                     "Report options are clear",
                     "Generated report contains all expected information",
                     "Report formatting is professional",
-                    "Sharing options work correctly"
+                    "Sharing options work correctly",
                 ],
                 expected_time=180,
-                prerequisites=["User has completed assessment"]
-            )
+                prerequisites=["User has completed assessment"],
+            ),
         ]
 
         return tasks
 
-    def create_mobile_usability_test_suite(self) -> List[UsabilityTask]:
+    def create_mobile_usability_test_suite(self) -> list[UsabilityTask]:
         """Create mobile-specific usability test suite"""
 
         mobile_tasks = [
@@ -435,12 +439,11 @@ class UsabilityTestingService:
                     "Navigation is thumb-friendly",
                     "No horizontal scrolling required",
                     "All features work on mobile",
-                    "Text is readable without zooming"
+                    "Text is readable without zooming",
                 ],
                 expected_time=300,
-                prerequisites=["User has active account"]
+                prerequisites=["User has active account"],
             ),
-
             UsabilityTask(
                 task_id="MOB_002",
                 title="Mobile Assessment Experience",
@@ -453,16 +456,16 @@ class UsabilityTestingService:
                     "Answer selection is easy with touch",
                     "Progress is clearly indicated",
                     "Results display properly on mobile",
-                    "No accidental submissions occur"
+                    "No accidental submissions occur",
                 ],
                 expected_time=360,
-                prerequisites=["User has active account"]
-            )
+                prerequisites=["User has active account"],
+            ),
         ]
 
         return mobile_tasks
 
-    def conduct_sus_evaluation(self, participant_id: str, session_context: Dict) -> Dict[str, Any]:
+    def conduct_sus_evaluation(self, participant_id: str, session_context: dict) -> dict[str, Any]:
         """Conduct System Usability Scale evaluation"""
 
         evaluation = {
@@ -473,12 +476,14 @@ class UsabilityTestingService:
             "questions": self.sus_scale.questions,
             "responses": [],
             "score": None,
-            "interpretation": None
+            "interpretation": None,
         }
 
         return evaluation
 
-    def calculate_sus_score(self, evaluation: Dict[str, Any], responses: List[int]) -> Dict[str, Any]:
+    def calculate_sus_score(
+        self, evaluation: dict[str, Any], responses: list[int]
+    ) -> dict[str, Any]:
         """Calculate SUS score for evaluation"""
 
         try:
@@ -495,7 +500,7 @@ class UsabilityTestingService:
             evaluation["error"] = str(e)
             return evaluation
 
-    def create_heuristic_evaluation_checklist(self) -> List[Dict[str, Any]]:
+    def create_heuristic_evaluation_checklist(self) -> list[dict[str, Any]]:
         """Create Nielsen's 10 usability heuristics evaluation checklist"""
 
         heuristics = [
@@ -507,9 +512,9 @@ class UsabilityTestingService:
                     "Feedback is provided within reasonable time",
                     "Progress indicators are accurate",
                     "System state is communicated effectively",
-                    "Status updates are timely and relevant"
+                    "Status updates are timely and relevant",
                 ],
-                "severity": "critical"
+                "severity": "critical",
             },
             {
                 "heuristic": "Match between system and the real world",
@@ -519,9 +524,9 @@ class UsabilityTestingService:
                     "Technical jargon is minimized",
                     "Icons and symbols are intuitive",
                     "Metaphors are consistent and helpful",
-                    "Real-world conventions are followed"
+                    "Real-world conventions are followed",
                 ],
-                "severity": "critical"
+                "severity": "critical",
             },
             {
                 "heuristic": "User control and freedom",
@@ -531,9 +536,9 @@ class UsabilityTestingService:
                     "Clear exit paths from unwanted states",
                     "Easy to cancel operations",
                     "Confirmation dialogs for destructive actions",
-                    "Users can reverse unintended actions"
+                    "Users can reverse unintended actions",
                 ],
-                "severity": "critical"
+                "severity": "critical",
             },
             {
                 "heuristic": "Consistency and standards",
@@ -543,9 +548,9 @@ class UsabilityTestingService:
                     "Design patterns are consistent",
                     "Standards and conventions are followed",
                     "Similar elements behave similarly",
-                    "Visual consistency is maintained"
+                    "Visual consistency is maintained",
                 ],
-                "severity": "high"
+                "severity": "high",
             },
             {
                 "heuristic": "Error prevention",
@@ -555,9 +560,9 @@ class UsabilityTestingService:
                     "Clear constraints and restrictions",
                     "Confirmation for critical actions",
                     "Input validation and formatting",
-                    "Helpful error prevention strategies"
+                    "Helpful error prevention strategies",
                 ],
-                "severity": "critical"
+                "severity": "critical",
             },
             {
                 "heuristic": "Recognition rather than recall",
@@ -567,21 +572,21 @@ class UsabilityTestingService:
                     "Help is easily accessible",
                     "Options are clearly presented",
                     "Context is maintained",
-                    "Previous actions are visible"
+                    "Previous actions are visible",
                 ],
-                "severity": "high"
+                "severity": "high",
             },
             {
                 "heuristic": "Flexibility and efficiency of use",
-                description": "Accelerators -- unseen by the novice user -- may often speed up the interaction for the expert user such that the system can cater to both inexperienced and experienced users.",
+                "description": "Accelerators -- unseen by the novice user -- may often speed up the interaction for the expert user such that the system can cater to both inexperienced and experienced users.",
                 "checkpoints": [
                     "Shortcuts are available for experts",
                     "Customization options are provided",
                     "Efficiency for experienced users",
                     "Flexible interaction patterns",
-                    "Accelerators are discoverable"
+                    "Accelerators are discoverable",
                 ],
-                "severity": "medium"
+                "severity": "medium",
             },
             {
                 "heuristic": "Aesthetic and minimalist design",
@@ -591,9 +596,9 @@ class UsabilityTestingService:
                     "Relevant information is prioritized",
                     "Visual hierarchy is clear",
                     "Minimalist design approach",
-                    "No unnecessary elements"
+                    "No unnecessary elements",
                 ],
-                "severity": "low"
+                "severity": "low",
             },
             {
                 "heuristic": "Help users recognize, diagnose, and recover from errors",
@@ -603,9 +608,9 @@ class UsabilityTestingService:
                     "Problems are precisely identified",
                     "Constructive solutions are suggested",
                     "Recovery paths are clear",
-                    "Error prevention guidance is provided"
+                    "Error prevention guidance is provided",
                 ],
-                "severity": "critical"
+                "severity": "critical",
             },
             {
                 "heuristic": "Help and documentation",
@@ -615,15 +620,15 @@ class UsabilityTestingService:
                     "Documentation is comprehensive",
                     "Context-sensitive help is available",
                     "Tutorials are helpful",
-                    "FAQ answers common questions"
+                    "FAQ answers common questions",
                 ],
-                "severity": "medium"
-            }
+                "severity": "medium",
+            },
         ]
 
         return heuristics
 
-    def conduct_first_click_test(self, task_description: str, target_page: str) -> Dict[str, Any]:
+    def conduct_first_click_test(self, task_description: str, target_page: str) -> dict[str, Any]:
         """Setup first click usability test"""
 
         first_click_test = {
@@ -637,15 +642,15 @@ class UsabilityTestingService:
                 "Record their first-click choice",
                 "Ask why they chose that location",
                 "Measure time to first click",
-                "Record success/failure of first click"
+                "Record success/failure of first click",
             ],
             "metrics": {
                 "first_click_accuracy": 0,
                 "time_to_first_click": 0,
                 "confidence_before_task": 0,
                 "confidence_after_task": 0,
-                "task_completion_time": 0
-            }
+                "task_completion_time": 0,
+            },
         }
 
         return first_click_test
@@ -666,11 +671,11 @@ class UsabilityTestingService:
             "report_metadata": {
                 "generated_at": datetime.utcnow().isoformat(),
                 "report_type": "aggregate" if not session else "session",
-                "session_id": session.session_id if session else None
+                "session_id": session.session_id if session else None,
             },
             "summary": self._calculate_summary_metrics(),
             "recommendations": self._generate_usability_recommendations(),
-            "next_steps": self._generate_next_steps()
+            "next_steps": self._generate_next_steps(),
         }
 
         if session:
@@ -682,7 +687,7 @@ class UsabilityTestingService:
 
         return json.dumps(report_data, indent=2, default=str)
 
-    def _calculate_summary_metrics(self) -> Dict[str, Any]:
+    def _calculate_summary_metrics(self) -> dict[str, Any]:
         """Calculate summary metrics for all test sessions"""
 
         if not self.test_sessions:
@@ -694,18 +699,22 @@ class UsabilityTestingService:
         total_tasks = sum(metrics.get("total_tasks", 0) for metrics in all_metrics)
         total_successful = sum(metrics.get("successful_tasks", 0) for metrics in all_metrics)
 
-        avg_success_rate = sum(metrics.get("success_rate", 0) for metrics in all_metrics) / len(all_metrics)
-        avg_time_on_task = sum(metrics.get("avg_time_on_task", 0) for metrics in all_metrics) / len(all_metrics)
+        avg_success_rate = sum(metrics.get("success_rate", 0) for metrics in all_metrics) / len(
+            all_metrics
+        )
+        avg_time_on_task = sum(metrics.get("avg_time_on_task", 0) for metrics in all_metrics) / len(
+            all_metrics
+        )
 
         return {
             "total_sessions": total_sessions,
             "total_tasks_attempted": total_tasks,
             "total_successful_tasks": total_successful,
             "overall_success_rate": avg_success_rate,
-            "average_time_on_task": avg_time_on_task
+            "average_time_on_task": avg_time_on_task,
         }
 
-    def _generate_usability_recommendations(self) -> List[Dict[str, Any]]:
+    def _generate_usability_recommendations(self) -> list[dict[str, Any]]:
         """Generate actionable usability recommendations"""
 
         return [
@@ -714,32 +723,32 @@ class UsabilityTestingService:
                 "issue": "Complex navigation paths",
                 "recommendation": "Simplify main navigation and improve information architecture",
                 "priority": "high",
-                "impact": "significant"
+                "impact": "significant",
             },
             {
                 "category": "Onboarding",
                 "issue": "Unclear initial user journey",
                 "recommendation": "Create guided onboarding flow with progressive disclosure",
                 "priority": "high",
-                "impact": "significant"
+                "impact": "significant",
             },
             {
                 "category": "Forms",
                 "issue": "Complex forms with validation issues",
                 "recommendation": "Simplify forms and provide better validation feedback",
                 "priority": "medium",
-                "impact": "moderate"
+                "impact": "moderate",
             },
             {
                 "category": "Mobile",
                 "issue": "Mobile usability challenges",
                 "recommendation": "Optimize mobile experience and touch interactions",
                 "priority": "high",
-                "impact": "significant"
-            }
+                "impact": "significant",
+            },
         ]
 
-    def _generate_next_steps(self) -> List[str]:
+    def _generate_next_steps(self) -> list[str]:
         """Generate next steps for usability improvement"""
 
         return [
@@ -750,10 +759,10 @@ class UsabilityTestingService:
             "Plan A/B testing for key interface improvements",
             "Develop accessibility compliance roadmap",
             "Create user feedback collection system",
-            "Establish regular usability testing schedule"
+            "Establish regular usability testing schedule",
         ]
 
-    def _aggregate_sus_data(self) -> Dict[str, Any]:
+    def _aggregate_sus_data(self) -> dict[str, Any]:
         """Aggregate SUS scores across all sessions"""
 
         sus_scores = []
@@ -776,7 +785,7 @@ class UsabilityTestingService:
                 "good": sum(1 for score in sus_scores if 80 <= score < 90),
                 "ok": sum(1 for score in sus_scores if 70 <= score < 80),
                 "poor": sum(1 for score in sus_scores if 60 <= score < 70),
-                "awful": sum(1 for score in sus_scores if score < 60)
+                "awful": sum(1 for score in sus_scores if score < 60),
             },
-            "interpretation": interpretation
+            "interpretation": interpretation,
         }

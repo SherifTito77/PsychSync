@@ -40,14 +40,14 @@ logger = logging.getLogger(__name__)
 class SlackBotHandler:
     """
     Slack Bot event and command handler
-    
+
     Handles:
     - Slash commands (/psychsync, /wellness, /checkin)
     - Interactive components (buttons, modals)
     - Event subscriptions (mentions, messages)
     - Scheduled jobs (daily reminders)
     """
-    
+
     def __init__(self):
         """Initialize Slack Bolt app"""
         self.app = App(
@@ -56,21 +56,21 @@ class SlackBotHandler:
         )
         self.client = SlackClient()
         self.handler = SlackRequestHandler(self.app)
-        
+
         # Register all handlers
         self._register_commands()
         self._register_events()
         self._register_actions()
-    
+
     def _register_commands(self):
         """Register all slash commands"""
-        
+
         # Main command: /psychsync
         @self.app.command("/psychsync")
         def handle_psychsync_command(ack, command, respond):
             """
             Main PsychSync command
-            
+
             Usage:
                 /psychsync - Show help menu
                 /psychsync status - Show your wellness status
@@ -78,10 +78,10 @@ class SlackBotHandler:
                 /psychsync report - Generate team report
             """
             ack()  # Acknowledge command immediately
-            
+
             user_id = command["user_id"]
             text = command.get("text", "").strip().lower()
-            
+
             if not text or text == "help":
                 respond(self._get_help_message())
             elif text == "status":
@@ -94,39 +94,39 @@ class SlackBotHandler:
                 respond({
                     "text": f"Unknown command: `{text}`\nType `/psychsync help` for available commands."
                 })
-        
+
         # Quick check-in: /checkin
         @self.app.command("/checkin")
         def handle_checkin_command(ack, command, client):
             """
             Quick wellness check-in
-            
+
             Opens a modal for quick mood/wellness check-in
             """
             ack()
-            
+
             # Open modal for check-in
             client.views_open(
                 trigger_id=command["trigger_id"],
                 view=self._get_checkin_modal()
             )
-        
+
         # Wellness status: /wellness
         @self.app.command("/wellness")
         def handle_wellness_command(ack, command, respond):
             """
             Show wellness statistics
-            
+
             Usage:
                 /wellness - Your wellness stats
                 /wellness team - Team wellness stats
                 /wellness @user - Specific user stats (managers only)
             """
             ack()
-            
+
             user_id = command["user_id"]
             text = command.get("text", "").strip()
-            
+
             if not text:
                 respond(self._get_user_wellness(user_id))
             elif text == "team":
@@ -135,36 +135,36 @@ class SlackBotHandler:
                 respond({
                     "text": "Usage: `/wellness` or `/wellness team`"
                 })
-        
+
         # Take assessment: /assess
         @self.app.command("/assess")
         def handle_assess_command(ack, command, client):
             """
             Start a new assessment
-            
+
             Opens modal to select assessment type
             """
             ack()
-            
+
             client.views_open(
                 trigger_id=command["trigger_id"],
                 view=self._get_assessment_selection_modal()
             )
-    
+
     def _register_events(self):
         """Register event handlers"""
-        
+
         # App mention: @PsychSync
         @self.app.event("app_mention")
         def handle_app_mention(event, say):
             """
             Handle when bot is mentioned
-            
+
             Example: "@PsychSync how is my team doing?"
             """
             user = event["user"]
             text = event.get("text", "").lower()
-            
+
             if "team" in text:
                 say(self._get_team_status(user))
             elif "status" in text or "how" in text:
@@ -175,7 +175,7 @@ class SlackBotHandler:
                 say({
                     "text": f"Hi <@{user}>! 👋\n\nI can help you with:\n• Check your wellness status\n• View team insights\n• Take assessments\n\nTry `/psychsync help` for more commands!"
                 })
-        
+
         # Message in bot DM
         @self.app.event("message")
         def handle_message(event, say):
@@ -184,60 +184,60 @@ class SlackBotHandler:
             if event.get("channel_type") == "im":
                 user = event["user"]
                 text = event.get("text", "").lower()
-                
+
                 if "help" in text:
                     say(self._get_help_message())
                 elif "assess" in text or "test" in text:
                     say(self._get_assessment_prompt())
                 else:
                     say(f"Hi <@{user}>! Type 'help' to see what I can do.")
-        
+
         # Reaction added (for gamification)
         @self.app.event("reaction_added")
         def handle_reaction(event, logger):
             """Track reactions for engagement metrics"""
             # Could track team engagement via reactions
             logger.info(f"Reaction added: {event['reaction']} by {event['user']}")
-    
+
     def _register_actions(self):
         """Register interactive action handlers"""
-        
+
         # Handle check-in submission
         @self.app.view("checkin_modal")
         def handle_checkin_submission(ack, body, view, client):
             """Process check-in form submission"""
             ack()
-            
+
             user_id = body["user"]["id"]
             values = view["state"]["values"]
-            
+
             # Extract form values
             mood = values["mood_block"]["mood_select"]["selected_option"]["value"]
             stress = values["stress_block"]["stress_select"]["selected_option"]["value"]
             notes = values.get("notes_block", {}).get("notes_input", {}).get("value", "")
-            
+
             # Save check-in (integrate with your database)
             self._save_checkin(user_id, mood, stress, notes)
-            
+
             # Send confirmation
             client.chat_postMessage(
                 channel=user_id,
                 text=f"✅ Thanks for checking in! Your wellness score today: {self._calculate_score(mood, stress)}/100"
             )
-        
+
         # Handle assessment selection
         @self.app.view("assessment_modal")
         def handle_assessment_selection(ack, body, view, client):
             """Process assessment type selection"""
             ack()
-            
+
             user_id = body["user"]["id"]
             values = view["state"]["values"]
             assessment_type = values["assessment_block"]["assessment_select"]["selected_option"]["value"]
-            
+
             # Generate assessment link
             assessment_url = f"{settings.FRONTEND_URL}/assessments/start?type={assessment_type}"
-            
+
             client.chat_postMessage(
                 channel=user_id,
                 blocks=[
@@ -264,20 +264,20 @@ class SlackBotHandler:
                     }
                 ]
             )
-        
+
         # Handle button clicks
         @self.app.action("view_dashboard")
         def handle_view_dashboard(ack, body, client):
             """Handle dashboard button click"""
             ack()
             # Button actions are handled by URL in the button definition
-        
+
         @self.app.action("start_assessment")
         def handle_start_assessment(ack, body, client):
             """Handle start assessment button"""
             ack()
             # Open assessment modal or redirect
-    
+
     def _get_help_message(self) -> Dict[str, Any]:
         """Generate help message with all available commands"""
         return {
@@ -336,7 +336,7 @@ class SlackBotHandler:
                 }
             ]
         }
-    
+
     async def _get_user_status(self, user_id: str) -> Dict[str, Any]:
         """Get user's wellness status with real database integration"""
         try:
@@ -465,50 +465,7 @@ class SlackBotHandler:
                     }
                 ]
             }
-                        {
-                            "type": "mrkdwn",
-                            "text": "*Overall Score:*\n🟢 78/100"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": "*Trend:*\n📈 +5 from last week"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": "*Last Assessment:*\n2 days ago"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": "*Completed:*\n12/15 this month"
-                        }
-                    ]
-                },
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "button",
-                            "text": {
-                                "type": "plain_text",
-                                "text": "View Dashboard"
-                            },
-                            "url": f"{settings.FRONTEND_URL}/dashboard",
-                            "action_id": "view_dashboard"
-                        },
-                        {
-                            "type": "button",
-                            "text": {
-                                "type": "plain_text",
-                                "text": "Take Assessment"
-                            },
-                            "action_id": "start_assessment",
-                            "style": "primary"
-                        }
-                    ]
-                }
-            ]
-        }
-    
+
     async def _get_team_status(self, user_id: str) -> Dict[str, Any]:
         """Get team wellness overview with real database integration"""
         try:
@@ -726,7 +683,7 @@ class SlackBotHandler:
                 }
             ]
         }
-    
+
     def _get_checkin_modal(self) -> Dict[str, Any]:
         """Generate check-in modal"""
         return {
@@ -844,7 +801,7 @@ class SlackBotHandler:
                 }
             ]
         }
-    
+
     def _get_assessment_selection_modal(self) -> Dict[str, Any]:
         """Generate assessment selection modal"""
         return {
@@ -902,7 +859,7 @@ class SlackBotHandler:
                 }
             ]
         }
-    
+
     async def _save_checkin(self, user_id: str, mood: str, stress: str, notes: str):
         """Save check-in to database with proper integration"""
         try:
@@ -942,17 +899,17 @@ class SlackBotHandler:
         except Exception as e:
             logger.error(f"Error saving check-in for {user_id}: {e}")
             return False
-    
+
     def _calculate_score(self, mood: str, stress: str) -> int:
         """Calculate wellness score from check-in"""
         mood_scores = {"great": 100, "good": 80, "okay": 60, "not_great": 40, "struggling": 20}
         stress_scores = {"1": 20, "2": 15, "3": 10, "4": 5, "5": 0}
-        
+
         mood_value = mood_scores.get(mood, 60)
         stress_penalty = int(stress_scores.get(stress, 10))
-        
+
         return min(100, mood_value - stress_penalty)
-    
+
     def get_handler(self) -> SlackRequestHandler:
         """Get FastAPI request handler"""
         return self.handler

@@ -115,7 +115,7 @@ class AnonymousFeedbackService:
             )
 
             db.add(feedback)
-        await db.commit()
+            await db.commit()
             await db.refresh(feedback)
 
             # Log anonymously (no identifying information)
@@ -168,7 +168,7 @@ class AnonymousFeedbackService:
 
         try:
             feedback = result = await db.execute(query)
-        return result.scalars().all()
+            return result.scalars().all()
 
             if not feedback:
                 return {

@@ -396,7 +396,7 @@ async def cancel_account_deletion(
         raise
     except Exception as e:
         logger.error(f"Error cancelling deletion: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to cancel deletion")
+        raise HTTPException(status_code=500, detail="Failed to cancel deletion") from e
 
 
 # ============================================
@@ -438,7 +438,7 @@ async def get_privacy_settings(
 
     except Exception as e:
         logger.error(f"Error getting privacy settings: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get privacy settings")
+        raise HTTPException(status_code=500, detail="Failed to get privacy settings") from e
 
 
 @router.put("/privacy-settings")
@@ -489,7 +489,7 @@ async def update_privacy_settings(
 
     except Exception as e:
         logger.error(f"Error updating privacy settings: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to update privacy settings")
+        raise HTTPException(status_code=500, detail="Failed to update privacy settings") from e
 
 
 # ============================================
