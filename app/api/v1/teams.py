@@ -18,7 +18,7 @@ async def create_team(team: TeamCreate, db: Session = Depends(get_async_db)):
         team_type=team.team_type
     )
     db.add(db_team)
-        await db.commit()
+    await db.commit()
     await db.refresh(db_team)
     return TeamResponse.from_orm(db_team)
 
