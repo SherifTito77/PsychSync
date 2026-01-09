@@ -194,7 +194,7 @@ async def get_user_personality_assessments(
 
     except Exception as e:
         logger.error(f"Error getting user personality assessments: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get personality assessments")
+        raise HTTPException(status_code=500, detail="Failed to get personality assessments") from e
 
 
 @router.post("/take-assessment", dependencies=[Depends(get_current_user)])
@@ -265,7 +265,7 @@ async def create_personality_assessment(
 
     except Exception as e:
         logger.error(f"Error creating personality assessment: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create personality assessment")
+        raise HTTPException(status_code=500, detail="Failed to create personality assessment") from e
 
 
 @router.post("/submit-response/{assessment_id}")
@@ -345,7 +345,7 @@ async def submit_personality_assessment(
 
     except Exception as e:
         logger.error(f"Error submitting personality assessment: {e}")
-        raise HTTPException(status_code=500, detail="Failed to submit personality assessment")
+        raise HTTPException(status_code=500, detail="Failed to submit personality assessment") from e
 
 
 @router.get("/compare-results/{user_id}")
@@ -403,7 +403,7 @@ async def compare_personality_results(
 
     except Exception as e:
         logger.error(f"Error comparing personality results: {e}")
-        raise HTTPException(status_code=500, detail="Failed to compare personality results")
+        raise HTTPException(status_code=500, detail="Failed to compare personality results") from e
 
 
 @router.get("/team-personality-profile/{team_id}")
@@ -454,7 +454,7 @@ async def get_team_personality_profile(
 
     except Exception as e:
         logger.error(f"Error getting team personality profile: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get team personality profile")
+        raise HTTPException(status_code=500, detail="Failed to get team personality profile") from e
 
 
 # Helper functions
@@ -1041,7 +1041,7 @@ async def process_personality_assessment(
         }
 
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Unsupported framework: {framework}")
+        raise HTTPException(status_code=400, detail=f"Unsupported framework: {framework}") from None
     except Exception as e:
         logger.error(f"Error processing {framework} assessment: {e!s}")
-        raise HTTPException(status_code=500, detail=f"Processing error: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e

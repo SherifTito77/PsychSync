@@ -139,7 +139,7 @@ async def setup_mfa(
     except MFASetupError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to setup MFA: {e!s}"
-        )
+        ) from e
 
 
 @router.post("/verify", response_model=MFAVerifyResponse)
@@ -175,7 +175,7 @@ async def verify_mfa(
         return MFAVerifyResponse(message="MFA enabled successfully", mfa_enabled=True)
 
     except MFAVerificationError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.get("/status", response_model=MFAStatusResponse)
@@ -219,7 +219,7 @@ async def verify_backup_code(
         }
 
     except BackupCodeError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.post("/regenerate-backup-codes", response_model=BackupCodesRegenerateResponse)
@@ -253,7 +253,7 @@ async def regenerate_backup_codes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to regenerate backup codes: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/disable")
@@ -291,4 +291,4 @@ async def disable_mfa(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to disable MFA: {e!s}",
-        )
+        ) from e

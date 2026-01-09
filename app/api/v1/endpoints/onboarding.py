@@ -105,7 +105,7 @@ async def quick_assessment(
             session_id=request.session_id or str(uuid.uuid4()),
             data={"error": str(e), "role": request.role, "challenge": request.challenge},
         )
-        raise HTTPException(status_code=500, detail=f"Assessment generation failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Assessment generation failed: {e!s}") from e
 
 
 @router.post("/team-insights", response_model=TeamInsightResponse)
@@ -157,7 +157,7 @@ async def get_team_insights(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Team insights generation failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Team insights generation failed: {e!s}") from e
 
 
 @router.post("/track-conversion")
@@ -192,7 +192,7 @@ async def track_conversion_event(
         return {"success": True, "message": "Event tracked successfully"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analytics tracking failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Analytics tracking failed: {e!s}") from e
 
 
 @router.get("/onboarding-status")
@@ -220,7 +220,7 @@ async def get_onboarding_status(
         return status
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get onboarding status: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to get onboarding status: {e!s}") from e
 
 
 @router.post("/setup-wizard")
@@ -262,7 +262,7 @@ async def setup_wizard_step(
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Setup wizard step failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Setup wizard step failed: {e!s}") from e
 
 
 @router.get("/value-metrics")
@@ -280,4 +280,4 @@ async def get_value_metrics(
         return metrics
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to calculate value metrics: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate value metrics: {e!s}") from e
