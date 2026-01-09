@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Globe,
-  ChevronDown
+  ChevronDown,
   Check
 } from 'lucide-react';
 import Button from './Button';

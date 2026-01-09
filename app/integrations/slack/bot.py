@@ -655,34 +655,6 @@ class SlackBotHandler:
                     }
                 ]
             }
-                        {
-                            "type": "mrkdwn",
-                            "text": "*Alerts:*\n⚠️ 2 requiring attention"
-                        }
-                    ]
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "*Top Concerns:*\n• Work-life balance\n• Team communication"
-                    }
-                },
-                {
-                    "type": "actions",
-                    "elements": [
-                        {
-                            "type": "button",
-                            "text": {
-                                "type": "plain_text",
-                                "text": "View Full Report"
-                            },
-                            "url": f"{settings.FRONTEND_URL}/team/reports"
-                        }
-                    ]
-                }
-            ]
-        }
 
     def _get_checkin_modal(self) -> Dict[str, Any]:
         """Generate check-in modal"""

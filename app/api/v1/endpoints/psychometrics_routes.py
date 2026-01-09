@@ -95,11 +95,8 @@ async def analyze_personality_from_text(
 
         return result
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-
-@check_rate_limit(identifier="public", limit_name="public")
-     detail=f"Personality analysis failed: {str(e)}"
+        raise HTTPException(            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Personality analysis failed: {str(e)}"
         )
 
 @router.post("/emotion/analyze-state")
@@ -123,8 +120,7 @@ async def analyze_emotional_state(
     except Exception as e:
         raise HTTPException(
 
-@check_rate_limit(identifier="public", limit_name="public")
-  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Emotional state analysis failed: {str(e)}"
         )
 

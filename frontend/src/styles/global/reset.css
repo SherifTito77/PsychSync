@@ -1,0 +1,83 @@
+/**
+ * CSS Reset
+ *
+ * Normalizes styles across browsers for consistent rendering.
+ * Based on modern CSS reset best practices.
+ */
+
+/* Box sizing reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Remove default margin and padding */
+* {
+  margin: 0;
+  padding: 0;
+}
+
+/* Improve line height */
+html {
+  line-height: 1.15;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Remove default list styles */
+ul,
+ol {
+  list-style: none;
+}
+
+/* Remove default button styles */
+button {
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Remove default link styles */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Improve image defaults */
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Improve form defaults */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Remove text decoration from anchors */
+abbr[title] {
+  text-decoration: underline dotted;
+}
+
+/* Make search inputs styled like text inputs */
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/* Remove tap highlight on mobile */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}

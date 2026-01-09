@@ -52,9 +52,9 @@ const PredictiveIndexPage = React.lazy(() => import('./pages/assessments/types/P
 // Clinical Assessment Components (loaded on demand due to sensitive nature)
 const ClinicalAssessments = React.lazy(() => import('./pages/ClinicalAssessments'));
 const ClinicalConsent = React.lazy(() => import('./pages/ClinicalConsent'));
-const ClinicalAssessment = React.lazy(() => import('./pages/ClinicalAssessment'));
+const ClinicalAssessment = React.lazy(() => import('./pages/clinical-assessment'));
 const AssessmentRouter = React.lazy(() => import('./pages/clinical/AssessmentRouter'));
-const ClinicalResults = React.lazy(() => import('./pages/ClinicalResults'));
+const ClinicalResults = React.lazy(() => import('./pages/clinical-results'));
 const ClinicalEmergency = React.lazy(() => import('./pages/ClinicalEmergency'));
 const ClinicalDashboard = React.lazy(() => import('./pages/ClinicalDashboard'));
 const ClinicalSelfHelp = React.lazy(() => import('./pages/ClinicalSelfHelp'));
@@ -69,7 +69,7 @@ const BehavioralAnalysis = React.lazy(() => import('./pages/BehavioralAnalysis')
 const MentalHealthWellness = React.lazy(() => import('./pages/MentalHealthWellness'));
 const TestWellnessForm = React.lazy(() => import('./components/clinical/TestWellnessForm'));
 const StressAssessmentTest = React.lazy(() => import('./pages/StressAssessmentTest'));
-const WellbeingAssessment = React.lazy(() => import('./pages/WellbeingAssessment'));
+const WellbeingAssessment = React.lazy(() => import('./pages/wellbeing-assessment'));
 const EmailConnector = React.lazy(() => import('./pages/EmailConnector'));
 const HRISConnector = React.lazy(() => import('./pages/HRISConnector'));
 // --- Anonymous Feedback Components ---
@@ -1092,8 +1092,8 @@ const App: React.FC = memo(() => {
               {/* 404 - Redirect to Landing */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </AssessmentProvider>
           </TeamProvider>
-          </AssessmentProvider>
         </NotificationProvider>
       </SecurityMonitor>
     </ThemeProvider>

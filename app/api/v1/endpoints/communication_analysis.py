@@ -465,7 +465,7 @@ async def trigger_analysis(
             recommendations = await coaching_recommendation_service.generate_user_recommendations(db, current_user.id, 30)
             for rec in recommendations:
                 db.add(rec)
-        await db.commit()
+            await db.commit()
             results["recommendations"] = f"Generated {len(recommendations)} recommendations"
 
         if analysis_type in ["culture", "all"] and current_user.organization_id:
@@ -474,7 +474,7 @@ async def trigger_analysis(
                 culture_metrics = await culture_health_service.analyze_organization_culture(db, current_user.organization_id, 30)
                 if culture_metrics:
                     db.add(culture_metrics)
-        await db.commit()
+                    await db.commit()
                     results["culture"] = "Culture analysis completed successfully"
                 else:
                     results["culture"] = "Insufficient data for culture analysis"

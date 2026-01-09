@@ -161,10 +161,8 @@ async def export_user_data(
         logger.error(f"Error in export_user_data: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="Failed
-@check_rate_limit(identifier="public", limit_name="public")
-to process export request. Please try again later."
-        )
+            detail="Failed to process export request. Please try again later."
+        ) from e
 
 
 @router.get("/export/status")
@@ -205,9 +203,10 @@ async def get_export_status(
 
     except Exception as e:
         logger.error(f"Error getting export status: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get exp
-@check_rate_limit(identifier="public", limit_name="public")
-ort status")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to get export status"
+        ) from e
 
 
 # ============================================
@@ -336,7 +335,7 @@ async def delete_user_account(
         raise HTTPException(
             status_code=500,
             detail="Failed to process deletion request. Please contact support."
-        )
+        ) from e
 
 
 @router.post("/cancel-deletion")

@@ -35,7 +35,7 @@ import {
   XCircle,
   Clock
 } from 'lucide-react';
-import { securityAnalyticsApi } from '@/services/securityAnalytics';
+import securityAnalyticsApi from '@/services/securityAnalytics';
 
 // Types
 interface SecurityMetrics {

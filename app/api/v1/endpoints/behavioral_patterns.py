@@ -94,7 +94,6 @@ class ComparisonResponse(BaseModel):
     recommendations: List[str]
 
 
-@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/analyze", response_model=PatternAnalysisResponse, dependencies=[Depends(get_current_user)])
 async def analyze_user_patterns(
     request: PatternAnalysisRequest,
@@ -158,10 +157,8 @@ async def analyze_user_patterns(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-
-@check_rate_limit(identifier="public", limit_name="public")
-   detail=f"Error analyzing user patterns: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
+            detail=f"Error analyzing user patterns: {str(e)}"
+        ) from e
 
 @router.post("/detect-anomalies", response_model=AnomalyDetectionResponse, dependencies=[Depends(get_current_user)])
 async def detect_anomalies(
@@ -248,11 +245,9 @@ async def detect_anomalies(
         raise
     except Exception as e:
         raise HTTPException(
-
-@check_rate_limit(identifier="public", limit_name="public")
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error detecting anomalies: {str(e)}"
-        )
+        ) from e
 
 @router.post("/match-patterns", response_model=PatternMatchingResponse)
 async def match_patterns(
@@ -322,7 +317,7 @@ async def match_patterns(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error matching patterns: {str(e, dependencies=[Depends(get_current_user)])}"
+            detail=f"Error matching patterns: str(e)"
         )
 
 @router.post("/compare", response_model=ComparisonResponse, dependencies=[Depends(get_current_user)])
@@ -423,15 +418,15 @@ async def get_pattern_templates(
         # for template_id, template in pattern_engine.pattern_templates.items():
         #     template_dict = {
         #         'template_id': template.template_id,
-                'pattern_category': template.pattern_category.value,
-                'description': template.description,
-                'matching_algorithm': template.matching_algorithm.value,
-                'complexity': template.complexity.value,
-                'confidence_threshold': template.confidence_threshold,
-                'min_support': template.min_support,
-                'parameters': template.parameters
-            }
-            templates.append(template_dict)
+        #         'pattern_category': template.pattern_category.value,
+        #         'description': template.description,
+        #         'matching_algorithm': template.matching_algorithm.value,
+        #         'complexity': template.complexity.value,
+        #         'confidence_threshold': template.confidence_threshold,
+        #         'min_support': template.min_support,
+        #         'parameters': template.parameters
+        #     }
+        #     templates.append(template_dict)
 
         return {
             'templates': templates,
@@ -441,8 +436,8 @@ async def get_pattern_templates(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving pattern templates: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
+            detail=f"Error retrieving pattern templates: {str(e)}"
+        ) from e
 
 @router.get("/insights/{user_id}", dependencies=[Depends(get_current_user)])
 async def get_user_insights(
@@ -498,7 +493,7 @@ async def get_user_insights(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting user insights: {str(e, dependencies=[Depends(get_current_user)])}"
+            detail=f"Error getting user insights: str(e)"
         )
 
 @router.get("/metrics/summary", dependencies=[Depends(get_current_user)])

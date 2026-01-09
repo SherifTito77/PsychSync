@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/Card';
-import { Progress } from '@/components/ui/progress';
+import Progress from '@/components/ui/progress';
 
 interface WellbeingScoreProps {
   score: number;

@@ -1,0 +1,139 @@
+/**
+ * ClinicalAssessment Styles
+ *
+ * Fixes input blocking issues and provides consistent styling for clinical forms
+ */
+
+/* Fix input blocking issues */
+.inputFix input[type="checkbox"],
+.inputFix input[type="radio"] {
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+  position: relative !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Radio button checked state styling */
+.inputFix input[type="radio"]:checked {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.inputFix input[type="radio"]:checked::before {
+  content: '' !important;
+  display: block !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background-color: white !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+.inputFix input[type="radio"]:checked + span {
+  color: #3b82f6 !important;
+  font-weight: 600 !important;
+}
+
+/* Ensure radio buttons are visible */
+.inputFix input[type="radio"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  border: 2px solid #d1d5db !important;
+  border-radius: 50% !important;
+  background-color: white !important;
+  cursor: pointer !important;
+  position: relative !important;
+  transition: all 0.2s ease !important;
+}
+
+.inputFix input[type="radio"]:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Question card styles */
+.questionCard {
+  @apply bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200;
+}
+
+.questionCard:hover {
+  @apply shadow-lg;
+}
+
+/* Option button styles */
+.optionButton {
+  @apply w-full text-left p-4 rounded-lg border-2 transition-all duration-200;
+  @apply hover:border-indigo-300 hover:bg-gray-50;
+}
+
+.optionButton:hover,
+.optionButton:focus {
+  @apply border-indigo-300 bg-gray-50;
+}
+
+.optionButton.selected {
+  @apply border-indigo-600 bg-indigo-50 text-indigo-900;
+}
+
+/* Navigation button styles */
+.navButton {
+  @apply px-6 py-3 rounded-lg font-medium transition-all duration-200;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.navButton.primary {
+  @apply bg-indigo-600 text-white hover:bg-indigo-700;
+}
+
+.navButton.secondary {
+  @apply bg-gray-200 text-gray-900 hover:bg-gray-300;
+}
+
+/* Crisis warning banner */
+.crisisWarning {
+  @apply bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded;
+}
+
+.crisisWarningTitle {
+  @apply text-red-800 font-bold text-lg mb-2;
+}
+
+.crisisWarningText {
+  @apply text-red-700;
+}
+
+/* Loading spinner */
+.loadingSpinner {
+  @apply animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto;
+}
+
+/* Progress bar */
+.progressBar {
+  @apply w-full bg-gray-200 rounded-full h-2 mb-4;
+}
+
+.progressFill {
+  @apply bg-indigo-600 h-2 rounded-full transition-all duration-300;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .questionCard {
+    @apply p-4;
+  }
+
+  .optionButton {
+    @apply p-3 text-sm;
+  }
+
+  .navButton {
+    @apply px-4 py-2 text-sm;
+  }
+}

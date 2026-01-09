@@ -308,7 +308,7 @@ class AnonymousFeedbackService:
         try:
             # Verify permissions
             feedback = result = await db.execute(query)
-        return result.scalars().all()
+            return result.scalars().all()
 
             if not feedback:
                 return {
