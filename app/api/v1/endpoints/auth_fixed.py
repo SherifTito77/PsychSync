@@ -134,7 +134,7 @@ async def login_for_access_token_fixed(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service temporarily unavailable",
-        )
+        ) from e
 
 
 @router.post("/register-fixed")
@@ -226,7 +226,7 @@ async def register_user_fixed(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration service temporarily unavailable",
-        )
+        ) from e
 
 
 @router.get("/me-fixed")
@@ -257,7 +257,7 @@ async def get_current_user_info_fixed(
             print(f"Token validation error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token"
-            )
+            ) from e
 
         # Get user from database
         result = await db.execute(select(User).where(User.id == user_id))
@@ -290,7 +290,7 @@ async def get_current_user_info_fixed(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="User service temporarily unavailable",
-        )
+        ) from e
 
 
 @router.post("/logout-fixed")
@@ -378,7 +378,7 @@ async def refresh_token_fixed(request: Request, refresh_token: str = Form(...)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Token refresh service temporarily unavailable",
-        )
+        ) from e
 
 
 @router.get("/health-fixed")
