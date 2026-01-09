@@ -291,7 +291,7 @@ async def change_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Password change failed. Please try again.",
-        )
+        ) from e
 
 
 @router.get("/", response_model=StandardResponse[list[UserResponse]])
@@ -424,7 +424,7 @@ async def list_users(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve users"
-        )
+        ) from e
 
 
 @router.get("/{user_id}", response_model=StandardResponse[UserResponse])
@@ -490,7 +490,7 @@ async def get_user_by_id(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve user"
-        )
+        ) from e
 
 
 @router.put("/me", response_model=StandardResponse[UserResponse])
@@ -555,7 +555,7 @@ async def update_user_profile(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile"
-        )
+        ) from e
 
 
 @router.post(
@@ -671,7 +671,7 @@ async def create_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed. Please try again.",
-        )
+        ) from e
 
 
 @router.delete("/me", response_model=StandardResponse[None])
@@ -737,4 +737,4 @@ async def delete_user_account(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete account"
-        )
+        ) from e
