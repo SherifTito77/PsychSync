@@ -20,8 +20,12 @@ const Button: React.FC<ButtonProps> = ({
   children,
   fullWidth = false,
   mobileLarge = false,
+  'aria-label': ariaLabelProp,
   ...props
 }) => {
+  // Auto-generate aria-label for icon-only buttons to improve accessibility
+  const hasIconOnly = icon && !children;
+  const ariaLabel = ariaLabelProp || (hasIconOnly && !props['aria-labelledby'] ? 'Icon button' : undefined);
   const baseClasses =
     'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -60,6 +64,7 @@ const Button: React.FC<ButtonProps> = ({
       type={props.type || 'button'}
       aria-disabled={isDisabled}
       aria-busy={loading}
+      aria-label={ariaLabel}
       {...props}
     >
       {loading && (

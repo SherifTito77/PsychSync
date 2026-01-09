@@ -211,886 +211,886 @@ const App: React.FC = memo(() => {
                   onInstallDismissed={() => console.log('PWA install dismissed')}
                 />
                 <OfflineStatusIndicator showDetailedInfo={true} />
-                <Routes>
-                  {/* Public Routes */}
-                  <Route
-                    path="/test-wellness"
-                    element={
-                      <Suspense fallback={<div>Loading test wellness form...</div>}>
-                        <TestWellnessForm />
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route
+                        path="/test-wellness"
+                        element={
+                          <Suspense fallback={<div>Loading test wellness form...</div>}>
+                            <TestWellnessForm />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/test-stress-assessment"
+                        element={
+                          <Suspense fallback={<div>Loading Stress Assessment...</div>}>
+                            <StressAssessmentTest />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path="/test-wellbeing-assessment"
+                        element={
+                      <Suspense fallback={<div>Loading Wellbeing Assessment...</div>}>
+                        <WellbeingAssessment />
                       </Suspense>
                     }
                   />
                   <Route
-                    path="/test-stress-assessment"
+                    path="/login"
                     element={
-                      <Suspense fallback={<div>Loading Stress Assessment...</div>}>
-                        <StressAssessmentTest />
-                      </Suspense>
+                      <SecureRoute>
+                        <Login />
+                      </SecureRoute>
                     }
                   />
                   <Route
-                    path="/test-wellbeing-assessment"
+                    path="/register"
                     element={
-                  <Suspense fallback={<div>Loading Wellbeing Assessment...</div>}>
-                    <WellbeingAssessment />
-                  </Suspense>
-                }
-              />
-              <Route
-                path="/login"
-                element={
-                  <SecureRoute>
-                    <Login />
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/register"
-                element={
-                  <SecureRoute>
-                    <Register />
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/verify-email"
-                element={
-                  <SecureRoute>
-                    <VerifyEmail />
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/forgot-password"
-                element={
-                  <SecureRoute>
-                    <ForgotPassword />
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/reset-password/:token"
-                element={
-                  <SecureRoute>
-                    <ResetPassword />
-                  </SecureRoute>
-                }
-              />
+                      <SecureRoute>
+                        <Register />
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/verify-email"
+                    element={
+                      <SecureRoute>
+                        <VerifyEmail />
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/forgot-password"
+                    element={
+                      <SecureRoute>
+                        <ForgotPassword />
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/reset-password/:token"
+                    element={
+                      <SecureRoute>
+                        <ResetPassword />
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* Anonymous Feedback Routes (Public) */}
-              <Route
-                path="/anonymous-feedback"
-                element={
-                  <SecureRoute>
-                    <AnonymousFeedbackForm />
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/feedback-status"
-                element={
-                  <SecureRoute>
-                    <AnonymousFeedbackStatus />
-                  </SecureRoute>
-                }
-              />
+                  {/* Anonymous Feedback Routes (Public) */}
+                  <Route
+                    path="/anonymous-feedback"
+                    element={
+                      <SecureRoute>
+                        <AnonymousFeedbackForm />
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/feedback-status"
+                    element={
+                      <SecureRoute>
+                        <AnonymousFeedbackStatus />
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* Protected Routes with Dashboard Layout */}
-              <Route
-                path="/dashboard"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Dashboard />
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Profile..." />}>
-                          <Profile />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/teams"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Teams..." />}>
-                          <Teams />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/teams/:teamId"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Team Details..." />}>
-                          <TeamDetail />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-                <Route
-                path="/assessments/:assessmentId"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Assessment Details..." />}>
-                          <AssessmentDetail />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/:assessmentId/take"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
-                        <TakeAssessment />
-                      </Suspense>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/responses/:responseId/results"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Results..." />}>
-                          <ResponseResults />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/responses/my-responses"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Responses..." />}>
-                          <MyResponses />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Analytics..." />}>
-                          <Analytics />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <Suspense fallback={<SecureFallback message="Loading Settings..." />}>
-                        <Settings />
-                      </Suspense>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/templates"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Templates..." />}>
-                          <TemplateBrowser />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/team-optimizer"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Team Optimizer..." />}>
-                          <TeamOptimizer />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/predictive-analytics"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Predictive Analytics..." />}>
-                          <PredictiveAnalytics />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/reliability-validity"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Reliability & Validity..." />}>
-                          <ReliabilityValidity />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/employee-safety"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Employee Safety..." />}>
-                          <EmployeeSafety />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/admin/security"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Security Dashboard..." />}>
-                          <SecurityDashboard />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-                          {/* Specific Assessment Start Routes */}
-              <Route
-                path="/assessments/mbti/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading MBTI Assessment..." />}>
-                          <MBTIAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/mbti"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading MBTI Assessment..." />}>
-                          <MBTIAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/big-five/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
-                          <BigFiveAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/big-five"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
-                          <BigFiveAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/big_five/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
-                          <BigFiveAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/big_five"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
-                          <BigFiveAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/enneagram/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Enneagram Assessment..." />}>
-                          <EnneagramAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/enneagram"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Enneagram Assessment..." />}>
-                          <EnneagramAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/disc/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading DISC Assessment..." />}>
-                          <DISCAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/disc"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading DISC Assessment..." />}>
-                          <DISCAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/social/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Social Styles Assessment..." />}>
-                          <SocialStylesPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/social"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Social Styles Assessment..." />}>
-                          <SocialStylesPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/strengthsfinder/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading StrengthsFinder Assessment..." />}>
-                          <StrengthsFinderPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/strengthsfinder"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading StrengthsFinder Assessment..." />}>
-                          <StrengthsFinderPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/predictive-index/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
-                          <PredictiveIndexPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/predictive-index"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
-                          <PredictiveIndexPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/predictive_index/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
-                          <PredictiveIndexPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/predictive_index"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
-                          <PredictiveIndexPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              {/* Fallback for unknown assessments */}
-              <Route
-                path="/assessments/:id/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
-                          <AssessmentStartPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/:id/results"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Results..." />}>
-                          <AssessmentResultsPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/assessments/:id/continue"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
-                          <AssessmentStartPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              
-              {/* New Onboarding Routes - Value First */}
-              <Route
-                path="/"
-                element={
-                  <SecureRoute>
-                    <ImprovedLanding onGetStarted={(role, challenge) => {
+                  {/* Protected Routes with Dashboard Layout */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Dashboard />
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Profile..." />}>
+                              <Profile />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/teams"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Teams..." />}>
+                              <Teams />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/teams/:teamId"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Team Details..." />}>
+                              <TeamDetail />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                    <Route
+                    path="/assessments/:assessmentId"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Assessment Details..." />}>
+                              <AssessmentDetail />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/:assessmentId/take"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
+                            <TakeAssessment />
+                          </Suspense>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/responses/:responseId/results"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Results..." />}>
+                              <ResponseResults />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/responses/my-responses"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Responses..." />}>
+                              <MyResponses />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Analytics..." />}>
+                              <Analytics />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <Suspense fallback={<SecureFallback message="Loading Settings..." />}>
+                            <Settings />
+                          </Suspense>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/templates"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Templates..." />}>
+                              <TemplateBrowser />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/team-optimizer"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Team Optimizer..." />}>
+                              <TeamOptimizer />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/predictive-analytics"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Predictive Analytics..." />}>
+                              <PredictiveAnalytics />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/reliability-validity"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Reliability & Validity..." />}>
+                              <ReliabilityValidity />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/employee-safety"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Employee Safety..." />}>
+                              <EmployeeSafety />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/security"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Security Dashboard..." />}>
+                              <SecurityDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                              {/* Specific Assessment Start Routes */}
+                  <Route
+                    path="/assessments/mbti/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading MBTI Assessment..." />}>
+                              <MBTIAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/mbti"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading MBTI Assessment..." />}>
+                              <MBTIAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/big-five/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
+                              <BigFiveAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/big-five"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
+                              <BigFiveAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/big_five/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
+                              <BigFiveAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/big_five"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Big Five Assessment..." />}>
+                              <BigFiveAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/enneagram/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Enneagram Assessment..." />}>
+                              <EnneagramAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/enneagram"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Enneagram Assessment..." />}>
+                              <EnneagramAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/disc/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading DISC Assessment..." />}>
+                              <DISCAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/disc"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading DISC Assessment..." />}>
+                              <DISCAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/social/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Social Styles Assessment..." />}>
+                              <SocialStylesPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/social"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Social Styles Assessment..." />}>
+                              <SocialStylesPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/strengthsfinder/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading StrengthsFinder Assessment..." />}>
+                              <StrengthsFinderPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/strengthsfinder"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading StrengthsFinder Assessment..." />}>
+                              <StrengthsFinderPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/predictive-index/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
+                              <PredictiveIndexPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/predictive-index"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
+                              <PredictiveIndexPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/predictive_index/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
+                              <PredictiveIndexPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/predictive_index"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Predictive Index Assessment..." />}>
+                              <PredictiveIndexPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  {/* Fallback for unknown assessments */}
+                  <Route
+                    path="/assessments/:id/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
+                              <AssessmentStartPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/:id/results"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Results..." />}>
+                              <AssessmentResultsPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/assessments/:id/continue"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
+                              <AssessmentStartPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* New Onboarding Routes - Value First */}
+                  <Route
+                    path="/"
+                    element={
+                      <SecureRoute>
+                        <ImprovedLanding onGetStarted={(role, challenge) => {
                       // Handle value preview completion
-                      if (role && challenge) {
+                          if (role && challenge) {
                         // Store in sessionStorage for onboarding
-                        sessionStorage.setItem('onboarding_role', role);
-                        sessionStorage.setItem('onboarding_challenge', challenge);
-                        window.location.href = '/quick-start';
-                      }
-                    }} />
-                  </SecureRoute>
-                }
-              />
+                            sessionStorage.setItem('onboarding_role', role);
+                            sessionStorage.setItem('onboarding_challenge', challenge);
+                            window.location.href = '/quick-start';
+                          }
+                        }} />
+                      </SecureRoute>
+                    }
+                  />
 
-              <Route
-                path="/quick-start"
-                element={
-                  <SecureRoute>
-                    <ProgressiveDashboard
-                      initialRole={sessionStorage.getItem('onboarding_role') || ''}
-                      initialChallenge={sessionStorage.getItem('onboarding_challenge') || ''}
-                    />
-                  </SecureRoute>
-                }
-              />
+                  <Route
+                    path="/quick-start"
+                    element={
+                      <SecureRoute>
+                        <ProgressiveDashboard
+                          initialRole={sessionStorage.getItem('onboarding_role') || ''}
+                          initialChallenge={sessionStorage.getItem('onboarding_challenge') || ''}
+                        />
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* Alternative Quick Preview Route */}
-              <Route
-                path="/preview"
-                element={
-                  <SecureRoute>
-                    <ImprovedLanding onGetStarted={(role, challenge) => {
-                      if (role && challenge) {
-                        sessionStorage.setItem('onboarding_role', role);
-                        sessionStorage.setItem('onboarding_challenge', challenge);
-                        window.location.href = '/register-streamlined';
-                      }
-                    }} />
-                  </SecureRoute>
-                }
-              />
+                  {/* Alternative Quick Preview Route */}
+                  <Route
+                    path="/preview"
+                    element={
+                      <SecureRoute>
+                        <ImprovedLanding onGetStarted={(role, challenge) => {
+                          if (role && challenge) {
+                            sessionStorage.setItem('onboarding_role', role);
+                            sessionStorage.setItem('onboarding_challenge', challenge);
+                            window.location.href = '/register-streamlined';
+                          }
+                        }} />
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* Streamlined Registration Route */}
-              <Route
-                path="/register-streamlined"
-                element={
-                  <SecureRoute>
-                    <StreamlinedRegister
-                      userRole={sessionStorage.getItem('onboarding_role') || ''}
-                      challenge={sessionStorage.getItem('onboarding_challenge') || ''}
-                      onSkip={() => window.location.href = '/'}
-                    />
-                  </SecureRoute>
-                }
-              />
+                  {/* Streamlined Registration Route */}
+                  <Route
+                    path="/register-streamlined"
+                    element={
+                      <SecureRoute>
+                        <StreamlinedRegister
+                          userRole={sessionStorage.getItem('onboarding_role') || ''}
+                          challenge={sessionStorage.getItem('onboarding_challenge') || ''}
+                          onSkip={() => window.location.href = '/'}
+                        />
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* Quick Assessment API Route */}
-              <Route
-                path="/quick-assessment"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Quick Assessment..." />}>
-                          <QuickAssessmentPage />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
+                  {/* Quick Assessment API Route */}
+                  <Route
+                    path="/quick-assessment"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Quick Assessment..." />}>
+                              <QuickAssessmentPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* Five Distinct Service Areas */}
-              <Route
-                path="/personality-assessments"
-                element={
-                  <DashboardLayout>
-                    <Suspense fallback={<div>Loading Personality Assessments...</div>}>
-                      <PersonalityAssessments />
-                    </Suspense>
-                  </DashboardLayout>
-                }
-              />
+                  {/* Five Distinct Service Areas */}
+                  <Route
+                    path="/personality-assessments"
+                    element={
+                      <DashboardLayout>
+                        <Suspense fallback={<div>Loading Personality Assessments...</div>}>
+                          <PersonalityAssessments />
+                        </Suspense>
+                      </DashboardLayout>
+                    }
+                  />
 
-              <Route
-                path="/behavioral-analysis"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Behavioral Analysis..." />}>
-                          <BehavioralAnalysis />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
+                  <Route
+                    path="/behavioral-analysis"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Behavioral Analysis..." />}>
+                              <BehavioralAnalysis />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
 
-              <Route
-                path="/mental-health-wellness"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Mental Health & Wellness..." />}>
-                          <MentalHealthWellness />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
+                  <Route
+                    path="/mental-health-wellness"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Mental Health & Wellness..." />}>
+                              <MentalHealthWellness />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
 
-              <Route
-                path="/email-connector"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Email Connector..." />}>
-                          <EmailConnector />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
+                  <Route
+                    path="/email-connector"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Email Connector..." />}>
+                              <EmailConnector />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
 
-              <Route
-                path="/hris-connector"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading HRIS Connector..." />}>
-                          <HRISConnector />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
+                  <Route
+                    path="/hris-connector"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading HRIS Connector..." />}>
+                              <HRISConnector />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* Clinical Assessment Routes */}
-              <Route
-                path="/clinical-assessments"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Mental Health Screening..." />}>
-                          <ClinicalAssessments />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Mental Health Screening..." />}>
-                          <ClinicalAssessments />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical/consent"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Consent Form..." />}>
-                          <ClinicalConsent />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical/assessment/:tool/take"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
-                          <AssessmentRouter />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical/assessment/:tool/start"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
-                          <AssessmentRouter />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical/assessment/:tool/complete"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Results..." />}>
-                          <ClinicalResults />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical/emergency"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Emergency Resources..." />}>
-                          <ClinicalEmergency />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical/dashboard"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Clinical Dashboard..." />}>
-                          <ClinicalDashboard />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
-              <Route
-                path="/clinical/self-help"
-                element={
-                  <SecureRoute requireAuth>
-                    <RequireAuth>
-                      <DashboardLayout>
-                        <Suspense fallback={<SecureFallback message="Loading Self-Help Resources..." />}>
-                          <ClinicalSelfHelp />
-                        </Suspense>
-                      </DashboardLayout>
-                    </RequireAuth>
-                  </SecureRoute>
-                }
-              />
+                  {/* Clinical Assessment Routes */}
+                  <Route
+                    path="/clinical-assessments"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Mental Health Screening..." />}>
+                              <ClinicalAssessments />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Mental Health Screening..." />}>
+                              <ClinicalAssessments />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical/consent"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Consent Form..." />}>
+                              <ClinicalConsent />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical/assessment/:tool/take"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
+                              <AssessmentRouter />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical/assessment/:tool/start"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Assessment..." />}>
+                              <AssessmentRouter />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical/assessment/:tool/complete"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Results..." />}>
+                              <ClinicalResults />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical/emergency"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Emergency Resources..." />}>
+                              <ClinicalEmergency />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical/dashboard"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Clinical Dashboard..." />}>
+                              <ClinicalDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/clinical/self-help"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Self-Help Resources..." />}>
+                              <ClinicalSelfHelp />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
 
-              {/* 404 - Redirect to Landing */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                  {/* 404 - Redirect to Landing */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
             </AssessmentProvider>
           </TeamProvider>
         </NotificationProvider>

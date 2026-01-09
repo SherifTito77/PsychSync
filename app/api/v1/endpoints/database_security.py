@@ -3,25 +3,25 @@ Database Security Remediation API Endpoints
 Provides database vulnerability scanning, remediation, and security management
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-
-from app.middleware.rate_limiter import check_rate_limit
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from app.api.v1.deps import get_db, get_current_admin_user
-from app.db.models.user import User
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.deps import get_current_admin_user, get_db
 from app.core.responses import APIResponse, get_request_id
-from app.core.structured_logging import get_logger, EventType
+from app.core.structured_logging import EventType, get_logger
+from app.db.models.user import User
+from app.middleware.rate_limiter import check_rate_limit
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 # Try to import database_security module - may have syntax issues
 try:
-    from app.core.database_security import database_security, DatabaseSecurityIssue
+    from app.core.database_security import DatabaseSecurityIssue, database_security
+
     DATABASE_SECURITY_AVAILABLE = True
 except (ImportError, SyntaxError) as e:
     logger.error(f"Database security module not available: {e}")
@@ -33,7 +33,7 @@ except (ImportError, SyntaxError) as e:
 async def scan_database_security(
     request: Request,
     current_user: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Perform comprehensive database security scan
@@ -44,7 +44,7 @@ async def scan_database_security(
             EventType.SECURITY_EVENT,
             "Starting database security scan",
             operation_name="scan_database_security",
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
         # Perform comprehensive security scan
@@ -53,15 +53,17 @@ async def scan_database_security(
         # Format vulnerabilities for response
         formatted_vulnerabilities = []
         for vuln in vulnerabilities:
-            formatted_vulnerabilities.append({
-                "issue_type": vuln.issue_type.value,
-                "severity": vuln.severity,
-                "description": vuln.description,
-                "location": vuln.location,
-                "evidence": vuln.evidence,
-                "recommendation": vuln.recommendation,
-                "cvss_score": vuln.cvss_score
-            })
+            formatted_vulnerabilities.append(
+                {
+                    "issue_type": vuln.issue_type.value,
+                    "severity": vuln.severity,
+                    "description": vuln.description,
+                    "location": vuln.location,
+                    "evidence": vuln.evidence,
+                    "recommendation": vuln.recommendation,
+                    "cvss_score": vuln.cvss_score,
+                }
+            )
 
         # Calculate summary statistics
         total_vulns = len(formatted_vulnerabilities)
@@ -72,7 +74,11 @@ async def scan_database_security(
 
         # Calculate overall security score (0-100)
         max_possible_score = total_vulns * 10  # Max CVSS score per vulnerability
-        current_score = max(0, 100 - (sum(v["cvss_score"] for v in formatted_vulnerabilities) / max_possible_score * 100))
+        current_score = max(
+            0,
+            100
+            - (sum(v["cvss_score"] for v in formatted_vulnerabilities) / max_possible_score * 100),
+        )
 
         scan_report = {
             "scan_timestamp": datetime.utcnow().isoformat(),
@@ -83,8 +89,16 @@ async def scan_database_security(
                 "medium": medium_vulns,
                 "low": low_vulns,
                 "security_score": round(current_score, 1),
-                "average_cvss": round(sum(v["cvss_score"] for v in formatted_vulnerabilities) / max(1, total_vulns), 2),
-                "security_status": "CRITICAL" if critical_vulns > 0 else "HIGH" if high_vulns > 0 else "MEDIUM" if medium_vulns > 0 else "LOW"
+                "average_cvss": round(
+                    sum(v["cvss_score"] for v in formatted_vulnerabilities) / max(1, total_vulns), 2
+                ),
+                "security_status": "CRITICAL"
+                if critical_vulns > 0
+                else "HIGH"
+                if high_vulns > 0
+                else "MEDIUM"
+                if medium_vulns > 0
+                else "LOW",
             },
             "vulnerabilities": formatted_vulnerabilities,
             "scan_details": {
@@ -93,7 +107,7 @@ async def scan_database_security(
                     "database roles",
                     "schema permissions",
                     "configuration files",
-                    "application code"
+                    "application code",
                 ],
                 "scan_methods": [
                     "SQL injection pattern detection",
@@ -101,9 +115,9 @@ async def scan_database_security(
                     "Password policy analysis",
                     "Access control review",
                     "Encryption assessment",
-                    "Privilege escalation analysis"
-                ]
-            }
+                    "Privilege escalation analysis",
+                ],
+            },
         }
 
         logger.info(
@@ -112,29 +126,27 @@ async def scan_database_security(
             operation_name="scan_database_security",
             user_id=str(current_user.id),
             vulnerabilities_found=total_vulns,
-            security_status=scan_report["scan_summary"]["security_status"]
+            security_status=scan_report["scan_summary"]["security_status"],
         )
 
         return APIResponse.success(
             data=scan_report,
             message=f"Database security scan completed: {total_vulns} vulnerabilities found",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="scan_database_security", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to perform database security s
-@check_rate_limit(identifier="public", limit_name="public")
-can",
-            request_id=get_request_id(request)
+            message="Failed to perform database security scan", request_id=get_request_id(request)
         )
+
 
 @router.post("/database/security/remediate", summary="Remediate Security Issues")
 async def remediate_database_security(
     request: Request,
     current_user: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Apply automated fixes for security vulnerabilities
@@ -145,7 +157,7 @@ async def remediate_database_security(
             EventType.SECURITY_EVENT,
             "Starting database security remediation",
             operation_name="remediate_database_security",
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
         # Apply security fixes
@@ -155,16 +167,20 @@ async def remediate_database_security(
             "remediation_timestamp": datetime.utcnow().isoformat(),
             "fixes_applied": fixes_applied,
             "total_fixes": fixes_applied["total"],
-            "success_rate": (fixes_applied["total"] / max(1, len(database_security.vulnerabilities))) * 100,
-            "remaining_vulnerabilities": len(database_security.vulnerabilities) - fixes_applied["total"],
+            "success_rate": (
+                fixes_applied["total"] / max(1, len(database_security.vulnerabilities))
+            )
+            * 100,
+            "remaining_vulnerabilities": len(database_security.vulnerabilities)
+            - fixes_applied["total"],
             "remediation_details": {
                 "sql_injection": fixes_applied["sql_injection"],
                 "hardcoded_credentials": fixes_applied["hardcoded_credentials"],
                 "weak_passwords": fixes_applied["weak_passwords"],
                 "access_control": fixes_applied["access_control"],
                 "encryption": fixes_applied["encryption"],
-                "privilege_escalation": fixes_applied["privilege_escalation"]
-            }
+                "privilege_escalation": fixes_applied["privilege_escalation"],
+            },
         }
 
         logger.info(
@@ -172,28 +188,25 @@ async def remediate_database_security(
             "Database security remediation completed",
             operation_name="remediate_database_security",
             user_id=str(current_user.id),
-            fixes_applied=fixes_applied["total"]
+            fixes_applied=fixes_applied["total"],
         )
 
         return APIResponse.success(
             data=remediation_report,
             message=f"Security remediation completed: {fixes_applied['total']} fixes applied",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="remediate_database_security", user_id=str(current_user.id))
-        return APIResponse.serv
-@check_rate_limit(identifier="public", limit_name="public")
-er_error(
-            message="Failed to apply security remediation",
-            request_id=get_request_id(request)
+        return APIResponse.server_error(
+            message="Failed to apply security remediation", request_id=get_request_id(request)
         )
+
 
 @router.get("/database/security/report", summary="Security Report")
 async def get_security_report(
-    request: Request,
-    current_user: User = Depends(get_current_admin_user)
+    request: Request, current_user: User = Depends(get_current_admin_user)
 ):
     """
     Get comprehensive database security report
@@ -208,27 +221,27 @@ async def get_security_report(
             operation_name="get_security_report",
             user_id=str(current_user.id),
             vulnerabilities_found=security_report["total_vulnerabilities"],
-            security_score=security_report["security_score"]
+            security_score=security_report["security_score"],
         )
 
         return APIResponse.success(
             data=security_report,
             message="Database security report generated successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_security_report", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to generate security report",
-            request_id=get_request_id(request)
+            message="Failed to generate security report", request_id=get_request_id(request)
         )
+
 
 @router.post("/database/security/password-policy", summary="Enforce Password Policy")
 async def enforce_password_policy(
     request: Request,
     current_user: User = Depends(get_current_admin_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Implement strong password policy enforcement
@@ -247,29 +260,33 @@ async def enforce_password_policy(
                 "require_special": True,
                 "forbidden_patterns": ["password", "123456", "qwerty"],
                 "max_age_days": 90,
-                "password_history": 5
+                "password_history": 5,
             },
-            "implementation_status": {}
+            "implementation_status": {},
         }
 
         # Check if password policies table exists
         try:
-            result = await db.execute(text("""
+            result = await db.execute(
+                text("""
                 SELECT COUNT(*) as table_exists
                 FROM information_schema.tables
                 WHERE table_name = 'password_policies'
-            """))
+            """)
+            )
 
             if result.scalar() > 0:
                 policy_status["policy_enforced"] = True
 
                 # Get current policies
-                policies = await db.execute(text("""
+                policies = await db.execute(
+                    text("""
                     SELECT policy_name, min_length, require_uppercase,
                            require_lowercase, require_digits, require_special, max_age_days
                     FROM password_policies
                     WHERE policy_name = 'default'
-                """))
+                """)
+                )
 
                 if policies.rowcount > 0:
                     policy = policies.first()
@@ -279,7 +296,7 @@ async def enforce_password_policy(
                         "require_lowercase": policy.require_lowercase,
                         "require_digits": policy.require_digits,
                         "require_special": policy.require_special,
-                        "max_age_days": policy.max_age_days
+                        "max_age_days": policy.max_age_days,
                     }
 
         except Exception as e:
@@ -287,7 +304,8 @@ async def enforce_password_policy(
 
         # Implement password policy if not enforced
         if not policy_status["policy_enforced"]:
-            await db.execute(text("""
+            await db.execute(
+                text("""
                 CREATE TABLE IF NOT EXISTS password_policies (
                     id SERIAL PRIMARY KEY,
                     policy_name VARCHAR(100) NOT NULL UNIQUE,
@@ -301,16 +319,19 @@ async def enforce_password_policy(
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
-            """))
+            """)
+            )
 
             # Insert default policy
-            await db.execute(text("""
+            await db.execute(
+                text("""
                 INSERT INTO password_policies (policy_name, min_length, require_uppercase,
                                                    require_lowercase, require_digits, require_special, max_age_days)
                 VALUES ('default', 12, true, true, true, true, 90)
                 ON CONFLICT (policy_name) DO UPDATE SET
                     updated_at = NOW();
-            """))
+            """)
+            )
 
             await db.commit()
 
@@ -320,7 +341,8 @@ async def enforce_password_policy(
 
         # Check user passwords against policy
         if policy_status["policy_enforced"]:
-            weak_passwords = await db.execute(text("""
+            weak_passwords = await db.execute(
+                text("""
                 SELECT COUNT(*) as weak_count
                 FROM users
                 WHERE
@@ -328,7 +350,8 @@ async def enforce_password_policy(
                     NOT (password ~* '[A-Z]') OR
                     NOT (password ~* '[a-z]') OR
                     NOT (password ~* '[0-9]')
-            """))
+            """)
+            )
 
             weak_count = weak_passwords.scalar()
 
@@ -342,27 +365,27 @@ async def enforce_password_policy(
             operation_name="enforce_password_policy",
             user_id=str(current_user.id),
             policy_enforced=policy_status["policy_enforced"],
-            weak_passwords=policy_status["implementation_status"].get("weak_passwords_found", 0)
+            weak_passwords=policy_status["implementation_status"].get("weak_passwords_found", 0),
         )
 
         return APIResponse.success(
             data=policy_status,
             message="Password policy enforcement completed",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="enforce_password_policy", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to enforce password policy",
-            request_id=get_request_id(request)
+            message="Failed to enforce password policy", request_id=get_request_id(request)
         )
+
 
 @router.post("/database/security/rotate-credentials", summary="Rotate Database Credentials")
 async def rotate_database_credentials(
     request: Request,
     current_user: User = Depends(get_current_admin_user),
-    db: AsyncSession = AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Rotate database service credentials
@@ -375,14 +398,14 @@ async def rotate_database_credentials(
 
         def generate_secure_password(length=20):
             alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-            return ''.join(secrets.choice(alphabet) for _ in range(length))
+            return "".join(secrets.choice(alphabet) for _ in range(length))
 
         # Generate new database credentials
         new_credentials = {
             "application_db_password": generate_secure_password(),
             "analytics_db_password": generate_secure_password(),
             "cache_redis_password": generate_secure_password(),
-            "api_secret_key": secrets.token_hex(32)
+            "api_secret_key": secrets.token_hex(32),
         }
 
         # Here you would update actual database credentials
@@ -395,14 +418,14 @@ async def rotate_database_credentials(
                 "Update application configuration with new passwords",
                 "Restart application services with new credentials",
                 "Update any external service configurations",
-                "Store new credentials in secure vault or key management system"
+                "Store new credentials in secure vault or key management system",
             ],
             "security_improvements": [
                 "All passwords meet complexity requirements",
                 "Password entropy maximized",
                 "No predictable patterns",
-                "Sufficient length for security"
-            ]
+                "Sufficient length for security",
+            ],
         }
 
         logger.warning(
@@ -410,7 +433,7 @@ async def rotate_database_credentials(
             "Database credentials rotation completed",
             operation_name="rotate_database_credentials",
             user_id=str(current_user.id),
-            credentials_generated=len(new_credentials)
+            credentials_generated=len(new_credentials),
         )
 
         # Note: In a real implementation, you would:
@@ -422,20 +445,19 @@ async def rotate_database_credentials(
         return APIResponse.success(
             data=rotation_status,
             message="Database credentials rotated successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="rotate_database_credentials", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to rotate database credentials",
-            request_id=get_request_id(request)
+            message="Failed to rotate database credentials", request_id=get_request_id(request)
         )
+
 
 @router.get("/database/security/backups", summary="Backup Security Check")
 async def check_backup_security(
-    request: Request,
-    current_user: User = Depends(get_current_admin_user)
+    request: Request, current_user: User = Depends(get_current_admin_user)
 ):
     """
     Check security of database backups
@@ -449,16 +471,19 @@ async def check_backup_security(
             "encrypted_backups": 0,
             "unencrypted_backups": 0,
             "backup_security_issues": [],
-            "recommendations": []
+            "recommendations": [],
         }
 
         # Check for backup files (simplified check)
         import os
+
         backup_dir = "/path/to/backups"  # This would be configured
         backup_files = []
 
         if os.path.exists(backup_dir):
-            backup_files = [f for f in os.listdir(backup_dir) if f.endswith(('.sql', '.dump', '.backup'))]
+            backup_files = [
+                f for f in os.listdir(backup_dir) if f.endswith((".sql", ".dump", ".backup"))
+            ]
             backup_security["backup_files_found"] = len(backup_files)
 
             # Check encryption status (simplified)
@@ -471,24 +496,25 @@ async def check_backup_security(
                     backup_security["encrypted_backups"] += 1
                 else:
                     backup_security["unencrypted_backups"] += 1
-                    backup_security["backup_security_issues"].append(f"Unencrypted backup file: {backup_file}")
+                    backup_security["backup_security_issues"].append(
+                        f"Unencrypted backup file: {backup_file}"
+                    )
 
         # Add recommendations
         if backup_security["unencrypted_backups"] > 0:
-            backup_security["recommendations"].extend([
-                "Encrypt all database backup files using GPG or AES-256",
-                "Implement secure backup storage with access controls",
-                "Use automated backup encryption with key management"
-            ])
-
-        if backup_security["backup_files_found"] == 0:
-            backup_security["recommendations"].append(
-                "Implement automated database backup system"
+            backup_security["recommendations"].extend(
+                [
+                    "Encrypt all database backup files using GPG or AES-256",
+                    "Implement secure backup storage with access controls",
+                    "Use automated backup encryption with key management",
+                ]
             )
 
+        if backup_security["backup_files_found"] == 0:
+            backup_security["recommendations"].append("Implement automated database backup system")
+
         backup_security["security_score"] = max(
-            0,
-            100 - (backup_security["unencrypted_backups"] * 25)
+            0, 100 - (backup_security["unencrypted_backups"] * 25)
         )
 
         logger.info(
@@ -497,18 +523,17 @@ async def check_backup_security(
             operation_name="check_backup_security",
             user_id=str(current_user.id),
             backup_files=backup_security["backup_files_found"],
-            encrypted_backups=backup_security["encrypted_backups"]
+            encrypted_backups=backup_security["encrypted_backups"],
         )
 
         return APIResponse.success(
             data=backup_security,
             message="Backup security check completed",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="check_backup_security", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to check backup security",
-            request_id=get_request_id(request)
+            message="Failed to check backup security", request_id=get_request_id(request)
         )

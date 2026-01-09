@@ -82,7 +82,7 @@ async def request_data_export(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process data export request",
-        )
+        ) from e
 
 
 @router.get("/download/{filename}")
@@ -116,7 +116,7 @@ async def download_export(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to download export file",
-        )
+        ) from e
 
 
 @router.delete("/user-data")
@@ -169,7 +169,7 @@ async def request_data_deletion(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process data deletion request",
-        )
+        ) from e
 
 
 @router.get("/privacy-policy")
@@ -195,7 +195,7 @@ async def get_privacy_policy(version: str | None = None, db: Session = Depends(g
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve privacy policy",
-        )
+        ) from e
 
 
 @router.get("/privacy-policy/versions")
@@ -215,7 +215,7 @@ async def list_privacy_policy_versions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve privacy policy versions",
-        )
+        ) from e
 
 
 @router.post("/consent")
@@ -291,7 +291,7 @@ async def update_consent(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update consent preferences",
-        )
+        ) from e
 
 
 @router.get("/consent")
@@ -313,7 +313,7 @@ async def get_user_consents(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve consent information",
-        )
+        ) from e
 
 
 @router.get("/consent/check/{consent_type}")
@@ -344,7 +344,7 @@ async def check_consent(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to check consent status",
-        )
+        ) from e
 
 
 @router.get("/audit-logs")
@@ -368,7 +368,7 @@ async def get_user_audit_logs(
             except ValueError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid start_date format"
-                )
+                ) from None
 
         if end_date:
             try:
@@ -376,7 +376,7 @@ async def get_user_audit_logs(
             except ValueError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid end_date format"
-                )
+                ) from None
 
         # Search audit logs
         results = await audit_service.search_audit_logs(
@@ -392,7 +392,7 @@ async def get_user_audit_logs(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve audit logs",
-        )
+        ) from e
 
 
 @router.get("/data-summary")
@@ -426,7 +426,7 @@ async def get_user_data_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve data summary",
-        )
+        ) from e
 
 
 @router.post("/initiate-compliance-request")
@@ -494,4 +494,4 @@ async def initiate_compliance_request(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to process compliance request",
-        )
+        ) from e

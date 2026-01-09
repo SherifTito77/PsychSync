@@ -56,6 +56,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
               size="small"
               onClick={() => setSidebarOpen(true)}
               icon={<Menu className="w-5 h-5" />}
+              aria-label="Open menu"
             />
             {showBackButton && (
               <Button
@@ -103,6 +104,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
                 size="small"
                 onClick={() => setSidebarOpen(false)}
                 icon={<X className="w-5 h-5" />}
+                aria-label="Close menu"
               />
             </div>
             <nav className="flex-1 overflow-y-auto p-4">
