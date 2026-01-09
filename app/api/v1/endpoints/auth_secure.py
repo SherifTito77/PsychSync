@@ -285,7 +285,7 @@ async def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service temporarily unavailable"
-        )
+        ) from e
 
 
 @router.post("/register")
@@ -458,7 +458,7 @@ async def register_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration service temporarily unavailable"
-        )
+        ) from e
 
 
 @router.get("/me")
@@ -498,7 +498,7 @@ async def get_current_user_info(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token"
-            )
+            ) from None
 
         # Get user from database
         result = await db.execute(
@@ -545,7 +545,7 @@ async def get_current_user_info(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="User service temporarily unavailable"
-        )
+        ) from e
 
 
 @router.post("/logout")
@@ -679,7 +679,7 @@ async def refresh_token(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid refresh token"
-            )
+            ) from None
 
         # SECURITY: Get user from database (not hardcoded)
         result = await db.execute(
@@ -737,7 +737,7 @@ async def refresh_token(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Token refresh service temporarily unavailable"
-        )
+        ) from e
 
 
 @router.get("/health")
