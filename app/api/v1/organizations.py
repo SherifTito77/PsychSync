@@ -12,7 +12,7 @@ router = APIRouter()
 async def create_organization(org: OrganizationCreate, db: Session = Depends(get_async_db)):
     db_org = Organization(name=org.name, description=org.description)
     db.add(db_org)
-        await db.commit()
+    await db.commit()
     await db.refresh(db_org)
     return db_org
 
