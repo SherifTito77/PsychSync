@@ -44,7 +44,7 @@ const SCORE_MAP: Record<string, number> = {
   '7-8 hours': 3,
   'Yes, 3-6 months': 3,
   'Mostly Energized': 3,
-  'Several times a week': 3,
+  'Often': 3,  // For positive behaviors, Often is good (3)
 
   // Fair options (middle score)
   'Fair': 2,
@@ -61,7 +61,6 @@ const SCORE_MAP: Record<string, number> = {
   'Once a week': 2,
   '5-6 hours': 2,
   'Yes, less than 3 months': 2,
-  'Often': 2,
 
   // Poor options (lowest score)
   'Poor': 1,

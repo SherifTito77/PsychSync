@@ -110,4 +110,43 @@
       opacity: 0.5;
     }
   }
+
+  /* Mobile utility classes (migrated from mobile-utils.css) */
+  .mobile-card {
+    @apply bg-white rounded-xl shadow-md p-6 mb-4 w-full;
+  }
+
+  .mobile-input {
+    @apply w-full px-4 py-3 text-base border border-gray-300 rounded-lg min-h-[48px];
+  }
+
+  .mobile-input:focus {
+    @apply outline-none ring-2 ring-blue-600 border-blue-600;
+  }
+
+  .mobile-list-item {
+    @apply p-4 border-b border-gray-200 min-h-[48px] flex items-center cursor-pointer;
+  }
+
+  .mobile-list-item:hover {
+    @apply bg-gray-50;
+  }
+
+  .mobile-nav-item {
+    @apply block w-full px-4 py-3 text-base font-medium text-gray-700;
+    text-decoration: none;
+  }
+
+  .mobile-nav-item:hover,
+  .mobile-nav-item:focus {
+    @apply bg-gray-100 text-gray-900;
+  }
+
+  .mobile-nav-item.active {
+    @apply bg-blue-600 text-white;
+  }
+
+  .mobile-text-responsive {
+    @apply text-base leading-6;
+  }
 }

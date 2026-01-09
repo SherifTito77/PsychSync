@@ -302,7 +302,7 @@ class SafeFileHandler:
                 f.write(file_content)
         except Exception as e:
             logger.error(f"Failed to save file: {e}")
-            raise FileValidationError("Failed to save file")
+            raise FileValidationError("Failed to save file") from e
 
         logger.info(f"File saved successfully: {file_path}")
 
@@ -365,7 +365,7 @@ class SafeFileHandler:
             return content
         except Exception as e:
             logger.error(f"Failed to read file: {e}")
-            raise FileValidationError("Failed to read file")
+            raise FileValidationError("Failed to read file") from e
 
     # ==================== Archive Extraction ====================
 
@@ -432,7 +432,7 @@ class SafeFileHandler:
             raise FileValidationError("Invalid ZIP file")
         except Exception as e:
             logger.error(f"Failed to extract ZIP: {e}")
-            raise FileValidationError("Failed to extract ZIP file")
+            raise FileValidationError("Failed to extract ZIP file") from e
 
     @staticmethod
     def extract_tar(
@@ -491,7 +491,7 @@ class SafeFileHandler:
             raise FileValidationError("Invalid TAR file")
         except Exception as e:
             logger.error(f"Failed to extract TAR: {e}")
-            raise FileValidationError("Failed to extract TAR file")
+            raise FileValidationError("Failed to extract TAR file") from e
 
     # ==================== File Hashing ====================
 
@@ -517,7 +517,7 @@ class SafeFileHandler:
             return hasher.hexdigest()
         except Exception as e:
             logger.error(f"Failed to hash file: {e}")
-            raise FileValidationError("Failed to hash file")
+            raise FileValidationError("Failed to hash file") from e
 
     # ==================== Temporary Files ====================
 
@@ -543,7 +543,7 @@ class SafeFileHandler:
 
         except Exception as e:
             logger.error(f"Failed to create temp file: {e}")
-            raise FileValidationError("Failed to create temporary file")
+            raise FileValidationError("Failed to create temporary file") from e
 
     @staticmethod
     def cleanup_temp_file(file_path: str):

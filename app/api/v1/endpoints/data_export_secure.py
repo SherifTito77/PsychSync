@@ -214,7 +214,7 @@ async def list_user_exports(
 
     except Exception as e:
         logger.error(f"Failed to list exports: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/data-exports/{export_id}", response_model=SuccessResponse[ExportResponse])
@@ -270,7 +270,7 @@ async def get_export_status(
         raise
     except Exception as e:
         logger.error(f"Failed to get export status {export_id}: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/data-exports/{export_id}/download")
@@ -385,7 +385,7 @@ async def download_export(
         raise HTTPException(status_code=400, detail="Invalid export file path")
     except Exception as e:
         logger.error(f"Failed to download export {export_id}: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/data-exports/{export_id}", response_model=SuccessResponse[dict[str, str]])
@@ -478,7 +478,7 @@ async def delete_export(
         raise
     except Exception as e:
         logger.error(f"Failed to delete export {export_id}: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/data-exports/statistics", response_model=SuccessResponse[ExportStatisticsResponse])
@@ -545,7 +545,7 @@ async def get_export_statistics(
 
     except Exception as e:
         logger.error(f"Failed to get export statistics: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/data-exports/cleanup", response_model=SuccessResponse[dict[str, Any]])
@@ -588,7 +588,7 @@ async def cleanup_expired_exports(
 
     except Exception as e:
         logger.error(f"Failed to cleanup expired exports: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/data-exports/formats", response_model=SuccessResponse[dict[str, list[str]]])
@@ -616,7 +616,7 @@ async def get_available_formats(
 
     except Exception as e:
         logger.error(f"Failed to get available formats: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/data-exports/scopes", response_model=SuccessResponse[dict[str, list[str]]])
@@ -645,4 +645,4 @@ async def get_available_scopes(
 
     except Exception as e:
         logger.error(f"Failed to get available scopes: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

@@ -6,7 +6,6 @@ import { useTeam } from '../contexts/TeamContext';
 import Button from '../components/common/Button';
 import Icon from '../components/common/Icon';
 import { DashboardData } from '../types';
-import '../styles/mobile-utils.css'; // Import mobile utilities
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { teams, fetchTeams } = useTeam();

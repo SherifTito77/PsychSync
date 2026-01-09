@@ -117,7 +117,7 @@ async def get_health_overview(
 
     except Exception as e:
         logger.error(f"Failed to get health overview: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve health overview")
+        raise HTTPException(status_code=500, detail="Failed to retrieve health overview") from e
 
 
 @router.get("/services")
@@ -136,7 +136,7 @@ async def get_service_health(
 
     except Exception as e:
         logger.error(f"Failed to get service health: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve service health")
+        raise HTTPException(status_code=500, detail="Failed to retrieve service health") from e
 
 
 @router.get("/metrics/system")
@@ -162,7 +162,7 @@ async def get_system_metrics(
 
     except Exception as e:
         logger.error(f"Failed to get system metrics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve system metrics")
+        raise HTTPException(status_code=500, detail="Failed to retrieve system metrics") from e
 
 
 @router.get("/alerts")
@@ -185,7 +185,7 @@ async def get_alerts(
 
     except Exception as e:
         logger.error(f"Failed to get alerts: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve alerts")
+        raise HTTPException(status_code=500, detail="Failed to retrieve alerts") from e
 
 
 @router.post("/alerts/{alert_id}/acknowledge")
@@ -214,7 +214,7 @@ async def acknowledge_alert(
         raise
     except Exception as e:
         logger.error(f"Failed to acknowledge alert: {e}")
-        raise HTTPException(status_code=500, detail="Failed to acknowledge alert")
+        raise HTTPException(status_code=500, detail="Failed to acknowledge alert") from e
 
 
 @router.get("/deployments")
@@ -235,7 +235,7 @@ async def get_deployments(
 
     except Exception as e:
         logger.error(f"Failed to get deployments: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve deployment data")
+        raise HTTPException(status_code=500, detail="Failed to retrieve deployment data") from e
 
 
 # Helper functions
@@ -617,7 +617,7 @@ async def get_revenue_impact(
 
     except Exception as e:
         logger.error(f"Failed to get revenue impact: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve revenue impact analysis")
+        raise HTTPException(status_code=500, detail="Failed to retrieve revenue impact analysis") from e
 
 
 @router.get("/business/user-journey")
@@ -663,7 +663,7 @@ async def get_user_journey_analytics(
 
     except Exception as e:
         logger.error(f"Failed to get user journey analytics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve user journey analytics")
+        raise HTTPException(status_code=500, detail="Failed to retrieve user journey analytics") from e
 
 
 @router.get("/business/competitive-benchmarking")
@@ -703,7 +703,7 @@ async def get_competitive_benchmarking(
 
     except Exception as e:
         logger.error(f"Failed to get competitive benchmarking: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve competitive benchmarking")
+        raise HTTPException(status_code=500, detail="Failed to retrieve competitive benchmarking") from e
 
 
 @router.get("/business/dashboard-summary")
@@ -741,7 +741,7 @@ async def get_business_dashboard_summary(
 
     except Exception as e:
         logger.error(f"Failed to get business dashboard summary: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve business dashboard summary")
+        raise HTTPException(status_code=500, detail="Failed to retrieve business dashboard summary") from e
 
 
 # Business Intelligence Helper Functions
@@ -1220,7 +1220,7 @@ async def get_security_overview(
 
     except Exception as e:
         logger.error(f"Failed to get security overview: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security overview")
+        raise HTTPException(status_code=500, detail="Failed to retrieve security overview") from e
 
 
 @router.get("/security/vulnerabilities")
@@ -1256,7 +1256,7 @@ async def get_security_vulnerabilities(
 
     except Exception as e:
         logger.error(f"Failed to get vulnerabilities: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve vulnerabilities")
+        raise HTTPException(status_code=500, detail="Failed to retrieve vulnerabilities") from e
 
 
 @router.get("/security/by-tool")
@@ -1278,7 +1278,7 @@ async def get_security_by_tool(
 
     except Exception as e:
         logger.error(f"Failed to get tool breakdown: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve tool breakdown")
+        raise HTTPException(status_code=500, detail="Failed to retrieve tool breakdown") from e
 
 
 @router.get("/security/compliance")
@@ -1297,7 +1297,7 @@ async def get_security_compliance(
 
     except Exception as e:
         logger.error(f"Failed to get compliance status: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve compliance status")
+        raise HTTPException(status_code=500, detail="Failed to retrieve compliance status") from e
 
 
 @router.get("/security/score")
@@ -1324,7 +1324,7 @@ async def get_security_score_endpoint(
 
     except Exception as e:
         logger.error(f"Failed to get security score: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security score")
+        raise HTTPException(status_code=500, detail="Failed to retrieve security score") from e
 
 
 @router.get("/security/trend")
@@ -1367,7 +1367,7 @@ async def get_security_trend(
 
     except Exception as e:
         logger.error(f"Failed to get security trend: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security trend")
+        raise HTTPException(status_code=500, detail="Failed to retrieve security trend") from e
 
 
 @router.get("/security/dashboard")
@@ -1388,7 +1388,7 @@ async def get_security_dashboard(
 
     except Exception as e:
         logger.error(f"Failed to get security dashboard: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security dashboard data")
+        raise HTTPException(status_code=500, detail="Failed to retrieve security dashboard data") from e
 
 
 @router.post("/security/scan/trigger")
@@ -1436,7 +1436,7 @@ async def trigger_security_scan(
         raise
     except Exception as e:
         logger.error(f"Failed to trigger security scan: {e}")
-        raise HTTPException(status_code=500, detail="Failed to trigger security scan")
+        raise HTTPException(status_code=500, detail="Failed to trigger security scan") from e
 
 
 @router.get("/metrics")

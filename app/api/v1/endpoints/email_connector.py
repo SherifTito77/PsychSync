@@ -116,7 +116,7 @@ async def setup_email_connection(
 
     except Exception as e:
         logger.error(f"Email connection setup failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email connection setup failed")
+        raise HTTPException(status_code=500, detail="Email connection setup failed") from e
 
 
 @router.post("/analytics/communication", response_model=EmailAnalyticsResponse)
@@ -205,7 +205,7 @@ async def analyze_email_communication(
 
     except Exception as e:
         logger.error(f"Email analytics analysis failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email analytics analysis failed")
+        raise HTTPException(status_code=500, detail="Email analytics analysis failed") from e
 
 
 @router.post("/assessment/behavioral", response_model=EmailAssessmentResponse)
@@ -286,7 +286,7 @@ async def conduct_email_behavioral_assessment(
 
     except Exception as e:
         logger.error(f"Email behavioral assessment failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email behavioral assessment failed")
+        raise HTTPException(status_code=500, detail="Email behavioral assessment failed") from e
 
 
 @router.post("/sync/manual", response_model=EmailSyncResponse)
@@ -341,7 +341,7 @@ async def trigger_manual_email_sync(
         raise
     except Exception as e:
         logger.error(f"Manual email sync failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Manual email sync failed")
+        raise HTTPException(status_code=500, detail="Manual email sync failed") from e
 
 
 @router.get("/sync/status/{connection_id}")
@@ -366,7 +366,7 @@ async def get_email_sync_status(
 
     except Exception as e:
         logger.error(f"Failed to get email sync status: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve email sync status")
+        raise HTTPException(status_code=500, detail="Failed to retrieve email sync status") from e
 
 
 @router.post("/configuration/update", response_model=EmailConfigurationResponse)
@@ -408,7 +408,7 @@ async def update_email_configuration(
 
     except Exception as e:
         logger.error(f"Email configuration update failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email configuration update failed")
+        raise HTTPException(status_code=500, detail="Email configuration update failed") from e
 
 
 @router.get("/connections")
@@ -438,7 +438,7 @@ async def get_email_connections(current_user: dict[str, Any] = Depends(get_curre
 
     except Exception as e:
         logger.error(f"Failed to get email connections: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve email connections")
+        raise HTTPException(status_code=500, detail="Failed to retrieve email connections") from e
 
 
 @router.delete("/connection/{connection_id}")
@@ -478,7 +478,7 @@ async def disconnect_email_account(
 
     except Exception as e:
         logger.error(f"Email disconnection failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email disconnection failed")
+        raise HTTPException(status_code=500, detail="Email disconnection failed") from e
 
 
 @router.get("/analytics/dashboard")
@@ -506,7 +506,7 @@ async def get_email_analytics_dashboard(
 
     except Exception as e:
         logger.error(f"Failed to get email analytics dashboard: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve email analytics dashboard")
+        raise HTTPException(status_code=500, detail="Failed to retrieve email analytics dashboard") from e
 
 
 @router.get("/providers/available", dependencies=[Depends(get_current_user)])
@@ -572,4 +572,4 @@ async def get_available_email_providers():
 
     except Exception as e:
         logger.error(f"Failed to get available email providers: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve available email providers")
+        raise HTTPException(status_code=500, detail="Failed to retrieve available email providers") from e

@@ -1,0 +1,117 @@
+/**
+ * Team Metrics Utilities
+ *
+ * Functions for calculating team composition metrics and statistics
+ */
+
+import { TeamMember, TeamRequirement, PersonalityRadarData, SkillCoverageData } from '../types';
+
+/**
+ * Calculate average personality traits for a team
+ */
+export const calculateAveragePersonality = (team: TeamMember[]): Record<string, number> => {
+  if (team.length === 0) return {};
+
+  const traits = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism'];
+  const averages: Record<string, number> = {};
+
+  traits.forEach(trait => {
+    const sum = team.reduce((total, member) => total + (member.personalityTraits[trait] || 0), 0);
+    averages[trait] = sum / team.length;
+  });
+
+  return averages;
+};
+
+/**
+ * Prepare data for personality radar chart
+ */
+export const preparePersonalityRadarData = (
+  currentTeam: TeamMember[],
+  requirements: TeamRequirement,
+  optimizationResult?: any
+): PersonalityRadarData[] => {
+  const traits = ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism'];
+  const currentAvg = calculateAveragePersonality(currentTeam);
+
+  return traits.map(trait => ({
+    trait,
+    current: currentTeam.length > 0 ? (currentAvg[trait] || 0.5) : 0.5,
+    optimal: requirements.personalityBalance[trait]
+      ? (requirements.personalityBalance[trait][0] + requirements.personalityBalance[trait][1]) / 2
+      : 0.5,
+    optimized: optimizationResult?.personalityBalance?.[trait] || 0.5,
+  }));
+};
+
+/**
+ * Prepare data for skill coverage chart
+ */
+export const prepareSkillCoverageData = (
+  requirements: TeamRequirement,
+  optimizationResult?: any
+): SkillCoverageData[] => {
+  const skills = Object.keys(requirements.skillWeights);
+
+  return skills.map(skill => ({
+    skill,
+    coverage: optimizationResult?.skillCoverage?.[skill] || 0,
+    weight: requirements.skillWeights[skill] || 0,
+  }));
+};
+
+/**
+ * Calculate team statistics
+ */
+export const calculateTeamStats = (team: TeamMember[]) => {
+  if (team.length === 0) {
+    return {
+      averagePerformance: 0,
+      averageSkills: 0,
+      averageExperience: 0,
+    };
+  }
+
+  const totalPerformance = team.reduce((sum, member) => sum + member.performanceScore, 0);
+  const totalSkills = team.reduce((sum, member) => sum + member.skills.length, 0);
+  const totalExperience = team.reduce((sum, member) => sum + member.yearsOfExperience, 0);
+
+  return {
+    averagePerformance: (totalPerformance / team.length) * 100,
+    averageSkills: totalSkills / team.length,
+    averageExperience: totalExperience / team.length,
+  };
+};
+
+/**
+ * Generate compatibility heatmap data
+ */
+export const generateCompatibilityHeatmap = (team: TeamMember[]) => {
+  if (team.length === 0) return [];
+
+  return team.map((member1, i) => {
+    const row: any = { name: member1.name, id: member1.id };
+    team.forEach((member2, j) => {
+      // Mock compatibility calculation - in production this would use actual algorithm
+      const compatibility = Math.random() * 0.3 + 0.7;
+      row[`member${j}`] = Number((compatibility * 100).toFixed(1));
+    });
+    return row;
+  });
+};
+
+/**
+ * Get recommended team composition
+ */
+export const getRecommendedTeam = (
+  currentTeam: TeamMember[],
+  availableCandidates: TeamMember[],
+  recommendedMemberIds: string[],
+  teamSize: number
+): TeamMember[] => {
+  const selectedCandidates = availableCandidates.filter(c =>
+    recommendedMemberIds.includes(c.id)
+  );
+
+  return [...currentTeam, ...selectedCandidates].slice(0, teamSize);
+};

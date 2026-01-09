@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
-import '../styles/mobile-utils.css'; // Import mobile utilities
 interface Assessment {
   id: string;
   name: string;

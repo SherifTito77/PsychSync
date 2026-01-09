@@ -6,7 +6,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { SecurityUtils } from '../../utils/securityUtils';
 // SECURITY: No longer using SecureTokenStorage - tokens in httpOnly cookies
 import Sidebar from './Sidebar';
-import '../../styles/mobile-utils.css'; // Import mobile utilities
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
