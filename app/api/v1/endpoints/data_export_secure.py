@@ -172,7 +172,7 @@ async def create_export_request(
             severity="high"
         ))
 
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/data-exports", response_model=ExportListResponse)
@@ -382,7 +382,7 @@ async def download_export(
             severity="critical"
         ))
 
-        raise HTTPException(status_code=400, detail="Invalid export file path")
+        raise HTTPException(status_code=400, detail="Invalid export file path") from e
     except Exception as e:
         logger.error(f"Failed to download export {export_id}: {e!s}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -451,7 +451,7 @@ async def delete_export(
                 raise HTTPException(
                     status_code=400,
                     detail="Invalid export file path"
-                )
+                ) from e
 
         # Remove from active exports
         if export_id in export_service.active_exports:
