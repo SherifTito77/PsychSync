@@ -71,7 +71,7 @@ async def simple_login(username: str = Form(...), password: str = Form(...)):
         print(f"Simple login error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
-        )
+        ) from e
     finally:
         if session:
             await session.close()
@@ -121,4 +121,4 @@ async def get_current_user_info(request: Request):
         raise
     except Exception as e:
         print(f"Me endpoint error: {e}")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from e

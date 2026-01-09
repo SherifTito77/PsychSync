@@ -80,7 +80,7 @@ async def enable_two_factor(
         logger.error(f"Error enabling 2FA: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to enable 2FA"
-        )
+        ) from e
 
 
 @router.post("/verify")
@@ -130,7 +130,7 @@ async def disable_two_factor(
         logger.error(f"Error disabling 2FA: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to disable 2FA"
-        )
+        ) from e
 
 
 @router.get("/status")
