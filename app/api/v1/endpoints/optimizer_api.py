@@ -227,9 +227,10 @@ async def optimize_lineups(request: OptimizationRequest):
         )
 
     except Exception as e:
-        raise HTTPExcept
-@check_rate_limit(identifier="public", limit_name="public")
-ion(status_code=500, detail=f"Optimization failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Optimization failed: {str(e)}"
+        ) from e
 
 
 @router.post("/analyze-player-pool")
@@ -343,7 +344,7 @@ async def analyze_player_pool(players: List[PlayerInput]):
       }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e, dependencies=[Depends(get_current_user)])}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}") from e
 
 
 @router.post("/compare-lineups", dependencies=[Depends(get_current_user)])
@@ -422,7 +423,7 @@ async def compare_lineups(lineups: List[List[int]], player_pool: List[PlayerInpu
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}") from e
 
 
 @router.get("/player-projections/{player_id}")
@@ -526,7 +527,7 @@ async def get_lineup_suggestions(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Suggestions failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Suggestions failed: {str(e)}") from e
 
 
 @router.post("/export-lineup")
@@ -588,7 +589,7 @@ async def export_lineup(
             }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}") from e
 
 
 @router.get("/optimization-presets")
