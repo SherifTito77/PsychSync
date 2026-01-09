@@ -4,15 +4,14 @@ Provides utilities for consistent RESTful API design patterns
 Performance improvement: 40% better developer experience with standardized endpoints
 """
 
-from typing import Dict, Any, Optional, List, Tuple, Union
 from datetime import datetime
 from enum import Enum
-import re
-import urllib.parse
-from fastapi import HTTPException, status, APIRouter, Request, Response
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, validator
 import logging
+import re
+from typing import Any
+
+from fastapi import APIRouter, Request, status
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +67,11 @@ class RESTfulEndpointBuilder:
 
     def _make_plural(self, noun: str) -> str:
         """Convert noun to its plural form"""
-        if noun.endswith('y'):
-            return noun[:-1] + 'ies'
-        elif noun.endswith(('s', 'ss', 'sh', 'ch', 'x', 'z')):
-            return noun + 'es'
-        else:
-            return noun + 's'
+        if noun.endswith("y"):
+            return noun[:-1] + "ies"
+        if noun.endswith(("s", "ss", "sh", "ch", "x", "z")):
+            return noun + "es"
+        return noun + "s"
 
     def _validate_resource_name(self, name: str) -> bool:
         """
@@ -89,10 +87,10 @@ class RESTfulEndpointBuilder:
             return False
 
         # Should be lowercase, no special characters except underscores
-        pattern = r'^[a-z][a-z0-9_]*$'
+        pattern = r"^[a-z][a-z0-9_]*$"
         return bool(re.match(pattern, name))
 
-    def _get_path_parameters(self, path: str) -> List[str]:
+    def _get_path_parameters(self, path: str) -> list[str]:
         """
         Extract path parameters from a URL path
 
@@ -102,7 +100,7 @@ class RESTfulEndpointBuilder:
         Returns:
             List of parameter names
         """
-        return re.findall(r'\{([^}]+)\}', path)
+        return re.findall(r"\{([^}]+)\}", path)
 
     def _generate_response_model(self, action: ResourceAction) -> BaseModel:
         """
@@ -118,13 +116,12 @@ class RESTfulEndpointBuilder:
 
         if action in [ResourceAction.LIST]:
             return PaginatedResponse[self.resource_model]
-        elif action in [ResourceAction.RETRIEVE, ResourceAction.CREATE,
+        if action in [ResourceAction.RETRIEVE, ResourceAction.CREATE,
                         ResourceAction.UPDATE, ResourceAction.PARTIAL_UPDATE]:
             return APIResponse[self.resource_model]
-        elif action == ResourceAction.DELETE:
+        if action == ResourceAction.DELETE:
             return APIResponse[None]
-        else:
-            return APIResponse
+        return APIResponse
 
     def create_crud_endpoints(
         self,
@@ -134,7 +131,7 @@ class RESTfulEndpointBuilder:
         auth_required: bool = True,
         pagination_enabled: bool = True,
         soft_delete: bool = False
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create complete CRUD endpoints for the resource
 
@@ -191,7 +188,7 @@ class RESTfulEndpointBuilder:
                 message=f"{self.resource_plural.title()} retrieved successfully"
             )
 
-        endpoints['list'] = list_resource
+        endpoints["list"] = list_resource
 
         # Create endpoint
         @self.router.post(
@@ -222,7 +219,7 @@ class RESTfulEndpointBuilder:
                 status_code=status.HTTP_201_CREATED
             )
 
-        endpoints['create'] = create_resource
+        endpoints["create"] = create_resource
 
         # Retrieve endpoint
         @self.router.get(
@@ -251,7 +248,7 @@ class RESTfulEndpointBuilder:
                 message=f"{self.resource_name.title()} retrieved successfully"
             )
 
-        endpoints['retrieve'] = retrieve_resource
+        endpoints["retrieve"] = retrieve_resource
 
         # Update endpoint
         @self.router.put(
@@ -281,7 +278,7 @@ class RESTfulEndpointBuilder:
                 message=f"{self.resource_name.title()} updated successfully"
             )
 
-        endpoints['update'] = update_resource
+        endpoints["update"] = update_resource
 
         # Partial update endpoint
         @self.router.patch(
@@ -292,7 +289,7 @@ class RESTfulEndpointBuilder:
         )
         async def partial_update_resource(
             resource_id: str,
-            resource_data: Dict[str, Any],
+            resource_data: dict[str, Any],
             request: Request
         ):
             # TODO(human): Implement actual service call
@@ -311,7 +308,7 @@ class RESTfulEndpointBuilder:
                 message=f"{self.resource_name.title()} partially updated successfully"
             )
 
-        endpoints['partial_update'] = partial_update_resource
+        endpoints["partial_update"] = partial_update_resource
 
         # Delete endpoint
         @self.router.delete(
@@ -340,7 +337,7 @@ class RESTfulEndpointBuilder:
                 message=f"{self.resource_name.title()} deleted successfully"
             )
 
-        endpoints['delete'] = delete_resource
+        endpoints["delete"] = delete_resource
 
         logger.info(f"Created CRUD endpoints for resource: {self.resource_name}")
         return endpoints
@@ -415,12 +412,12 @@ class RESTfulResponseBuilder:
 
     @staticmethod
     def build_collection_response(
-        items: List[Any],
+        items: list[Any],
         page: int,
         size: int,
         total: int,
         request: Request = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Build standardized collection response
 
@@ -441,8 +438,8 @@ class RESTfulResponseBuilder:
         # Build links for HATEOAS
         links = {}
         if request:
-            base_url = str(request.base_url).rstrip('/')
-            path = request.url.path.rstrip('/')
+            base_url = str(request.base_url).rstrip("/")
+            path = request.url.path.rstrip("/")
 
             links["self"] = f"{base_url}{path}?page={page}&size={size}"
             if has_next:
@@ -471,7 +468,7 @@ class RESTfulResponseBuilder:
         }
 
     @staticmethod
-    def build_resource_response(resource: Any, request: Request = None) -> Dict[str, Any]:
+    def build_resource_response(resource: Any, request: Request = None) -> dict[str, Any]:
         """
         Build standardized resource response
 
@@ -483,9 +480,9 @@ class RESTfulResponseBuilder:
             Standardized resource response
         """
         links = {}
-        if request and hasattr(resource, 'id'):
-            base_url = str(request.base_url).rstrip('/')
-            path_parts = request.url.path.split('/')
+        if request and hasattr(resource, "id"):
+            base_url = str(request.base_url).rstrip("/")
+            path_parts = request.url.path.split("/")
             resource_name = path_parts[-2] if len(path_parts) > 2 else "resource"
 
             links["self"] = f"{base_url}/api/v1/{resource_name}/{resource.id}"
@@ -496,7 +493,7 @@ class RESTfulResponseBuilder:
             "links": links,
             "meta": {
                 "timestamp": datetime.utcnow().isoformat(),
-                "type": resource.__class__.__name__ if hasattr(resource, '__class__') else "resource"
+                "type": resource.__class__.__name__ if hasattr(resource, "__class__") else "resource"
             }
         }
 
@@ -504,7 +501,7 @@ class RESTfulValidator:
     """Validator for RESTful compliance"""
 
     @staticmethod
-    def validate_endpoint_method(method: str, path: str) -> Tuple[bool, List[str]]:
+    def validate_endpoint_method(method: str, path: str) -> tuple[bool, list[str]]:
         """
         Validate if HTTP method is appropriate for the endpoint pattern
 
@@ -518,7 +515,7 @@ class RESTfulValidator:
         issues = []
 
         # Collection endpoints
-        if path.endswith('}') is False:  # Not a specific resource
+        if path.endswith("}") is False:  # Not a specific resource
             if method.upper() == "POST":
                 # POST on collection should create
                 pass
@@ -527,22 +524,21 @@ class RESTfulValidator:
                 pass
             elif method.upper() in ["PUT", "PATCH"]:
                 issues.append(f"PUT/PATCH not recommended on collection endpoint: {path}")
-            elif method.upper() == "DELETE" and not path.endswith('/bulk'):
+            elif method.upper() == "DELETE" and not path.endswith("/bulk"):
                 issues.append(f"DELETE not recommended on collection endpoint without /bulk: {path}")
 
         # Resource endpoints
-        else:  # Specific resource with ID
-            if method.upper() == "GET":
-                # GET on resource should retrieve
-                pass
-            elif method.upper() in ["PUT", "PATCH"]:
-                # PUT/PATCH on resource should update
-                pass
-            elif method.upper() == "DELETE":
-                # DELETE on resource should delete
-                pass
-            elif method.upper() == "POST":
-                issues.append(f"POST not recommended on resource endpoint: {path}")
+        elif method.upper() == "GET":
+            # GET on resource should retrieve
+            pass
+        elif method.upper() in ["PUT", "PATCH"]:
+            # PUT/PATCH on resource should update
+            pass
+        elif method.upper() == "DELETE":
+            # DELETE on resource should delete
+            pass
+        elif method.upper() == "POST":
+            issues.append(f"POST not recommended on resource endpoint: {path}")
 
         return len(issues) == 0, issues
 
@@ -573,7 +569,7 @@ def create_restful_router(
     logger.info(f"Created RESTful router for {resource_name} with {len(endpoints)} endpoints")
     return router
 
-def validate_restful_compliance(router: APIRouter) -> Dict[str, Any]:
+def validate_restful_compliance(router: APIRouter) -> dict[str, Any]:
     """
     Validate RESTful compliance of a router
 
@@ -591,9 +587,9 @@ def validate_restful_compliance(router: APIRouter) -> Dict[str, Any]:
     }
 
     for route in router.routes:
-        if hasattr(route, 'methods') and hasattr(route, 'path'):
+        if hasattr(route, "methods") and hasattr(route, "path"):
             for method in route.methods:
-                if method != 'HEAD':  # Skip HEAD methods
+                if method != "HEAD":  # Skip HEAD methods
                     is_valid, issues = RESTfulValidator.validate_endpoint_method(method, route.path)
                     if not is_valid:
                         compliance_report["compliant"] = False

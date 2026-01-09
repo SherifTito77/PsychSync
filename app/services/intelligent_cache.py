@@ -4,64 +4,74 @@ Advanced multi-tier caching with intelligent invalidation and performance optimi
 Performance improvement: 1000% faster data access and reduced database load
 """
 
-from typing import Dict, Any, Optional, List, Union, Callable, TypeVar, Generic
-from datetime import datetime, timedelta
-from enum import Enum
 import asyncio
-import json
-import hashlib
-import pickle
-import time
-import threading
-from dataclasses import dataclass, field
-from contextlib import asynccontextmanager
 from collections import OrderedDict
-import redis.asyncio as redis
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+import hashlib
+import json
 import logging
+import pickle
+import threading
+from typing import Any, TypeVar
+
+import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class CacheLevel(str, Enum):
     """Cache hierarchy levels"""
-    L1_MEMORY = "l1_memory"      # In-memory cache (fastest)
-    L2_REDIS = "l2_redis"        # Redis cache (fast)
+
+    L1_MEMORY = "l1_memory"  # In-memory cache (fastest)
+    L2_REDIS = "l2_redis"  # Redis cache (fast)
     L3_DATABASE = "l3_database"  # Database cache (persistent)
+
 
 class CacheStrategy(str, Enum):
     """Cache invalidation strategies"""
-    TTL = "ttl"                 # Time-to-live based
-    LRU = "lru"                 # Least recently used
-    LFU = "lfu"                 # Least frequently used
-    MANUAL = "manual"           # Manual invalidation
-    EVENT_DRIVEN = "event"       # Event-driven invalidation
+
+    TTL = "ttl"  # Time-to-live based
+    LRU = "lru"  # Least recently used
+    LFU = "lfu"  # Least frequently used
+    MANUAL = "manual"  # Manual invalidation
+    EVENT_DRIVEN = "event"  # Event-driven invalidation
+
 
 class CacheHitRate(str, Enum):
     """Cache hit rate classifications"""
-    EXCELLENT = "excellent"     # >90%
-    GOOD = "good"              # 70-90%
-    ACCEPTABLE = "acceptable"   # 50-70%
-    POOR = "poor"              # 30-50%
-    CRITICAL = "critical"       # <30%
+
+    EXCELLENT = "excellent"  # >90%
+    GOOD = "good"  # 70-90%
+    ACCEPTABLE = "acceptable"  # 50-70%
+    POOR = "poor"  # 30-50%
+    CRITICAL = "critical"  # <30%
+
 
 @dataclass
 class CacheEntry:
     """Cache entry with metadata"""
+
     key: str
     value: Any
     created_at: datetime
     accessed_at: datetime
     access_count: int = 0
-    ttl_seconds: Optional[int] = None
+    ttl_seconds: int | None = None
     size_bytes: int = 0
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     level: CacheLevel = CacheLevel.L1_MEMORY
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class CacheStats:
     """Cache performance statistics"""
+
     total_requests: int = 0
     cache_hits: int = 0
     cache_misses: int = 0
@@ -71,6 +81,7 @@ class CacheStats:
     evictions: int = 0
     size_bytes: int = 0
     entries_count: int = 0
+
 
 class MemoryCache:
     """In-memory LRU cache implementation"""
@@ -92,7 +103,7 @@ class MemoryCache:
         # Thread safety
         self._lock = threading.RLock()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get value from memory cache
 
@@ -109,7 +120,10 @@ class MemoryCache:
                 return None
 
             # Check TTL
-            if entry.ttl_seconds and (datetime.utcnow() - entry.created_at).total_seconds() > entry.ttl_seconds:
+            if (
+                entry.ttl_seconds
+                and (datetime.utcnow() - entry.created_at).total_seconds() > entry.ttl_seconds
+            ):
                 self._evict_entry(key)
                 self.stats.cache_misses += 1
                 return None
@@ -126,7 +140,9 @@ class MemoryCache:
             logger.debug(f"L1 cache hit: {key}")
             return entry.value
 
-    def set(self, key: str, value: Any, ttl_seconds: Optional[int] = None, tags: List[str] = None) -> None:
+    def set(
+        self, key: str, value: Any, ttl_seconds: int | None = None, tags: list[str] = None
+    ) -> None:
         """
         Set value in memory cache
 
@@ -149,8 +165,10 @@ class MemoryCache:
                 size = 1024  # Default estimate
 
             # Check if need to evict for space
-            while (len(self.cache) >= self.max_size or
-                   self.current_size_bytes + size > self.max_memory_bytes):
+            while (
+                len(self.cache) >= self.max_size
+                or self.current_size_bytes + size > self.max_memory_bytes
+            ):
                 if not self._evict_lru():
                     break  # No more entries to evict
 
@@ -169,7 +187,7 @@ class MemoryCache:
                 ttl_seconds=ttl_seconds,
                 size_bytes=size,
                 tags=tags or [],
-                level=CacheLevel.L1_MEMORY
+                level=CacheLevel.L1_MEMORY,
             )
 
             self.cache[key] = entry
@@ -210,7 +228,7 @@ class MemoryCache:
             self.stats.entries_count -= 1
             self.stats.evictions += 1
 
-    def invalidate_by_tags(self, tags: List[str]) -> int:
+    def invalidate_by_tags(self, tags: list[str]) -> int:
         """
         Invalidate entries by tags
 
@@ -255,6 +273,7 @@ class MemoryCache:
             self.current_size_bytes = 0
             self.stats.entries_count = 0
 
+
 class IntelligentCache:
     """
     Multi-tier intelligent caching system
@@ -274,7 +293,7 @@ class IntelligentCache:
         redis_url: str = None,
         l1_max_size: int = 1000,
         l1_max_memory_mb: int = 100,
-        default_ttl_seconds: int = 3600
+        default_ttl_seconds: int = 3600,
     ):
         """
         Initialize intelligent cache
@@ -307,10 +326,10 @@ class IntelligentCache:
         }
 
         # Cache warmers
-        self.cache_warmers: Dict[str, Callable] = {}
+        self.cache_warmers: dict[str, Callable] = {}
 
         # Event subscribers for invalidation
-        self.invalidation_subscribers: List[Callable] = []
+        self.invalidation_subscribers: list[Callable] = []
 
     async def _get_redis_client(self) -> redis.Redis:
         """Get or create Redis client"""
@@ -319,9 +338,9 @@ class IntelligentCache:
                 self._redis_client = redis.from_url(self.redis_url, decode_responses=False)
             else:
                 from app.core.config import settings
+
                 self._redis_client = redis.from_url(
-                    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                    decode_responses=False
+                    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}", decode_responses=False
                 )
         return self._redis_client
 
@@ -338,11 +357,7 @@ class IntelligentCache:
             Generated cache key
         """
         # Create key data
-        key_data = {
-            "prefix": prefix,
-            "args": args,
-            "kwargs": sorted(kwargs.items())
-        }
+        key_data = {"prefix": prefix, "args": args, "kwargs": sorted(kwargs.items())}
 
         # Create hash
         key_string = json.dumps(key_data, sort_keys=True, default=str)
@@ -350,7 +365,7 @@ class IntelligentCache:
 
         return f"cache:{prefix}:{key_hash}"
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """
         Get value from cache hierarchy
 
@@ -397,9 +412,9 @@ class IntelligentCache:
         self,
         key: str,
         value: Any,
-        ttl_seconds: Optional[int] = None,
-        tags: List[str] = None,
-        levels: List[CacheLevel] = None
+        ttl_seconds: int | None = None,
+        tags: list[str] = None,
+        levels: list[CacheLevel] = None,
     ) -> None:
         """
         Set value in cache hierarchy
@@ -433,6 +448,7 @@ class IntelligentCache:
                 if len(serialized_value) > self.config["compression_threshold"]:
                     try:
                         import gzip
+
                         compressed = gzip.compress(serialized_value, compresslevel=9)
                         if len(compressed) < len(serialized_value):
                             serialized_value = compressed
@@ -474,7 +490,7 @@ class IntelligentCache:
         # Invalidate from L1 cache
         try:
             # L1 cache doesn't have direct invalidate, but entry will be expired on access
-            if hasattr(self.l1_cache, '_evict_entry'):
+            if hasattr(self.l1_cache, "_evict_entry"):
                 self.l1_cache._evict_entry(key)
         except Exception as e:
             logger.error(f"L1 cache invalidation error: {e}")
@@ -496,7 +512,7 @@ class IntelligentCache:
         logger.debug(f"Cache invalidated: {key}")
         return success
 
-    async def invalidate_by_tags(self, tags: List[str]) -> int:
+    async def invalidate_by_tags(self, tags: list[str]) -> int:
         """
         Invalidate cache entries by tags
 
@@ -585,7 +601,7 @@ class IntelligentCache:
         self.cache_warmers[key_prefix] = warmer_func
         logger.info(f"Registered cache warmer for: {key_prefix}")
 
-    async def warm_all_caches(self) -> Dict[str, int]:
+    async def warm_all_caches(self) -> dict[str, int]:
         """
         Warm all registered caches
 
@@ -619,16 +635,15 @@ class IntelligentCache:
 
         if hit_rate > 90:
             return CacheHitRate.EXCELLENT
-        elif hit_rate > 70:
+        if hit_rate > 70:
             return CacheHitRate.GOOD
-        elif hit_rate > 50:
+        if hit_rate > 50:
             return CacheHitRate.ACCEPTABLE
-        elif hit_rate > 30:
+        if hit_rate > 30:
             return CacheHitRate.POOR
-        else:
-            return CacheHitRate.CRITICAL
+        return CacheHitRate.CRITICAL
 
-    def get_comprehensive_stats(self) -> Dict[str, Any]:
+    def get_comprehensive_stats(self) -> dict[str, Any]:
         """
         Get comprehensive cache statistics
 
@@ -651,7 +666,7 @@ class IntelligentCache:
                 "hit_rate_classification": hit_rate.value,
                 "l1_hits": self.stats.l1_hits,
                 "l2_hits": self.stats.l2_hits,
-                "evictions": self.stats.evictions
+                "evictions": self.stats.evictions,
             },
             "l1_memory": {
                 "entries_count": l1_stats.entries_count,
@@ -661,19 +676,19 @@ class IntelligentCache:
                 "l1_misses": l1_stats.cache_misses,
                 "l1_hit_rate_percent": round(
                     (l1_stats.l1_hits / max(1, l1_stats.total_requests)) * 100, 2
-                )
+                ),
             },
             "configuration": {
                 "l2_enabled": self.config["l2_enabled"],
                 "l3_enabled": self.config["l3_enabled"],
                 "auto_warm": self.config["auto_warm"],
                 "compression_threshold": self.config["compression_threshold"],
-                "default_ttl_seconds": self.default_ttl_seconds
+                "default_ttl_seconds": self.default_ttl_seconds,
             },
             "cache_warmers": {
                 "registered_count": len(self.cache_warmers),
-                "prefixes": list(self.cache_warmers.keys())
-            }
+                "prefixes": list(self.cache_warmers.keys()),
+            },
         }
 
     async def cleanup_expired_entries(self) -> int:
@@ -721,15 +736,17 @@ class IntelligentCache:
         """
         self.invalidation_subscribers.append(subscriber)
 
+
 # Singleton instance
 intelligent_cache = IntelligentCache()
+
 
 # Decorators for easy use
 def cached(
     key_prefix: str,
-    ttl_seconds: Optional[int] = None,
-    tags: List[str] = None,
-    levels: List[CacheLevel] = None
+    ttl_seconds: int | None = None,
+    tags: list[str] = None,
+    levels: list[CacheLevel] = None,
 ):
     """
     Decorator for caching function results
@@ -740,6 +757,7 @@ def cached(
         tags: Cache tags
         levels: Cache levels to use
     """
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             # Generate cache key
@@ -755,16 +773,15 @@ def cached(
 
             # Cache result
             await intelligent_cache.set(
-                cache_key,
-                result,
-                ttl_seconds=ttl_seconds,
-                tags=tags,
-                levels=levels
+                cache_key, result, ttl_seconds=ttl_seconds, tags=tags, levels=levels
             )
 
             return result
+
         return wrapper
+
     return decorator
+
 
 def cache_warm(key_prefix: str):
     """
@@ -773,7 +790,9 @@ def cache_warm(key_prefix: str):
     Args:
         key_prefix: Cache key prefix
     """
+
     def decorator(func):
         intelligent_cache.register_cache_warmer(key_prefix, func)
         return func
+
     return decorator

@@ -33,7 +33,7 @@ class ScoringConfigUpdate(BaseModel):
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/assessments/{assessment_id}/scoring-config", dependencies=[Depends(get_current_user)])
 def create_scoring_config(
     assessment_id: int,
@@ -46,28 +46,28 @@ def create_scoring_config(
     Only assessment creator can configure scoring.
     """
     assessment = AssessmentService.get_by_id(db, assessment_id=assessment_id)
-    
+
     if not assessment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assessment not found"
         )
-    
+
     if assessment.created_by_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only assessment creator can configure scoring"
         )
-    
+
     # Check if config already exists
     existing = ScoringService.get_scoring_config(db, assessment_id)
-    
+
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Scoring configuration already exists. Use update endpoint."
         )
-    
+
     # Validate algorithm
     valid_algorithms = ["mbti", "big_five", "disc", "generic"]
     if config_data.algorithm not in valid_algorithms:
@@ -75,19 +75,19 @@ def create_scoring_config(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid algorithm. Must be one of: {valid_algorithms}"
         )
-    
+
     config = ScoringService.create_scoring_config(
         db,
         assessment_id=assessment_id,
         algorithm=config_data.algorithm,
         config_data=config_data.config
     )
-    
+
     return {
         "id": config.id,
         "assessment_id": config.assessment_id,
         "algori
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 thm": config.algorithm,
         "config": config.config
     }
@@ -101,24 +101,24 @@ def get_scoring_config(
 ):
     """Get scoring configuration for an assessment"""
     assessment = AssessmentService.get_by_id(db, assessment_id=assessment_id)
-    
+
     if not assessment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assessment not found"
         )
-    
+
     config = ScoringService.get_scoring_config(db, assessment_id)
-    
+
     if not config:
         return {
             "algorithm": "generic",
             "message": "No specific scoring configuration. Using generic scoring."
         }
-    
+
     return {
         "id": config.id
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ,
         "assessment_id": config.assessment_id,
         "algorithm": config.algorithm,
@@ -135,27 +135,27 @@ def update_scoring_config(
 ):
     """Update scoring configuration"""
     config = ScoringService.get_scoring_config_by_id(db, config_id)
-    
+
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Scoring configuration not found"
         )
-    
+
     assessment = AssessmentService.get_by_id(db, assessment_id=config.assessment_id)
-    
+
     if assessment.created_by_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only assessment creator can update scoring"
         )
-    
+
     updated_config = ScoringService.update_scoring_config(
         db,
         config_id=config_id,
         config_data=config_update.config
     )
-    
+
     return {
         "id": updated_config.id,
         "assessment_id": updated_config.assessment_id,

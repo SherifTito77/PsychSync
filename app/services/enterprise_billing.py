@@ -13,20 +13,15 @@ This module provides comprehensive billing capabilities with:
 - Free trial and promotion management
 """
 
-import asyncio
-import logging
-import uuid
-from datetime import datetime, timezone, timedelta
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from enum import Enum
-import json
+import logging
+from typing import Any
 
-import stripe
-import aiohttp
 import asyncpg
-from pydantic import BaseModel, validator
+import stripe
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +76,11 @@ class PricingTier:
     monthly_price: Decimal
     yearly_price: Decimal
     currency: str
-    features: List[str]
-    limits: Dict[str, int]
+    features: list[str]
+    limits: dict[str, int]
     included_users: int
-    price_per_user: Optional[Decimal] = None
-    setup_fee: Optional[Decimal] = None
+    price_per_user: Decimal | None = None
+    setup_fee: Decimal | None = None
 
 
 @dataclass
@@ -108,8 +103,8 @@ class Subscription:
     status: SubscriptionStatus
     current_period_start: datetime
     current_period_end: datetime
-    trial_start: Optional[datetime]
-    trial_end: Optional[datetime]
+    trial_start: datetime | None
+    trial_end: datetime | None
     cancel_at_period_end: bool
     quantity: int  # Number of users/licenses
     unit_price: Decimal
@@ -118,7 +113,7 @@ class Subscription:
     billing_cycle: BillingCycle
     created_at: datetime
     updated_at: datetime
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass
@@ -134,11 +129,11 @@ class Invoice:
     currency: str
     status: InvoiceStatus
     due_date: datetime
-    paid_at: Optional[datetime]
+    paid_at: datetime | None
     created_at: datetime
-    line_items: List[Dict[str, Any]]
+    line_items: list[dict[str, Any]]
     tax_amount: Decimal
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
 
 @dataclass
@@ -150,8 +145,8 @@ class PaymentMethod:
     type: str  # "card", "bank_account"
     brand: str  # "visa", "mastercard", etc.
     last4: str
-    expiry_month: Optional[int]
-    expiry_year: Optional[int]
+    expiry_month: int | None
+    expiry_year: int | None
     is_default: bool
     created_at: datetime
 
@@ -311,7 +306,7 @@ class EnterpriseBillingService:
         quantity: int,
         billing_cycle: BillingCycle,
         trial_days: int = 0,
-        payment_method_id: Optional[str] = None
+        payment_method_id: str | None = None
     ) -> Subscription:
         """Create new subscription"""
         try:
@@ -337,29 +332,29 @@ class EnterpriseBillingService:
             stripe_subscription = stripe.Subscription.create(
                 customer=customer.stripe_customer_id,
                 items=[{
-                    'price_data': {
-                        'currency': tier.currency.lower(),
-                        'unit_amount': int(unit_price * 100),  # Convert to cents
-                        'product_data': {
-                            'name': f'{tier.name} Plan',
-                            'description': f'{plan_type.value} plan for {quantity} users'
+                    "price_data": {
+                        "currency": tier.currency.lower(),
+                        "unit_amount": int(unit_price * 100),  # Convert to cents
+                        "product_data": {
+                            "name": f"{tier.name} Plan",
+                            "description": f"{plan_type.value} plan for {quantity} users"
                         },
-                        'recurring': {
-                            'interval': billing_cycle.value,
-                            'trial_period_days': trial_days
+                        "recurring": {
+                            "interval": billing_cycle.value,
+                            "trial_period_days": trial_days
                         }
                     },
-                    'quantity': quantity
+                    "quantity": quantity
                 }],
-                payment_behavior='default_incomplete',
+                payment_behavior="default_incomplete",
                 payment_settings={
-                    'save_default_payment_method': 'on_subscription'
+                    "save_default_payment_method": "on_subscription"
                 },
                 default_payment_method=payment_method_id,
-                expand=['latest_invoice.payment_intent'],
+                expand=["latest_invoice.payment_intent"],
                 metadata={
-                    'organization_id': organization_id,
-                    'plan_type': plan_type.value
+                    "organization_id": organization_id,
+                    "plan_type": plan_type.value
                 }
             )
 
@@ -369,21 +364,21 @@ class EnterpriseBillingService:
                 organization_id=organization_id,
                 plan_type=plan_type,
                 status=self._map_stripe_status(stripe_subscription.status),
-                current_period_start=datetime.fromtimestamp(stripe_subscription.current_period_start, tz=timezone.utc),
-                current_period_end=datetime.fromtimestamp(stripe_subscription.current_period_end, tz=timezone.utc),
-                trial_start=datetime.fromtimestamp(stripe_subscription.trial_start, tz=timezone.utc) if stripe_subscription.trial_start else None,
-                trial_end=datetime.fromtimestamp(stripe_subscription.trial_end, tz=timezone.utc) if stripe_subscription.trial_end else None,
+                current_period_start=datetime.fromtimestamp(stripe_subscription.current_period_start, tz=UTC),
+                current_period_end=datetime.fromtimestamp(stripe_subscription.current_period_end, tz=UTC),
+                trial_start=datetime.fromtimestamp(stripe_subscription.trial_start, tz=UTC) if stripe_subscription.trial_start else None,
+                trial_end=datetime.fromtimestamp(stripe_subscription.trial_end, tz=UTC) if stripe_subscription.trial_end else None,
                 cancel_at_period_end=stripe_subscription.cancel_at_period_end,
                 quantity=quantity,
                 unit_price=unit_price,
                 total_amount=unit_price * Decimal(quantity),
                 currency=tier.currency.upper(),
                 billing_cycle=billing_cycle,
-                created_at=datetime.now(timezone.utc),
-                updated_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
                 metadata={
-                    'stripe_subscription_id': stripe_subscription.id,
-                    'customer_id': customer.stripe_customer_id
+                    "stripe_subscription_id": stripe_subscription.id,
+                    "customer_id": customer.stripe_customer_id
                 }
             )
 
@@ -395,10 +390,10 @@ class EnterpriseBillingService:
                 EventType.SUBSCRIPTION_CREATED,
                 organization_id,
                 {
-                    'subscription_id': subscription.subscription_id,
-                    'plan_type': plan_type.value,
-                    'quantity': quantity,
-                    'billing_cycle': billing_cycle.value
+                    "subscription_id": subscription.subscription_id,
+                    "plan_type": plan_type.value,
+                    "quantity": quantity,
+                    "billing_cycle": billing_cycle.value
                 }
             )
 
@@ -412,8 +407,8 @@ class EnterpriseBillingService:
     async def update_subscription(
         self,
         subscription_id: str,
-        quantity: Optional[int] = None,
-        plan_type: Optional[PlanType] = None
+        quantity: int | None = None,
+        plan_type: PlanType | None = None
     ) -> Subscription:
         """Update existing subscription"""
         try:
@@ -428,7 +423,7 @@ class EnterpriseBillingService:
             update_data = {}
 
             if quantity and quantity != current_sub.quantity:
-                update_data['quantity'] = quantity
+                update_data["quantity"] = quantity
 
             if plan_type and plan_type != current_sub.plan_type:
                 # Plan change - create new price
@@ -437,14 +432,14 @@ class EnterpriseBillingService:
                     currency=tier.currency.lower(),
                     unit_amount=int(tier.monthly_price * 100),
                     product_data={
-                        'name': f'{tier.name} Plan',
-                        'description': f'{plan_type.value} plan'
+                        "name": f"{tier.name} Plan",
+                        "description": f"{plan_type.value} plan"
                     },
-                    recurring={'interval': current_sub.billing_cycle.value}
+                    recurring={"interval": current_sub.billing_cycle.value}
                 )
-                update_data['items'] = [{
-                    'id': stripe_subscription['items']['data'][0].id,
-                    'price': new_price.id
+                update_data["items"] = [{
+                    "id": stripe_subscription["items"]["data"][0].id,
+                    "price": new_price.id
                 }]
 
             if update_data:
@@ -452,8 +447,8 @@ class EnterpriseBillingService:
                     subscription_id,
                     **update_data,
                     metadata={
-                        'organization_id': current_sub.organization_id,
-                        'plan_type': plan_type.value if plan_type else current_sub.plan_type.value
+                        "organization_id": current_sub.organization_id,
+                        "plan_type": plan_type.value if plan_type else current_sub.plan_type.value
                     }
                 )
 
@@ -464,8 +459,8 @@ class EnterpriseBillingService:
                 EventType.SUBSCRIPTION_UPDATED,
                 current_sub.organization_id,
                 {
-                    'subscription_id': subscription_id,
-                    'updates': update_data
+                    "subscription_id": subscription_id,
+                    "updates": update_data
                 }
             )
 
@@ -480,7 +475,7 @@ class EnterpriseBillingService:
         self,
         subscription_id: str,
         cancel_at_period_end: bool = True,
-        reason: Optional[str] = None
+        reason: str | None = None
     ) -> Subscription:
         """Cancel subscription"""
         try:
@@ -501,9 +496,9 @@ class EnterpriseBillingService:
                 EventType.SUBSCRIPTION_CANCELED,
                 subscription.organization_id,
                 {
-                    'subscription_id': subscription_id,
-                    'cancel_at_period_end': cancel_at_period_end,
-                    'reason': reason
+                    "subscription_id": subscription_id,
+                    "cancel_at_period_end": cancel_at_period_end,
+                    "reason": reason
                 }
             )
 
@@ -517,8 +512,8 @@ class EnterpriseBillingService:
     async def create_invoice(
         self,
         organization_id: str,
-        items: List[Dict[str, Any]],
-        due_date: Optional[datetime] = None
+        items: list[dict[str, Any]],
+        due_date: datetime | None = None
     ) -> Invoice:
         """Create invoice for organization"""
         try:
@@ -528,7 +523,7 @@ class EnterpriseBillingService:
                 raise ValueError(f"Customer not found for org {organization_id}")
 
             # Calculate totals
-            subtotal = sum(Decimal(str(item.get('amount', 0))) for item in items)
+            subtotal = sum(Decimal(str(item.get("amount", 0))) for item in items)
             tax_amount = self._calculate_tax(subtotal, customer.billing_address)
             total_amount = subtotal + tax_amount
 
@@ -536,12 +531,12 @@ class EnterpriseBillingService:
             stripe_invoice = stripe.Invoice.create(
                 customer=customer.stripe_customer_id,
                 auto_advance=False,
-                collection_method='charge_automatically',
+                collection_method="charge_automatically",
                 due_date=int(due_date.timestamp()) if due_date else None,
                 custom_fields=[
                     {
-                        'name': 'Organization ID',
-                        'value': organization_id
+                        "name": "Organization ID",
+                        "value": organization_id
                     }
                 ]
             )
@@ -550,11 +545,11 @@ class EnterpriseBillingService:
             for item in items:
                 stripe.InvoiceItem.create(
                     customer=customer.stripe_customer_id,
-                    amount=int(Decimal(str(item.get('amount', 0))) * 100),
-                    currency='usd',
-                    description=item.get('description', ''),
+                    amount=int(Decimal(str(item.get("amount", 0))) * 100),
+                    currency="usd",
+                    description=item.get("description", ""),
                     invoice=stripe_invoice.id,
-                    metadata=item.get('metadata', {})
+                    metadata=item.get("metadata", {})
                 )
 
             # Finalize invoice
@@ -563,7 +558,7 @@ class EnterpriseBillingService:
             # Create local invoice record
             invoice = Invoice(
                 invoice_id=stripe_invoice.id,
-                subscription_id='',
+                subscription_id="",
                 organization_id=organization_id,
                 customer_id=customer.stripe_customer_id,
                 amount_due=Decimal(str(stripe_invoice.amount_due)) / Decimal(100),
@@ -571,17 +566,17 @@ class EnterpriseBillingService:
                 amount_remaining=Decimal(str(stripe_invoice.amount_remaining)) / Decimal(100),
                 currency=stripe_invoice.currency.upper(),
                 status=self._map_stripe_invoice_status(stripe_invoice.status),
-                due_date=datetime.fromtimestamp(stripe_invoice.due_date, tz=timezone.utc),
-                paid_at=datetime.fromtimestamp(stripe_invoice.status_transitions.paid_at, tz=timezone.utc) if stripe_invoice.status_transitions.paid_at else None,
-                created_at=datetime.fromtimestamp(stripe_invoice.created, tz=timezone.utc),
+                due_date=datetime.fromtimestamp(stripe_invoice.due_date, tz=UTC),
+                paid_at=datetime.fromtimestamp(stripe_invoice.status_transitions.paid_at, tz=UTC) if stripe_invoice.status_transitions.paid_at else None,
+                created_at=datetime.fromtimestamp(stripe_invoice.created, tz=UTC),
                 line_items=[{
-                    'description': item.get('description', ''),
-                    'amount': Decimal(str(item.get('amount', 0))),
-                    'quantity': item.get('quantity', 1)
+                    "description": item.get("description", ""),
+                    "amount": Decimal(str(item.get("amount", 0))),
+                    "quantity": item.get("quantity", 1)
                 } for item in items],
                 tax_amount=tax_amount,
                 metadata={
-                    'stripe_invoice_id': stripe_invoice.id
+                    "stripe_invoice_id": stripe_invoice.id
                 }
             )
 
@@ -592,9 +587,9 @@ class EnterpriseBillingService:
                 EventType.INVOICE_CREATED,
                 organization_id,
                 {
-                    'invoice_id': invoice.invoice_id,
-                    'amount_due': float(invoice.amount_due),
-                    'due_date': invoice.due_date.isoformat()
+                    "invoice_id": invoice.invoice_id,
+                    "amount_due": float(invoice.amount_due),
+                    "due_date": invoice.due_date.isoformat()
                 }
             )
 
@@ -605,7 +600,7 @@ class EnterpriseBillingService:
             logger.error(f"❌ Failed to create invoice for org {organization_id}: {e}")
             raise
 
-    async def process_usage_billing(self, organization_id: str) -> Dict[str, Any]:
+    async def process_usage_billing(self, organization_id: str) -> dict[str, Any]:
         """Process usage-based billing"""
         try:
             # Get usage data for the period
@@ -613,7 +608,7 @@ class EnterpriseBillingService:
 
             # Calculate charges
             charges = []
-            total_charge = Decimal('0')
+            total_charge = Decimal("0")
 
             for metric_name, usage_value in usage_data.items():
                 metric = self.pricing.USAGE_METRICS.get(metric_name)
@@ -623,10 +618,10 @@ class EnterpriseBillingService:
                 charge_amount = self._calculate_usage_charge(metric, usage_value)
                 if charge_amount > 0:
                     charges.append({
-                        'metric': metric_name,
-                        'usage': usage_value,
-                        'charge': charge_amount,
-                        'description': f"{metric.name} ({usage_value} {metric.unit})"
+                        "metric": metric_name,
+                        "usage": usage_value,
+                        "charge": charge_amount,
+                        "description": f"{metric.name} ({usage_value} {metric.unit})"
                     })
                     total_charge += charge_amount
 
@@ -635,33 +630,33 @@ class EnterpriseBillingService:
                 await self.create_invoice(
                     organization_id,
                     charges,
-                    due_date=datetime.now(timezone.utc) + timedelta(days=30)
+                    due_date=datetime.now(UTC) + timedelta(days=30)
                 )
 
             return {
-                'organization_id': organization_id,
-                'usage_data': usage_data,
-                'charges': charges,
-                'total_charge': float(total_charge)
+                "organization_id": organization_id,
+                "usage_data": usage_data,
+                "charges": charges,
+                "total_charge": float(total_charge)
             }
 
         except Exception as e:
             logger.error(f"❌ Failed to process usage billing for org {organization_id}: {e}")
             raise
 
-    async def handle_webhook(self, event_data: Dict[str, Any]) -> bool:
+    async def handle_webhook(self, event_data: dict[str, Any]) -> bool:
         """Handle Stripe webhook events"""
         try:
-            event_type = event_data.get('type')
-            event_object = event_data.get('data', {}).get('object')
+            event_type = event_data.get("type")
+            event_object = event_data.get("data", {}).get("object")
 
-            if event_type == 'invoice.payment_succeeded':
+            if event_type == "invoice.payment_succeeded":
                 await self._handle_payment_succeeded(event_object)
-            elif event_type == 'invoice.payment_failed':
+            elif event_type == "invoice.payment_failed":
                 await self._handle_payment_failed(event_object)
-            elif event_type == 'customer.subscription.deleted':
+            elif event_type == "customer.subscription.deleted":
                 await self._handle_subscription_deleted(event_object)
-            elif event_type == 'payment_method.attached':
+            elif event_type == "payment_method.attached":
                 await self._handle_payment_method_attached(event_object)
 
             logger.info(f"✅ Processed webhook event: {event_type}")
@@ -673,10 +668,10 @@ class EnterpriseBillingService:
 
     async def get_billing_analytics(
         self,
-        organization_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> Dict[str, Any]:
+        organization_id: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
+    ) -> dict[str, Any]:
         """Get billing analytics and metrics"""
         try:
             # Query database for analytics
@@ -724,15 +719,15 @@ class EnterpriseBillingService:
 
             async with self.db_pool.acquire() as conn:
                 churn_result = await conn.fetchrow(churn_query)
-                analytics['churn_rate'] = float(churn_result['churn_rate']) if churn_result else 0.0
+                analytics["churn_rate"] = float(churn_result["churn_rate"]) if churn_result else 0.0
 
             return {
-                'analytics': analytics,
-                'generated_at': datetime.now(timezone.utc).isoformat(),
-                'filters': {
-                    'organization_id': organization_id,
-                    'start_date': start_date.isoformat() if start_date else None,
-                    'end_date': end_date.isoformat() if end_date else None
+                "analytics": analytics,
+                "generated_at": datetime.now(UTC).isoformat(),
+                "filters": {
+                    "organization_id": organization_id,
+                    "start_date": start_date.isoformat() if start_date else None,
+                    "end_date": end_date.isoformat() if end_date else None
                 }
             }
 
@@ -742,94 +737,89 @@ class EnterpriseBillingService:
 
     # ===== HELPER METHODS =====
 
-    async def _get_or_create_customer(self, organization_id: str) -> 'Customer':
+    async def _get_or_create_customer(self, organization_id: str) -> "Customer":
         """Get or create Stripe customer"""
         # Implementation would query database for existing customer
         # and create new one if not found
-        pass
 
-    async def _get_subscription(self, subscription_id: str) -> Optional[Subscription]:
+    async def _get_subscription(self, subscription_id: str) -> Subscription | None:
         """Get subscription from database"""
         # Database query implementation
-        pass
 
     async def _save_subscription(self, subscription: Subscription):
         """Save subscription to database"""
         # Database save implementation
-        pass
 
     async def _save_invoice(self, invoice: Invoice):
         """Save invoice to database"""
         # Database save implementation
-        pass
 
-    async def _log_event(self, event_type: EventType, organization_id: str, data: Dict[str, Any]):
+    async def _log_event(self, event_type: EventType, organization_id: str, data: dict[str, Any]):
         """Log billing event"""
         # Event logging implementation
-        pass
 
     def _map_stripe_status(self, stripe_status: str) -> SubscriptionStatus:
         """Map Stripe status to subscription status"""
         status_mapping = {
-            'trialing': SubscriptionStatus.TRIALING,
-            'active': SubscriptionStatus.ACTIVE,
-            'past_due': SubscriptionStatus.PAST_DUE,
-            'canceled': SubscriptionStatus.CANCELED,
-            'unpaid': SubscriptionStatus.UNPAID
+            "trialing": SubscriptionStatus.TRIALING,
+            "active": SubscriptionStatus.ACTIVE,
+            "past_due": SubscriptionStatus.PAST_DUE,
+            "canceled": SubscriptionStatus.CANCELED,
+            "unpaid": SubscriptionStatus.UNPAID
         }
         return status_mapping.get(stripe_status, SubscriptionStatus.ACTIVE)
 
     def _map_stripe_invoice_status(self, stripe_status: str) -> InvoiceStatus:
         """Map Stripe invoice status"""
         status_mapping = {
-            'draft': InvoiceStatus.DRAFT,
-            'open': InvoiceStatus.OPEN,
-            'paid': InvoiceStatus.PAID,
-            'void': InvoiceStatus.VOID,
-            'uncollectible': InvoiceStatus.UNCOLLECTIBLE
+            "draft": InvoiceStatus.DRAFT,
+            "open": InvoiceStatus.OPEN,
+            "paid": InvoiceStatus.PAID,
+            "void": InvoiceStatus.VOID,
+            "uncollectible": InvoiceStatus.UNCOLLECTIBLE
         }
         return status_mapping.get(stripe_status, InvoiceStatus.DRAFT)
 
-    def _calculate_tax(self, amount: Decimal, billing_address: Optional[Dict]) -> Decimal:
+    def _calculate_tax(self, amount: Decimal, billing_address: dict | None) -> Decimal:
         """Calculate tax based on billing address"""
         # Simple tax calculation - would use tax service in production
-        if billing_address and billing_address.get('country') == 'US':
-            return amount * Decimal('0.08')  # 8% tax
-        return Decimal('0')
+        if billing_address and billing_address.get("country") == "US":
+            return amount * Decimal("0.08")  # 8% tax
+        return Decimal("0")
 
     def _calculate_usage_charge(self, metric: UsageMetric, usage_value: int) -> Decimal:
         """Calculate charge for usage metric"""
         included_units = metric.included_units
         if usage_value <= included_units:
-            return Decimal('0')
+            return Decimal("0")
 
         billable_units = usage_value - included_units
         return Decimal(billable_units) * metric.unit_price
 
-    async def _get_usage_data(self, organization_id: str) -> Dict[str, int]:
+    async def _get_usage_data(self, organization_id: str) -> dict[str, int]:
         """Get usage data for organization"""
         # Query usage metrics from database
         return {
-            'additional_users': 5,
-            'additional_storage': 2,
-            'api_calls': 15000
+            "additional_users": 5,
+            "additional_storage": 2,
+            "api_calls": 15000
         }
 
     # Webhook handlers
-    async def _handle_payment_succeeded(self, invoice_data: Dict):
+    async def _handle_payment_succeeded(self, invoice_data: dict):
         """Handle successful payment"""
-        await self._update_invoice_status(invoice_data['id'], InvoiceStatus.PAID)
+        await self._update_invoice_status(invoice_data["id"], InvoiceStatus.PAID)
 
-    async def _handle_payment_failed(self, invoice_data: Dict):
+    async def _handle_payment_failed(self, invoice_data: dict):
         """Handle failed payment"""
-        await self._update_invoice_status(invoice_data['id'], InvoiceStatus.OPEN)
+        await self._update_invoice_status(invoice_data["id"], InvoiceStatus.OPEN)
         # Trigger dunning workflow
 
-    async def _handle_subscription_deleted(self, subscription_data: Dict):
+    async def _handle_subscription_deleted(self, subscription_data: dict):
         """Handle subscription deletion"""
-        await self._cancel_local_subscription(subscription_data['id'])
+        await self._cancel_local_subscription(subscription_data["id"])
 
-    async def _handle_payment_method_attached(self, payment_method_data: Dict):
+    async def _handle_payment_method_attached(self, payment_method_data: dict):
         """Handle new payment method"""
         await self._save_payment_method(payment_method_data)
 

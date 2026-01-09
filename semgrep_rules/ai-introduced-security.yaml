@@ -1,0 +1,256 @@
+rules:
+  # ===========================================================================
+  # AI Assistant Security Rules
+  # ===========================================================================
+  # These rules detect common security patterns introduced by AI assistants
+  # ===========================================================================
+
+  - id: ai-subprocess-shell-true
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+      technology: [python]
+      vulnerability: "Command Injection"
+      confidence: HIGH
+    message:: |
+      AI assistants often use shell=True for subprocess which is vulnerable
+      to command injection. Use shell=False and pass arguments as a list instead.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: subprocess.$(call|run|Popen)(..., shell=True, ...)
+      - pattern: os.system(...)
+    fix: |
+      Use shell=False with argument list:
+      subprocess.run(["command", "arg1", "arg2"], shell=False, check=True)
+
+  - id: ai-pickle-unsafe-deserialization
+    metadata:
+      owasp: "A08:2021 - Software and Data Integrity Failures"
+      category: security
+      cwe: "CWE-502"
+      technology: [python]
+      vulnerability: "Unsafe Deserialization"
+      confidence: HIGH
+    message: |
+      AI assistants sometimes use pickle for serialization which is vulnerable
+      to arbitrary code execution. Use JSON or msgpack instead.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: pickle.load(...)
+      - pattern: pickle.loads(...)
+      - pattern: pickle.loadb(...)
+    fix: |
+      Use JSON for safe serialization:
+      import json
+      json.loads(data)  # Safe alternative to pickle.loads
+
+  - id: ai-raw-sql-fstring
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+      cwe: "CWE-89"
+      technology: [python, sql]
+      vulnerability: "SQL Injection"
+      confidence: HIGH
+    message: |
+      AI assistants frequently generate raw SQL with f-strings which is
+      vulnerable to SQL injection. Always use parameterized queries.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: text(f"$SQL")
+      - pattern: execute(f"$SQL")
+      - pattern: text(f"SELECT ... {VAR}")
+      - pattern: text(f"INSERT ... {VAR}")
+    fix: |
+      Use parameterized queries:
+      text("SELECT * FROM users WHERE email = :email", {"email": user_email})
+
+  - id: ai-hardcoded-credentials
+    metadata:
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      category: security
+      cwe: "CWE-798"
+      technology: [python]
+      vulnerability: "Hardcoded Secrets"
+      confidence: MEDIUM
+    message: |
+      AI assistants often suggest hardcoded credentials for convenience.
+      Always use environment variables or secret managers.
+    severity: WARNING
+    languages: [python]
+    pattern-either:
+      - pattern: password = "..."
+      - pattern: api_key = "..."
+      - pattern: secret_key = b"..."
+      - pattern: access_token = "..."
+      - pattern: private_key = "..."
+    fix: |
+      Use environment variables:
+      import os
+      password = os.getenv("DB_PASSWORD")
+
+  - id: ai-unsafe-eval-exec
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+      cwe: "CWE-95"
+      technology: [python]
+      vulnerability: "Code Execution"
+      confidence: HIGH
+    message: |
+      AI assistants rarely should use eval() or exec(). These are extremely
+      dangerous and can lead to arbitrary code execution.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: eval($USER_INPUT)
+      - pattern: exec($USER_INPUT)
+      - pattern: eval(f"...{VAR}...")
+      - pattern: exec(f"...{VAR}...")
+    fix: |
+      Use ast.literal_eval for literals only, or avoid eval entirely:
+      import ast
+      ast.literal_eval(safe_string)  # Only for trusted literals
+
+  - id: ai-md5-weak-hash
+    metadata:
+      owasp: "A02:2021 - Cryptographic Failures"
+      category: security
+      cwe: "CWE-327"
+      technology: [python]
+      vulnerability: "Weak Cryptography"
+      confidence: MEDIUM
+    message: |
+      AI assistants often suggest MD5 or SHA1 which are broken. Always use
+      SHA-256 or better for security-sensitive operations.
+    severity: WARNING
+    languages: [python]
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+      - pattern: hash_md5(...)
+      - pattern: sha1(...)
+    fix: |
+      Use SHA-256 or stronger:
+      hashlib.sha256(data.encode())
+
+  - id: ai-tls-verification-disabled
+    metadata:
+      owasp: "A02:2021 - Cryptographic Failures"
+      category: security
+      cwe: "CWE-295"
+      technology: [python]
+      vulnerability: "TLS Verification Bypass"
+      confidence: HIGH
+    message: |
+      AI assistants may disable SSL verification which exposes data to
+      man-in-the-middle attacks. Never disable SSL verification in production.
+    severity: ERROR
+    languages: [python]
+    pattern-either:
+      - pattern: verify=False
+      - pattern: ssl._create_default_context(...)
+      - pattern: ssl._create_unverified_context(...)
+    fix: |
+      Always verify SSL certificates:
+      import certifi
+      ssl.create_default_context(cafile=certifi.where())
+
+  - id: ai-tempfile-insecure
+    metadata:
+      owasp: "A01:2021 - Broken Access Control"
+      category: security
+      cwe: "CWE-377"
+      technology: [python]
+      vulnerability: "Insecure Temporary File"
+      confidence: MEDIUM
+    message: |
+      AI assistants often use mktemp() which has race conditions. Use
+      tempfile.NamedTemporaryFile or TemporaryDirectory instead.
+    severity: WARNING
+    languages: [python]
+    pattern: mktemp(...)
+    fix: |
+      Use secure temporary files:
+      import tempfile
+      with tempfile.NamedTemporaryFile(mode='w') as f:
+          f.write(data)
+
+  - id: ai-random-not-secure
+    metadata:
+      owasp: "A02:2021 - Cryptographic Failures"
+      category: security
+      cwe: "CWE-338"
+      technology: [python]
+      vulnerability: "Weak Random Number Generation"
+      confidence: MEDIUM
+    message: |
+      AI assistants often use random.random() for security which is predictable.
+      Always use secrets.SystemRandom() or secrets.token_hex() for security.
+    severity: WARNING
+    languages: [python]
+    pattern: random.random(...) | random.choice(...) | random.shuffle(...)
+    fix: |
+      Use cryptographically secure random:
+      import secrets
+      token = secrets.token_urlsafe(32)
+
+  - id: ai-string-concatenation-sql
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+      cwe: "CWE-89"
+      technology: [python, sql]
+      vulnerability: "SQL Injection"
+      confidence: HIGH
+    message: |
+      AI assistants may use string concatenation for SQL queries. Always use
+      parameterized queries with text() or proper ORM methods.
+    severity: ERROR
+    languages: [python]
+    pattern: $QUERY + $VAR | $VAR + $QUERY | f"{QUERY} {VAR}"
+    fix: |
+      Use SQLAlchemy ORM or parameterized queries:
+      session.execute(text("SELECT * FROM users WHERE id = :id"), {"id": user_id})
+
+  - id: ai-json-loads-without-validation
+    metadata:
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: security
+      technology: [python]
+      vulnerability: "Unvalidated JSON Deserialization"
+      confidence: LOW
+    message: |
+      AI assistants often use json.loads() without validation. Always validate
+      JSON structure and content type before parsing.
+    severity: INFO
+    languages: [python]
+    pattern: json.loads($USER_INPUT)
+    fix: |
+      Validate JSON before parsing:
+      try:
+          data = json.loads(user_input)
+          assert isinstance(data, dict)
+          assert required_keys.issuperset(data.keys())
+      except (ValueError, AssertionError) as e:
+          raise HTTPException(status_code=400, detail="Invalid JSON")
+
+  - id: ai-debug-expose-sensitive-info
+    metadata:
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: security
+      technology: [python]
+      vulnerability: "Information Disclosure"
+      confidence: MEDIUM
+    message: |
+      AI assistants often add debug logging that exposes sensitive information.
+      Never log passwords, tokens, or PII in debug mode.
+    severity: WARNING
+    languages: [python]
+    pattern: logger.debug.*(password|token|secret|credit_card)
+    fix: |
+      Use secure logging that redacts sensitive data:
+      logger.debug("User login attempted", extra={"user_id": user.id})

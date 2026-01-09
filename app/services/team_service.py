@@ -2,24 +2,25 @@
 """
 Team Service - Enhanced with standardized error handling and logging
 """
-from uuid import UUID
+
 from datetime import datetime
-from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 
+from app.core.database_transactions import transaction_manager
+from app.core.error_handling import ValidationException, handle_database_errors
+from app.core.structured_logging import EventType, get_logger
 from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.user import User
 from app.schemas.team import TeamCreate, TeamUpdate
-from app.core.error_handling import handle_database_errors, ValidationException
-from app.core.structured_logging import get_logger, EventType
-from app.core.database_transactions import transaction_manager
 
 logger = get_logger(__name__)
 
-class TeamService:
 
+class TeamService:
     @staticmethod
     @handle_database_errors("team_creation")
     @transaction_manager.transaction
@@ -30,53 +31,46 @@ class TeamService:
         """
         # Validate team name
         if not team_in.name or len(team_in.name.strip()) < 2:
-            raise ValidationException(
-                "Team name must be at least 2 characters long",
-                field="name"
-            )
+            raise ValidationException("Team name must be at least 2 characters long", field="name")
 
         if len(team_in.name) > 100:
-            raise ValidationException(
-                "Team name cannot exceed 100 characters",
-                field="name"
-            )
+            raise ValidationException("Team name cannot exceed 100 characters", field="name")
 
         # Validate and get creator
         result = await db.execute(
-            select(User).options(selectinload(User.organization))
-            .where(User.id == creator_id)
+            select(User).options(selectinload(User.organization)).where(User.id == creator_id)
         )
         creator = result.scalar_one_or_none()
 
         if not creator:
-            raise ValidationException(
-                "Creator user not found",
-                field="creator_id"
-            )
+            raise ValidationException("Creator user not found", field="creator_id")
 
         if not creator.organization_id:
             raise ValidationException(
                 "Creator user must belong to an organization to create teams",
-                field="organization_id"
+                field="organization_id",
             )
 
         # Check for duplicate team name within organization
         existing_team = await db.execute(
-            select(Team).where(and_(
-                Team.name == team_in.name.strip(),
-                Team.organization_id == creator.organization_id
-            ))
+            select(Team).where(
+                and_(
+                    Team.name == team_in.name.strip(),
+                    Team.organization_id == creator.organization_id,
+                )
+            )
         )
         if existing_team.scalar_one_or_none():
             raise ValidationException(
-                f"Team '{team_in.name}' already exists in your organization",
-                field="name"
+                f"Team '{team_in.name}' already exists in your organization", field="name"
             )
 
         # Create team with sanitized data
         team = Team(
             name=team_in.name.strip(),
-            description=team_in.description.strip() if getattr(team_in, "description", None) else None,
+            description=team_in.description.strip()
+            if getattr(team_in, "description", None)
+            else None,
             organization_id=creator.organization_id,
             created_by_id=creator_id,
             created_at=datetime.utcnow(),
@@ -102,7 +96,7 @@ class TeamService:
             user_id=str(creator_id),
             resource_id=str(team.id),
             team_name=team.name,
-            organization_id=str(creator.organization_id)
+            organization_id=str(creator.organization_id),
         )
 
         logger.info(
@@ -111,21 +105,21 @@ class TeamService:
             operation_name="team_creation",
             team_id=str(team.id),
             creator_id=str(creator_id),
-            organization_id=str(creator.organization_id)
+            organization_id=str(creator.organization_id),
         )
 
         return team
 
     @staticmethod
     @handle_database_errors("team_retrieval")
-    async def get_by_id(db: AsyncSession, team_id: UUID) -> Optional[Team]:
+    async def get_by_id(db: AsyncSession, team_id: UUID) -> Team | None:
         """
         Get team by ID with proper error handling and logging.
         """
         result = await db.execute(
-            select(Team).options(
-                selectinload(Team.members).selectinload(TeamMember.user)
-            ).where(Team.id == team_id)
+            select(Team)
+            .options(selectinload(Team.members).selectinload(TeamMember.user))
+            .where(Team.id == team_id)
         )
         team = result.scalar_one_or_none()
 
@@ -135,14 +129,14 @@ class TeamService:
                 f"Team retrieved: {team.name}",
                 operation_name="team_retrieval",
                 team_id=str(team_id),
-                team_name=team.name
+                team_name=team.name,
             )
 
         return team
 
     @staticmethod
     @handle_database_errors("user_teams_retrieval")
-    async def get_by_user(db: AsyncSession, user_id: UUID) -> List[Team]:
+    async def get_by_user(db: AsyncSession, user_id: UUID) -> list[Team]:
         """
         Get teams where user is a member with optimized eager loading.
         """
@@ -160,14 +154,14 @@ class TeamService:
             f"Retrieved {len(teams)} teams for user",
             operation_name="user_teams_retrieval",
             user_id=str(user_id),
-            team_count=len(teams)
+            team_count=len(teams),
         )
 
         return teams
 
     @staticmethod
     @handle_database_errors("team_members_retrieval")
-    async def get_members(db: AsyncSession, team_id: UUID) -> List[User]:
+    async def get_members(db: AsyncSession, team_id: UUID) -> list[User]:
         """
         Get all members of a team with eager loading.
         """
@@ -184,7 +178,7 @@ class TeamService:
             f"Retrieved {len(members)} members for team",
             operation_name="team_members_retrieval",
             team_id=str(team_id),
-            member_count=len(members)
+            member_count=len(members),
         )
 
         return members
@@ -197,7 +191,7 @@ class TeamService:
         team_id: UUID,
         user_id: UUID,
         role: TeamRole = TeamRole.MEMBER,
-        added_by_id: UUID = None
+        added_by_id: UUID = None,
     ) -> TeamMember:
         """
         Add a member to a team with validation and business logic.
@@ -223,16 +217,12 @@ class TeamService:
         existing = existing_result.scalar_one_or_none()
 
         if existing:
-            raise ValidationException(
-                "User is already a member of this team",
-                field="user_id"
-            )
+            raise ValidationException("User is already a member of this team", field="user_id")
 
         # Validate user can be added to this team (same organization)
         if user.organization_id != team.organization_id:
             raise ValidationException(
-                "User must belong to the same organization as the team",
-                field="user_id"
+                "User must belong to the same organization as the team", field="user_id"
             )
 
         # Create team member
@@ -252,7 +242,7 @@ class TeamService:
             resource_id=str(team_member.id),
             team_id=str(team_id),
             added_user_id=str(user_id),
-            role=role.value
+            role=role.value,
         )
 
         logger.info(
@@ -262,7 +252,7 @@ class TeamService:
             team_id=str(team_id),
             user_id=str(user_id),
             role=role.value,
-            team_name=team.name
+            team_name=team.name,
         )
 
         return team_member
@@ -287,7 +277,7 @@ class TeamService:
     @staticmethod
     async def update_member_role(
         db: AsyncSession, *, team_id: UUID, user_id: UUID, role: TeamRole
-    ) -> Optional[TeamMember]:
+    ) -> TeamMember | None:
         """Update a member's role."""
         result = await db.execute(
             select(TeamMember).where(
@@ -306,7 +296,7 @@ class TeamService:
         return team_member
 
     @staticmethod
-    async def update(db: AsyncSession, *, team_id: UUID, team_in: TeamUpdate) -> Optional[Team]:
+    async def update(db: AsyncSession, *, team_id: UUID, team_in: TeamUpdate) -> Team | None:
         """Update team information."""
         result = await db.execute(select(Team).where(Team.id == team_id))
         team = result.scalar_one_or_none()
@@ -348,7 +338,7 @@ class TeamService:
         return result.scalar_one_or_none() is not None
 
     @staticmethod
-    async def get_user_role(db: AsyncSession, *, team_id: UUID, user_id: UUID) -> Optional[TeamRole]:
+    async def get_user_role(db: AsyncSession, *, team_id: UUID, user_id: UUID) -> TeamRole | None:
         """Get user's role in the team."""
         result = await db.execute(
             select(TeamMember).where(

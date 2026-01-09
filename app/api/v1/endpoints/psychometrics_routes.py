@@ -74,7 +74,7 @@ def get_anomaly_detector() -> AnomalyDetector:
 
 # Routes
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/personality/from-text")
 async def analyze_personality_from_text(
     request: TextSampleRequest,
@@ -82,23 +82,23 @@ async def analyze_personality_from_text(
 ):
     """
     Analyze personality traits from text samples
-    
+
     Estimates Big Five personality traits based on sentiment patterns
     in provided text samples. Requires at least 3 samples for reliable results.
     """
     try:
         result = analyzer.analyze_personality_from_text(request.texts)
-        
+
         if request.user_id:
             result["user_id"] = request.user_id
             result["analyzed_at"] = datetime.utcnow().isoformat()
-        
+
         return result
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-       
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
      detail=f"Personality analysis failed: {str(e)}"
         )
 
@@ -109,21 +109,21 @@ async def analyze_emotional_state(
 ):
     """
     Analyze emotional state from emotion history
-    
+
     Assesses psychological states including depression risk, anxiety risk,
     and stress indicators based on emotion patterns over time.
     """
     try:
         result = detector.analyze_emotional_state(request.emotion_history)
-        
+
         if request.user_id:
             result["user_id"] = request.user_id
-        
+
         return result
     except Exception as e:
         raise HTTPException(
-          
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
   status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Emotional state analysis failed: {str(e)}"
         )
@@ -137,31 +137,31 @@ async def generate_comprehensive_profile(
 ):
     """
     Generate comprehensive psychological profile
-    
+
     Combines sentiment analysis, emotion detection, and linguistic features
     to create a holistic personality and wellbeing profile.
     """
     try:
         # Analyze sentiment
         sentiment_data = sentiment_analyzer.analyze_personality_from_text(request.texts)
-        
+
         # Use provided emotion data or empty
         emotion_data = request.emotion_data or {}
-        
+
         # Use provided linguistic data or empty
         linguistic_data = request.linguistic_data or {}
-        
+
         # Generate comprehensive profile
         profile = personality_engine.generate_comprehensive_profile(
             sentiment_data,
             emotion_data,
             linguistic_data
         )
-        
+
         if request.user_id:
             profile["user_id"] = request.user_id
             profile["generated_at"] = datetime.utcnow().isoformat()
-        
+
         return profile
     except Exception as e:
         raise HTTPException(
@@ -176,7 +176,7 @@ async def score_assessment(
 ):
     """
     Score a psychometric assessment
-    
+
     Supports: Big Five, MBTI, Enneagram, DISC
     """
     try:
@@ -185,7 +185,7 @@ async def score_assessment(
             request.responses,
             request.framework_config
         )
-        
+
         return result
     except ValueError as e:
         raise HTTPException(
@@ -205,7 +205,7 @@ async def detect_cyclical_patterns(
 ):
     """
     Detect cyclical patterns in behavioral data
-    
+
     Identifies recurring cycles in mood, energy, or other behavioral metrics.
     Useful for detecting bipolar patterns or seasonal variations.
     """
@@ -214,10 +214,10 @@ async def detect_cyclical_patterns(
             request.data,
             request.timestamps
         )
-        
+
         if request.user_id:
             result["user_id"] = request.user_id
-        
+
         return result
     except Exception as e:
         raise HTTPException(
@@ -232,7 +232,7 @@ async def analyze_behavioral_trend(
 ):
     """
     Analyze trend in behavioral data
-    
+
     Determines if behavior is improving, declining, or stable over time.
     Useful for tracking treatment progress.
     """
@@ -241,10 +241,10 @@ async def analyze_behavioral_trend(
             request.data,
             request.timestamps
         )
-        
+
         if request.user_id:
             result["user_id"] = request.user_id
-        
+
         return result
     except Exception as e:
         raise HTTPException(
@@ -259,7 +259,7 @@ async def analyze_intervention_effect(
 ):
     """
     Analyze effect of an intervention
-    
+
     Compares behavioral metrics before and after an intervention
     (e.g., starting therapy, medication change) to assess effectiveness.
     """
@@ -268,10 +268,10 @@ async def analyze_intervention_effect(
             request.pre_intervention,
             request.post_intervention
         )
-        
+
         result["intervention_date"] = request.intervention_date.isoformat()
         result["intervention_type"] = request.intervention_type
-        
+
         return result
     except Exception as e:
         raise HTTPException(
@@ -286,7 +286,7 @@ async def detect_anomalies(
 ):
     """
     Detect anomalies in behavioral data
-    
+
     Identifies unusual patterns that may indicate crisis situations,
     significant changes in condition, or data quality issues.
     """
@@ -295,7 +295,7 @@ async def detect_anomalies(
             request.data_points,
             request.feature_keys
         )
-        
+
         return result
     except Exception as e:
         raise HTTPException(
@@ -310,7 +310,7 @@ async def detect_sudden_changes(
 ):
     """
     Detect sudden changes in time-series data
-    
+
     Identifies abrupt shifts that may require immediate attention.
     """
     try:
@@ -318,10 +318,10 @@ async def detect_sudden_changes(
             request.data,
             request.timestamps
         )
-        
+
         if request.user_id:
             result["user_id"] = request.user_id
-        
+
         return result
     except Exception as e:
         raise HTTPException(
@@ -342,7 +342,7 @@ async def psychometrics_health():
             "pattern_detector": PatternDetector(),
             "anomaly_detector": AnomalyDetector()
         }
-        
+
         return {
             "status": "healthy",
             "services": {name: "operational" for name in services.keys()},
@@ -390,4 +390,3 @@ async def get_supported_assessments():
             }
         ]
     }
-

@@ -1,12 +1,12 @@
 # app/services/ab_testing_service.py
 # A/B testing framework for onboarding optimization
-from typing import Dict, List, Optional, Any, Tuple
-import json
-import uuid
 from datetime import datetime, timedelta
-import random
-import hashlib
 from enum import Enum
+import hashlib
+import json
+from typing import Any
+import uuid
+
 
 class OnboardingVariant(str, Enum):
     CONTROL = "control"  # Original onboarding flow
@@ -24,7 +24,7 @@ class ABTestService:
         self.active_tests = self._load_active_tests()
         self.user_assignments = {}  # In production, this would be in Redis/Database
 
-    def _load_active_tests(self) -> Dict[str, Dict[str, Any]]:
+    def _load_active_tests(self) -> dict[str, dict[str, Any]]:
         """Load active A/B test configurations."""
         return {
             "onboarding_flow_v2": {
@@ -103,11 +103,11 @@ class ABTestService:
 
     def assign_variant(
         self,
-        user_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        segments: Optional[Dict[str, str]] = None,
+        user_id: str | None = None,
+        session_id: str | None = None,
+        segments: dict[str, str] | None = None,
         test_name: str = "onboarding_flow_v2"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Assign user to a test variant based on configuration and user segments.
         Returns assignment details and variant features.
@@ -150,10 +150,10 @@ class ABTestService:
 
     def _select_variant(
         self,
-        test: Dict[str, Any],
+        test: dict[str, Any],
         user_identifier: str,
-        segments: Optional[Dict[str, str]]
-    ) -> Dict[str, Any]:
+        segments: dict[str, str] | None
+    ) -> dict[str, Any]:
         """Select variant based on test configuration and user segments."""
 
         # Use deterministic hash for consistent assignment
@@ -179,10 +179,10 @@ class ABTestService:
 
     def _apply_segment_rules(
         self,
-        test: Dict[str, Any],
-        segments: Dict[str, str],
+        test: dict[str, Any],
+        segments: dict[str, str],
         random_value: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Apply segment-specific assignment rules."""
 
         # Example rule: Executives get personalized variant
@@ -201,7 +201,7 @@ class ABTestService:
 
         return None
 
-    def _get_default_assignment(self, test_name: str) -> Dict[str, Any]:
+    def _get_default_assignment(self, test_name: str) -> dict[str, Any]:
         """Get default assignment when test is not active."""
         return {
             "test_name": test_name,
@@ -217,7 +217,7 @@ class ABTestService:
         event_type: str,
         user_identifier: str,
         test_name: str = "onboarding_flow_v2",
-        event_data: Optional[Dict[str, Any]] = None
+        event_data: dict[str, Any] | None = None
     ) -> None:
         """Track conversion events for A/B test analysis."""
 
@@ -243,7 +243,7 @@ class ABTestService:
     def should_show_feature(
         self,
         feature_name: str,
-        user_identifier: Optional[str] = None,
+        user_identifier: str | None = None,
         test_name: str = "onboarding_flow_v2"
     ) -> bool:
         """Check if a user should see a specific feature based on their variant assignment."""
@@ -261,9 +261,9 @@ class ABTestService:
     def get_test_results(
         self,
         test_name: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> Dict[str, Any]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
+    ) -> dict[str, Any]:
         """Get A/B test results and statistical analysis."""
 
         if test_name not in self.active_tests:
@@ -331,8 +331,8 @@ class ABTestService:
     def get_personalized_onboarding_config(
         self,
         user_identifier: str,
-        user_segments: Dict[str, str]
-    ) -> Dict[str, Any]:
+        user_segments: dict[str, str]
+    ) -> dict[str, Any]:
         """Get personalized onboarding configuration based on user segments and A/B tests."""
 
         # Get variant assignment

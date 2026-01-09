@@ -4,56 +4,56 @@ Focused on mental health screening, wellness monitoring, and clinical tools
 Separate from personality assessments and behavioral analysis
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from datetime import datetime
+from typing import Any
 
-from app.middleware.rate_limiter import check_rate_limit
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-import asyncio
 
 from app.api.v1.deps import get_current_user, get_db
-from app.services.mental_health_screening import MentalHealthScreeningService
-from app.services.wellness_monitoring import WellnessMonitoringService
-from app.services.clinical_assessment_service import ClinicalAssessmentService
-from app.services.trend_analysis import TrendAnalysisService
-from app.services.wellness_plan_generator import WellnessPlanGeneratorService
-from app.services.crisis_support import CrisisSupportService
-from pydantic import BaseModel
-from typing import Optional
+from app.core.logging_config import logger
+from app.middleware.rate_limiter import check_rate_limit
 from app.schemas.clinical import (
-    MentalHealthScreeningRequest,
-    MentalHealthScreeningResponse,
-    WellnessAssessmentRequest,
-    WellnessAssessmentResponse,
+    ClinicalResourceResponse,
     CrisisAlertRequest,
     CrisisAlertResponse,
+    MentalHealthScreeningRequest,
+    MentalHealthScreeningResponse,
     MentalHealthTrendRequest,
     MentalHealthTrendResponse,
+    WellnessAssessmentRequest,
+    WellnessAssessmentResponse,
     WellnessPlanRequest,
     WellnessPlanResponse,
-    ClinicalResourceRequest,
-    ClinicalResourceResponse
 )
-from app.core.logging_config import logger
+from app.services.crisis_support import CrisisSupportService
+from app.services.mental_health_screening import MentalHealthScreeningService
+from app.services.trend_analysis import TrendAnalysisService
+from app.services.wellness_monitoring import WellnessMonitoringService
+from app.services.wellness_plan_generator import WellnessPlanGeneratorService
+
 router = APIRouter(prefix="/clinical", tags=["clinical"])
+
 
 # Consent request/response models
 class ClinicalConsentRequest(BaseModel):
     assessment_type: str
     consent_given: bool
-    consent_text: Optional[str] = None
-    assessment_duration: Optional[str] = None
+    consent_text: str | None = None
+    assessment_duration: str | None = None
     understands_purpose: bool = True
     agrees_to_data_usage: bool = False
 
+
 class ClinicalConsentResponse(BaseModel):
     success: bool
-    consent_id: Optional[str] = None
+    consent_id: str | None = None
     assessment_type: str
     consent_status: str
     message: str
     timestamp: datetime
+
 
 # Clinical Services (will be initialized with database session)
 screening_service = None
@@ -61,12 +61,10 @@ wellness_service = None
 clinical_service = None
 
 
-
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/consent", response_model=ClinicalConsentResponse)
 async def handle_clinical_consent(
-    request: ClinicalConsentRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    request: ClinicalConsentRequest, current_user: dict[str, Any] = Depends(get_current_user)
 ):
     """
     Handle clinical assessment consent
@@ -75,6 +73,7 @@ async def handle_clinical_consent(
     try:
         # Generate consent ID
         import uuid
+
         consent_id = str(uuid.uuid4())
 
         # Validate consent requirements
@@ -85,7 +84,7 @@ async def handle_clinical_consent(
                 assessment_type=request.assessment_type,
                 consent_status="declined",
                 message="Consent is required before starting clinical assessments",
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
         # Store consent record (simplified for now)
@@ -99,11 +98,13 @@ async def handle_clinical_consent(
             "understands_purpose": request.understands_purpose,
             "agrees_to_data_usage": request.agrees_to_data_usage,
             "consent_given_at": datetime.utcnow(),
-            "ip_address": None  # Will be filled by middleware if needed
+            "ip_address": None,  # Will be filled by middleware if needed
         }
 
         # Log consent for audit trail
-        logger.info(f"Clinical consent recorded: {consent_id} for user {current_user['id']} - {request.assessment_type}")
+        logger.info(
+            f"Clinical consent recorded: {consent_id} for user {current_user['id']} - {request.assessment_type}"
+        )
 
         # Get assessment information
         assessment_info = {
@@ -111,28 +112,31 @@ async def handle_clinical_consent(
                 "name": "Perceived Stress Scale",
                 "description": "Evaluate your perceived stress levels",
                 "duration": "5 minutes",
-                "questions": 10
+                "questions": 10,
             },
             "phq9": {
                 "name": "Patient Health Questionnaire-9",
                 "description": "Depression screening tool",
                 "duration": "2-5 minutes",
-                "questions": 9
+                "questions": 9,
             },
             "gad7": {
                 "name": "Generalized Anxiety Disorder-7",
                 "description": "Anxiety screening tool",
                 "duration": "2-3 minutes",
-                "questions": 7
-            }
+                "questions": 7,
+            },
         }
 
-        assessment_details = assessment_info.get(request.assessment_type.lower(), {
-            "name": request.assessment_type,
-            "description": "Clinical assessment",
-            "duration": request.assessment_duration or "Unknown",
-            "questions": "Unknown"
-        })
+        assessment_details = assessment_info.get(
+            request.assessment_type.lower(),
+            {
+                "name": request.assessment_type,
+                "description": "Clinical assessment",
+                "duration": request.assessment_duration or "Unknown",
+                "questions": "Unknown",
+            },
+        )
 
         return ClinicalConsentResponse(
             success=True,
@@ -140,25 +144,24 @@ async def handle_clinical_consent(
             assessment_type=request.assessment_type,
             consent_status="granted",
             message=f"Consent recorded for {assessment_details['name']}. You can now begin the {assessment_details['duration']} assessment.",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
     except Exception as e:
-        logger.error(f"Clinical consent handling failed: {str(e)}")
+        logger.error(f"Clinical consent handling failed: {e!s}")
         return ClinicalConsentResponse(
             success=False,
             consent_id=None,
             assessment_type=request.assessment_type,
             consent_status="error",
             message="Unable to process consent. Please try again.",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
 
 @router.post("/screening/mental-health", response_model=MentalHealthScreeningResponse)
 async def conduct_mental_health_screening(
-    request: MentalHealthScreeningRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    request: MentalHealthScreeningRequest, current_user: dict[str, Any] = Depends(get_current_user)
 ):
     """
     Conduct mental health screening using validated clinical tools
@@ -167,14 +170,12 @@ async def conduct_mental_health_screening(
     try:
         # Validate user consent and screening eligibility
         consent_verified = await clinical_service.verify_screening_consent(
-            user_id=current_user["id"],
-            screening_type=request.screening_type
+            user_id=current_user["id"], screening_type=request.screening_type
         )
 
         if not consent_verified:
             raise HTTPException(
-                status_code=403,
-                detail="User consent not verified for mental health screening"
+                status_code=403, detail="User consent not verified for mental health screening"
             )
 
         # Conduct screening based on requested assessment type
@@ -187,7 +188,7 @@ async def conduct_mental_health_screening(
                 result = await screening_service.conduct_phq9_screening(
                     user_id=current_user["id"],
                     responses=request.responses.get("phq9", []),
-                    context=request.context
+                    context=request.context,
                 )
                 screening_results["phq9"] = result
 
@@ -199,7 +200,7 @@ async def conduct_mental_health_screening(
                 result = await screening_service.conduct_gad7_screening(
                     user_id=current_user["id"],
                     responses=request.responses.get("gad7", []),
-                    context=request.context
+                    context=request.context,
                 )
                 screening_results["gad7"] = result
 
@@ -211,7 +212,7 @@ async def conduct_mental_health_screening(
                 result = await screening_service.conduct_dass21_screening(
                     user_id=current_user["id"],
                     responses=request.responses.get("dass21", []),
-                    context=request.context
+                    context=request.context,
                 )
                 screening_results["dass21"] = result
 
@@ -223,7 +224,7 @@ async def conduct_mental_health_screening(
                 result = await screening_service.conduct_pcl5_screening(
                     user_id=current_user["id"],
                     responses=request.responses.get("pcl5", []),
-                    context=request.context
+                    context=request.context,
                 )
                 screening_results["pcl5"] = result
 
@@ -235,7 +236,7 @@ async def conduct_mental_health_screening(
                 result = await screening_service.conduct_audit_screening(
                     user_id=current_user["id"],
                     responses=request.responses.get("audit", []),
-                    context=request.context
+                    context=request.context,
                 )
                 screening_results["audit"] = result
 
@@ -268,26 +269,21 @@ async def conduct_mental_health_screening(
                 current_user["id"], overall_risk
             ),
             screened_at=datetime.utcnow(),
-            clinical_disclaimer="This screening is not a substitute for professional medical advice. Please consult with a qualified healthcare provider."
+            clinical_disclaimer="This screening is not a substitute for professional medical advice. Please consult with a qualified healthcare provider.",
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Mental health screening failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-
-@check_rate_limit(identifier="public", endpoint_type="public")
-            detail="Mental health screening failed"
-        )
+        logger.error(f"Mental health screening failed: {e!s}")
+        raise HTTPException(status_code=500, detail="Mental health screening failed") from e
 
 
 @router.post("/wellness/assessment", response_model=WellnessAssessmentResponse)
 async def conduct_wellness_assessment(
     request: WellnessAssessmentRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    ):
+    current_user: dict[str, Any] = Depends(get_current_user),
+):
     """
     Conduct comprehensive wellness assessment
     Multi-dimensional wellness evaluation across physical, mental, emotional, social, and professional domains
@@ -299,7 +295,7 @@ async def conduct_wellness_assessment(
             assessment_type=request.assessment_type,
             responses=request.responses,
             biometric_data=request.biometric_data,
-            lifestyle_data=request.lifestyle_data
+            lifestyle_data=request.lifestyle_data,
         )
 
         # Assess each wellness dimension
@@ -374,22 +370,19 @@ async def conduct_wellness_assessment(
             action_plan=await wellness_service.create_wellness_action_plan(
                 wellness_scores, improvement_areas
             ),
-            assessed_at=datetime.utcnow()
+            assessed_at=datetime.utcnow(),
         )
 
     except Exception as e:
-        logger.error(f"Wellness assessment failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Wellness assessment failed"
-        )
+        logger.error(f"Wellness assessment failed: {e!s}")
+        raise HTTPException(status_code=500, detail="Wellness assessment failed") from e
 
 
 @router.post("/crisis/alert", response_model=CrisisAlertResponse)
 async def handle_crisis_alert(
     request: CrisisAlertRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    ):
+    current_user: dict[str, Any] = Depends(get_current_user),
+):
     """
     Handle crisis alerts and provide immediate resources
     Emergency response for mental health crises
@@ -400,7 +393,7 @@ async def handle_crisis_alert(
             user_id=current_user["id"],
             alert_type=request.alert_type,
             severity_indicators=request.severity_indicators,
-            immediate_context=request.immediate_context
+            immediate_context=request.immediate_context,
         )
 
         # Generate immediate crisis response plan
@@ -411,8 +404,8 @@ async def handle_crisis_alert(
         # Get emergency resources based on location and type
         emergency_resources = await clinical_service.get_emergency_resources(
             crisis_assessment["risk_level"],
-            request.user_location if hasattr(request, 'user_location') else None,
-            request.alert_type
+            request.user_location if hasattr(request, "user_location") else None,
+            request.alert_type,
         )
 
         # Create safety plan
@@ -421,8 +414,10 @@ async def handle_crisis_alert(
         )
 
         # Determine if professional intervention is needed
-        professional_intervention = await clinical_service.assess_need_for_professional_intervention(
-            crisis_assessment, request.alert_type
+        professional_intervention = (
+            await clinical_service.assess_need_for_professional_intervention(
+                crisis_assessment, request.alert_type
+            )
         )
 
         # Log crisis alert for follow-up (while maintaining privacy)
@@ -430,7 +425,7 @@ async def handle_crisis_alert(
             user_id=current_user["id"],
             alert_type=request.alert_type,
             severity_level=crisis_assessment["risk_level"],
-            actions_taken=immediate_actions
+            actions_taken=immediate_actions,
         )
 
         return CrisisAlertResponse(
@@ -447,11 +442,11 @@ async def handle_crisis_alert(
             ),
             crisis_hotlines=await clinical_service.get_crisis_hotlines(),
             response_generated_at=datetime.utcnow(),
-            disclaimer="In case of immediate danger, please call emergency services (911) or go to the nearest emergency room."
+            disclaimer="In case of immediate danger, please call emergency services (911) or go to the nearest emergency room.",
         )
 
     except Exception as e:
-        logger.error(f"Crisis alert handling failed: {str(e)}")
+        logger.error(f"Crisis alert handling failed: {e!s}")
         # For crisis alerts, always provide basic emergency information even if processing fails
         return CrisisAlertResponse(
             success=False,
@@ -461,7 +456,7 @@ async def handle_crisis_alert(
             immediate_actions=[
                 "Call 911 or emergency services if in immediate danger",
                 "Contact a crisis hotline: 988 (Suicide & Crisis Lifeline)",
-                "Go to the nearest emergency room"
+                "Go to the nearest emergency room",
             ],
             emergency_resources=[],
             safety_plan={"contact_emergency_services": True},
@@ -469,15 +464,15 @@ async def handle_crisis_alert(
             follow_up_schedule=None,
             crisis_hotlines=await clinical_service.get_crisis_hotlines(),
             response_generated_at=datetime.utcnow(),
-            disclaimer="System error occurred. Please contact emergency services if needed."
+            disclaimer="System error occurred. Please contact emergency services if needed.",
         )
 
 
 @router.post("/trends/mental-health", response_model=MentalHealthTrendResponse)
 async def analyze_mental_health_trends(
     request: MentalHealthTrendRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    ):
+    current_user: dict[str, Any] = Depends(get_current_user),
+):
     """
     Analyze mental health trends over time
     Track progress and identify long-term patterns in mental health
@@ -488,7 +483,7 @@ async def analyze_mental_health_trends(
             user_id=current_user["id"],
             start_date=request.start_date,
             end_date=request.end_date,
-            screening_types=request.screening_types
+            screening_types=request.screening_types,
         )
 
         # Analyze trends for each screening type
@@ -497,7 +492,7 @@ async def analyze_mental_health_trends(
             trends = await screening_service.analyze_mental_health_trends(
                 historical_data[screening_type],
                 screening_type=screening_type,
-                trend_period=request.trend_period
+                trend_period=request.trend_period,
             )
             trend_analysis[screening_type] = trends
 
@@ -519,10 +514,7 @@ async def analyze_mental_health_trends(
         return MentalHealthTrendResponse(
             success=True,
             user_id=current_user["id"],
-            analysis_period={
-                "start_date": request.start_date,
-                "end_date": request.end_date
-            },
+            analysis_period={"start_date": request.start_date, "end_date": request.end_date},
             screening_types=request.screening_types,
             trend_analysis=trend_analysis,
             significant_changes=significant_changes,
@@ -533,22 +525,19 @@ async def analyze_mental_health_trends(
             next_assessment_date=await screening_service.recommend_next_assessment_date(
                 trend_analysis
             ),
-            analyzed_at=datetime.utcnow()
+            analyzed_at=datetime.utcnow(),
         )
 
     except Exception as e:
-        logger.error(f"Mental health trend analysis failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Mental health trend analysis failed"
-        )
+        logger.error(f"Mental health trend analysis failed: {e!s}")
+        raise HTTPException(status_code=500, detail="Mental health trend analysis failed") from e
 
 
 @router.post("/wellness/plan", response_model=WellnessPlanResponse)
 async def create_personalized_wellness_plan(
     request: WellnessPlanRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    ):
+    current_user: dict[str, Any] = Depends(get_current_user),
+):
     """
     Create personalized wellness improvement plan
     Evidence-based recommendations and goal setting
@@ -556,8 +545,7 @@ async def create_personalized_wellness_plan(
     try:
         # Get current wellness baseline
         wellness_baseline = await wellness_service.get_wellness_baseline(
-            user_id=current_user["id"],
-            dimensions=request.focus_areas
+            user_id=current_user["id"], dimensions=request.focus_areas
         )
 
         # Generate personalized wellness goals
@@ -565,7 +553,7 @@ async def create_personalized_wellness_plan(
             wellness_baseline=wellness_baseline,
             focus_areas=request.focus_areas,
             user_preferences=request.user_preferences,
-            time_frame=request.time_frame
+            time_frame=request.time_frame,
         )
 
         # Create action steps for each goal
@@ -577,8 +565,7 @@ async def create_personalized_wellness_plan(
 
         # Identify resources and support systems
         wellness_resources = await wellness_service.identify_wellness_resources(
-            focus_areas=request.focus_areas,
-            user_preferences=request.user_preferences
+            focus_areas=request.focus_areas, user_preferences=request.user_preferences
         )
 
         # Create monitoring and tracking system
@@ -604,23 +591,20 @@ async def create_personalized_wellness_plan(
                 wellness_baseline, request.focus_areas
             ),
             plan_created_at=datetime.utcnow(),
-            next_review_date=await wellness_service.schedule_plan_review(current_user["id"])
+            next_review_date=await wellness_service.schedule_plan_review(current_user["id"]),
         )
 
     except Exception as e:
-        logger.error(f"Wellness plan creation failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Wellness plan creation failed"
-        )
+        logger.error(f"Wellness plan creation failed: {e!s}")
+        raise HTTPException(status_code=500, detail="Wellness plan creation failed") from e
 
 
 @router.get("/resources/clinical", response_model=ClinicalResourceResponse)
 async def get_clinical_resources(
-    resource_type: Optional[str] = Query(None, description="Type of clinical resources needed"),
-    condition: Optional[str] = Query(None, description="Specific condition or concern"),
-    user_location: Optional[str] = Query(None, description="User location for local resources"),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    resource_type: str | None = Query(None, description="Type of clinical resources needed"),
+    condition: str | None = Query(None, description="Specific condition or concern"),
+    user_location: str | None = Query(None, description="User location for local resources"),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """
     Get clinical mental health resources and support information
@@ -629,9 +613,7 @@ async def get_clinical_resources(
     try:
         # Get appropriate clinical resources
         resources = await clinical_service.get_clinical_resources(
-            resource_type=resource_type,
-            condition=condition,
-            user_location=user_location
+            resource_type=resource_type, condition=condition, user_location=user_location
         )
 
         # Categorize resources
@@ -642,7 +624,7 @@ async def get_clinical_resources(
             "self_help_resources": resources.get("self_help_resources", []),
             "educational_materials": resources.get("educational_materials", []),
             "digital_tools": resources.get("digital_tools", []),
-            "community_resources": resources.get("community_resources", [])
+            "community_resources": resources.get("community_resources", []),
         }
 
         # Add crisis resources always
@@ -662,11 +644,11 @@ async def get_clinical_resources(
             resources=prioritized_resources,
             resource_categories=list(categorized_resources.keys()),
             last_updated=datetime.utcnow(),
-            disclaimer="Resources are provided for informational purposes. Please verify credentials and availability of providers."
+            disclaimer="Resources are provided for informational purposes. Please verify credentials and availability of providers.",
         )
 
     except Exception as e:
-        logger.error(f"Clinical resource retrieval failed: {str(e)}")
+        logger.error(f"Clinical resource retrieval failed: {e!s}")
         # Always return basic crisis resources even if other resources fail
         crisis_resources = await clinical_service.get_crisis_resources()
 
@@ -678,14 +660,12 @@ async def get_clinical_resources(
             resources={"emergency_support": crisis_resources},
             resource_categories=["emergency_support"],
             last_updated=datetime.utcnow(),
-            disclaimer="Some resources may be unavailable. In case of crisis, please contact emergency services."
+            disclaimer="Some resources may be unavailable. In case of crisis, please contact emergency services.",
         )
 
 
 @router.get("/screening/tools")
-async def get_available_screening_tools(
-    current_user: Dict[str, Any] = Depends(get_current_user)
-):
+async def get_available_screening_tools(current_user: dict[str, Any] = Depends(get_current_user)):
     """
     Get information about available mental health screening tools
     Include validity, reliability, and appropriate use cases
@@ -701,7 +681,7 @@ async def get_available_screening_tools(
                     "time_required": "2-5 minutes",
                     "appropriate_for": "Adults 18+, primary care setting",
                     "frequency": "Every 2-4 weeks for monitoring",
-                    "scoring": "0-27 (Minimal to Severe)"
+                    "scoring": "0-27 (Minimal to Severe)",
                 },
                 {
                     "id": "dass21_depression",
@@ -711,8 +691,8 @@ async def get_available_screening_tools(
                     "time_required": "2-3 minutes",
                     "appropriate_for": "Adults, research and clinical settings",
                     "frequency": "Monthly assessments",
-                    "scoring": "0-42 (Normal to Extremely Severe)"
-                }
+                    "scoring": "0-42 (Normal to Extremely Severe)",
+                },
             ],
             "anxiety_screening": [
                 {
@@ -723,7 +703,7 @@ async def get_available_screening_tools(
                     "time_required": "2-3 minutes",
                     "appropriate_for": "Adults 18+, primary care setting",
                     "frequency": "Every 2-4 weeks for monitoring",
-                    "scoring": "0-21 (Minimal to Severe)"
+                    "scoring": "0-21 (Minimal to Severe)",
                 },
                 {
                     "id": "dass21_anxiety",
@@ -733,8 +713,8 @@ async def get_available_screening_tools(
                     "time_required": "2-3 minutes",
                     "appropriate_for": "Adults, research and clinical settings",
                     "frequency": "Monthly assessments",
-                    "scoring": "0-42 (Normal to Extremely Severe)"
-                }
+                    "scoring": "0-42 (Normal to Extremely Severe)",
+                },
             ],
             "stress_screening": [
                 {
@@ -745,7 +725,7 @@ async def get_available_screening_tools(
                     "time_required": "2-3 minutes",
                     "appropriate_for": "Adults, workplace and clinical settings",
                     "frequency": "Monthly assessments",
-                    "scoring": "0-42 (Normal to Extremely Severe)"
+                    "scoring": "0-42 (Normal to Extremely Severe)",
                 }
             ],
             "trauma_screening": [
@@ -757,7 +737,7 @@ async def get_available_screening_tools(
                     "time_required": "5-10 minutes",
                     "appropriate_for": "Adults with trauma exposure",
                     "frequency": "Every 4-6 weeks for treatment monitoring",
-                    "scoring": "0-80 (No to Extreme PTSD symptoms)"
+                    "scoring": "0-80 (No to Extreme PTSD symptoms)",
                 }
             ],
             "substance_use_screening": [
@@ -769,9 +749,9 @@ async def get_available_screening_tools(
                     "time_required": "2-5 minutes",
                     "appropriate_for": "Adults 18+, primary care setting",
                     "frequency": "Annually or when concerns arise",
-                    "scoring": "0-40 (Low to High-risk drinking)"
+                    "scoring": "0-40 (Low to High-risk drinking)",
                 }
-            ]
+            ],
         }
 
         return {
@@ -781,26 +761,26 @@ async def get_available_screening_tools(
                 "screening_frequency": "Every 2-4 weeks for active monitoring, monthly for general wellness",
                 "interpretation_note": "Screening tools are not diagnostic. Positive screens should be followed by clinical evaluation.",
                 "confidentiality": "All screening results are confidential and protected under HIPAA.",
-                "emergency_procedure": "If suicidal ideation is detected, immediate crisis intervention should be initiated."
+                "emergency_procedure": "If suicidal ideation is detected, immediate crisis intervention should be initiated.",
             },
-            "last_updated": datetime.utcnow()
+            "last_updated": datetime.utcnow(),
         }
 
     except Exception as e:
-        logger.error(f"Failed to get screening tools information: {str(e)}")
+        logger.error(f"Failed to get screening tools information: {e!s}")
         raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve screening tools information"
-        )
+            status_code=500, detail="Failed to retrieve screening tools information"
+        ) from e
 
 
 # Simplified endpoints for mental health screening form
 
+
 @router.get("/screening/questions/{assessment_type}")
 async def get_screening_questions(
     assessment_type: str,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get questions for a specific mental health screening assessment
@@ -811,29 +791,20 @@ async def get_screening_questions(
 
         questions = await screening_service.get_assessment_questions(assessment_type)
 
-        return {
-            "success": True,
-            "data": questions
-        }
+        return {"success": True, "data": questions}
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Failed to get screening questions: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve screening questions"
-        )
+        logger.error(f"Failed to get screening questions: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve screening questions") from e
 
 
 @router.post("/screening/submit")
 async def submit_screening_responses(
-    request: Dict[str, Any],
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit responses for mental health screening
@@ -844,6 +815,7 @@ async def submit_screening_responses(
 
         # Create a simple user object from the current_user dict
         from app.db.models.user import User
+
         user = User()
         user.id = current_user["id"]
 
@@ -853,31 +825,26 @@ async def submit_screening_responses(
 
         if not assessment_type or not responses:
             raise HTTPException(
-                status_code=400,
-                detail="Assessment type and responses are required"
+                status_code=400, detail="Assessment type and responses are required"
             )
 
         result = await screening_service.process_assessment_responses(
             user=user,
             assessment_type=assessment_type,
             responses=responses,
-            additional_notes=additional_notes
+            additional_notes=additional_notes,
         )
 
         return result
 
     except Exception as e:
-        logger.error(f"Failed to process screening responses: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to process screening responses"
-        )
+        logger.error(f"Failed to process screening responses: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to process screening responses") from e
 
 
 @router.get("/wellness/questions")
 async def get_wellness_questions(
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict[str, Any] = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get questions for comprehensive wellness assessment
@@ -888,24 +855,18 @@ async def get_wellness_questions(
 
         questions = await wellness_service.get_wellness_assessment_questions()
 
-        return {
-            "success": True,
-            "data": questions
-        }
+        return {"success": True, "data": questions}
 
     except Exception as e:
-        logger.error(f"Failed to get wellness questions: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve wellness questions"
-        )
+        logger.error(f"Failed to get wellness questions: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve wellness questions") from e
 
 
 @router.post("/wellness/submit")
 async def submit_wellness_assessment(
-    request: Dict[str, Any],
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Submit responses for wellness assessment
@@ -916,6 +877,7 @@ async def submit_wellness_assessment(
 
         # Create a simple user object from the current_user dict
         from app.db.models.user import User
+
         user = User()
         user.id = current_user["id"]
 
@@ -923,35 +885,28 @@ async def submit_wellness_assessment(
         additional_notes = request.get("additional_notes")
 
         if not responses:
-            raise HTTPException(
-                status_code=400,
-                detail="Responses are required"
-            )
+            raise HTTPException(status_code=400, detail="Responses are required")
 
         result = await wellness_service.process_wellness_assessment(
-            user=user,
-            responses=responses,
-            additional_notes=additional_notes
+            user=user, responses=responses, additional_notes=additional_notes
         )
 
         return result
 
     except Exception as e:
-        logger.error(f"Failed to process wellness assessment: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to process wellness assessment"
-        )
+        logger.error(f"Failed to process wellness assessment: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to process wellness assessment") from e
 
 
 # Trend Analysis Endpoints
+
 
 @router.get("/trends/data")
 async def get_trend_analysis_data(
     time_range: str = Query("3m", description="Time range for trend analysis"),
     domains: str = Query("all", description="Comma-separated list of wellness domains"),
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get comprehensive trend analysis data for a user
@@ -965,26 +920,21 @@ async def get_trend_analysis_data(
 
         # Get trend data
         result = await trend_service.get_user_trend_data(
-            user_id=current_user["id"],
-            time_range=time_range,
-            domains=domain_list
+            user_id=current_user["id"], time_range=time_range, domains=domain_list
         )
 
         return result
 
     except Exception as e:
-        logger.error(f"Failed to get trend analysis data: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve trend analysis data"
-        )
+        logger.error(f"Failed to get trend analysis data: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve trend analysis data") from e
 
 
 @router.get("/trends/comparison")
 async def get_domain_comparison(
     time_range: str = Query("3m", description="Time range for comparison"),
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get domain-specific comparison and analysis
@@ -995,24 +945,21 @@ async def get_domain_comparison(
 
         # Get domain comparison data
         result = await trend_service.get_domain_comparison(
-            user_id=current_user["id"],
-            time_range=time_range
+            user_id=current_user["id"], time_range=time_range
         )
 
         return result
 
     except Exception as e:
-        logger.error(f"Failed to get domain comparison: {str(e)}")
+        logger.error(f"Failed to get domain comparison: {e!s}")
         raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve domain comparison data"
-        )
+            status_code=500, detail="Failed to retrieve domain comparison data"
+        ) from e
 
 
 @router.get("/trends/summary")
 async def get_trends_summary(
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict[str, Any] = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get a summary of user's wellness trends
@@ -1023,8 +970,7 @@ async def get_trends_summary(
 
         # Get 3-month trend data for summary
         result = await trend_service.get_user_trend_data(
-            user_id=current_user["id"],
-            time_range="3m"
+            user_id=current_user["id"], time_range="3m"
         )
 
         if not result["success"] or not result["data"]["trend_data"]:
@@ -1032,8 +978,8 @@ async def get_trends_summary(
                 "success": True,
                 "data": {
                     "message": "No trend data available",
-                    "recommendation": "Start taking regular assessments to see your wellness trends"
-                }
+                    "recommendation": "Start taking regular assessments to see your wellness trends",
+                },
             }
 
         # Extract key summary information
@@ -1054,19 +1000,16 @@ async def get_trends_summary(
                 "time_span_days": summary["time_span_days"],
                 "trend_direction": summary["overall_trend"],
                 "recommendation": _generate_summary_recommendation(summary, overall_change),
-                "last_updated": datetime.utcnow().isoformat()
-            }
+                "last_updated": datetime.utcnow().isoformat(),
+            },
         }
 
     except Exception as e:
-        logger.error(f"Failed to get trends summary: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve trends summary"
-        )
+        logger.error(f"Failed to get trends summary: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve trends summary") from e
 
 
-def _generate_summary_recommendation(summary: Dict[str, Any], overall_change: float) -> str:
+def _generate_summary_recommendation(summary: dict[str, Any], overall_change: float) -> str:
     """Generate a recommendation based on trend summary"""
     if summary["total_assessments"] < 3:
         return "Continue taking regular assessments to build a more complete picture of your wellness journey."
@@ -1076,22 +1019,21 @@ def _generate_summary_recommendation(summary: Dict[str, Any], overall_change: fl
 
     if trend == "improving":
         return "Your wellness is improving! Keep up the excellent work and consider helping others with your insights."
-    elif trend == "declining":
+    if trend == "declining":
         return "Consider focusing on self-care and professional support to address the declining trend."
-    elif current_score < 0.4:
+    if current_score < 0.4:
         return "Your current wellness score suggests you may benefit from additional support and self-care practices."
-    elif current_score > 0.8:
+    if current_score > 0.8:
         return "Your wellness score is excellent! Focus on maintaining these positive habits."
-    else:
-        return "Your wellness levels are relatively stable. Small, consistent changes can lead to significant improvements."
+    return "Your wellness levels are relatively stable. Small, consistent changes can lead to significant improvements."
 
 
 # Wellness Plan Generator Endpoints
 
+
 @router.get("/wellness/plan/existing")
 async def get_existing_wellness_plan(
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict[str, Any] = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get user's existing wellness plan
@@ -1104,30 +1046,19 @@ async def get_existing_wellness_plan(
         plan = await plan_service.get_existing_wellness_plan(current_user["id"])
 
         if plan:
-            return {
-                "success": True,
-                "data": plan
-            }
-        else:
-            return {
-                "success": True,
-                "data": None,
-                "message": "No existing wellness plan found"
-            }
+            return {"success": True, "data": plan}
+        return {"success": True, "data": None, "message": "No existing wellness plan found"}
 
     except Exception as e:
-        logger.error(f"Failed to get existing wellness plan: {str(e)}")
-        return {
-            "success": False,
-            "error": "Failed to retrieve wellness plan"
-        }
+        logger.error(f"Failed to get existing wellness plan: {e!s}")
+        return {"success": False, "error": "Failed to retrieve wellness plan"}
 
 
 @router.post("/wellness/plan/generate")
 async def generate_wellness_plan(
-    request: Dict[str, Any],
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Generate a new personalized wellness plan
@@ -1145,8 +1076,7 @@ async def generate_wellness_plan(
         # Validate required fields
         if not focus_areas:
             raise HTTPException(
-                status_code=400,
-                detail="Focus areas are required for wellness plan generation"
+                status_code=400, detail="Focus areas are required for wellness plan generation"
             )
 
         # Generate wellness plan
@@ -1155,7 +1085,7 @@ async def generate_wellness_plan(
             focus_areas=focus_areas,
             timeframe=timeframe,
             focus_level=focus_level,
-            preferences=preferences
+            preferences=preferences,
         )
 
         return result
@@ -1163,19 +1093,16 @@ async def generate_wellness_plan(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to generate wellness plan: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to generate wellness plan"
-        )
+        logger.error(f"Failed to generate wellness plan: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to generate wellness plan") from e
 
 
 @router.put("/wellness/plan/{plan_id}/update")
 async def update_wellness_plan(
     plan_id: str,
-    request: Dict[str, Any],
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Update existing wellness plan progress
@@ -1193,22 +1120,17 @@ async def update_wellness_plan(
             "data": {
                 "plan_id": plan_id,
                 "updates_applied": updates,
-                "updated_at": datetime.utcnow().isoformat()
-            }
+                "updated_at": datetime.utcnow().isoformat(),
+            },
         }
 
     except Exception as e:
-        logger.error(f"Failed to update wellness plan: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to update wellness plan"
-        )
+        logger.error(f"Failed to update wellness plan: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to update wellness plan") from e
 
 
 @router.get("/wellness/plan/templates")
-async def get_wellness_plan_templates(
-    current_user: Dict[str, Any] = Depends(get_current_user)
-):
+async def get_wellness_plan_templates(current_user: dict[str, Any] = Depends(get_current_user)):
     """
     Get wellness plan templates and examples
     """
@@ -1223,8 +1145,8 @@ async def get_wellness_plan_templates(
                 "sample_goals": [
                     "Practice daily stress-reduction techniques",
                     "Improve sleep quality to reduce cortisol",
-                    "Develop healthy emotional coping mechanisms"
-                ]
+                    "Develop healthy emotional coping mechanisms",
+                ],
             },
             "work_life_balance": {
                 "name": "Work-Life Balance",
@@ -1235,8 +1157,8 @@ async def get_wellness_plan_templates(
                 "sample_goals": [
                     "Set clear work boundaries",
                     "Dedicate quality time to relationships",
-                    "Create a peaceful home environment"
-                ]
+                    "Create a peaceful home environment",
+                ],
             },
             "physical_transformation": {
                 "name": "Physical Health Transformation",
@@ -1247,8 +1169,8 @@ async def get_wellness_plan_templates(
                 "sample_goals": [
                     "Establish consistent exercise routine",
                     "Improve nutrition and hydration habits",
-                    "Achieve healthy weight management"
-                ]
+                    "Achieve healthy weight management",
+                ],
             },
             "mindfulness_journey": {
                 "name": "Mindfulness & Mental Clarity",
@@ -1259,8 +1181,8 @@ async def get_wellness_plan_templates(
                 "sample_goals": [
                     "Establish daily meditation practice",
                     "Develop emotional awareness",
-                    "Engage in regular self-reflection"
-                ]
+                    "Engage in regular self-reflection",
+                ],
             },
             "social_connection": {
                 "name": "Social Connection Building",
@@ -1271,9 +1193,9 @@ async def get_wellness_plan_templates(
                 "sample_goals": [
                     "Build meaningful relationships",
                     "Join supportive community groups",
-                    "Develop effective communication skills"
-                ]
-            }
+                    "Develop effective communication skills",
+                ],
+            },
         }
 
         return {
@@ -1281,17 +1203,18 @@ async def get_wellness_plan_templates(
             "data": {
                 "templates": templates,
                 "total_templates": len(templates),
-                "categories": list(set(template["focus_areas"][0] for template in templates.values())),
-                "last_updated": datetime.utcnow().isoformat()
-            }
+                "categories": list(
+                    set(template["focus_areas"][0] for template in templates.values())
+                ),
+                "last_updated": datetime.utcnow().isoformat(),
+            },
         }
 
     except Exception as e:
-        logger.error(f"Failed to get wellness plan templates: {str(e)}")
+        logger.error(f"Failed to get wellness plan templates: {e!s}")
         raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve wellness plan templates"
-        )
+            status_code=500, detail="Failed to retrieve wellness plan templates"
+        ) from e
 
 
 @router.get("/wellness/plan/goal-suggestions")
@@ -1299,7 +1222,7 @@ async def get_goal_suggestions(
     domain: str = Query(..., description="Wellness domain for goal suggestions"),
     current_level: str = Query("beginner", description="Current wellness level"),
     time_commitment: str = Query("moderate", description="Available time commitment"),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """
     Get AI-powered goal suggestions for specific wellness domains
@@ -1312,158 +1235,163 @@ async def get_goal_suggestions(
                     "Walk 15 minutes daily",
                     "Drink 8 glasses of water daily",
                     "Get 7-8 hours of sleep regularly",
-                    "Practice basic stretching exercises"
+                    "Practice basic stretching exercises",
                 ],
                 "intermediate": [
                     "Exercise 3-4 times per week",
                     "Follow a balanced nutrition plan",
                     "Achieve consistent sleep schedule",
-                    "Incorporate strength training"
+                    "Incorporate strength training",
                 ],
                 "advanced": [
                     "Train for a fitness event",
                     "Optimize athletic performance",
                     "Master advanced nutritional planning",
-                    "Develop comprehensive fitness routine"
-                ]
+                    "Develop comprehensive fitness routine",
+                ],
             },
             "emotional": {
                 "beginner": [
                     "Practice 5-minute daily meditation",
                     "Write in a gratitude journal",
                     "Practice deep breathing when stressed",
-                    "Identify and name emotions daily"
+                    "Identify and name emotions daily",
                 ],
                 "intermediate": [
                     "Establish regular mindfulness practice",
                     "Learn cognitive behavioral techniques",
                     "Develop emotional regulation skills",
-                    "Practice regular self-reflection"
+                    "Practice regular self-reflection",
                 ],
                 "advanced": [
                     "Master advanced emotional intelligence",
                     "Develop resilience training practices",
                     "Achieve emotional mastery",
-                    "Guide others in emotional wellness"
-                ]
+                    "Guide others in emotional wellness",
+                ],
             },
             "social": {
                 "beginner": [
                     "Reach out to one friend weekly",
                     "Join one social group or activity",
                     "Practice active listening skills",
-                    "Schedule regular social time"
+                    "Schedule regular social time",
                 ],
                 "intermediate": [
                     "Build deeper relationships",
                     "Join community organizations",
                     "Develop leadership skills",
-                    "Expand social network meaningfully"
+                    "Expand social network meaningfully",
                 ],
                 "advanced": [
                     "Become community leader",
                     "Mentor others in social skills",
                     "Build diverse social networks",
-                    "Create social impact initiatives"
-                ]
+                    "Create social impact initiatives",
+                ],
             },
             "intellectual": {
                 "beginner": [
                     "Read 15 minutes daily",
                     "Learn one new thing weekly",
                     "Practice brain-training games",
-                    "Watch educational content regularly"
+                    "Watch educational content regularly",
                 ],
                 "intermediate": [
                     "Take an online course",
                     "Learn a new skill or language",
                     "Engage in creative hobbies",
-                    "Join intellectual discussion groups"
+                    "Join intellectual discussion groups",
                 ],
                 "advanced": [
                     "Pursue advanced education",
                     "Master complex subjects",
                     "Teach or mentor others",
-                    "Contribute to knowledge creation"
-                ]
+                    "Contribute to knowledge creation",
+                ],
             },
             "spiritual": {
                 "beginner": [
                     "Practice daily gratitude",
                     "Spend time in nature weekly",
                     "Reflect on personal values",
-                    "Practice simple meditation"
+                    "Practice simple meditation",
                 ],
                 "intermediate": [
                     "Develop regular spiritual practice",
                     "Join spiritual community",
                     "Engage in meaningful volunteering",
-                    "Create personal mission statement"
+                    "Create personal mission statement",
                 ],
                 "advanced": [
                     "Achieve deep spiritual mastery",
                     "Guide others spiritually",
                     "Create spiritual practices",
-                    "Integrate spirituality fully"
-                ]
+                    "Integrate spirituality fully",
+                ],
             },
             "occupational": {
                 "beginner": [
                     "Set daily work goals",
                     "Take regular breaks",
                     "Organize workspace",
-                    "Learn time management basics"
+                    "Learn time management basics",
                 ],
                 "intermediate": [
                     "Develop career advancement plan",
                     "Improve work relationships",
                     "Achieve work-life balance",
-                    "Develop professional skills"
+                    "Develop professional skills",
                 ],
                 "advanced": [
                     "Achieve career mastery",
                     "Lead teams or projects",
                     "Create career opportunities",
-                    "Balance multiple roles effectively"
-                ]
+                    "Balance multiple roles effectively",
+                ],
             },
             "environmental": {
                 "beginner": [
                     "Declutter living space",
                     "Add plants to home",
                     "Create peaceful space",
-                    "Reduce waste"
+                    "Reduce waste",
                 ],
                 "intermediate": [
                     "Create sustainable lifestyle",
                     "Design ideal living space",
                     "Connect with nature regularly",
-                    "Implement eco-friendly practices"
+                    "Implement eco-friendly practices",
                 ],
                 "advanced": [
                     "Achieve environmental mastery",
                     "Lead sustainability initiatives",
                     "Create healing environments",
-                    "Influence environmental change"
-                ]
-            }
+                    "Influence environmental change",
+                ],
+            },
         }
 
-        suggestions = goal_suggestions.get(domain, {}).get(current_level, [
-            "Focus on basic wellness practices",
-            "Establish consistent routines",
-            "Track progress regularly"
-        ])
+        suggestions = goal_suggestions.get(domain, {}).get(
+            current_level,
+            [
+                "Focus on basic wellness practices",
+                "Establish consistent routines",
+                "Track progress regularly",
+            ],
+        )
 
         # Adjust suggestions based on time commitment
         if time_commitment == "minimal":
             suggestions = [s for s in suggestions if "daily" in s.lower() or "15" in s or "5" in s]
         elif time_commitment == "extensive":
-            suggestions.extend([
-                "Develop comprehensive mastery",
-                "Create advanced practices",
-                "Lead initiatives in this area"
-            ])
+            suggestions.extend(
+                [
+                    "Develop comprehensive mastery",
+                    "Create advanced practices",
+                    "Lead initiatives in this area",
+                ]
+            )
 
         return {
             "success": True,
@@ -1472,25 +1400,23 @@ async def get_goal_suggestions(
                 "current_level": current_level,
                 "time_commitment": time_commitment,
                 "suggestions": suggestions[:8],  # Limit to 8 suggestions
-                "total_suggestions": len(suggestions)
-            }
+                "total_suggestions": len(suggestions),
+            },
         }
 
     except Exception as e:
-        logger.error(f"Failed to get goal suggestions: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve goal suggestions"
-        )
+        logger.error(f"Failed to get goal suggestions: {e!s}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve goal suggestions") from e
 
 
 # Crisis Support Endpoints
 
+
 @router.post("/crisis/assessment")
 async def crisis_assessment(
-    request: Dict[str, Any],
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Crisis severity assessment and immediate support recommendations
@@ -1505,10 +1431,7 @@ async def crisis_assessment(
 
         # Validate required critical responses
         if not responses:
-            raise HTTPException(
-                status_code=400,
-                detail="Assessment responses are required"
-            )
+            raise HTTPException(status_code=400, detail="Assessment responses are required")
 
         # Check for immediate emergency indicators
         suicidal_thoughts = responses.get("suicidal_thoughts", "").lower()
@@ -1525,21 +1448,17 @@ async def crisis_assessment(
                         "Call 911 immediately",
                         "Go to nearest emergency room",
                         "Call 988 Suicide & Crisis Lifeline",
-                        "Stay with someone until help arrives"
+                        "Stay with someone until help arrives",
                     ],
-                    "safety_concerns": [
-                        "Immediate suicidal thoughts with specific plan detected"
-                    ],
+                    "safety_concerns": ["Immediate suicidal thoughts with specific plan detected"],
                     "emergency_contacts": ["911", "988"],
-                    "message": "This is an emergency. Please seek immediate help."
-                }
+                    "message": "This is an emergency. Please seek immediate help.",
+                },
             }
 
         # Perform comprehensive crisis assessment
         result = await crisis_service.assess_crisis_severity(
-            user_id=current_user["id"],
-            responses=responses,
-            timestamp=timestamp
+            user_id=current_user["id"], responses=responses, timestamp=timestamp
         )
 
         return result
@@ -1547,7 +1466,7 @@ async def crisis_assessment(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Crisis assessment failed: {str(e)}")
+        logger.error(f"Crisis assessment failed: {e!s}")
         # Always provide emergency resources as fallback
         return {
             "success": True,
@@ -1558,22 +1477,20 @@ async def crisis_assessment(
                     "Call 988 Suicide & Crisis Lifeline: 988",
                     "Call 911 if in immediate danger",
                     "Text HOME to 741741 for crisis support",
-                    "Go to nearest emergency room"
+                    "Go to nearest emergency room",
                 ],
-                "safety_concerns": [
-                    "System error - please seek immediate professional help"
-                ],
+                "safety_concerns": ["System error - please seek immediate professional help"],
                 "emergency_contacts": ["988", "911", "741741"],
-                "message": "Please seek immediate help. Support is available 24/7."
-            }
+                "message": "Please seek immediate help. Support is available 24/7.",
+            },
         }
 
 
 @router.post("/crisis/create-safety-plan")
 async def create_safety_plan(
-    request: Dict[str, Any],
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Create personalized safety plan for crisis situations
@@ -1590,46 +1507,45 @@ async def create_safety_plan(
         result = await crisis_service.create_personalized_safety_plan(
             user_id=current_user["id"],
             personalize=personalize,
-            include_local_resources=include_local_resources
+            include_local_resources=include_local_resources,
         )
 
         return result
 
     except Exception as e:
-        logger.error(f"Failed to create safety plan: {str(e)}")
+        logger.error(f"Failed to create safety plan: {e!s}")
         # Return basic safety plan as fallback
         basic_plan = {
             "warning_signs": [
                 "Thoughts of self-harm or suicide",
                 "Feeling hopeless or trapped",
                 "Increased anxiety or panic",
-                "Withdrawing from friends and activities"
+                "Withdrawing from friends and activities",
             ],
             "coping_strategies": [
                 "Call 988 Suicide & Crisis Lifeline",
                 "Contact a trusted friend or family member",
                 "Practice deep breathing exercises",
-                "Go to a safe public place"
+                "Go to a safe public place",
             ],
             "emergency_contacts": [
                 "911 - Emergency Services",
                 "988 - Suicide & Crisis Lifeline",
-                "Text HOME to 741741 - Crisis Text Line"
-            ]
+                "Text HOME to 741741 - Crisis Text Line",
+            ],
         }
 
         return {
             "success": True,
             "data": basic_plan,
             "fallback": True,
-            "message": "Basic safety plan provided. Consider professional help for a personalized plan."
+            "message": "Basic safety plan provided. Consider professional help for a personalized plan.",
         }
 
 
 @router.get("/crisis/safety-plan")
 async def get_safety_plan(
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict[str, Any] = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Get user's existing safety plan
@@ -1642,29 +1558,20 @@ async def get_safety_plan(
         plan = await crisis_service.get_existing_safety_plan(current_user["id"])
 
         if plan:
-            return {
-                "success": True,
-                "data": plan
-            }
-        else:
-            return {
-                "success": True,
-                "data": None,
-                "message": "No existing safety plan found. Consider creating one."
-            }
+            return {"success": True, "data": plan}
+        return {
+            "success": True,
+            "data": None,
+            "message": "No existing safety plan found. Consider creating one.",
+        }
 
     except Exception as e:
-        logger.error(f"Failed to get safety plan: {str(e)}")
-        return {
-            "success": False,
-            "error": "Failed to retrieve safety plan"
-        }
+        logger.error(f"Failed to get safety plan: {e!s}")
+        return {"success": False, "error": "Failed to retrieve safety plan"}
 
 
 @router.get("/crisis/resources")
-async def get_crisis_resources(
-    current_user: Dict[str, Any] = Depends(get_current_user)
-):
+async def get_crisis_resources(current_user: dict[str, Any] = Depends(get_current_user)):
     """
     Get crisis support resources and helplines
     """
@@ -1677,7 +1584,7 @@ async def get_crisis_resources(
                     "type": "emergency",
                     "description": "For immediate medical emergencies or life-threatening situations",
                     "availability": "24/7",
-                    "response_time": "Immediate"
+                    "response_time": "Immediate",
                 },
                 {
                     "name": "988 Suicide & Crisis Lifeline",
@@ -1686,8 +1593,8 @@ async def get_crisis_resources(
                     "description": "24/7 free, confidential support for people in distress",
                     "availability": "24/7",
                     "response_time": "Immediate",
-                    "languages": ["English", "Spanish"]
-                }
+                    "languages": ["English", "Spanish"],
+                },
             ],
             "hotlines": [
                 {
@@ -1696,29 +1603,29 @@ async def get_crisis_resources(
                     "type": "text",
                     "description": "Text with a trained crisis counselor",
                     "availability": "24/7",
-                    "response_time": "Average 5 minutes"
+                    "response_time": "Average 5 minutes",
                 },
                 {
                     "name": "National Hopeline Network",
                     "contact": "1-800-442-HOPE (4673)",
                     "type": "hotline",
                     "description": "Emotional support and crisis intervention",
-                    "availability": "24/7"
+                    "availability": "24/7",
                 },
                 {
                     "name": "The Trevor Project",
                     "contact": "1-866-488-7386",
                     "type": "hotline",
                     "description": "Crisis intervention and suicide prevention for LGBTQ youth",
-                    "availability": "24/7"
+                    "availability": "24/7",
                 },
                 {
                     "name": "Veterans Crisis Line",
                     "contact": "988 then Press 1",
                     "type": "hotline",
                     "description": "Confidential support for veterans in crisis",
-                    "availability": "24/7"
-                }
+                    "availability": "24/7",
+                },
             ],
             "specialized": [
                 {
@@ -1726,23 +1633,23 @@ async def get_crisis_resources(
                     "contact": "1-800-799-7233",
                     "type": "hotline",
                     "description": "Support for domestic violence situations",
-                    "availability": "24/7"
+                    "availability": "24/7",
                 },
                 {
                     "name": "SAMHSA's National Helpline",
                     "contact": "1-800-662-4357",
                     "type": "hotline",
                     "description": "Treatment referral and information service",
-                    "availability": "24/7"
+                    "availability": "24/7",
                 },
                 {
                     "name": "Childhelp National Child Abuse Hotline",
                     "contact": "1-800-422-4453",
                     "type": "hotline",
                     "description": "Professional counselors for child abuse situations",
-                    "availability": "24/7"
-                }
-            ]
+                    "availability": "24/7",
+                },
+            ],
         }
 
         return {
@@ -1751,25 +1658,25 @@ async def get_crisis_resources(
                 "resources": resources,
                 "total_resources": sum(len(category) for category in resources.values()),
                 "last_updated": datetime.utcnow().isoformat(),
-                "disclaimer": "These resources are available 24/7. In life-threatening emergencies, always call 911."
-            }
+                "disclaimer": "These resources are available 24/7. In life-threatening emergencies, always call 911.",
+            },
         }
 
     except Exception as e:
-        logger.error(f"Failed to get crisis resources: {str(e)}")
+        logger.error(f"Failed to get crisis resources: {e!s}")
         # Always return emergency resources
         emergency_resources = {
             "emergency": [
                 {
                     "name": "911 Emergency Services",
                     "contact": "911",
-                    "description": "For immediate medical emergencies"
+                    "description": "For immediate medical emergencies",
                 },
                 {
                     "name": "988 Suicide & Crisis Lifeline",
                     "contact": "988",
-                    "description": "24/7 crisis support"
-                }
+                    "description": "24/7 crisis support",
+                },
             ]
         }
 
@@ -1778,16 +1685,16 @@ async def get_crisis_resources(
             "data": {
                 "resources": emergency_resources,
                 "fallback": True,
-                "message": "Limited resources available. Please call 988 or 911 for immediate help."
-            }
+                "message": "Limited resources available. Please call 988 or 911 for immediate help.",
+            },
         }
 
 
 @router.post("/crisis/check-in")
 async def crisis_check_in(
-    request: Dict[str, Any],
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    request: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Anonymous crisis check-in and status update
@@ -1800,19 +1707,17 @@ async def crisis_check_in(
         notes = request.get("notes", "")
 
         # Log check-in (maintaining privacy)
-        logger.info(f"Crisis check-in: user_id={current_user['id']}, status={status}, needs_help={needs_help}, urgency={urgency}")
+        logger.info(
+            f"Crisis check-in: user_id={current_user['id']}, status={status}, needs_help={needs_help}, urgency={urgency}"
+        )
 
         # If immediate help needed, provide resources
         if needs_help and urgency in ["high", "emergency"]:
             return {
                 "success": True,
                 "immediate_help": True,
-                "resources": {
-                    "call": "988",
-                    "text": "HOME to 741741",
-                    "emergency": "911"
-                },
-                "message": "Help is available right now. Please reach out to one of these resources."
+                "resources": {"call": "988", "text": "HOME to 741741", "emergency": "911"},
+                "message": "Help is available right now. Please reach out to one of these resources.",
             }
 
         return {
@@ -1820,18 +1725,18 @@ async def crisis_check_in(
             "message": "Check-in received. You're not alone - support is available if you need it.",
             "resources": {
                 "988": "Suicide & Crisis Lifeline",
-                "741741": "Crisis Text Line (Text HOME)"
-            }
+                "741741": "Crisis Text Line (Text HOME)",
+            },
         }
 
     except Exception as e:
-        logger.error(f"Crisis check-in failed: {str(e)}")
+        logger.error(f"Crisis check-in failed: {e!s}")
         return {
             "success": True,
             "fallback_resources": {
                 "988": "Suicide & Crisis Lifeline",
                 "741741": "Crisis Text Line (Text HOME)",
-                "911": "Emergency Services"
+                "911": "Emergency Services",
             },
-            "message": "Check-in received. Help is available 24/7."
+            "message": "Check-in received. Help is available 24/7.",
         }

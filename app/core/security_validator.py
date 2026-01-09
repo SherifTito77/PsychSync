@@ -4,21 +4,20 @@ Comprehensive Security Validation Module
 Provides enterprise-grade input validation and sanitization
 """
 
-import re
-import html
-import hashlib
-import hmac
-import logging
-from typing import Any, Dict, List, Optional, Union
-from uuid import UUID
 from dataclasses import dataclass
 from enum import Enum
+import html
+import logging
+import re
+from typing import Any
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
 
 class SecurityLevel(Enum):
     """Security validation levels"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -28,9 +27,10 @@ class SecurityLevel(Enum):
 @dataclass
 class ValidationResult:
     """Validation result with security context"""
+
     is_valid: bool
     sanitized_value: Any
-    security_issues: List[str]
+    security_issues: list[str]
     risk_level: SecurityLevel
     original_value: Any = None
 
@@ -85,25 +85,21 @@ class SecurityValidator:
 
         # Compile regex patterns for performance
         self.sql_injection_regex = re.compile(
-            '|'.join(self.SQL_INJECTION_PATTERNS),
-            re.IGNORECASE | re.MULTILINE | re.DOTALL
+            "|".join(self.SQL_INJECTION_PATTERNS), re.IGNORECASE | re.MULTILINE | re.DOTALL
         )
         self.xss_regex = re.compile(
-            '|'.join(self.XSS_PATTERNS),
-            re.IGNORECASE | re.MULTILINE | re.DOTALL
+            "|".join(self.XSS_PATTERNS), re.IGNORECASE | re.MULTILINE | re.DOTALL
         )
         self.path_traversal_regex = re.compile(
-            '|'.join(self.PATH_TRAVERSAL_PATTERNS),
-            re.IGNORECASE
+            "|".join(self.PATH_TRAVERSAL_PATTERNS), re.IGNORECASE
         )
         self.command_injection_regex = re.compile(
-            '|'.join(self.COMMAND_INJECTION_PATTERNS),
-            re.IGNORECASE
+            "|".join(self.COMMAND_INJECTION_PATTERNS), re.IGNORECASE
         )
 
         logger.info(f"SecurityValidator initialized with level: {security_level.value}")
 
-    def validate_uuid(self, value: Union[str, UUID], field_name: str = "id") -> ValidationResult:
+    def validate_uuid(self, value: str | UUID, field_name: str = "id") -> ValidationResult:
         """Validate and sanitize UUID input"""
         try:
             if isinstance(value, UUID):
@@ -112,7 +108,7 @@ class SecurityValidator:
                     sanitized_value=str(value),
                     security_issues=[],
                     risk_level=SecurityLevel.LOW,
-                    original_value=value
+                    original_value=value,
                 )
 
             if not isinstance(value, str):
@@ -121,7 +117,7 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"Invalid {field_name}: must be string or UUID"],
                     risk_level=SecurityLevel.HIGH,
-                    original_value=value
+                    original_value=value,
                 )
 
             # Check for injection patterns in UUID string
@@ -131,7 +127,7 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"Potentially malicious {field_name} detected"],
                     risk_level=SecurityLevel.CRITICAL,
-                    original_value=value
+                    original_value=value,
                 )
 
             # Validate UUID format
@@ -142,7 +138,7 @@ class SecurityValidator:
                     sanitized_value=str(uuid_obj),
                     security_issues=[],
                     risk_level=SecurityLevel.LOW,
-                    original_value=value
+                    original_value=value,
                 )
             except ValueError:
                 return ValidationResult(
@@ -150,17 +146,17 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"Invalid UUID format for {field_name}"],
                     risk_level=SecurityLevel.HIGH,
-                    original_value=value
+                    original_value=value,
                 )
 
         except Exception as e:
-            logger.error(f"UUID validation error: {str(e)}")
+            logger.error(f"UUID validation error: {e!s}")
             return ValidationResult(
                 is_valid=False,
                 sanitized_value=None,
                 security_issues=[f"Validation error for {field_name}"],
                 risk_level=SecurityLevel.HIGH,
-                original_value=value
+                original_value=value,
             )
 
     def validate_email(self, email: str, field_name: str = "email") -> ValidationResult:
@@ -172,7 +168,7 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"{field_name} must be a string"],
                     risk_level=SecurityLevel.HIGH,
-                    original_value=email
+                    original_value=email,
                 )
 
             # Length check
@@ -182,7 +178,7 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"{field_name} exceeds maximum length"],
                     risk_level=SecurityLevel.MEDIUM,
-                    original_value=email
+                    original_value=email,
                 )
 
             # Check for injection patterns
@@ -198,18 +194,18 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=issues,
                     risk_level=SecurityLevel.CRITICAL,
-                    original_value=email
+                    original_value=email,
                 )
 
             # Basic email validation
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
             if not re.match(email_pattern, email.lower().strip()):
                 return ValidationResult(
                     is_valid=False,
                     sanitized_value=None,
-                    security_issues=[f"Invalid email format"],
+                    security_issues=["Invalid email format"],
                     risk_level=SecurityLevel.MEDIUM,
-                    original_value=email
+                    original_value=email,
                 )
 
             # Sanitize email
@@ -220,26 +216,26 @@ class SecurityValidator:
                 sanitized_value=sanitized_email,
                 security_issues=[],
                 risk_level=SecurityLevel.LOW,
-                original_value=email
+                original_value=email,
             )
 
         except Exception as e:
-            logger.error(f"Email validation error: {str(e)}")
+            logger.error(f"Email validation error: {e!s}")
             return ValidationResult(
                 is_valid=False,
                 sanitized_value=None,
-                security_issues=[f"Email validation error"],
+                security_issues=["Email validation error"],
                 risk_level=SecurityLevel.HIGH,
-                original_value=email
+                original_value=email,
             )
 
     def validate_text_input(
         self,
         text: str,
         field_name: str = "text",
-        max_length: Optional[int] = None,
+        max_length: int | None = None,
         allow_html: bool = False,
-        min_length: int = 0
+        min_length: int = 0,
     ) -> ValidationResult:
         """Validate and sanitize text input"""
         try:
@@ -249,7 +245,7 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"{field_name} must be a string"],
                     risk_level=SecurityLevel.HIGH,
-                    original_value=text
+                    original_value=text,
                 )
 
             max_len = max_length or self.max_text_length
@@ -261,7 +257,7 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"{field_name} exceeds maximum length of {max_len}"],
                     risk_level=SecurityLevel.MEDIUM,
-                    original_value=text
+                    original_value=text,
                 )
 
             if len(text) < min_length:
@@ -270,7 +266,7 @@ class SecurityValidator:
                     sanitized_value=None,
                     security_issues=[f"{field_name} below minimum length of {min_length}"],
                     risk_level=SecurityLevel.MEDIUM,
-                    original_value=text
+                    original_value=text,
                 )
 
             # Security pattern checks
@@ -281,19 +277,19 @@ class SecurityValidator:
             if self.sql_injection_regex.search(text):
                 issues.append(f"SQL injection pattern detected in {field_name}")
                 # Remove dangerous patterns
-                sanitized_text = self.sql_injection_regex.sub('', sanitized_text)
+                sanitized_text = self.sql_injection_regex.sub("", sanitized_text)
 
             # XSS check (if HTML is not allowed)
             if not allow_html and self.xss_regex.search(text):
                 issues.append(f"XSS pattern detected in {field_name}")
                 # Remove dangerous patterns
-                sanitized_text = self.xss_regex.sub('', sanitized_text)
+                sanitized_text = self.xss_regex.sub("", sanitized_text)
 
             # Command injection check
             if self.command_injection_regex.search(text):
                 issues.append(f"Command injection pattern detected in {field_name}")
                 # Remove dangerous patterns
-                sanitized_text = self.command_injection_regex.sub('', sanitized_text)
+                sanitized_text = self.command_injection_regex.sub("", sanitized_text)
 
             # HTML sanitization if needed
             if not allow_html:
@@ -309,24 +305,21 @@ class SecurityValidator:
                 sanitized_value=sanitized_text,
                 security_issues=issues,
                 risk_level=risk_level,
-                original_value=text
+                original_value=text,
             )
 
         except Exception as e:
-            logger.error(f"Text validation error: {str(e)}")
+            logger.error(f"Text validation error: {e!s}")
             return ValidationResult(
                 is_valid=False,
                 sanitized_value=None,
                 security_issues=[f"{field_name} validation error"],
                 risk_level=SecurityLevel.HIGH,
-                original_value=text
+                original_value=text,
             )
 
     def validate_name_input(
-        self,
-        name: str,
-        field_name: str = "name",
-        max_length: Optional[int] = None
+        self, name: str, field_name: str = "name", max_length: int | None = None
     ) -> ValidationResult:
         """Validate names (more restrictive than general text)"""
         max_len = max_length or self.max_name_length
@@ -337,7 +330,7 @@ class SecurityValidator:
                 sanitized_value=None,
                 security_issues=[f"{field_name} must be a string"],
                 risk_level=SecurityLevel.HIGH,
-                original_value=name
+                original_value=name,
             )
 
         # Length check
@@ -347,7 +340,7 @@ class SecurityValidator:
                 sanitized_value=None,
                 security_issues=[f"{field_name} exceeds maximum length of {max_len}"],
                 risk_level=SecurityLevel.MEDIUM,
-                original_value=name
+                original_value=name,
             )
 
         # Check for injection patterns
@@ -358,7 +351,7 @@ class SecurityValidator:
             issues.append(f"XSS pattern detected in {field_name}")
 
         # Name-specific validation - allow only letters, numbers, spaces, hyphens, underscores
-        name_pattern = r'^[a-zA-Z0-9\s\-_\.]+$'
+        name_pattern = r"^[a-zA-Z0-9\s\-_\.]+$"
         if not re.match(name_pattern, name.strip()):
             issues.append(f"{field_name} contains invalid characters")
 
@@ -368,7 +361,7 @@ class SecurityValidator:
                 sanitized_value=None,
                 security_issues=issues,
                 risk_level=SecurityLevel.CRITICAL,
-                original_value=name
+                original_value=name,
             )
 
         # Sanitize name
@@ -379,7 +372,7 @@ class SecurityValidator:
             sanitized_value=sanitized_name,
             security_issues=[],
             risk_level=SecurityLevel.LOW,
-            original_value=name
+            original_value=name,
         )
 
     def validate_search_query(self, query: str, field_name: str = "search") -> ValidationResult:
@@ -390,7 +383,7 @@ class SecurityValidator:
                 sanitized_value=None,
                 security_issues=[f"{field_name} must be a string"],
                 risk_level=SecurityLevel.HIGH,
-                original_value=query
+                original_value=query,
             )
 
         # Length limit for search queries
@@ -400,7 +393,7 @@ class SecurityValidator:
                 sanitized_value=None,
                 security_issues=[f"{field_name} exceeds maximum length"],
                 risk_level=SecurityLevel.MEDIUM,
-                original_value=query
+                original_value=query,
             )
 
         # Security pattern checks
@@ -413,7 +406,7 @@ class SecurityValidator:
         # Sanitize search query
         sanitized_query = query.strip()
         # Remove potentially dangerous characters but keep search-friendly characters
-        sanitized_query = re.sub(r'[<>"\'`;&|]', '', sanitized_query)
+        sanitized_query = re.sub(r'[<>"\'`;&|]', "", sanitized_query)
 
         if issues and self.security_level in [SecurityLevel.HIGH, SecurityLevel.CRITICAL]:
             return ValidationResult(
@@ -421,7 +414,7 @@ class SecurityValidator:
                 sanitized_value=sanitized_query,
                 security_issues=issues,
                 risk_level=SecurityLevel.HIGH,
-                original_value=query
+                original_value=query,
             )
 
         return ValidationResult(
@@ -429,14 +422,11 @@ class SecurityValidator:
             sanitized_value=sanitized_query,
             security_issues=issues,
             risk_level=SecurityLevel.LOW if not issues else SecurityLevel.MEDIUM,
-            original_value=query
+            original_value=query,
         )
 
     def validate_pagination_params(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        max_limit: int = 1000
+        self, skip: int = 0, limit: int = 100, max_limit: int = 1000
     ) -> ValidationResult:
         """Validate pagination parameters"""
         try:
@@ -475,25 +465,25 @@ class SecurityValidator:
                 sanitized_value={"skip": skip, "limit": limit},
                 security_issues=issues,
                 risk_level=SecurityLevel.LOW if not issues else SecurityLevel.MEDIUM,
-                original_value={"skip": skip, "limit": limit}
+                original_value={"skip": skip, "limit": limit},
             )
 
         except Exception as e:
-            logger.error(f"Pagination validation error: {str(e)}")
+            logger.error(f"Pagination validation error: {e!s}")
             return ValidationResult(
                 is_valid=False,
                 sanitized_value={"skip": 0, "limit": 100},
                 security_issues=["Pagination validation error"],
                 risk_level=SecurityLevel.HIGH,
-                original_value={"skip": skip, "limit": limit}
+                original_value={"skip": skip, "limit": limit},
             )
 
     def sanitize_dict(
         self,
-        data: Dict[str, Any],
-        text_fields: List[str],
-        name_fields: List[str] = None,
-        email_fields: List[str] = None
+        data: dict[str, Any],
+        text_fields: list[str],
+        name_fields: list[str] = None,
+        email_fields: list[str] = None,
     ) -> ValidationResult:
         """Sanitize dictionary of data"""
         try:
@@ -521,7 +511,7 @@ class SecurityValidator:
                         sanitized_value=value,
                         security_issues=[],
                         risk_level=SecurityLevel.LOW,
-                        original_value=value
+                        original_value=value,
                     )
 
                 sanitized_data[key] = result.sanitized_value
@@ -536,17 +526,17 @@ class SecurityValidator:
                 sanitized_value=sanitized_data,
                 security_issues=all_issues,
                 risk_level=max_risk,
-                original_value=data
+                original_value=data,
             )
 
         except Exception as e:
-            logger.error(f"Dictionary sanitization error: {str(e)}")
+            logger.error(f"Dictionary sanitization error: {e!s}")
             return ValidationResult(
                 is_valid=False,
                 sanitized_value={},
                 security_issues=["Data sanitization error"],
                 risk_level=SecurityLevel.HIGH,
-                original_value=data
+                original_value=data,
             )
 
     def validate_file_path(self, file_path: str, field_name: str = "file_path") -> ValidationResult:
@@ -557,7 +547,7 @@ class SecurityValidator:
                 sanitized_value=None,
                 security_issues=[f"{field_name} must be a string"],
                 risk_level=SecurityLevel.HIGH,
-                original_value=file_path
+                original_value=file_path,
             )
 
         issues = []
@@ -567,18 +557,28 @@ class SecurityValidator:
             issues.append(f"Path traversal pattern detected in {field_name}")
 
         # Additional path validation
-        normalized_path = file_path.replace('\\', '/')
+        normalized_path = file_path.replace("\\", "/")
 
         # Check for absolute paths (should be relative)
-        if normalized_path.startswith('/'):
+        if normalized_path.startswith("/"):
             issues.append(f"Absolute path not allowed in {field_name}")
-            normalized_path = normalized_path.lstrip('/')
+            normalized_path = normalized_path.lstrip("/")
 
         # Check for dangerous file extensions
-        dangerous_extensions = ['.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.js', '.jar']
-        file_ext = normalized_path.lower().split('.')[-1] if '.' in normalized_path else ''
+        dangerous_extensions = [
+            ".exe",
+            ".bat",
+            ".cmd",
+            ".com",
+            ".pif",
+            ".scr",
+            ".vbs",
+            ".js",
+            ".jar",
+        ]
+        file_ext = normalized_path.lower().split(".")[-1] if "." in normalized_path else ""
 
-        if f'.{file_ext}' in dangerous_extensions:
+        if f".{file_ext}" in dangerous_extensions:
             issues.append(f"Dangerous file extension detected in {field_name}")
 
         if issues:
@@ -587,7 +587,7 @@ class SecurityValidator:
                 sanitized_value=None,
                 security_issues=issues,
                 risk_level=SecurityLevel.CRITICAL,
-                original_value=file_path
+                original_value=file_path,
             )
 
         return ValidationResult(
@@ -595,7 +595,7 @@ class SecurityValidator:
             sanitized_value=normalized_path,
             security_issues=[],
             risk_level=SecurityLevel.LOW,
-            original_value=file_path
+            original_value=file_path,
         )
 
 

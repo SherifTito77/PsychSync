@@ -4,22 +4,19 @@ Provides comprehensive sentiment analysis and trend visualization
 data for interactive dashboards and reporting.
 """
 
-import asyncio
-import logging
-import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
-from collections import defaultdict, Counter
-import statistics
+import json
+import logging
+from typing import Any
 
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import silhouette_score
 
-from app.services.nlp_service import NLPService, SentimentScore, SentimentLabel
-from app.services.theme_extraction_service import ThemeExtractionService, Theme, ThemeTrend
+from app.services.nlp_service import NLPService, SentimentLabel
+from app.services.theme_extraction_service import ThemeExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +58,12 @@ class SentimentDataPoint:
     confidence: float
     subjectivity: float
     text_sample: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    theme_ids: List[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    user_id: str | None = None
+    session_id: str | None = None
+    theme_ids: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp.isoformat(),
             "sentiment_score": self.sentiment_score,
@@ -90,13 +87,13 @@ class SentimentTrend:
     strength: float  # 0-1 scale
     slope: float  # Linear regression slope
     volatility: float  # Standard deviation
-    data_points: List[SentimentDataPoint] = field(default_factory=list)
-    predictions: List[Tuple[datetime, float]] = field(default_factory=list)
-    confidence_interval: Tuple[float, float] = (0.0, 0.0)
+    data_points: list[SentimentDataPoint] = field(default_factory=list)
+    predictions: list[tuple[datetime, float]] = field(default_factory=list)
+    confidence_interval: tuple[float, float] = (0.0, 0.0)
     seasonal_pattern: bool = False
     anomaly_detected: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "metric": self.metric.value,
             "period": self.period.value,
@@ -120,11 +117,11 @@ class SentimentSegment:
     size: int
     avg_sentiment: float
     sentiment_variance: float
-    dominant_themes: List[str]
-    key_characteristics: Dict[str, Any] = field(default_factory=dict)
-    trend_analysis: Optional[SentimentTrend] = None
+    dominant_themes: list[str]
+    key_characteristics: dict[str, Any] = field(default_factory=dict)
+    trend_analysis: SentimentTrend | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "segment_id": self.segment_id,
             "name": self.name,
@@ -143,12 +140,12 @@ class DashboardWidget:
     widget_id: str
     widget_type: str
     title: str
-    data: Dict[str, Any]
-    config: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any]
+    config: dict[str, Any] = field(default_factory=dict)
     last_updated: datetime = field(default_factory=datetime.utcnow)
     refresh_interval: int = 300  # seconds
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "widget_id": self.widget_id,
             "widget_type": self.widget_type,
@@ -165,15 +162,15 @@ class SentimentDashboard:
     """Complete sentiment dashboard"""
     dashboard_id: str
     title: str
-    time_range: Tuple[datetime, datetime]
-    widgets: List[DashboardWidget] = field(default_factory=list)
-    overall_trends: List[SentimentTrend] = field(default_factory=list)
-    segments: List[SentimentSegment] = field(default_factory=list)
-    key_insights: List[str] = field(default_factory=list)
-    summary_metrics: Dict[str, float] = field(default_factory=dict)
+    time_range: tuple[datetime, datetime]
+    widgets: list[DashboardWidget] = field(default_factory=list)
+    overall_trends: list[SentimentTrend] = field(default_factory=list)
+    segments: list[SentimentSegment] = field(default_factory=list)
+    key_insights: list[str] = field(default_factory=list)
+    summary_metrics: dict[str, float] = field(default_factory=dict)
     generated_at: datetime = field(default_factory=datetime.utcnow)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "dashboard_id": self.dashboard_id,
             "title": self.title,
@@ -212,12 +209,12 @@ class SentimentDashboardService:
 
     async def generate_dashboard(
         self,
-        texts: List[str],
-        timestamps: List[datetime],
-        user_ids: Optional[List[str]] = None,
-        session_ids: Optional[List[str]] = None,
-        time_range: Optional[Tuple[datetime, datetime]] = None,
-        dashboard_id: Optional[str] = None,
+        texts: list[str],
+        timestamps: list[datetime],
+        user_ids: list[str] | None = None,
+        session_ids: list[str] | None = None,
+        time_range: tuple[datetime, datetime] | None = None,
+        dashboard_id: str | None = None,
         title: str = "Sentiment Analysis Dashboard"
     ) -> SentimentDashboard:
         """Generate comprehensive sentiment dashboard"""
@@ -282,22 +279,22 @@ class SentimentDashboardService:
             return dashboard
 
         except Exception as e:
-            logger.error(f"Dashboard generation failed: {str(e)}")
+            logger.error(f"Dashboard generation failed: {e!s}")
             # Return empty dashboard with error info
             return SentimentDashboard(
                 dashboard_id=dashboard_id or "error_dashboard",
                 title="Dashboard Error",
                 time_range=(datetime.utcnow(), datetime.utcnow()),
-                key_insights=[f"Error: {str(e)}"]
+                key_insights=[f"Error: {e!s}"]
             )
 
     async def _process_sentiment_data(
         self,
-        texts: List[str],
-        timestamps: List[datetime],
-        user_ids: Optional[List[str]],
-        session_ids: Optional[List[str]]
-    ) -> List[SentimentDataPoint]:
+        texts: list[str],
+        timestamps: list[datetime],
+        user_ids: list[str] | None,
+        session_ids: list[str] | None
+    ) -> list[SentimentDataPoint]:
         """Process texts and extract sentiment data"""
         try:
             sentiment_data = []
@@ -327,14 +324,14 @@ class SentimentDashboardService:
             return sentiment_data
 
         except Exception as e:
-            logger.error(f"Sentiment data processing failed: {str(e)}")
+            logger.error(f"Sentiment data processing failed: {e!s}")
             return []
 
     async def _analyze_overall_trends(
         self,
-        sentiment_data: List[SentimentDataPoint],
-        time_range: Tuple[datetime, datetime]
-    ) -> List[SentimentTrend]:
+        sentiment_data: list[SentimentDataPoint],
+        time_range: tuple[datetime, datetime]
+    ) -> list[SentimentTrend]:
         """Analyze overall sentiment trends"""
         try:
             trends = []
@@ -349,15 +346,15 @@ class SentimentDashboardService:
             return trends
 
         except Exception as e:
-            logger.error(f"Trend analysis failed: {str(e)}")
+            logger.error(f"Trend analysis failed: {e!s}")
             return []
 
     async def _calculate_trend(
         self,
-        sentiment_data: List[SentimentDataPoint],
+        sentiment_data: list[SentimentDataPoint],
         metric: SentimentMetric,
         period: TrendAnalysisPeriod
-    ) -> Optional[SentimentTrend]:
+    ) -> SentimentTrend | None:
         """Calculate trend for specific metric and period"""
         try:
             # Group data by time period
@@ -413,14 +410,14 @@ class SentimentDashboardService:
             )
 
         except Exception as e:
-            logger.error(f"Trend calculation failed: {str(e)}")
+            logger.error(f"Trend calculation failed: {e!s}")
             return None
 
     def _group_by_time_period(
         self,
-        sentiment_data: List[SentimentDataPoint],
+        sentiment_data: list[SentimentDataPoint],
         period: TrendAnalysisPeriod
-    ) -> Dict[datetime, List[SentimentDataPoint]]:
+    ) -> dict[datetime, list[SentimentDataPoint]]:
         """Group sentiment data by time period"""
         grouped = defaultdict(list)
 
@@ -444,9 +441,9 @@ class SentimentDashboardService:
 
     def _calculate_linear_trend(
         self,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> Tuple[float, float, TrendDirection]:
+        timestamps: list[datetime],
+        values: list[float]
+    ) -> tuple[float, float, TrendDirection]:
         """Calculate linear trend"""
         try:
             if len(values) < 2:
@@ -484,20 +481,19 @@ class SentimentDashboardService:
                     direction = TrendDirection.STRONGLY_DECLINING
                 else:
                     direction = TrendDirection.DECLINING
+            # Check for volatility
+            elif np.std(values) > 0.3:
+                direction = TrendDirection.VOLATILE
             else:
-                # Check for volatility
-                if np.std(values) > 0.3:
-                    direction = TrendDirection.VOLATILE
-                else:
-                    direction = TrendDirection.STABLE
+                direction = TrendDirection.STABLE
 
             return slope, strength, direction
 
         except Exception as e:
-            logger.error(f"Linear trend calculation failed: {str(e)}")
+            logger.error(f"Linear trend calculation failed: {e!s}")
             return 0.0, 0.0, TrendDirection.STABLE
 
-    def _detect_seasonality(self, timestamps: List[datetime], values: List[float]) -> bool:
+    def _detect_seasonality(self, timestamps: list[datetime], values: list[float]) -> bool:
         """Detect seasonal patterns in data"""
         try:
             if len(values) < 14:  # Need at least 2 weeks for weekly seasonality
@@ -525,7 +521,7 @@ class SentimentDashboardService:
         except Exception:
             return False
 
-    def _detect_anomalies(self, values: List[float]) -> bool:
+    def _detect_anomalies(self, values: list[float]) -> bool:
         """Detect anomalies in data"""
         try:
             if len(values) < 3:
@@ -545,10 +541,10 @@ class SentimentDashboardService:
 
     async def _generate_predictions(
         self,
-        timestamps: List[datetime],
-        values: List[float],
+        timestamps: list[datetime],
+        values: list[float],
         period: TrendAnalysisPeriod
-    ) -> List[Tuple[datetime, float]]:
+    ) -> list[tuple[datetime, float]]:
         """Generate simple predictions for future values"""
         try:
             if len(values) < 3:
@@ -591,10 +587,10 @@ class SentimentDashboardService:
             return predictions
 
         except Exception as e:
-            logger.error(f"Prediction generation failed: {str(e)}")
+            logger.error(f"Prediction generation failed: {e!s}")
             return []
 
-    def _calculate_confidence_interval(self, values: List[float]) -> Tuple[float, float]:
+    def _calculate_confidence_interval(self, values: list[float]) -> tuple[float, float]:
         """Calculate confidence interval for values"""
         try:
             if len(values) < 2:
@@ -613,9 +609,9 @@ class SentimentDashboardService:
 
     async def _perform_user_segmentation(
         self,
-        sentiment_data: List[SentimentDataPoint],
-        timestamps: List[datetime]
-    ) -> List[SentimentSegment]:
+        sentiment_data: list[SentimentDataPoint],
+        timestamps: list[datetime]
+    ) -> list[SentimentSegment]:
         """Perform user segmentation based on sentiment patterns"""
         try:
             # Group by user
@@ -637,11 +633,11 @@ class SentimentDashboardService:
                 subjectivities = [dp.subjectivity for dp in user_dps]
 
                 features = {
-                    'avg_sentiment': np.mean(sentiments),
-                    'sentiment_variance': np.var(sentiments),
-                    'avg_subjectivity': np.mean(subjectivities),
-                    'data_points': len(user_dps),
-                    'sentiment_range': max(sentiments) - min(sentiments)
+                    "avg_sentiment": np.mean(sentiments),
+                    "sentiment_variance": np.var(sentiments),
+                    "avg_subjectivity": np.mean(subjectivities),
+                    "data_points": len(user_dps),
+                    "sentiment_range": max(sentiments) - min(sentiments)
                 }
 
                 user_features[user_id] = features
@@ -655,8 +651,8 @@ class SentimentDashboardService:
             # Analyze trends for each segment
             for segment in segments:
                 segment_dps = []
-                for user_id in [u for u in user_features.keys()
-                              if any(u in s.get('users', []) for s in segments)]:
+                for user_id in [u for u in user_features
+                              if any(u in s.get("users", []) for s in segments)]:
                     if user_id in user_data:
                         segment_dps.extend(user_data[user_id])
 
@@ -664,15 +660,15 @@ class SentimentDashboardService:
                     segment_trend = await self._calculate_trend(
                         segment_dps, SentimentMetric.POLARITY, TrendAnalysisPeriod.DAILY
                     )
-                    segment['trend_analysis'] = segment_trend
+                    segment["trend_analysis"] = segment_trend
 
             return segments
 
         except Exception as e:
-            logger.error(f"User segmentation failed: {str(e)}")
+            logger.error(f"User segmentation failed: {e!s}")
             return []
 
-    def _cluster_users(self, user_features: Dict[str, Dict[str, float]]) -> List[SentimentSegment]:
+    def _cluster_users(self, user_features: dict[str, dict[str, float]]) -> list[SentimentSegment]:
         """Simple user clustering based on sentiment features"""
         try:
             # Extract feature matrix
@@ -681,9 +677,9 @@ class SentimentDashboardService:
             for user in users:
                 f = user_features[user]
                 features.append([
-                    f['avg_sentiment'],
-                    f['sentiment_variance'],
-                    f['avg_subjectivity']
+                    f["avg_sentiment"],
+                    f["sentiment_variance"],
+                    f["avg_subjectivity"]
                 ])
 
             # Normalize features
@@ -714,8 +710,8 @@ class SentimentDashboardService:
             for i, cluster_users in enumerate(clusters):
                 if len(cluster_users) >= self.config["min_segment_size"]:
                     # Calculate cluster statistics
-                    cluster_sentiments = [user_features[u]['avg_sentiment'] for u in cluster_users]
-                    cluster_variances = [user_features[u]['sentiment_variance'] for u in cluster_users]
+                    cluster_sentiments = [user_features[u]["avg_sentiment"] for u in cluster_users]
+                    cluster_variances = [user_features[u]["sentiment_variance"] for u in cluster_users]
 
                     segment = SentimentSegment(
                         segment_id=f"segment_{i}",
@@ -725,8 +721,8 @@ class SentimentDashboardService:
                         sentiment_variance=np.mean(cluster_variances),
                         dominant_themes=[],  # Would need theme analysis
                         key_characteristics={
-                            'users': cluster_users,
-                            'avg_data_points': np.mean([user_features[u]['data_points'] for u in cluster_users])
+                            "users": cluster_users,
+                            "avg_data_points": np.mean([user_features[u]["data_points"] for u in cluster_users])
                         }
                     )
                     segments.append(segment)
@@ -734,16 +730,16 @@ class SentimentDashboardService:
             return segments
 
         except Exception as e:
-            logger.error(f"User clustering failed: {str(e)}")
+            logger.error(f"User clustering failed: {e!s}")
             return []
 
     async def _generate_dashboard_widgets(
         self,
-        sentiment_data: List[SentimentDataPoint],
-        trends: List[SentimentTrend],
-        segments: List[SentimentSegment],
-        time_range: Tuple[datetime, datetime]
-    ) -> List[DashboardWidget]:
+        sentiment_data: list[SentimentDataPoint],
+        trends: list[SentimentTrend],
+        segments: list[SentimentSegment],
+        time_range: tuple[datetime, datetime]
+    ) -> list[DashboardWidget]:
         """Generate dashboard widgets"""
         try:
             widgets = []
@@ -775,13 +771,13 @@ class SentimentDashboardService:
             return widgets
 
         except Exception as e:
-            logger.error(f"Widget generation failed: {str(e)}")
+            logger.error(f"Widget generation failed: {e!s}")
             return []
 
     async def _create_trend_widget(
         self,
-        trends: List[SentimentTrend],
-        time_range: Tuple[datetime, datetime]
+        trends: list[SentimentTrend],
+        time_range: tuple[datetime, datetime]
     ) -> DashboardWidget:
         """Create sentiment trend widget"""
         try:
@@ -829,7 +825,7 @@ class SentimentDashboardService:
             )
 
         except Exception as e:
-            logger.error(f"Trend widget creation failed: {str(e)}")
+            logger.error(f"Trend widget creation failed: {e!s}")
             return DashboardWidget(
                 widget_id="sentiment_trend",
                 widget_type="error",
@@ -839,7 +835,7 @@ class SentimentDashboardService:
 
     async def _create_distribution_widget(
         self,
-        sentiment_data: List[SentimentDataPoint]
+        sentiment_data: list[SentimentDataPoint]
     ) -> DashboardWidget:
         """Create sentiment distribution widget"""
         try:
@@ -867,7 +863,7 @@ class SentimentDashboardService:
             )
 
         except Exception as e:
-            logger.error(f"Distribution widget creation failed: {str(e)}")
+            logger.error(f"Distribution widget creation failed: {e!s}")
             return DashboardWidget(
                 widget_id="sentiment_distribution",
                 widget_type="error",
@@ -877,8 +873,8 @@ class SentimentDashboardService:
 
     async def _create_timeline_widget(
         self,
-        sentiment_data: List[SentimentDataPoint],
-        time_range: Tuple[datetime, datetime]
+        sentiment_data: list[SentimentDataPoint],
+        time_range: tuple[datetime, datetime]
     ) -> DashboardWidget:
         """Create sentiment timeline widget"""
         try:
@@ -917,7 +913,7 @@ class SentimentDashboardService:
             )
 
         except Exception as e:
-            logger.error(f"Timeline widget creation failed: {str(e)}")
+            logger.error(f"Timeline widget creation failed: {e!s}")
             return DashboardWidget(
                 widget_id="sentiment_timeline",
                 widget_type="error",
@@ -927,7 +923,7 @@ class SentimentDashboardService:
 
     async def _create_segments_widget(
         self,
-        segments: List[SentimentSegment]
+        segments: list[SentimentSegment]
     ) -> DashboardWidget:
         """Create user segments widget"""
         try:
@@ -955,7 +951,7 @@ class SentimentDashboardService:
             )
 
         except Exception as e:
-            logger.error(f"Segments widget creation failed: {str(e)}")
+            logger.error(f"Segments widget creation failed: {e!s}")
             return DashboardWidget(
                 widget_id="user_segments",
                 widget_type="error",
@@ -965,8 +961,8 @@ class SentimentDashboardService:
 
     async def _create_metrics_widget(
         self,
-        sentiment_data: List[SentimentDataPoint],
-        trends: List[SentimentTrend]
+        sentiment_data: list[SentimentDataPoint],
+        trends: list[SentimentTrend]
     ) -> DashboardWidget:
         """Create key metrics widget"""
         try:
@@ -1005,7 +1001,7 @@ class SentimentDashboardService:
             )
 
         except Exception as e:
-            logger.error(f"Metrics widget creation failed: {str(e)}")
+            logger.error(f"Metrics widget creation failed: {e!s}")
             return DashboardWidget(
                 widget_id="key_metrics",
                 widget_type="error",
@@ -1015,7 +1011,7 @@ class SentimentDashboardService:
 
     async def _create_volatility_widget(
         self,
-        trends: List[SentimentTrend]
+        trends: list[SentimentTrend]
     ) -> DashboardWidget:
         """Create sentiment volatility widget"""
         try:
@@ -1042,7 +1038,7 @@ class SentimentDashboardService:
             )
 
         except Exception as e:
-            logger.error(f"Volatility widget creation failed: {str(e)}")
+            logger.error(f"Volatility widget creation failed: {e!s}")
             return DashboardWidget(
                 widget_id="sentiment_volatility",
                 widget_type="error",
@@ -1052,10 +1048,10 @@ class SentimentDashboardService:
 
     async def _generate_key_insights(
         self,
-        sentiment_data: List[SentimentDataPoint],
-        trends: List[SentimentTrend],
-        segments: List[SentimentSegment]
-    ) -> List[str]:
+        sentiment_data: list[SentimentDataPoint],
+        trends: list[SentimentTrend],
+        segments: list[SentimentSegment]
+    ) -> list[str]:
         """Generate key insights from sentiment analysis"""
         try:
             insights = []
@@ -1117,10 +1113,10 @@ class SentimentDashboardService:
             return insights[:10]  # Limit to top 10 insights
 
         except Exception as e:
-            logger.error(f"Insight generation failed: {str(e)}")
-            return [f"Error generating insights: {str(e)}"]
+            logger.error(f"Insight generation failed: {e!s}")
+            return [f"Error generating insights: {e!s}"]
 
-    async def _calculate_summary_metrics(self, sentiment_data: List[SentimentDataPoint]) -> Dict[str, float]:
+    async def _calculate_summary_metrics(self, sentiment_data: list[SentimentDataPoint]) -> dict[str, float]:
         """Calculate summary metrics"""
         try:
             if not sentiment_data:
@@ -1144,7 +1140,7 @@ class SentimentDashboardService:
             }
 
         except Exception as e:
-            logger.error(f"Summary metrics calculation failed: {str(e)}")
+            logger.error(f"Summary metrics calculation failed: {e!s}")
             return {}
 
     def export_dashboard_json(self, dashboard: SentimentDashboard) -> str:
@@ -1152,10 +1148,10 @@ class SentimentDashboardService:
         try:
             return json.dumps(dashboard.to_dict(), indent=2, ensure_ascii=False)
         except Exception as e:
-            logger.error(f"Dashboard JSON export failed: {str(e)}")
+            logger.error(f"Dashboard JSON export failed: {e!s}")
             return "{}"
 
-    def export_widget_data(self, widget: DashboardWidget) -> Dict[str, Any]:
+    def export_widget_data(self, widget: DashboardWidget) -> dict[str, Any]:
         """Export individual widget data"""
         return widget.to_dict()
 
@@ -1170,13 +1166,13 @@ except ImportError:
 
 # Export the main service class
 __all__ = [
-    "SentimentDashboardService",
-    "SentimentDashboard",
     "DashboardWidget",
-    "SentimentTrend",
+    "SentimentDashboard",
+    "SentimentDashboardService",
     "SentimentDataPoint",
-    "SentimentSegment",
-    "TrendAnalysisPeriod",
     "SentimentMetric",
+    "SentimentSegment",
+    "SentimentTrend",
+    "TrendAnalysisPeriod",
     "TrendDirection"
 ]

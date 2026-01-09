@@ -4,28 +4,28 @@ Account Security Features for PsychSync
 Includes account lockout, login attempt tracking, and security monitoring
 """
 
-import time
 import asyncio
-import json
-import secrets
-import hashlib
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
 from collections import defaultdict, deque
-
-from app.core.cache import cache_get, cache_set, cache_delete
-from app.core.redis_client import get_redis_client
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+import hashlib
+import json
 import logging
-from app.core.config import settings
+import secrets
+from typing import Any
+
 from fastapi import HTTPException
+
+from app.core.cache import cache_delete, cache_get, cache_set
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class SecurityEvent(Enum):
     """Security event types for tracking"""
+
     LOGIN_SUCCESS = "login_success"
     LOGIN_FAILED = "login_failed"
     PASSWORD_CHANGE = "password_change"
@@ -37,6 +37,7 @@ class SecurityEvent(Enum):
 
 class LockoutReason(Enum):
     """Reasons for account lockout"""
+
     TOO_MANY_ATTEMPTS = "too_many_attempts"
     SUSPICIOUS_ACTIVITY = "suspicious_activity"
     ADMIN_ACTION = "admin_action"
@@ -46,23 +47,25 @@ class LockoutReason(Enum):
 @dataclass
 class LoginAttempt:
     """Represents a login attempt with security context"""
+
     timestamp: datetime = field(default_factory=datetime.utcnow)
     ip_address: str = ""
     user_agent: str = ""
     success: bool = False
-    reason: Optional[str] = None
-    location: Optional[str] = None
+    reason: str | None = None
+    location: str | None = None
 
 
 @dataclass
 class SecurityEventRecord:
     """Represents a security event record"""
+
     event_type: SecurityEvent
-    user_id: Optional[str] = None
+    user_id: str | None = None
     ip_address: str = ""
     user_agent: str = ""
     timestamp: datetime = field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     severity: str = "medium"  # low, medium, high, critical
 
 
@@ -79,8 +82,8 @@ class AccountLockoutManager:
         self.suspicious_activity_threshold = getattr(settings, "SUSPICIOUS_ACTIVITY_THRESHOLD", 10)
 
         # Security tracking
-        self.failed_attempts: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
-        self.security_events: Dict[str, List[SecurityEventRecord]] = defaultdict(list)
+        self.failed_attempts: dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
+        self.security_events: dict[str, list[SecurityEventRecord]] = defaultdict(list)
 
         # Cache keys
         self.LOCKOUT_PREFIX = "lockout:"
@@ -95,9 +98,9 @@ class AccountLockoutManager:
         success: bool,
         ip_address: str = "",
         user_agent: str = "",
-        reason: Optional[str] = None,
-        user_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        reason: str | None = None,
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Record a login attempt and apply security policies
 
@@ -108,10 +111,7 @@ class AccountLockoutManager:
             try:
                 # Create login attempt record
                 attempt = LoginAttempt(
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                    success=success,
-                    reason=reason
+                    ip_address=ip_address, user_agent=user_agent, success=success, reason=reason
                 )
 
                 if success:
@@ -122,60 +122,67 @@ class AccountLockoutManager:
                         user_id=user_id or email,
                         ip_address=ip_address,
                         user_agent=user_agent,
-                        metadata={"email": email}
+                        metadata={"email": email},
                     )
 
-                    logger.info(f"Successful login for {email}", extra={
-                        "user_id": user_id,
-                        "ip_address": ip_address,
-                        "user_agent": user_agent[:100]  # Truncate for logging
-                    })
+                    logger.info(
+                        f"Successful login for {email}",
+                        extra={
+                            "user_id": user_id,
+                            "ip_address": ip_address,
+                            "user_agent": user_agent[:100],  # Truncate for logging
+                        },
+                    )
 
                     return {
                         "locked": False,
                         "attempts_remaining": self.max_failed_attempts,
                         "lockout_time_remaining": 0,
-                        "security_score": 100
+                        "security_score": 100,
                     }
-                else:
-                    # Failed login - record attempt and check for lockout
-                    await self._record_failed_attempt(email, attempt)
+                # Failed login - record attempt and check for lockout
+                await self._record_failed_attempt(email, attempt)
 
-                    # Check if account should be locked
-                    should_lock, lockout_duration = await self._should_lockout_account(email)
+                # Check if account should be locked
+                should_lock, lockout_duration = await self._should_lockout_account(email)
 
-                    if should_lock:
-                        await self._lock_account(email, lockout_duration, LockoutReason.TOO_MANY_ATTEMPTS)
+                if should_lock:
+                    await self._lock_account(
+                        email, lockout_duration, LockoutReason.TOO_MANY_ATTEMPTS
+                    )
 
-                        # Record security event
-                        await self._record_security_event(
-                            SecurityEvent.MULTIPLE_FAILED_LOGINS,
-                            user_id=user_id or email,
-                            ip_address=ip_address,
-                            user_agent=user_agent,
-                            metadata={
-                                "email": email,
-                                "failed_attempts": await self._get_failed_attempt_count(email),
-                                "lockout_duration": lockout_duration
-                            },
-                            severity="high"
-                        )
+                    # Record security event
+                    await self._record_security_event(
+                        SecurityEvent.MULTIPLE_FAILED_LOGINS,
+                        user_id=user_id or email,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        metadata={
+                            "email": email,
+                            "failed_attempts": await self._get_failed_attempt_count(email),
+                            "lockout_duration": lockout_duration,
+                        },
+                        severity="high",
+                    )
 
-                        return {
-                            "locked": True,
-                            "attempts_remaining": 0,
-                            "lockout_time_remaining": lockout_duration,
-                            "security_score": 0
-                        }
-                    else:
-                        attempts_remaining = max(0, self.max_failed_attempts - await self._get_failed_attempt_count(email))
+                    return {
+                        "locked": True,
+                        "attempts_remaining": 0,
+                        "lockout_time_remaining": lockout_duration,
+                        "security_score": 0,
+                    }
+                attempts_remaining = max(
+                    0, self.max_failed_attempts - await self._get_failed_attempt_count(email)
+                )
 
-                        return {
-                            "locked": False,
-                            "attempts_remaining": attempts_remaining,
-                            "lockout_time_remaining": 0,
-                            "security_score": max(0, 100 - (self.max_failed_attempts - attempts_remaining) * 20)
-                        }
+                return {
+                    "locked": False,
+                    "attempts_remaining": attempts_remaining,
+                    "lockout_time_remaining": 0,
+                    "security_score": max(
+                        0, 100 - (self.max_failed_attempts - attempts_remaining) * 20
+                    ),
+                }
 
             except Exception as e:
                 logger.error(f"Error recording login attempt for {email}: {e}")
@@ -184,10 +191,10 @@ class AccountLockoutManager:
                     "locked": False,
                     "attempts_remaining": self.max_failed_attempts,
                     "lockout_time_remaining": 0,
-                    "security_score": 50
+                    "security_score": 50,
                 }
 
-    async def is_account_locked(self, email: str) -> Dict[str, Any]:
+    async def is_account_locked(self, email: str) -> dict[str, Any]:
         """
         Check if an account is currently locked
 
@@ -203,7 +210,7 @@ class AccountLockoutManager:
                     "locked": False,
                     "lockout_time_remaining": 0,
                     "lockout_reason": None,
-                    "locked_at": None
+                    "locked_at": None,
                 }
 
             # Check if lockout has expired
@@ -217,7 +224,7 @@ class AccountLockoutManager:
                     "locked": False,
                     "lockout_time_remaining": 0,
                     "lockout_reason": None,
-                    "locked_at": None
+                    "locked_at": None,
                 }
 
             # Calculate remaining lockout time
@@ -228,7 +235,7 @@ class AccountLockoutManager:
                 "locked": True,
                 "lockout_time_remaining": remaining_seconds,
                 "lockout_reason": lockout_data["reason"],
-                "locked_at": locked_at.isoformat()
+                "locked_at": locked_at.isoformat(),
             }
 
         except Exception as e:
@@ -237,10 +244,10 @@ class AccountLockoutManager:
                 "locked": False,
                 "lockout_time_remaining": 0,
                 "lockout_reason": None,
-                "locked_at": None
+                "locked_at": None,
             }
 
-    async def get_failed_attempts(self, email: str) -> List[LoginAttempt]:
+    async def get_failed_attempts(self, email: str) -> list[LoginAttempt]:
         """
         Get recent failed login attempts for an account
         """
@@ -255,7 +262,7 @@ class AccountLockoutManager:
                     ip_address=attempt_data.get("ip_address", ""),
                     user_agent=attempt_data.get("user_agent", ""),
                     success=False,
-                    reason=attempt_data.get("reason")
+                    reason=attempt_data.get("reason"),
                 )
                 attempts.append(attempt)
 
@@ -267,10 +274,10 @@ class AccountLockoutManager:
 
     async def get_security_events(
         self,
-        email: Optional[str] = None,
-        event_types: Optional[List[SecurityEvent]] = None,
-        hours: int = 24
-    ) -> List[SecurityEventRecord]:
+        email: str | None = None,
+        event_types: list[SecurityEvent] | None = None,
+        hours: int = 24,
+    ) -> list[SecurityEventRecord]:
         """
         Get security events for analysis
         """
@@ -298,7 +305,7 @@ class AccountLockoutManager:
                     user_agent=event_data.get("user_agent", ""),
                     timestamp=event_timestamp,
                     metadata=event_data.get("metadata", {}),
-                    severity=event_data.get("severity", "medium")
+                    severity=event_data.get("severity", "medium"),
                 )
                 events.append(event)
 
@@ -315,9 +322,7 @@ class AccountLockoutManager:
         try:
             await self._unlock_account(email)
             await self._record_security_event(
-                SecurityEvent.ACCOUNT_UNLOCKED,
-                user_id=email,
-                metadata={"reason": reason}
+                SecurityEvent.ACCOUNT_UNLOCKED, user_id=email, metadata={"reason": reason}
             )
 
             logger.info(f"Account unlocked: {email}", extra={"reason": reason})
@@ -326,10 +331,7 @@ class AccountLockoutManager:
             logger.error(f"Error unlocking account {email}: {e}")
 
     async def lock_account_manually(
-        self,
-        email: str,
-        duration_minutes: int,
-        reason: str = "Admin action"
+        self, email: str, duration_minutes: int, reason: str = "Admin action"
     ):
         """
         Manually lock an account
@@ -340,13 +342,13 @@ class AccountLockoutManager:
                 SecurityEvent.ACCOUNT_LOCKED,
                 user_id=email,
                 metadata={"reason": reason, "duration_minutes": duration_minutes},
-                severity="high"
+                severity="high",
             )
 
-            logger.info(f"Account locked manually: {email}", extra={
-                "reason": reason,
-                "duration_minutes": duration_minutes
-            })
+            logger.info(
+                f"Account locked manually: {email}",
+                extra={"reason": reason, "duration_minutes": duration_minutes},
+            )
 
         except Exception as e:
             logger.error(f"Error manually locking account {email}: {e}")
@@ -362,7 +364,7 @@ class AccountLockoutManager:
                 "timestamp": attempt.timestamp.isoformat(),
                 "ip_address": attempt.ip_address,
                 "user_agent": attempt.user_agent,
-                "reason": attempt.reason
+                "reason": attempt.reason,
             }
             existing_attempts.append(attempt_data)
 
@@ -421,7 +423,7 @@ class AccountLockoutManager:
             lockout_data = {
                 "locked_at": datetime.utcnow().isoformat(),
                 "duration_minutes": duration_minutes,
-                "reason": reason.value
+                "reason": reason.value,
             }
 
             # Store lockout with expiration
@@ -442,11 +444,11 @@ class AccountLockoutManager:
     async def _record_security_event(
         self,
         event_type: SecurityEvent,
-        user_id: Optional[str],
+        user_id: str | None,
         ip_address: str = "",
         user_agent: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
-        severity: str = "medium"
+        metadata: dict[str, Any] | None = None,
+        severity: str = "medium",
     ):
         """Record a security event"""
         try:
@@ -456,7 +458,7 @@ class AccountLockoutManager:
                 ip_address=ip_address,
                 user_agent=user_agent,
                 metadata=metadata or {},
-                severity=severity
+                severity=severity,
             )
 
             # Store in cache (in production, this would be in a database)
@@ -470,7 +472,7 @@ class AccountLockoutManager:
                 "user_agent": event.user_agent,
                 "timestamp": event.timestamp.isoformat(),
                 "metadata": event.metadata,
-                "severity": event.severity
+                "severity": event.severity,
             }
 
             existing_events.append(event_data)
@@ -485,8 +487,9 @@ class AccountLockoutManager:
         except Exception as e:
             logger.error(f"Error recording security event: {e}")
 
-
-    async def generate_password_reset_token(self, email: str, ip_address: str = "system", user_agent: str = "password_reset") -> str:
+    async def generate_password_reset_token(
+        self, email: str, ip_address: str = "system", user_agent: str = "password_reset"
+    ) -> str:
         """
         Generate secure password reset token
 
@@ -514,17 +517,13 @@ class AccountLockoutManager:
             "user_agent": user_agent,
             "token_hash": token_hash,
             "uses": 0,
-            "max_uses": 1
+            "max_uses": 1,
         }
 
         # Store in cache with expiration
         try:
             # Store new token
-            await cache_set(
-                f"reset_token:{token_hash}",
-                token_data,
-                expire_seconds=3600
-            )
+            await cache_set(f"reset_token:{token_hash}", token_data, expire_seconds=3600)
 
             # Log security event
             await self._record_security_event(
@@ -534,12 +533,14 @@ class AccountLockoutManager:
                 user_agent=user_agent,
                 metadata={
                     "token_hash": token_hash[:8] + "...",  # Partial hash for logging
-                    "expires_in": 3600
+                    "expires_in": 3600,
                 },
-                severity="medium"
+                severity="medium",
             )
 
-            logger.info(f"Password reset token generated for email: {email[:10]}... from IP: {ip_address}")
+            logger.info(
+                f"Password reset token generated for email: {email[:10]}... from IP: {ip_address}"
+            )
 
             return token
 
@@ -547,7 +548,9 @@ class AccountLockoutManager:
             logger.error(f"Failed to generate password reset token: {e}")
             raise RuntimeError("Token generation failed")
 
-    async def verify_password_reset_token(self, token: str, email: str, ip_address: str = "system", user_agent: str = "password_reset") -> bool:
+    async def verify_password_reset_token(
+        self, token: str, email: str, ip_address: str = "system", user_agent: str = "password_reset"
+    ) -> bool:
         """
         Verify password reset token
 
@@ -573,7 +576,7 @@ class AccountLockoutManager:
                     ip_address=ip_address,
                     user_agent=user_agent,
                     metadata={"reason": "token_not_found"},
-                    severity="high"
+                    severity="high",
                 )
                 return False
 
@@ -587,7 +590,7 @@ class AccountLockoutManager:
                     ip_address=ip_address,
                     user_agent=user_agent,
                     metadata={"reason": "email_mismatch", "token_email": token_data["email"]},
-                    severity="high"
+                    severity="high",
                 )
                 return False
 
@@ -600,7 +603,7 @@ class AccountLockoutManager:
                     ip_address=ip_address,
                     user_agent=user_agent,
                     metadata={"reason": "token_expired"},
-                    severity="medium"
+                    severity="medium",
                 )
                 return False
 
@@ -612,7 +615,7 @@ class AccountLockoutManager:
                     ip_address=ip_address,
                     user_agent=user_agent,
                     metadata={"reason": "token_already_used"},
-                    severity="high"
+                    severity="high",
                 )
                 return False
 
@@ -623,11 +626,7 @@ class AccountLockoutManager:
             token_data["used_user_agent"] = user_agent
 
             # Update token data
-            await cache_set(
-                f"reset_token:{token_hash}",
-                token_data,
-                expire_seconds=3600
-            )
+            await cache_set(f"reset_token:{token_hash}", token_data, expire_seconds=3600)
 
             # Log successful verification
             await self._record_security_event(
@@ -637,12 +636,14 @@ class AccountLockoutManager:
                 user_agent=user_agent,
                 metadata={
                     "token_uses": token_data["uses"],
-                    "remaining_uses": token_data["max_uses"] - token_data["uses"]
+                    "remaining_uses": token_data["max_uses"] - token_data["uses"],
                 },
-                severity="low"
+                severity="low",
             )
 
-            logger.info(f"Password reset token verified for email: {email[:10]}... from IP: {ip_address}")
+            logger.info(
+                f"Password reset token verified for email: {email[:10]}... from IP: {ip_address}"
+            )
 
             return True
 
@@ -666,7 +667,7 @@ class AccountLockoutManager:
 
             # Delete token from cache
             result = await cache_delete(f"reset_token:{token_hash}")
-            logger.info(f"Password reset token revoked")
+            logger.info("Password reset token revoked")
 
             return result is not None
 
@@ -688,7 +689,7 @@ class AccountLockoutManager:
                 raise HTTPException(
                     status_code=429,
                     detail="Too many password reset requests. Please try again later.",
-                    headers={"Retry-After": "3600"}
+                    headers={"Retry-After": "3600"},
                 )
 
             # Check per-IP limit (5 requests per hour)
@@ -697,7 +698,7 @@ class AccountLockoutManager:
                 raise HTTPException(
                     status_code=429,
                     detail="Too many password reset requests from this IP. Please try again later.",
-                    headers={"Retry-After": "3600"}
+                    headers={"Retry-After": "3600"},
                 )
 
             # Increment counters with expiration

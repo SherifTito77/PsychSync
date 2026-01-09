@@ -1,0 +1,404 @@
+rules:
+  # RULE 1: Detect print() statements (Insecure Logging)
+  - id: owasp-insecure-logging-print
+    languages: [python]
+    message: |
+      Detected use of print() statement. This can leak sensitive information to stdout/logs.
+      Use structured logging instead: logger.info/error/warning()
+
+      Risk: Information Disclosure
+      Fix: Replace print() with proper logging
+    severity: WARNING
+    pattern: print(...)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      technology:
+        - python
+        - fastapi
+    paths:
+      include:
+        - app/api/**/*.py
+      exclude:
+        - tests/**/*.py
+
+  # RULE 2: Detect undefined logger usage
+  - id: owasp-undefined-logger
+    languages: [python]
+    message: |
+      Detected use of 'logger' variable that wasn't imported.
+      This will cause runtime errors and potentially expose stack traces.
+
+      Risk: Information Disclosure, Runtime Error
+      Fix: Import logger: `logger = logging.getLogger(__name__)`
+    severity: ERROR
+    pattern: logger.$(METHOD)(...)
+    metadata:
+      category: security
+      owasp: "A05:2021 - Security Misconfiguration"
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+    paths:
+      include:
+        - app/api/**/*.py
+    # Check that logger is NOT imported/defined
+    patterns-logic:
+      - pattern: logger.$(METHOD)(...)
+      - not-pattern: logging.getLogger(...)
+      - not-pattern: logger = logging(...)
+      - not-pattern: from logging import logger
+
+  # RULE 3: Detect missing audit logging in auth endpoints
+  - id: owasp-missing-audit-logging-auth
+    languages: [python]
+    message: |
+      Authentication endpoint missing audit logging.
+      Security-critical authentication events must be logged for compliance and monitoring.
+
+      Risk: Security Monitoring Gap
+      Fix: Add audit logging: await audit_logger.log_event(AuditEvent(...))
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          @router.post("/token")
+          ...
+          async def login(...):
+            ...
+            return ...
+    metadata:
+      category: security
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      cwe: "CWE-778: Insufficient Logging"
+    paths:
+      include:
+        - app/api/v1/endpoints/auth*.py
+    # Check that audit_logger.log_event is NOT called
+    patterns-logic:
+      - pattern: |
+          @router.post(...)
+          async def $FUNC(...):
+            ...
+            return ...
+      - not-pattern: await audit_logger.log_event(...)
+
+  # RULE 4: Detect specific error messages that leak information
+  - id: owasp-information-disclosure-errors
+    languages: [python]
+    message: |
+      Error message reveals specific failure reason, enabling user enumeration.
+      Use generic error messages like "Invalid credentials" instead.
+
+      Risk: User Enumeration, Information Disclosure
+      Fix: Use generic error messages
+    severity: WARNING
+    pattern-regex: '"User not found"'
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-204: Observable Response Discrepancy"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 5: Detect email validation issues
+  - id: owasp-weak-email-validation
+    languages: [python]
+    message: |
+      Weak email validation pattern. Use RFC-compliant validation.
+
+      Risk: Bypass Validation, Injection
+      Fix: Use comprehensive email validation regex
+    severity: WARNING
+    pattern: re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", ...)
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-180: Incorrect Behavior Order: Early Validation"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 6: Detect SQL injection risk with string formatting
+  - id: owasp-sql-injection-string-format
+    languages: [python]
+    message: |
+      Potential SQL injection: string formatting in SQL query.
+      Use parameterized queries instead.
+
+      Risk: SQL Injection
+      Fix: Use parameterized queries: `select(User).where(User.email == bindparam('email'))`
+    severity: ERROR
+    pattern-either:
+      - pattern: select(...).where(... + ...)
+      - pattern: select(...).where(... % (...))
+      - pattern: select(...).where(....format(...))
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-89: SQL Injection"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 7: Detect missing rate limiting on auth endpoints
+  - id: owasp-missing-rate-limiting-auth
+    languages: [python]
+    message: |
+      Authentication endpoint missing rate limiting decorator.
+      This enables brute force attacks.
+
+      Risk: Brute Force, DoS
+      Fix: Add @rate_limit decorator
+    severity: ERROR
+    pattern: |
+      @router.post(...)
+      async def $FUNC(...):
+        ...
+    metadata:
+      category: security
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      cwe: "CWE-307: Improper Restriction of Excessive Authentication Attempts"
+    paths:
+      include:
+        - app/api/v1/endpoints/auth*.py
+    # Check that rate_limit decorator is NOT present
+    patterns-logic:
+      - pattern: |
+          @router.post(...)
+          async def $FUNC(...):
+            ...
+      - not-pattern: |
+          @rate_limit(...)
+          @router.post(...)
+          async def $FUNC(...)
+
+  # RULE 8: Detect cookie without httponly flag
+  - id: owasp-cookie-missing-httponly
+    languages: [python]
+    message: |
+      Cookie set without httponly=True flag.
+      This allows JavaScript to access the cookie (XSS risk).
+
+      Risk: Session Hijacking via XSS
+      Fix: Add httponly=True to set_cookie()
+    severity: ERROR
+    pattern: response.set_cookie(..., httponly=False, ...)
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-1004: Sensitive Cookie Without 'HttpOnly' Flag"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 9: Detect cookie without secure flag
+  - id: owasp-cookie-missing-secure
+    languages: [python]
+    message: |
+      Cookie set without secure=True flag.
+      Cookie can be transmitted over unencrypted HTTP.
+
+      Risk: Session Hijacking
+      Fix: Add secure=True to set_cookie()
+    severity: ERROR
+    pattern: response.set_cookie(..., secure=False, ...)
+    metadata:
+      category: security
+      owasp: "A05:2021 - Security Misconfiguration"
+      cwe: "CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 10: Detect cookie without samesite flag
+  - id: owasp-cookie-missing-samesite
+    languages: [python]
+    message: |
+      Cookie set without samesite flag.
+      Vulnerable to CSRF attacks.
+
+      Risk: CSRF
+      Fix: Add samesite="lax" or "strict" to set_cookie()
+    severity: ERROR
+    pattern: response.set_cookie(...)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-352: Cross-Site Request Forgery (CSRF)"
+    paths:
+      include:
+        - app/api/**/*.py
+    patterns-logic:
+      - pattern: response.set_cookie(...)
+      - not-pattern: response.set_cookie(..., samesite=..., ...)
+
+  # RULE 11: Detect hardcoded credentials
+  - id: owasp-hardcoded-credentials
+    languages: [python]
+    message: |
+      Hardcoded credentials detected in authentication endpoint.
+      This is a critical security vulnerability.
+
+      Risk: Authentication Bypass
+      Fix: Remove hardcoded credentials immediately
+    severity: CRITICAL
+    pattern-regex: '(password|secret|key)\s*=\s*["\']([^\s]{8,})["\']'
+    metadata:
+      category: security
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+    paths:
+      include:
+        - app/api/v1/endpoints/auth*.py
+    # Exclude examples in comments
+    exclude:
+      - '#.*'
+
+  # RULE 12: Detect missing input validation
+  - id: owasp-missing-input-validation
+    languages: [python]
+    message: |
+      Form data used without validation.
+      Validate all user input before processing.
+
+      Risk: Injection, XSS
+      Fix: Add validation before using form data
+    severity: WARNING
+    pattern: |
+      async def $FUNC($EMAIL: str = Form(...), $PASSWORD: str = Form(...)):
+        ...
+        result = await db.execute(...)
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-20: Improper Input Validation"
+    paths:
+      include:
+        - app/api/**/*.py
+    patterns-logic:
+      - pattern: async def $FUNC(...: str = Form(...))
+      - not-pattern: |
+          async def $FUNC(...):
+            ...
+            if ...:
+              ...
+            ...
+            result = await db.execute(...)
+
+  # RULE 13: Detect XSS vulnerable string concatenation in responses
+  - id: owasp-xss-string-concat-response
+    languages: [python]
+    message: |
+      String concatenation in response can lead to XSS.
+      Use JSON encoding or templates instead.
+
+      Risk: XSS
+      Fix: Use json.dumps() or templates with auto-escaping
+    severity: ERROR
+    pattern: |
+      content='{"...": "' + $VAR + '"}'
+    metadata:
+      category: security
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-79: Cross-Site Scripting (XSS)"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 14: Detect missing password strength check
+  - id: owasp-missing-password-strength-check
+    languages: [python]
+    message: |
+      Password used without strength validation.
+      This allows weak passwords that are easily compromised.
+
+      Risk: Weak Authentication
+      Fix: Add password strength validation
+    severity: WARNING
+    pattern: |
+      async def $FUNC(..., password: str = Form(...), ...):
+        ...
+        $HASHED = hash_password(password)
+    metadata:
+      category: security
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      cwe: "CWE-521: Weak Password Requirements"
+    paths:
+      include:
+        - app/api/v1/endpoints/auth*.py
+    patterns-logic:
+      - pattern: hash_password(password)
+      - not-pattern: verify_password_strength(...)
+
+  # RULE 15: Detect password in logs/error messages
+  - id: owasp-password-in-logs
+    languages: [python]
+    message: |
+      Password logged or included in error message.
+      This exposes sensitive credentials.
+
+      Risk: Credential Theft
+      Fix: Never log passwords
+    severity: CRITICAL
+    pattern-regex: '(logger|print)\([^)]*password[^)]*\)'
+    metadata:
+      category: security
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      technology:
+        - python
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 16: Detect missing audit log for logout
+  - id: owasp-missing-logout-audit-log
+    languages: [python]
+    message: |
+      Logout endpoint missing audit logging.
+      Security events must be logged for compliance.
+
+      Risk: Security Monitoring Gap
+      Fix: Add audit logging for logout events
+    severity: WARNING
+    pattern: |
+      @router.post("/logout")
+      ...
+      async def $FUNC(...):
+        ...
+        return ...
+    metadata:
+      category: security
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      cwe: "CWE-778: Insufficient Logging"
+    paths:
+      include:
+        - app/api/v1/endpoints/auth*.py
+    patterns-logic:
+      - pattern: @router.post("/logout")
+      - not-pattern: await audit_logger.log_event(...)
+
+  # RULE 17: Detect generic exception catch that loses security context
+  - id: owasp-overly-broad-exception-handling
+    languages: [python]
+    message: |
+      Overly broad exception handling in auth endpoint can mask security issues.
+      Catch specific exceptions instead.
+
+      Risk: Security Control Bypass
+      Fix: Catch specific exceptions
+    severity: WARNING
+    pattern: |
+      try:
+        ...
+      except Exception:
+        return {"message": "..."}
+    metadata:
+      category: security
+      owasp: "A05:2021 - Security Misconfiguration"
+      cwe: "CWE-396: Declaration of Catch for Generic Exception"
+    paths:
+      include:
+        - app/api/v1/endpoints/auth*.py

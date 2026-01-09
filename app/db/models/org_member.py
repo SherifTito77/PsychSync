@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+
 from ..base import Base
 
 
@@ -7,31 +8,16 @@ class OrgMember(Base):
     __tablename__ = "org_members"
 
     id = sa.Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        server_default=sa.text("gen_random_uuid()")
+        UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
     )
-    user_id = sa.Column(
-        UUID(as_uuid=True),
-        sa.ForeignKey("users.id"),
-        nullable=False
-    )
+    user_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False)
     organization_id = sa.Column(
-        UUID(as_uuid=True),
-        sa.ForeignKey("organizations.id"),
-        nullable=False
+        UUID(as_uuid=True), sa.ForeignKey("organizations.id"), nullable=False
     )
     role = sa.Column(sa.Text, nullable=False)
     created_at = sa.Column(
-        sa.TIMESTAMP(timezone=True),
-        server_default=sa.text("NOW()"),
-        nullable=False
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
     )
-
-
-
-
-
 
 
 # # app/db/models/org_member.py
@@ -64,12 +50,6 @@ class OrgMember(Base):
 #         server_default=sa.text("NOW()"),
 #         nullable=False
 #     )
-
-
-
-
-
-
 
 
 # # # app/db/models/org_member.py

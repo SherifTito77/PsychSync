@@ -12,20 +12,18 @@ Author: Security Team
 Date: 2025-12-24
 """
 
-import secrets
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional, Literal
-from sqlalchemy.orm import Session
+import secrets
+
 from fastapi import HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import Session
 
 from app.core.rate_limiter import SimpleRateLimiter
-from app.core.security import hash_string, constant_time_compare
-from app.services.email_service import send_email
-from app.db.models.user import User
+from app.core.security import constant_time_compare, hash_string
 from app.db.crud import users as user_crud
-
+from app.services.email_service import send_email
 
 # =============================================================================
 # Request/Response Models
@@ -40,8 +38,8 @@ class PasswordResetVerification(BaseModel):
     """Submit verification codes during reset"""
     reset_token: str = Field(..., description="Reset token from email")
     email_code: str = Field(..., min_length=6, max_length=6, description="6-digit email code")
-    sms_code: Optional[str] = Field(None, min_length=6, max_length=6, description="6-digit SMS code (if enabled)")
-    security_answer: Optional[str] = Field(None, description="Answer to security question (if enabled)")
+    sms_code: str | None = Field(None, min_length=6, max_length=6, description="6-digit SMS code (if enabled)")
+    security_answer: str | None = Field(None, description="Answer to security question (if enabled)")
 
 
 class PasswordResetComplete(BaseModel):
@@ -53,14 +51,15 @@ class PasswordResetComplete(BaseModel):
 class PasswordResetResponse(BaseModel):
     """Response to password reset request"""
     message: str
-    reset_token: Optional[str] = None  # Only included if we want to allow proceeding
+    reset_token: str | None = None  # Only included if we want to allow proceeding
 
 
 # =============================================================================
 # Database Models
 # =============================================================================
 
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+
 from app.db.database import Base
 
 
@@ -500,7 +499,7 @@ class SecurePasswordResetService:
         email: str,
         reset_token: str,
         email_code: str,
-        sms_code: Optional[str],
+        sms_code: str | None,
         user_name: str
     ):
         """Send password reset email"""
@@ -538,7 +537,6 @@ PsychSync Security Team
         # Implementation uses SMS provider (Twilio, etc.)
         message = f"Your PsychSync verification code is: {sms_code}"
         # await sms_provider.send(phone_number, message)
-        pass
 
     async def _send_password_changed_email(self, email: str, user_name: str):
         """Send password change confirmation"""
@@ -558,7 +556,6 @@ PsychSync Security Team
     async def _revoke_all_user_sessions(self, user_id: int, db: Session):
         """Revoke all existing sessions for user"""
         # Implementation marks all refresh tokens as invalid
-        pass
 
     async def _log_security_event(
         self,
@@ -576,8 +573,8 @@ PsychSync Security Team
             level,
             f"Security event: {event_type}",
             extra={
-                'security_event': event_type,
-                'details': str(kwargs)  # Logger will sanitize sensitive data
+                "security_event": event_type,
+                "details": str(kwargs)  # Logger will sanitize sensitive data
             }
         )
 
@@ -587,6 +584,7 @@ PsychSync Security Team
 # =============================================================================
 
 from fastapi import APIRouter, Depends, Request
+
 from app.core.database import get_db
 
 router = APIRouter(prefix="/api/v1/auth/password-reset", tags=["Password Reset"])

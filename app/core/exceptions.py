@@ -4,16 +4,17 @@ Comprehensive exception handling system for PsychSync
 Provides structured error responses and proper error codes
 """
 
-from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # =============================================================================
 # ERROR CODE ENUMS
 # =============================================================================
+
 
 class ErrorCode(str, Enum):
     """Standardized error codes for the application"""
@@ -83,9 +84,11 @@ class ErrorCode(str, Enum):
     INVALID_FRAMEWORK = "AI_7003"
     INSUFFICIENT_DATA = "AI_7004"
 
+
 # =============================================================================
 # BASE EXCEPTION CLASSES
 # =============================================================================
+
 
 class PsychSyncException(Exception):
     """
@@ -98,8 +101,8 @@ class PsychSyncException(Exception):
         message: str,
         error_code: ErrorCode = ErrorCode.INTERNAL_SERVER_ERROR,
         status_code: int = 500,
-        details: Optional[Dict[str, Any]] = None,
-        cause: Optional[Exception] = None
+        details: dict[str, Any] | None = None,
+        cause: Exception | None = None,
     ):
         self.message = message
         self.error_code = error_code
@@ -109,7 +112,7 @@ class PsychSyncException(Exception):
         self.timestamp = datetime.utcnow()
         super().__init__(message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary for API responses"""
         return {
             "error": True,
@@ -117,7 +120,7 @@ class PsychSyncException(Exception):
             "message": self.message,
             "details": self.details,
             "timestamp": self.timestamp.isoformat(),
-            "status_code": self.status_code
+            "status_code": self.status_code,
         }
 
     def log(self, level: str = "error"):
@@ -127,7 +130,7 @@ class PsychSyncException(Exception):
             "message": self.message,
             "details": self.details,
             "status_code": self.status_code,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
         if self.cause:
@@ -135,42 +138,48 @@ class PsychSyncException(Exception):
 
         getattr(logger, level)(f"PsychSyncException: {self.message}", extra=log_data)
 
+
 # =============================================================================
 # AUTHENTICATION EXCEPTIONS
 # =============================================================================
 
+
 class AuthenticationError(PsychSyncException):
     """Base class for authentication errors"""
 
-    def __init__(self, message: str, error_code: ErrorCode, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, error_code: ErrorCode, details: dict[str, Any] | None = None):
         super().__init__(message, error_code, status_code=401, details=details)
 
 
 class UnauthorizedError(AuthenticationError):
     """User is not authenticated"""
 
-    def __init__(self, message: str = "Authentication required", details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, message: str = "Authentication required", details: dict[str, Any] | None = None
+    ):
         super().__init__(message, ErrorCode.UNAUTHORIZED, details)
 
 
 class ForbiddenError(AuthenticationError):
     """User does not have permission"""
 
-    def __init__(self, message: str = "Access denied", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str = "Access denied", details: dict[str, Any] | None = None):
         super().__init__(message, ErrorCode.FORBIDDEN, status_code=403, details=details)
 
 
 class InvalidCredentialsError(AuthenticationError):
     """Invalid email or password"""
 
-    def __init__(self, message: str = "Invalid email or password", details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, message: str = "Invalid email or password", details: dict[str, Any] | None = None
+    ):
         super().__init__(message, ErrorCode.INVALID_CREDENTIALS, details=details)
 
 
 class UserNotFoundError(AuthenticationError):
     """User not found"""
 
-    def __init__(self, identifier: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, identifier: str, details: dict[str, Any] | None = None):
         message = f"User not found: {identifier}"
         if details is None:
             details = {"identifier": identifier}
@@ -180,7 +189,7 @@ class UserNotFoundError(AuthenticationError):
 class UserAlreadyExistsError(AuthenticationError):
     """User already exists"""
 
-    def __init__(self, field: str, value: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, field: str, value: str, details: dict[str, Any] | None = None):
         message = f"User with {field} '{value}' already exists"
         if details is None:
             details = {"field": field, "value": value}
@@ -190,7 +199,9 @@ class UserAlreadyExistsError(AuthenticationError):
 class UserInactiveError(AuthenticationError):
     """User account is inactive"""
 
-    def __init__(self, message: str = "User account is inactive", details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, message: str = "User account is inactive", details: dict[str, Any] | None = None
+    ):
         super().__init__(message, ErrorCode.USER_INACTIVE, details=details)
 
 
@@ -198,24 +209,25 @@ class UserInactiveError(AuthenticationError):
 # VALIDATION EXCEPTIONS
 # =============================================================================
 
+
 class ValidationError(PsychSyncException):
     """Base class for validation errors"""
 
-    def __init__(self, message: str, error_code: ErrorCode, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, error_code: ErrorCode, details: dict[str, Any] | None = None):
         super().__init__(message, error_code, status_code=422, details=details)
 
 
 class InvalidInputError(ValidationError):
     """Invalid input data"""
 
-    def __init__(self, message: str = "Invalid input data", details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str = "Invalid input data", details: dict[str, Any] | None = None):
         super().__init__(message, ErrorCode.INVALID_INPUT, details=details)
 
 
 class MissingFieldError(ValidationError):
     """Required field is missing"""
 
-    def __init__(self, field: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, field: str, details: dict[str, Any] | None = None):
         message = f"Required field '{field}' is missing"
         if details is None:
             details = {"field": field}
@@ -225,7 +237,7 @@ class MissingFieldError(ValidationError):
 class InvalidEmailError(ValidationError):
     """Invalid email format"""
 
-    def __init__(self, email: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, email: str, details: dict[str, Any] | None = None):
         message = f"Invalid email format: {email}"
         if details is None:
             details = {"email": email}
@@ -235,7 +247,11 @@ class InvalidEmailError(ValidationError):
 class InvalidPasswordError(ValidationError):
     """Invalid password"""
 
-    def __init__(self, message: str = "Password does not meet requirements", details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        message: str = "Password does not meet requirements",
+        details: dict[str, Any] | None = None,
+    ):
         super().__init__(message, ErrorCode.INVALID_PASSWORD, details=details)
 
 
@@ -243,17 +259,24 @@ class InvalidPasswordError(ValidationError):
 # DATABASE EXCEPTIONS
 # =============================================================================
 
+
 class DatabaseError(PsychSyncException):
     """Base class for database errors"""
 
-    def __init__(self, message: str, error_code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(
+        self,
+        message: str,
+        error_code: ErrorCode,
+        details: dict[str, Any] | None = None,
+        cause: Exception | None = None,
+    ):
         super().__init__(message, error_code, status_code=500, details=details, cause=cause)
 
 
 class RecordNotFoundError(DatabaseError):
     """Record not found in database"""
 
-    def __init__(self, resource: str, identifier: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, resource: str, identifier: str, details: dict[str, Any] | None = None):
         message = f"{resource} not found: {identifier}"
         if details is None:
             details = {"resource": resource, "identifier": identifier}
@@ -263,7 +286,9 @@ class RecordNotFoundError(DatabaseError):
 class DuplicateRecordError(DatabaseError):
     """Duplicate record in database"""
 
-    def __init__(self, resource: str, field: str, value: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, resource: str, field: str, value: str, details: dict[str, Any] | None = None
+    ):
         message = f"Duplicate {resource} with {field} '{value}'"
         if details is None:
             details = {"resource": resource, "field": field, "value": value}
@@ -274,17 +299,24 @@ class DuplicateRecordError(DatabaseError):
 # BUSINESS LOGIC EXCEPTIONS
 # =============================================================================
 
+
 class BusinessLogicError(PsychSyncException):
     """Base class for business logic errors"""
 
-    def __init__(self, message: str, error_code: ErrorCode, status_code: int = 400, details: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        message: str,
+        error_code: ErrorCode,
+        status_code: int = 400,
+        details: dict[str, Any] | None = None,
+    ):
         super().__init__(message, error_code, status_code=status_code, details=details)
 
 
 class ResourceLimitExceededError(BusinessLogicError):
     """Resource limit exceeded"""
 
-    def __init__(self, resource: str, limit: int, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, resource: str, limit: int, details: dict[str, Any] | None = None):
         message = f"Resource limit exceeded for {resource}: {limit}"
         if details is None:
             details = {"resource": resource, "limit": limit}
@@ -294,7 +326,7 @@ class ResourceLimitExceededError(BusinessLogicError):
 class InvalidOperationError(BusinessLogicError):
     """Invalid operation"""
 
-    def __init__(self, operation: str, reason: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, operation: str, reason: str, details: dict[str, Any] | None = None):
         message = f"Invalid operation: {operation}. {reason}"
         if details is None:
             details = {"operation": operation, "reason": reason}
@@ -305,17 +337,24 @@ class InvalidOperationError(BusinessLogicError):
 # AI/ML PROCESSING EXCEPTIONS
 # =============================================================================
 
+
 class AIProcessingError(PsychSyncException):
     """Base class for AI processing errors"""
 
-    def __init__(self, message: str, error_code: ErrorCode, details: Optional[Dict[str, Any]] = None, cause: Optional[Exception] = None):
+    def __init__(
+        self,
+        message: str,
+        error_code: ErrorCode,
+        details: dict[str, Any] | None = None,
+        cause: Exception | None = None,
+    ):
         super().__init__(message, error_code, status_code=500, details=details, cause=cause)
 
 
 class ModelNotFoundError(AIProcessingError):
     """AI model not found"""
 
-    def __init__(self, model_name: str, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, model_name: str, details: dict[str, Any] | None = None):
         message = f"AI model not found: {model_name}"
         if details is None:
             details = {"model_name": model_name}
@@ -325,7 +364,7 @@ class ModelNotFoundError(AIProcessingError):
 class ProcessingTimeoutError(AIProcessingError):
     """AI processing timeout"""
 
-    def __init__(self, operation: str, timeout_seconds: int, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, operation: str, timeout_seconds: int, details: dict[str, Any] | None = None):
         message = f"AI processing timeout for {operation}: {timeout_seconds}s"
         if details is None:
             details = {"operation": operation, "timeout_seconds": timeout_seconds}
@@ -336,7 +375,10 @@ class ProcessingTimeoutError(AIProcessingError):
 # ERROR UTILITY FUNCTIONS
 # =============================================================================
 
-def handle_database_error(error: Exception, operation: str, resource: str = None) -> PsychSyncException:
+
+def handle_database_error(
+    error: Exception, operation: str, resource: str = None
+) -> PsychSyncException:
     """
     Convert database errors to structured exceptions
 
@@ -355,31 +397,32 @@ def handle_database_error(error: Exception, operation: str, resource: str = None
             resource=resource or "record",
             field="unknown",
             value="duplicate",
-            details={"original_error": str(error), "operation": operation}
+            details={"original_error": str(error), "operation": operation},
         )
-    elif "foreign key" in error_str:
+    if "foreign key" in error_str:
         return BusinessLogicError(
             message="Referenced resource does not exist",
             error_code=ErrorCode.FOREIGN_KEY_VIOLATION,
-            details={"original_error": str(error), "operation": operation}
+            details={"original_error": str(error), "operation": operation},
         )
-    elif "connection" in error_str:
+    if "connection" in error_str:
         return DatabaseError(
             message="Database connection error",
             error_code=ErrorCode.CONNECTION_ERROR,
             details={"original_error": str(error), "operation": operation},
-            cause=error
+            cause=error,
         )
-    else:
-        return DatabaseError(
-            message=f"Database error during {operation}",
-            error_code=ErrorCode.DATABASE_ERROR,
-            details={"original_error": str(error), "operation": operation},
-            cause=error
-        )
+    return DatabaseError(
+        message=f"Database error during {operation}",
+        error_code=ErrorCode.DATABASE_ERROR,
+        details={"original_error": str(error), "operation": operation},
+        cause=error,
+    )
 
 
-def log_exception(exception: PsychSyncException, user_id: Optional[str] = None, request_id: Optional[str] = None):
+def log_exception(
+    exception: PsychSyncException, user_id: str | None = None, request_id: str | None = None
+):
     """
     Log exception with additional context
 
@@ -393,7 +436,7 @@ def log_exception(exception: PsychSyncException, user_id: Optional[str] = None, 
         "message": exception.message,
         "details": exception.details,
         "status_code": exception.status_code,
-        "timestamp": exception.timestamp.isoformat()
+        "timestamp": exception.timestamp.isoformat(),
     }
 
     if user_id:
@@ -406,7 +449,7 @@ def log_exception(exception: PsychSyncException, user_id: Optional[str] = None, 
     logger.error(f"PsychSyncException: {exception.message}", extra=log_data)
 
 
-def create_error_response(exception: PsychSyncException) -> Dict[str, Any]:
+def create_error_response(exception: PsychSyncException) -> dict[str, Any]:
     """
     Create standardized error response for API
 
@@ -422,7 +465,7 @@ def create_error_response(exception: PsychSyncException) -> Dict[str, Any]:
     if logger.level <= logging.DEBUG:
         response["debug"] = {
             "exception_type": exception.__class__.__name__,
-            "cause": str(exception.cause) if exception.cause else None
+            "cause": str(exception.cause) if exception.cause else None,
         }
 
     # Ensure datetime is properly serialized as ISO format

@@ -4,77 +4,86 @@ Common API utilities and decorators for consistent endpoint implementation
 Includes pagination, filtering, caching, and error handling utilities
 """
 
-import time
-import uuid
-from typing import Any, Dict, List, Optional, Union, Callable, TypeVar
+from collections.abc import Callable
+from datetime import datetime
 from functools import wraps
-from datetime import datetime, timedelta
+import time
+from typing import Any, TypeVar
+import uuid
 
-from fastapi import Query, HTTPException, status, Depends, Request
+from fastapi import HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.response import (
-    ResponseStatus, ErrorDetail, ResponseMeta, FilterMeta,
-    create_success_response, create_error_response, create_paginated_response
-)
 from app.core.cache import cache_get, cache_set
-from app.core.config import settings
+from app.core.response import (
+    ErrorDetail,
+    FilterMeta,
+    ResponseStatus,
+    create_error_response,
+    create_paginated_response,
+    create_success_response,
+)
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class PaginationParams(BaseModel):
     """Standard pagination parameters"""
+
     page: int = Query(1, ge=1, description="Page number (1-based)")
     size: int = Query(20, ge=1, le=1000, description="Items per page")
 
+
 class SortParams(BaseModel):
     """Standard sorting parameters"""
-    sort_by: Optional[str] = Query(None, description="Field to sort by")
-    sort_order: Optional[str] = Query("asc", regex="^(asc|desc)$", description="Sort order")
+
+    sort_by: str | None = Query(None, description="Field to sort by")
+    sort_order: str | None = Query("asc", regex="^(asc|desc)$", description="Sort order")
+
 
 class FilterParams(BaseModel):
     """Base filter parameters"""
-    created_after: Optional[datetime] = Query(None, description="Filter items created after this date")
-    created_before: Optional[datetime] = Query(None, description="Filter items created before this date")
-    search: Optional[str] = Query(None, description="Search term")
-    status: Optional[str] = Query(None, description="Status filter")
+
+    created_after: datetime | None = Query(None, description="Filter items created after this date")
+    created_before: datetime | None = Query(
+        None, description="Filter items created before this date"
+    )
+    search: str | None = Query(None, description="Search term")
+    status: str | None = Query(None, description="Status filter")
+
 
 def get_pagination_params(
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=1000)
+    page: int = Query(1, ge=1), size: int = Query(20, ge=1, le=1000)
 ) -> PaginationParams:
     """Get pagination parameters with validation"""
     return PaginationParams(page=page, size=size)
 
-def get_sort_params(
-    sort_by: Optional[str] = None,
-    sort_order: Optional[str] = "asc"
-) -> SortParams:
+
+def get_sort_params(sort_by: str | None = None, sort_order: str | None = "asc") -> SortParams:
     """Get sorting parameters with validation"""
     return SortParams(sort_by=sort_by, sort_order=sort_order)
 
+
 def create_filter_meta(
-    applied_filters: Dict[str, Any],
-    available_filters: Dict[str, Any],
-    sort_params: SortParams
+    applied_filters: dict[str, Any], available_filters: dict[str, Any], sort_params: SortParams
 ) -> FilterMeta:
     """Create filter metadata"""
     return FilterMeta(
         applied_filters=applied_filters,
         available_filters=available_filters,
         sort_by=sort_params.sort_by,
-        sort_order=sort_params.sort_order
+        sort_order=sort_params.sort_order,
     )
 
+
 def cache_response(
-    expire_seconds: int = 300,
-    key_prefix: str = "api",
-    vary_on: Optional[List[str]] = None
+    expire_seconds: int = 300, key_prefix: str = "api", vary_on: list[str] | None = None
 ):
     """Decorator for caching API responses"""
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -99,11 +108,15 @@ def cache_response(
             cache_set(cache_key, result, expire_seconds)
 
             return result
+
         return wrapper
+
     return decorator
+
 
 def measure_performance(func: Callable) -> Callable:
     """Decorator to measure and log API performance"""
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         start_time = time.time()
@@ -114,10 +127,10 @@ def measure_performance(func: Callable) -> Callable:
             execution_time = (time.time() - start_time) * 1000
 
             # Add performance metadata if response supports it
-            if hasattr(result, 'meta'):
+            if hasattr(result, "meta"):
                 result.meta.performance = {
                     "execution_time_ms": round(execution_time, 2),
-                    "request_id": request_id
+                    "request_id": request_id,
                 }
                 result.meta.request_id = request_id
 
@@ -131,8 +144,10 @@ def measure_performance(func: Callable) -> Callable:
 
     return wrapper
 
+
 def handle_api_errors(func: Callable) -> Callable:
     """Decorator for consistent error handling"""
+
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
@@ -140,28 +155,20 @@ def handle_api_errors(func: Callable) -> Callable:
         except HTTPException:
             raise
         except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        except PermissionError:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        except Exception:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
-        except PermissionError as e:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Permission denied"
-            )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
             )
 
     return wrapper
 
+
 async def apply_pagination(
-    query: Any,
-    db: AsyncSession,
-    pagination: PaginationParams
-) -> tuple[List[Any], int]:
+    query: Any, db: AsyncSession, pagination: PaginationParams
+) -> tuple[list[Any], int]:
     """Apply pagination to a SQLAlchemy query"""
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
@@ -177,61 +184,61 @@ async def apply_pagination(
 
     return list(items), total
 
-def apply_filters(query: Any, filter_params: Dict[str, Any]) -> Any:
+
+def apply_filters(query: Any, filter_params: dict[str, Any]) -> Any:
     """Apply common filters to a SQLAlchemy query"""
     # Date range filters
-    if 'created_after' in filter_params and filter_params['created_after']:
+    if filter_params.get("created_after"):
         query = query.filter(
-            getattr(query.column_descriptions[0]['type'], 'created_at') >= filter_params['created_after']
+            query.column_descriptions[0]["type"].created_at >= filter_params["created_after"]
         )
 
-    if 'created_before' in filter_params and filter_params['created_before']:
+    if filter_params.get("created_before"):
         query = query.filter(
-            getattr(query.column_descriptions[0]['type'], 'created_at') <= filter_params['created_before']
+            query.column_descriptions[0]["type"].created_at <= filter_params["created_before"]
         )
 
     # Status filter
-    if 'status' in filter_params and filter_params['status']:
-        if hasattr(query.column_descriptions[0]['type'], 'status'):
+    if filter_params.get("status"):
+        if hasattr(query.column_descriptions[0]["type"], "status"):
             query = query.filter(
-                getattr(query.column_descriptions[0]['type'], 'status') == filter_params['status']
+                query.column_descriptions[0]["type"].status == filter_params["status"]
             )
 
     # Search filter (basic implementation)
-    if 'search' in filter_params and filter_params['search']:
+    if filter_params.get("search"):
         search_term = f"%{filter_params['search']}%"
-        if hasattr(query.column_descriptions[0]['type'], 'name'):
-            query = query.filter(
-                getattr(query.column_descriptions[0]['type'], 'name').ilike(search_term)
-            )
+        if hasattr(query.column_descriptions[0]["type"], "name"):
+            query = query.filter(query.column_descriptions[0]["type"].name.ilike(search_term))
 
     return query
 
+
 def apply_sorting(query: Any, sort_params: SortParams) -> Any:
     """Apply sorting to a SQLAlchemy query"""
-    if sort_params.sort_by and hasattr(query.column_descriptions[0]['type'], sort_params.sort_by):
-        sort_field = getattr(query.column_descriptions[0]['type'], sort_params.sort_by)
+    if sort_params.sort_by and hasattr(query.column_descriptions[0]["type"], sort_params.sort_by):
+        sort_field = getattr(query.column_descriptions[0]["type"], sort_params.sort_by)
 
         if sort_params.sort_order == "desc":
             query = query.order_by(sort_field.desc())
         else:
             query = query.order_by(sort_field.asc())
+    # Default sorting
+    elif hasattr(query.column_descriptions[0]["type"], "created_at"):
+        query = query.order_by(query.column_descriptions[0]["type"].created_at.desc())
     else:
-        # Default sorting
-        if hasattr(query.column_descriptions[0]['type'], 'created_at'):
-            query = query.order_by(getattr(query.column_descriptions[0]['type'], 'created_at').desc())
-        else:
-            query = query.order_by(getattr(query.column_descriptions[0]['type'], 'id').desc())
+        query = query.order_by(query.column_descriptions[0]["type"].id.desc())
 
     return query
+
 
 async def create_paginated_list_response(
     query: Any,
     db: AsyncSession,
     pagination: PaginationParams,
     sort_params: SortParams,
-    filter_params: Dict[str, Any] = None,
-    message: str = "Items retrieved successfully"
+    filter_params: dict[str, Any] = None,
+    message: str = "Items retrieved successfully",
 ):
     """Create a paginated response from a SQLAlchemy query"""
     filter_params = filter_params or {}
@@ -243,9 +250,7 @@ async def create_paginated_list_response(
 
     # Create metadata
     pagination_meta = create_filter_meta(
-        applied_filters=filter_params,
-        available_filters={},
-        sort_params=sort_params
+        applied_filters=filter_params, available_filters={}, sort_params=sort_params
     )
 
     return create_paginated_response(
@@ -254,35 +259,39 @@ async def create_paginated_list_response(
         size=pagination.size,
         total=total,
         message=message,
-        filters=pagination_meta
+        filters=pagination_meta,
     )
 
-def validate_permissions(required_permissions: List[str]):
+
+def validate_permissions(required_permissions: list[str]):
     """Decorator to validate user permissions"""
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Extract current_user from kwargs (typically injected by Depends)
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             # Check permissions (simplified - implement based on your auth system)
-            user_permissions = getattr(current_user, 'permissions', [])
+            user_permissions = getattr(current_user, "permissions", [])
 
             for permission in required_permissions:
                 if permission not in user_permissions:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Permission '{permission}' required"
+                        detail=f"Permission '{permission}' required",
                     )
 
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
+
 
 # Request validation utilities
 def validate_request_id(request: Request) -> str:
@@ -292,6 +301,7 @@ def validate_request_id(request: Request) -> str:
         request_id = str(uuid.uuid4())
     return request_id
 
+
 # Rate limiting utilities
 def create_rate_limit_response(retry_after: int = 60) -> JSONResponse:
     """Create a standardized rate limit exceeded response"""
@@ -300,29 +310,31 @@ def create_rate_limit_response(retry_after: int = 60) -> JSONResponse:
         content=create_error_response(
             message="Rate limit exceeded",
             status=ResponseStatus.RATE_LIMITED,
-            error_code="RATE_LIMIT_EXCEEDED"
+            error_code="RATE_LIMIT_EXCEEDED",
         ).dict(),
-        headers={"Retry-After": str(retry_after)}
+        headers={"Retry-After": str(retry_after)},
     )
+
 
 # Response formatting utilities
 def format_datetime(dt: datetime) -> str:
     """Format datetime for API responses"""
     return dt.isoformat()
 
-def serialize_model(model_instance: Any) -> Dict[str, Any]:
+
+def serialize_model(model_instance: Any) -> dict[str, Any]:
     """Serialize a SQLAlchemy model instance"""
-    if hasattr(model_instance, 'dict'):
+    if hasattr(model_instance, "dict"):
         return model_instance.dict()
-    else:
-        # Fallback for models without dict method
-        result = {}
-        for column in model_instance.__table__.columns:
-            value = getattr(model_instance, column.name)
-            if isinstance(value, datetime):
-                value = format_datetime(value)
-            result[column.name] = value
-        return result
+    # Fallback for models without dict method
+    result = {}
+    for column in model_instance.__table__.columns:
+        value = getattr(model_instance, column.name)
+        if isinstance(value, datetime):
+            value = format_datetime(value)
+        result[column.name] = value
+    return result
+
 
 # Bulk operation utilities
 def create_bulk_response(
@@ -330,8 +342,8 @@ def create_bulk_response(
     total_items: int,
     successful_items: int,
     failed_items: int,
-    errors: List[ErrorDetail] = None
-) -> Dict[str, Any]:
+    errors: list[ErrorDetail] = None,
+) -> dict[str, Any]:
     """Create response for bulk operations"""
     success_rate = (successful_items / total_items * 100) if total_items > 0 else 0
 
@@ -342,7 +354,7 @@ def create_bulk_response(
             "successful_items": successful_items,
             "failed_items": failed_items,
             "success_rate": round(success_rate, 2),
-            "errors": errors or []
+            "errors": errors or [],
         },
-        message=f"{operation} completed with {success_rate:.1f}% success rate"
+        message=f"{operation} completed with {success_rate:.1f}% success rate",
     )

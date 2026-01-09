@@ -17,10 +17,10 @@ Date: 2025-12-26
 
 import html
 import json
-from urllib.parse import quote, quote_plus
-from typing import Any, Dict, List, Union
-import re
 import logging
+import re
+from typing import Any
+from urllib.parse import quote, quote_plus
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +73,8 @@ class OutputEncoder:
         text = html.escape(text, quote=True)
 
         # Replace quotes with entity references
-        text = text.replace('"', '&quot;')
-        text = text.replace("'", '&apos;')
+        text = text.replace('"', "&quot;")
+        text = text.replace("'", "&apos;")
 
         return text
 
@@ -117,17 +117,17 @@ class OutputEncoder:
         text = str(text)
 
         # Escape backslashes first
-        text = text.replace('\\', '\\\\')
+        text = text.replace("\\", "\\\\")
 
         # Escape special JavaScript characters
         replacements = {
             "'": "\\'",
             '"': '\\"',
-            '\n': '\\n',
-            '\r': '\\r',
-            '\t': '\\t',
-            '\b': '\\b',
-            '\f': '\\f',
+            "\n": "\\n",
+            "\r": "\\r",
+            "\t": "\\t",
+            "\b": "\\b",
+            "\f": "\\f",
         }
 
         for char, escaped in replacements.items():
@@ -136,9 +136,9 @@ class OutputEncoder:
         # Escape Unicode control characters
         def escape_control_char(match):
             char = match.group(0)
-            return f'\\u{ord(char):04x}'
+            return f"\\u{ord(char):04x}"
 
-        text = re.sub(r'[\x00-\x1F\x7F-\x9F]', escape_control_char, text)
+        text = re.sub(r"[\x00-\x1F\x7F-\x9F]", escape_control_char, text)
 
         return text
 
@@ -158,8 +158,8 @@ class OutputEncoder:
         text = str(text)
 
         # Escape template literal special characters
-        text = text.replace('`', '\\`')
-        text = text.replace('${', '\\${')
+        text = text.replace("`", "\\`")
+        text = text.replace("${", "\\${")
 
         return text
 
@@ -193,10 +193,10 @@ class OutputEncoder:
             if char.isalnum():
                 return char
             # Use CSS escape sequence \XXXX
-            return f'\\{ord(char):X} '
+            return f"\\{ord(char):X} "
 
         # Escape all non-alphanumeric characters
-        text = re.sub(r'[^a-zA-Z0-9]', escape_char, text)
+        text = re.sub(r"[^a-zA-Z0-9]", escape_char, text)
 
         return text
 
@@ -223,8 +223,7 @@ class OutputEncoder:
 
         if plus:
             return quote_plus(text)
-        else:
-            return quote(text)
+        return quote(text)
 
     @staticmethod
     def encode_for_url_parameter(text: Any) -> str:
@@ -239,7 +238,7 @@ class OutputEncoder:
         return OutputEncoder.encode_for_url(text, plus=True)
 
     @staticmethod
-    def validate_url(url: str, allowed_protocols: List[str] = None) -> str:
+    def validate_url(url: str, allowed_protocols: list[str] = None) -> str:
         """
         Validate and encode URL safely.
 
@@ -256,7 +255,7 @@ class OutputEncoder:
             return ""
 
         if allowed_protocols is None:
-            allowed_protocols = ['http:', 'https:', 'mailto:', 'tel:']
+            allowed_protocols = ["http:", "https:", "mailto:", "tel:"]
 
         # Parse URL
         from urllib.parse import urlparse
@@ -270,37 +269,37 @@ class OutputEncoder:
 
         # Check protocol
         if parsed.scheme:
-            scheme = parsed.scheme.lower() + ':'
+            scheme = parsed.scheme.lower() + ":"
             if scheme not in [p.lower() for p in allowed_protocols]:
                 # Dangerous protocol detected
                 logger.warning(f"Blocked URL with dangerous protocol: {parsed.scheme}")
                 return ""
 
         # Encode URL components
-        safe_netloc = quote(parsed.netloc, safe=':@')
-        safe_path = quote(parsed.path, safe='/')
-        safe_params = quote(parsed.params, safe=';/')
-        safe_query = quote(parsed.query, safe=';/')
-        safe_fragment = quote(parsed.fragment, safe='/')
+        safe_netloc = quote(parsed.netloc, safe=":@")
+        safe_path = quote(parsed.path, safe="/")
+        safe_params = quote(parsed.params, safe=";/")
+        safe_query = quote(parsed.query, safe=";/")
+        safe_fragment = quote(parsed.fragment, safe="/")
 
         # Reconstruct URL
-        safe_url = ''
+        safe_url = ""
         if parsed.scheme:
-            safe_url += parsed.scheme + ':'
+            safe_url += parsed.scheme + ":"
 
         if parsed.netloc:
-            safe_url += '//' + safe_netloc
+            safe_url += "//" + safe_netloc
 
         safe_url += safe_path
 
         if parsed.params:
-            safe_url += ';' + safe_params
+            safe_url += ";" + safe_params
 
         if parsed.query:
-            safe_url += '?' + safe_query
+            safe_url += "?" + safe_query
 
         if parsed.fragment:
-            safe_url += '#' + safe_fragment
+            safe_url += "#" + safe_fragment
 
         return safe_url
 
@@ -374,13 +373,7 @@ class OutputEncoder:
         text = str(text)
 
         # XML escape sequences
-        replacements = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&apos;'
-        }
+        replacements = {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;"}
 
         for char, entity in replacements.items():
             text = text.replace(char, entity)
@@ -408,9 +401,9 @@ class OutputEncoder:
         text = str(text)
 
         # Escape LIKE wildcards
-        text = text.replace('\\', '\\\\')
-        text = text.replace('%', '\\%')
-        text = text.replace('_', '\\_')
+        text = text.replace("\\", "\\\\")
+        text = text.replace("%", "\\%")
+        text = text.replace("_", "\\_")
 
         return text
 
@@ -431,15 +424,12 @@ class OutputEncoder:
         text = str(text)
 
         # Remove HTML tags
-        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r"<[^>]+>", "", text)
 
         return text
 
     @staticmethod
-    def sanitize_html(
-        text: str,
-        allowed_tags: List[str] = None
-    ) -> str:
+    def sanitize_html(text: str, allowed_tags: list[str] = None) -> str:
         """
         Sanitize HTML by removing dangerous tags.
 
@@ -456,38 +446,32 @@ class OutputEncoder:
 
         # Default allowed tags (safe formatting only)
         if allowed_tags is None:
-            allowed_tags = ['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li']
+            allowed_tags = ["p", "br", "strong", "em", "u", "ul", "ol", "li"]
 
         # This is a simple implementation
         # For production, use: https://github.com/mozilla/bleach
         try:
             import bleach
-            return bleach.clean(
-                text,
-                tags=allowed_tags,
-                strip=True
-            )
+
+            return bleach.clean(text, tags=allowed_tags, strip=True)
         except ImportError:
             logger.warning("bleach library not installed, using basic sanitization")
 
             # Fallback: Remove all tags except allowed
-            pattern = r'</?(?!(' + '|'.join(allowed_tags) + r')\b)[^>]+>'
+            pattern = r"</?(?!(" + "|".join(allowed_tags) + r")\b)[^>]+>"
 
             # Remove dangerous tags
-            text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+            text = re.sub(pattern, "", text, flags=re.IGNORECASE)
 
             # Remove dangerous attributes
-            text = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', '', text, flags=re.IGNORECASE)
+            text = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', "", text, flags=re.IGNORECASE)
 
             return text
 
     # ==================== Context-Aware Encoding ====================
 
     @staticmethod
-    def encode_for_context(
-        text: Any,
-        context: str
-    ) -> str:
+    def encode_for_context(text: Any, context: str) -> str:
         """
         Encode text for the specified context.
 
@@ -502,29 +486,29 @@ class OutputEncoder:
             ValueError: If context is unknown
         """
         encoders = {
-            'html': OutputEncoder.encode_for_html,
-            'html_attr': OutputEncoder.encode_for_html_attribute,
-            'html_js': OutputEncoder.encode_for_html_js_event,
-            'js': OutputEncoder.encode_for_javascript,
-            'js_template': OutputEncoder.encode_for_js_template_literal,
-            'css': OutputEncoder.encode_for_css,
-            'url': OutputEncoder.encode_for_url,
-            'url_param': OutputEncoder.encode_for_url_parameter,
-            'json': OutputEncoder.encode_for_json,
-            'xml': OutputEncoder.encode_for_xml,
+            "html": OutputEncoder.encode_for_html,
+            "html_attr": OutputEncoder.encode_for_html_attribute,
+            "html_js": OutputEncoder.encode_for_html_js_event,
+            "js": OutputEncoder.encode_for_javascript,
+            "js_template": OutputEncoder.encode_for_js_template_literal,
+            "css": OutputEncoder.encode_for_css,
+            "url": OutputEncoder.encode_for_url,
+            "url_param": OutputEncoder.encode_for_url_parameter,
+            "json": OutputEncoder.encode_for_json,
+            "xml": OutputEncoder.encode_for_xml,
         }
 
         encoder = encoders.get(context)
         if not encoder:
             raise ValueError(
-                f"Unknown context: {context}. "
-                f"Valid contexts: {', '.join(encoders.keys())}"
+                f"Unknown context: {context}. Valid contexts: {', '.join(encoders.keys())}"
             )
 
         return encoder(text)
 
 
 # ==================== Template Helpers ====================
+
 
 class SafeString:
     """
@@ -555,13 +539,14 @@ def mark_safe(text: str) -> SafeString:
 
 # ==================== Response Helpers ====================
 
+
 class SafeResponse:
     """
     Build safe API responses with proper encoding.
     """
 
     @staticmethod
-    def json_response(data: Any) -> Dict[str, Any]:
+    def json_response(data: Any) -> dict[str, Any]:
         """
         Build safe JSON response.
 
@@ -577,7 +562,7 @@ class SafeResponse:
         return data
 
     @staticmethod
-    def sanitize_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
         """
         Sanitize all string values in a dictionary.
 
@@ -595,8 +580,7 @@ class SafeResponse:
             elif isinstance(value, list):
                 # Sanitize lists
                 sanitized[key] = [
-                    OutputEncoder.encode_for_html(v) if isinstance(v, str) else v
-                    for v in value
+                    OutputEncoder.encode_for_html(v) if isinstance(v, str) else v for v in value
                 ]
             else:
                 # Keep other types as-is
@@ -606,6 +590,7 @@ class SafeResponse:
 
 
 # ==================== Usage Examples ====================
+
 
 def example_usage():
     """Example usage of output encoding"""
@@ -653,7 +638,7 @@ def example_usage():
     print(f"  Context 'html': {safe_html_ctx}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Output Encoding System - XSS Prevention")
     print("Use the correct encoding for each context!")
     print("=" * 60)

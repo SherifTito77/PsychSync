@@ -3,18 +3,16 @@ Two-Factor Authentication (2FA) Service
 Implements TOTP-based 2FA with backup recovery codes
 """
 
+import base64
+import io
 import secrets
+
+from passlib.context import CryptContext
 import pyotp
 import qrcode
-import io
-import base64
-from typing import Optional, Dict, List, Tuple
-from datetime import datetime, timedelta
-from passlib.context import CryptContext
-
 from sqlalchemy.orm import Session
-from app.db.models.user import User
 
+from app.db.models.user import User
 
 # Password hashing for recovery codes
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -40,11 +38,7 @@ class TwoFactorService:
         """
         return pyotp.random_base32()
 
-    def generate_totp_uri(
-        self,
-        secret: str,
-        username: str
-    ) -> str:
+    def generate_totp_uri(self, secret: str, username: str) -> str:
         """
         Generate TOTP provisioning URI for QR code
 
@@ -55,15 +49,8 @@ class TwoFactorService:
         Returns:
             otpauth:// URI
         """
-        totp = pyotp.TOTP(
-            secret,
-            digits=self.TOTP_DIGITS,
-            issuer=self.TOTP_ISSUER
-        )
-        return totp.provisioning_uri(
-            name=username,
-            issuer_name=self.TOTP_ISSUER
-        )
+        totp = pyotp.TOTP(secret, digits=self.TOTP_DIGITS, issuer=self.TOTP_ISSUER)
+        return totp.provisioning_uri(name=username, issuer_name=self.TOTP_ISSUER)
 
     def generate_qr_code(self, uri: str) -> str:
         """
@@ -83,17 +70,12 @@ class TwoFactorService:
 
         # Convert to base64
         buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
+        img.save(buffer, format="PNG")
         img_str = base64.b64encode(buffer.getvalue()).decode()
 
         return f"data:image/png;base64,{img_str}"
 
-    def verify_totp_code(
-        self,
-        secret: str,
-        code: str,
-        window: int = 1
-    ) -> bool:
+    def verify_totp_code(self, secret: str, code: str, window: int = 1) -> bool:
         """
         Verify TOTP code
 
@@ -105,18 +87,14 @@ class TwoFactorService:
         Returns:
             True if code is valid
         """
-        totp = pyotp.TOTP(
-            secret,
-            digits=self.TOTP_DIGITS,
-            issuer=self.TOTP_ISSUER
-        )
+        totp = pyotp.TOTP(secret, digits=self.TOTP_DIGITS, issuer=self.TOTP_ISSUER)
         return totp.verify(code, valid_window=window)
 
     # =========================================================================
     # RECOVERY CODES
     # =========================================================================
 
-    def generate_recovery_codes(self, count: int = 10) -> List[str]:
+    def generate_recovery_codes(self, count: int = 10) -> list[str]:
         """
         Generate recovery codes for 2FA backup
 
@@ -131,7 +109,7 @@ class TwoFactorService:
             # Generate 16-character random code
             code = secrets.token_hex(8).upper()
             # Format as XXXX-XXXX-XXXX-XXXX
-            formatted = '-'.join([code[i:i+4] for i in range(0, len(code), 4)])
+            formatted = "-".join([code[i : i + 4] for i in range(0, len(code), 4)])
             codes.append(formatted)
         return codes
 
@@ -147,11 +125,7 @@ class TwoFactorService:
         """
         return pwd_context.hash(code)
 
-    def verify_recovery_code(
-        self,
-        code: str,
-        hashed_codes: List[str]
-    ) -> Tuple[bool, Optional[str]]:
+    def verify_recovery_code(self, code: str, hashed_codes: list[str]) -> tuple[bool, str | None]:
         """
         Verify a recovery code
 
@@ -171,11 +145,7 @@ class TwoFactorService:
     # USER 2FA MANAGEMENT
     # =========================================================================
 
-    def enable_2fa_for_user(
-        self,
-        user: User,
-        db: Session
-    ) -> Dict[str, any]:
+    def enable_2fa_for_user(self, user: User, db: Session) -> dict[str, any]:
         """
         Enable 2FA for a user
 
@@ -208,14 +178,10 @@ class TwoFactorService:
             "secret": secret,
             "qr_code": qr_code,
             "recovery_codes": recovery_codes,
-            "message": "2FA enabled. Save recovery codes securely!"
+            "message": "2FA enabled. Save recovery codes securely!",
         }
 
-    def disable_2fa_for_user(
-        self,
-        user: User,
-        db: Session
-    ) -> Dict[str, any]:
+    def disable_2fa_for_user(self, user: User, db: Session) -> dict[str, any]:
         """
         Disable 2FA for a user
 
@@ -234,12 +200,7 @@ class TwoFactorService:
 
         return {"message": "2FA disabled successfully"}
 
-    def verify_user_2fa(
-        self,
-        user: User,
-        code: str,
-        db: Session
-    ) -> bool:
+    def verify_user_2fa(self, user: User, code: str, db: Session) -> bool:
         """
         Verify 2FA code for user
 

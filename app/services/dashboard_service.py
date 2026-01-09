@@ -5,26 +5,22 @@ performance metrics, and monitoring data from all sources.
 """
 
 import asyncio
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union, Tuple
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
-import json
-from collections import defaultdict, deque
+import logging
+from typing import Any
 
-from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
-
+from app.services.alerts_service import AlertsService
+from app.services.apm_service import APMService
 from app.services.sentry_service import SentryService
-from app.services.apm_service import APMService, MetricType, AlertSeverity
-from app.services.alerts_service import AlertsService, AlertStatus, NotificationChannel
 
 logger = logging.getLogger(__name__)
 
 
 class DashboardType(Enum):
     """Types of dashboards available"""
+
     SYSTEM_OVERVIEW = "system_overview"
     PERFORMANCE = "performance"
     ERRORS = "errors"
@@ -36,6 +32,7 @@ class DashboardType(Enum):
 
 class TimeRange(Enum):
     """Standard time ranges for dashboard data"""
+
     LAST_1H = "1h"
     LAST_6H = "6h"
     LAST_24H = "24h"
@@ -46,6 +43,7 @@ class TimeRange(Enum):
 
 class ChartType(Enum):
     """Types of charts supported"""
+
     LINE = "line"
     BAR = "bar"
     PIE = "pie"
@@ -60,49 +58,48 @@ class ChartType(Enum):
 @dataclass
 class DataPoint:
     """Single data point for time series data"""
-    timestamp: datetime
-    value: Union[float, int]
-    labels: Dict[str, str] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "timestamp": self.timestamp.isoformat(),
-            "value": self.value,
-            "labels": self.labels
-        }
+    timestamp: datetime
+    value: float | int
+    labels: dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"timestamp": self.timestamp.isoformat(), "value": self.value, "labels": self.labels}
 
 
 @dataclass
 class MetricSeries:
     """Time series data for a metric"""
+
     name: str
-    data_points: List[DataPoint] = field(default_factory=list)
+    data_points: list[DataPoint] = field(default_factory=list)
     unit: str = ""
     chart_type: ChartType = ChartType.LINE
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "data_points": [dp.to_dict() for dp in self.data_points],
             "unit": self.unit,
-            "chart_type": self.chart_type.value
+            "chart_type": self.chart_type.value,
         }
 
 
 @dataclass
 class DashboardWidget:
     """Individual widget on a dashboard"""
+
     id: str
     title: str
     type: ChartType
-    position: Dict[str, int]  # x, y, width, height
-    query: Dict[str, Any]
+    position: dict[str, int]  # x, y, width, height
+    query: dict[str, Any]
     time_range: TimeRange = TimeRange.LAST_24H
     refresh_interval: int = 60  # seconds
-    data: Optional[Union[MetricSeries, List[MetricSeries], Dict[str, Any]]] = None
-    last_updated: Optional[datetime] = None
+    data: MetricSeries | list[MetricSeries] | dict[str, Any] | None = None
+    last_updated: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "title": self.title,
@@ -112,26 +109,29 @@ class DashboardWidget:
             "time_range": self.time_range.value,
             "refresh_interval": self.refresh_interval,
             "last_updated": self.last_updated.isoformat() if self.last_updated else None,
-            "data": self.data.to_dict() if isinstance(self.data, MetricSeries) else
-                   [ds.to_dict() for ds in self.data] if isinstance(self.data, list) else
-                   self.data
+            "data": self.data.to_dict()
+            if isinstance(self.data, MetricSeries)
+            else [ds.to_dict() for ds in self.data]
+            if isinstance(self.data, list)
+            else self.data,
         }
 
 
 @dataclass
 class Dashboard:
     """Complete dashboard configuration"""
+
     id: str
     name: str
     type: DashboardType
     description: str
-    widgets: List[DashboardWidget] = field(default_factory=list)
-    filters: Dict[str, Any] = field(default_factory=dict)
-    permissions: List[str] = field(default_factory=list)
+    widgets: list[DashboardWidget] = field(default_factory=list)
+    filters: dict[str, Any] = field(default_factory=dict)
+    permissions: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -141,7 +141,7 @@ class Dashboard:
             "filters": self.filters,
             "permissions": self.permissions,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
+            "updated_at": self.updated_at.isoformat(),
         }
 
 
@@ -166,7 +166,7 @@ class DashboardService:
 
         logger.info("Dashboard service initialized")
 
-    def _create_builtin_dashboards(self) -> Dict[str, Dashboard]:
+    def _create_builtin_dashboards(self) -> dict[str, Dashboard]:
         """Create built-in dashboard templates"""
         dashboards = {}
 
@@ -182,44 +182,44 @@ class DashboardService:
                     title="System Health",
                     type=ChartType.GAUGE,
                     position={"x": 0, "y": 0, "width": 4, "height": 2},
-                    query={"metric": "system_health_score"}
+                    query={"metric": "system_health_score"},
                 ),
                 DashboardWidget(
                     id="error_rate",
                     title="Error Rate",
                     type=ChartType.LINE,
                     position={"x": 4, "y": 0, "width": 4, "height": 2},
-                    query={"metric": "error_rate"}
+                    query={"metric": "error_rate"},
                 ),
                 DashboardWidget(
                     id="response_time",
                     title="Average Response Time",
                     type=ChartType.LINE,
                     position={"x": 8, "y": 0, "width": 4, "height": 2},
-                    query={"metric": "response_time"}
+                    query={"metric": "response_time"},
                 ),
                 DashboardWidget(
                     id="active_users",
                     title="Active Users",
                     type=ChartType.STAT,
                     position={"x": 0, "y": 2, "width": 3, "height": 2},
-                    query={"metric": "active_users"}
+                    query={"metric": "active_users"},
                 ),
                 DashboardWidget(
                     id="request_rate",
                     title="Request Rate",
                     type=ChartType.LINE,
                     position={"x": 3, "y": 2, "width": 5, "height": 2},
-                    query={"metric": "request_rate"}
+                    query={"metric": "request_rate"},
                 ),
                 DashboardWidget(
                     id="top_errors",
                     title="Top Errors",
                     type=ChartType.TABLE,
                     position={"x": 8, "y": 2, "width": 4, "height": 2},
-                    query={"metric": "top_errors"}
-                )
-            ]
+                    query={"metric": "top_errors"},
+                ),
+            ],
         )
 
         # Performance Dashboard
@@ -234,37 +234,37 @@ class DashboardService:
                     title="Response Time Distribution",
                     type=ChartType.HISTOGRAM,
                     position={"x": 0, "y": 0, "width": 6, "height": 3},
-                    query={"metric": "response_time_histogram"}
+                    query={"metric": "response_time_histogram"},
                 ),
                 DashboardWidget(
                     id="throughput",
                     title="Throughput",
                     type=ChartType.AREA,
                     position={"x": 6, "y": 0, "width": 6, "height": 3},
-                    query={"metric": "throughput"}
+                    query={"metric": "throughput"},
                 ),
                 DashboardWidget(
                     id="slow_requests",
                     title="Slow Requests",
                     type=ChartType.TABLE,
                     position={"x": 0, "y": 3, "width": 6, "height": 3},
-                    query={"metric": "slow_requests"}
+                    query={"metric": "slow_requests"},
                 ),
                 DashboardWidget(
                     id="apm_score",
                     title="APM Score",
                     type=ChartType.GAUGE,
                     position={"x": 6, "y": 3, "width": 3, "height": 3},
-                    query={"metric": "apm_score"}
+                    query={"metric": "apm_score"},
                 ),
                 DashboardWidget(
                     id="cpu_usage",
                     title="CPU Usage",
                     type=ChartType.LINE,
                     position={"x": 9, "y": 3, "width": 3, "height": 3},
-                    query={"metric": "cpu_usage"}
-                )
-            ]
+                    query={"metric": "cpu_usage"},
+                ),
+            ],
         )
 
         # Errors Dashboard
@@ -279,23 +279,23 @@ class DashboardService:
                     title="Error Trend",
                     type=ChartType.LINE,
                     position={"x": 0, "y": 0, "width": 8, "height": 2},
-                    query={"metric": "error_trend"}
+                    query={"metric": "error_trend"},
                 ),
                 DashboardWidget(
                     id="error_breakdown",
                     title="Error Types",
                     type=ChartType.PIE,
                     position={"x": 8, "y": 0, "width": 4, "height": 2},
-                    query={"metric": "error_types"}
+                    query={"metric": "error_types"},
                 ),
                 DashboardWidget(
                     id="recent_errors",
                     title="Recent Errors",
                     type=ChartType.TABLE,
                     position={"x": 0, "y": 2, "width": 12, "height": 4},
-                    query={"metric": "recent_errors"}
-                )
-            ]
+                    query={"metric": "recent_errors"},
+                ),
+            ],
         )
 
         dashboards["system_overview"] = system_dashboard
@@ -307,10 +307,10 @@ class DashboardService:
     async def get_dashboard(
         self,
         dashboard_id: str,
-        time_range: Optional[TimeRange] = None,
-        filters: Optional[Dict[str, Any]] = None,
-        refresh_data: bool = False
-    ) -> Optional[Dashboard]:
+        time_range: TimeRange | None = None,
+        filters: dict[str, Any] | None = None,
+        refresh_data: bool = False,
+    ) -> Dashboard | None:
         """Get dashboard with current data"""
         # Get dashboard configuration
         if dashboard_id in self._builtin_dashboards:
@@ -329,9 +329,7 @@ class DashboardService:
             dashboard.filters.update(filters)
 
         # Refresh widget data
-        if refresh_data:
-            await self._refresh_dashboard_data(dashboard)
-        elif self._is_cache_expired(dashboard_id):
+        if refresh_data or self._is_cache_expired(dashboard_id):
             await self._refresh_dashboard_data(dashboard)
         else:
             dashboard = self._get_cached_dashboard(dashboard_id) or dashboard
@@ -342,8 +340,8 @@ class DashboardService:
         self,
         name: str,
         description: str,
-        widgets: List[Dict[str, Any]],
-        permissions: Optional[List[str]] = None
+        widgets: list[dict[str, Any]],
+        permissions: list[str] | None = None,
     ) -> Dashboard:
         """Create a custom dashboard"""
         # Create dashboard object
@@ -352,7 +350,7 @@ class DashboardService:
             name=name,
             type=DashboardType.CUSTOM,
             description=description,
-            permissions=permissions or []
+            permissions=permissions or [],
         )
 
         # Convert widget dictionaries to DashboardWidget objects
@@ -364,7 +362,7 @@ class DashboardService:
                 position=widget_data["position"],
                 query=widget_data["query"],
                 time_range=TimeRange(widget_data.get("time_range", "24h")),
-                refresh_interval=widget_data.get("refresh_interval", 60)
+                refresh_interval=widget_data.get("refresh_interval", 60),
             )
             dashboard.widgets.append(widget)
 
@@ -374,11 +372,7 @@ class DashboardService:
         logger.info(f"Created custom dashboard: {dashboard.id}")
         return dashboard
 
-    async def update_dashboard(
-        self,
-        dashboard_id: str,
-        updates: Dict[str, Any]
-    ) -> bool:
+    async def update_dashboard(self, dashboard_id: str, updates: dict[str, Any]) -> bool:
         """Update dashboard configuration"""
         if dashboard_id not in self._builtin_dashboards:
             return False
@@ -401,7 +395,7 @@ class DashboardService:
                     position=widget_data["position"],
                     query=widget_data["query"],
                     time_range=TimeRange(widget_data.get("time_range", "24h")),
-                    refresh_interval=widget_data.get("refresh_interval", 60)
+                    refresh_interval=widget_data.get("refresh_interval", 60),
                 )
                 dashboard.widgets.append(widget)
 
@@ -428,10 +422,7 @@ class DashboardService:
         logger.info(f"Deleted dashboard: {dashboard_id}")
         return True
 
-    async def list_dashboards(
-        self,
-        dashboard_type: Optional[DashboardType] = None
-    ) -> List[Dashboard]:
+    async def list_dashboards(self, dashboard_type: DashboardType | None = None) -> list[Dashboard]:
         """List available dashboards"""
         dashboards = list(self._builtin_dashboards.values())
 
@@ -461,13 +452,12 @@ class DashboardService:
             widget.data = widget_data
             widget.last_updated = datetime.utcnow()
         except Exception as e:
-            logger.error(f"Failed to refresh widget {widget.id}: {str(e)}")
+            logger.error(f"Failed to refresh widget {widget.id}: {e!s}")
             widget.data = None
 
     async def _query_widget_data(
-        self,
-        widget: DashboardWidget
-    ) -> Union[MetricSeries, List[MetricSeries], Dict[str, Any]]:
+        self, widget: DashboardWidget
+    ) -> MetricSeries | list[MetricSeries] | dict[str, Any]:
         """Query data for a widget based on its query configuration"""
         query = widget.query
         metric = query.get("metric")
@@ -478,41 +468,38 @@ class DashboardService:
 
         if metric == "system_health_score":
             return await self._get_system_health_score(start_time, end_time)
-        elif metric == "error_rate":
+        if metric == "error_rate":
             return await self._get_error_rate_trend(start_time, end_time)
-        elif metric == "response_time":
+        if metric == "response_time":
             return await self._get_response_time_trend(start_time, end_time)
-        elif metric == "active_users":
+        if metric == "active_users":
             return await self._get_active_users_count(start_time, end_time)
-        elif metric == "request_rate":
+        if metric == "request_rate":
             return await self._get_request_rate_trend(start_time, end_time)
-        elif metric == "top_errors":
+        if metric == "top_errors":
             return await self._get_top_errors(start_time, end_time)
-        elif metric == "response_time_histogram":
+        if metric == "response_time_histogram":
             return await self._get_response_time_distribution(start_time, end_time)
-        elif metric == "throughput":
+        if metric == "throughput":
             return await self._get_throughput_trend(start_time, end_time)
-        elif metric == "slow_requests":
+        if metric == "slow_requests":
             return await self._get_slow_requests(start_time, end_time)
-        elif metric == "apm_score":
+        if metric == "apm_score":
             return await self._get_apm_score(start_time, end_time)
-        elif metric == "cpu_usage":
+        if metric == "cpu_usage":
             return await self._get_cpu_usage_trend(start_time, end_time)
-        elif metric == "error_trend":
+        if metric == "error_trend":
             return await self._get_error_trend(start_time, end_time)
-        elif metric == "error_types":
+        if metric == "error_types":
             return await self._get_error_types_breakdown(start_time, end_time)
-        elif metric == "recent_errors":
+        if metric == "recent_errors":
             return await self._get_recent_errors(start_time, end_time)
-        else:
-            # Default: return empty data
-            return {"error": f"Unknown metric: {metric}"}
+        # Default: return empty data
+        return {"error": f"Unknown metric: {metric}"}
 
     async def _get_system_health_score(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> Dict[str, Any]:
+        self, start_time: datetime, end_time: datetime
+    ) -> dict[str, Any]:
         """Calculate overall system health score"""
         try:
             # Get various health indicators
@@ -539,23 +526,22 @@ class DashboardService:
 
             return {
                 "value": health_score,
-                "status": "healthy" if health_score >= 90 else
-                         "warning" if health_score >= 70 else "critical",
+                "status": "healthy"
+                if health_score >= 90
+                else "warning"
+                if health_score >= 70
+                else "critical",
                 "factors": {
                     "error_rate": error_rate,
                     "response_time": response_time,
-                    "uptime": uptime
-                }
+                    "uptime": uptime,
+                },
             }
         except Exception as e:
-            logger.error(f"Failed to calculate system health score: {str(e)}")
+            logger.error(f"Failed to calculate system health score: {e!s}")
             return {"value": 0, "status": "unknown"}
 
-    async def _get_error_rate_trend(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> MetricSeries:
+    async def _get_error_rate_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
         """Get error rate trend over time"""
         try:
             # Get error data from Sentry
@@ -564,99 +550,64 @@ class DashboardService:
             data_points = []
             for timestamp, error_count, total_requests in error_data:
                 error_rate = (error_count / total_requests * 100) if total_requests > 0 else 0
-                data_points.append(DataPoint(
-                    timestamp=timestamp,
-                    value=error_rate
-                ))
+                data_points.append(DataPoint(timestamp=timestamp, value=error_rate))
 
-            return MetricSeries(
-                name="Error Rate (%)",
-                data_points=data_points,
-                unit="percent"
-            )
+            return MetricSeries(name="Error Rate (%)", data_points=data_points, unit="percent")
         except Exception as e:
-            logger.error(f"Failed to get error rate trend: {str(e)}")
+            logger.error(f"Failed to get error rate trend: {e!s}")
             return MetricSeries(name="Error Rate (%)", data_points=[], unit="percent")
 
     async def _get_response_time_trend(
-        self,
-        start_time: datetime,
-        end_time: datetime
+        self, start_time: datetime, end_time: datetime
     ) -> MetricSeries:
         """Get response time trend over time"""
         try:
             response_data = await self.apm_service.get_performance_trends(
-                start_time=start_time,
-                end_time=end_time
+                start_time=start_time, end_time=end_time
             )
 
             data_points = []
             for timestamp, response_time in response_data:
-                data_points.append(DataPoint(
-                    timestamp=timestamp,
-                    value=response_time
-                ))
+                data_points.append(DataPoint(timestamp=timestamp, value=response_time))
 
-            return MetricSeries(
-                name="Response Time",
-                data_points=data_points,
-                unit="ms"
-            )
+            return MetricSeries(name="Response Time", data_points=data_points, unit="ms")
         except Exception as e:
-            logger.error(f"Failed to get response time trend: {str(e)}")
+            logger.error(f"Failed to get response time trend: {e!s}")
             return MetricSeries(name="Response Time", data_points=[], unit="ms")
 
     async def _get_active_users_count(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> Dict[str, Any]:
+        self, start_time: datetime, end_time: datetime
+    ) -> dict[str, Any]:
         """Get count of active users in the time range"""
         try:
             # TODO: Query actual user activity data
             # For now, return mock data
-            return {
-                "value": 1247,
-                "trend": "+12%",
-                "period": "vs last period"
-            }
+            return {"value": 1247, "trend": "+12%", "period": "vs last period"}
         except Exception as e:
-            logger.error(f"Failed to get active users count: {str(e)}")
+            logger.error(f"Failed to get active users count: {e!s}")
             return {"value": 0, "trend": "N/A"}
 
     async def _get_request_rate_trend(
-        self,
-        start_time: datetime,
-        end_time: datetime
+        self, start_time: datetime, end_time: datetime
     ) -> MetricSeries:
         """Get request rate trend over time"""
         try:
             request_data = await self.apm_service.get_request_rate(
-                start_time=start_time,
-                end_time=end_time
+                start_time=start_time, end_time=end_time
             )
 
             data_points = []
             for timestamp, rate in request_data:
-                data_points.append(DataPoint(
-                    timestamp=timestamp,
-                    value=rate
-                ))
+                data_points.append(DataPoint(timestamp=timestamp, value=rate))
 
-            return MetricSeries(
-                name="Request Rate",
-                data_points=data_points,
-                unit="req/s"
-            )
+            return MetricSeries(name="Request Rate", data_points=data_points, unit="req/s")
         except Exception as e:
-            logger.error(f"Failed to get request rate trend: {str(e)}")
+            logger.error(f"Failed to get request rate trend: {e!s}")
             return MetricSeries(name="Request Rate", data_points=[], unit="req/s")
 
     async def _get_top_errors(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Dict[str, Any]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[dict[str, Any]]:
         """Get top errors by frequency"""
         try:
             # Get errors from Sentry
@@ -667,75 +618,56 @@ class DashboardService:
                     "error_type": error["type"],
                     "message": error["message"][:100],  # Truncate long messages
                     "count": error["count"],
-                    "last_seen": error["last_seen"]
+                    "last_seen": error["last_seen"],
                 }
                 for error in errors[:10]  # Top 10 errors
             ]
         except Exception as e:
-            logger.error(f"Failed to get top errors: {str(e)}")
+            logger.error(f"Failed to get top errors: {e!s}")
             return []
 
     async def _get_response_time_distribution(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> Dict[str, Any]:
+        self, start_time: datetime, end_time: datetime
+    ) -> dict[str, Any]:
         """Get response time distribution histogram"""
         try:
             # Get histogram data from APM service
             distribution = await self.apm_service.get_response_time_distribution(
-                start_time=start_time,
-                end_time=end_time
+                start_time=start_time, end_time=end_time
             )
 
             return {
                 "buckets": distribution["buckets"],
                 "counts": distribution["counts"],
-                "percentiles": distribution["percentiles"]
+                "percentiles": distribution["percentiles"],
             }
         except Exception as e:
-            logger.error(f"Failed to get response time distribution: {str(e)}")
+            logger.error(f"Failed to get response time distribution: {e!s}")
             return {"buckets": [], "counts": [], "percentiles": {}}
 
-    async def _get_throughput_trend(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> MetricSeries:
+    async def _get_throughput_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
         """Get throughput trend over time"""
         try:
             throughput_data = await self.apm_service.get_throughput_metrics(
-                start_time=start_time,
-                end_time=end_time
+                start_time=start_time, end_time=end_time
             )
 
             data_points = []
             for timestamp, throughput in throughput_data:
-                data_points.append(DataPoint(
-                    timestamp=timestamp,
-                    value=throughput
-                ))
+                data_points.append(DataPoint(timestamp=timestamp, value=throughput))
 
-            return MetricSeries(
-                name="Throughput",
-                data_points=data_points,
-                unit="ops/min"
-            )
+            return MetricSeries(name="Throughput", data_points=data_points, unit="ops/min")
         except Exception as e:
-            logger.error(f"Failed to get throughput trend: {str(e)}")
+            logger.error(f"Failed to get throughput trend: {e!s}")
             return MetricSeries(name="Throughput", data_points=[], unit="ops/min")
 
     async def _get_slow_requests(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Dict[str, Any]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[dict[str, Any]]:
         """Get slowest requests"""
         try:
             slow_requests = await self.apm_service.get_slow_requests(
-                start_time=start_time,
-                end_time=end_time,
-                limit=20
+                start_time=start_time, end_time=end_time, limit=20
             )
 
             return [
@@ -744,77 +676,49 @@ class DashboardService:
                     "method": req["method"],
                     "response_time": req["response_time"],
                     "timestamp": req["timestamp"],
-                    "status_code": req["status_code"]
+                    "status_code": req["status_code"],
                 }
                 for req in slow_requests
             ]
         except Exception as e:
-            logger.error(f"Failed to get slow requests: {str(e)}")
+            logger.error(f"Failed to get slow requests: {e!s}")
             return []
 
-    async def _get_apm_score(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> Dict[str, Any]:
+    async def _get_apm_score(self, start_time: datetime, end_time: datetime) -> dict[str, Any]:
         """Get APM health score"""
         try:
             score = await self.apm_service.get_health_score(
-                start_time=start_time,
-                end_time=end_time
+                start_time=start_time, end_time=end_time
             )
 
-            return {
-                "value": score["score"],
-                "status": score["status"],
-                "factors": score["factors"]
-            }
+            return {"value": score["score"], "status": score["status"], "factors": score["factors"]}
         except Exception as e:
-            logger.error(f"Failed to get APM score: {str(e)}")
+            logger.error(f"Failed to get APM score: {e!s}")
             return {"value": 0, "status": "unknown"}
 
-    async def _get_cpu_usage_trend(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> MetricSeries:
+    async def _get_cpu_usage_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
         """Get CPU usage trend"""
         try:
             cpu_data = await self.apm_service.get_system_metrics(
-                start_time=start_time,
-                end_time=end_time,
-                metric="cpu"
+                start_time=start_time, end_time=end_time, metric="cpu"
             )
 
             data_points = []
             for timestamp, cpu_usage in cpu_data:
-                data_points.append(DataPoint(
-                    timestamp=timestamp,
-                    value=cpu_usage
-                ))
+                data_points.append(DataPoint(timestamp=timestamp, value=cpu_usage))
 
-            return MetricSeries(
-                name="CPU Usage",
-                data_points=data_points,
-                unit="percent"
-            )
+            return MetricSeries(name="CPU Usage", data_points=data_points, unit="percent")
         except Exception as e:
-            logger.error(f"Failed to get CPU usage trend: {str(e)}")
+            logger.error(f"Failed to get CPU usage trend: {e!s}")
             return MetricSeries(name="CPU Usage", data_points=[], unit="percent")
 
-    async def _get_error_trend(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> MetricSeries:
+    async def _get_error_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
         """Get detailed error trend"""
         return await self._get_error_rate_trend(start_time, end_time)
 
     async def _get_error_types_breakdown(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Dict[str, Any]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[dict[str, Any]]:
         """Get breakdown of error types"""
         try:
             error_types = await self._get_sentry_error_types(start_time, end_time)
@@ -823,19 +727,17 @@ class DashboardService:
                 {
                     "name": error_type["type"],
                     "value": error_type["count"],
-                    "percentage": error_type["percentage"]
+                    "percentage": error_type["percentage"],
                 }
                 for error_type in error_types
             ]
         except Exception as e:
-            logger.error(f"Failed to get error types breakdown: {str(e)}")
+            logger.error(f"Failed to get error types breakdown: {e!s}")
             return []
 
     async def _get_recent_errors(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Dict[str, Any]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[dict[str, Any]]:
         """Get recent errors with details"""
         try:
             recent_errors = await self._get_sentry_recent_errors(start_time, end_time)
@@ -847,40 +749,31 @@ class DashboardService:
                     "error_type": error["type"],
                     "message": error["message"][:200],  # Truncate
                     "environment": error["environment"],
-                    "release": error.get("release", "unknown")
+                    "release": error.get("release", "unknown"),
                 }
                 for error in recent_errors[:50]  # Last 50 errors
             ]
         except Exception as e:
-            logger.error(f"Failed to get recent errors: {str(e)}")
+            logger.error(f"Failed to get recent errors: {e!s}")
             return []
 
     # Helper methods for data calculation and time handling
 
-    def _calculate_start_time(
-        self,
-        time_range: TimeRange,
-        end_time: datetime
-    ) -> datetime:
+    def _calculate_start_time(self, time_range: TimeRange, end_time: datetime) -> datetime:
         """Calculate start time based on time range"""
         if time_range == TimeRange.LAST_1H:
             return end_time - timedelta(hours=1)
-        elif time_range == TimeRange.LAST_6H:
+        if time_range == TimeRange.LAST_6H:
             return end_time - timedelta(hours=6)
-        elif time_range == TimeRange.LAST_24H:
+        if time_range == TimeRange.LAST_24H:
             return end_time - timedelta(hours=24)
-        elif time_range == TimeRange.LAST_7D:
+        if time_range == TimeRange.LAST_7D:
             return end_time - timedelta(days=7)
-        elif time_range == TimeRange.LAST_30D:
+        if time_range == TimeRange.LAST_30D:
             return end_time - timedelta(days=30)
-        else:
-            return end_time - timedelta(hours=24)  # Default to 24h
+        return end_time - timedelta(hours=24)  # Default to 24h
 
-    async def _calculate_error_rate(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> float:
+    async def _calculate_error_rate(self, start_time: datetime, end_time: datetime) -> float:
         """Calculate error rate for time range"""
         try:
             errors = await self._get_sentry_error_count(start_time, end_time)
@@ -890,25 +783,16 @@ class DashboardService:
         except Exception:
             return 0.0
 
-    async def _calculate_avg_response_time(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> float:
+    async def _calculate_avg_response_time(self, start_time: datetime, end_time: datetime) -> float:
         """Calculate average response time"""
         try:
             return await self.apm_service.get_avg_response_time(
-                start_time=start_time,
-                end_time=end_time
+                start_time=start_time, end_time=end_time
             )
         except Exception:
             return 0.0
 
-    async def _calculate_uptime(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> float:
+    async def _calculate_uptime(self, start_time: datetime, end_time: datetime) -> float:
         """Calculate uptime percentage"""
         try:
             # TODO: Implement actual uptime calculation
@@ -919,10 +803,8 @@ class DashboardService:
     # Mock data methods for Sentry integration
 
     async def _get_sentry_error_trend(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Tuple[datetime, int, int]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[tuple[datetime, int, int]]:
         """Mock Sentry error trend data"""
         # Return mock data: (timestamp, error_count, total_requests)
         current = start_time
@@ -939,23 +821,39 @@ class DashboardService:
         return data
 
     async def _get_sentry_top_errors(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Dict[str, Any]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[dict[str, Any]]:
         """Mock Sentry top errors data"""
         return [
-            {"type": "ValidationError", "message": "Invalid input data", "count": 45, "last_seen": "2024-01-15T10:30:00Z"},
-            {"type": "TimeoutError", "message": "Database connection timeout", "count": 32, "last_seen": "2024-01-15T10:25:00Z"},
-            {"type": "AuthenticationError", "message": "Invalid authentication token", "count": 28, "last_seen": "2024-01-15T10:20:00Z"},
-            {"type": "RateLimitError", "message": "API rate limit exceeded", "count": 15, "last_seen": "2024-01-15T10:15:00Z"},
+            {
+                "type": "ValidationError",
+                "message": "Invalid input data",
+                "count": 45,
+                "last_seen": "2024-01-15T10:30:00Z",
+            },
+            {
+                "type": "TimeoutError",
+                "message": "Database connection timeout",
+                "count": 32,
+                "last_seen": "2024-01-15T10:25:00Z",
+            },
+            {
+                "type": "AuthenticationError",
+                "message": "Invalid authentication token",
+                "count": 28,
+                "last_seen": "2024-01-15T10:20:00Z",
+            },
+            {
+                "type": "RateLimitError",
+                "message": "API rate limit exceeded",
+                "count": 15,
+                "last_seen": "2024-01-15T10:15:00Z",
+            },
         ]
 
     async def _get_sentry_error_types(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Dict[str, Any]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[dict[str, Any]]:
         """Mock Sentry error types data"""
         total = 150
         return [
@@ -967,30 +865,41 @@ class DashboardService:
         ]
 
     async def _get_sentry_recent_errors(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[Dict[str, Any]]:
+        self, start_time: datetime, end_time: datetime
+    ) -> list[dict[str, Any]]:
         """Mock Sentry recent errors data"""
         return [
-            {"timestamp": "2024-01-15T10:30:15Z", "level": "error", "type": "ValidationError", "message": "Invalid email format", "environment": "production", "release": "1.2.0"},
-            {"timestamp": "2024-01-15T10:28:42Z", "level": "error", "type": "TimeoutError", "message": "Database query timeout", "environment": "production", "release": "1.2.0"},
-            {"timestamp": "2024-01-15T10:27:18Z", "level": "warning", "type": "PerformanceWarning", "message": "Slow query detected", "environment": "production", "release": "1.2.0"},
+            {
+                "timestamp": "2024-01-15T10:30:15Z",
+                "level": "error",
+                "type": "ValidationError",
+                "message": "Invalid email format",
+                "environment": "production",
+                "release": "1.2.0",
+            },
+            {
+                "timestamp": "2024-01-15T10:28:42Z",
+                "level": "error",
+                "type": "TimeoutError",
+                "message": "Database query timeout",
+                "environment": "production",
+                "release": "1.2.0",
+            },
+            {
+                "timestamp": "2024-01-15T10:27:18Z",
+                "level": "warning",
+                "type": "PerformanceWarning",
+                "message": "Slow query detected",
+                "environment": "production",
+                "release": "1.2.0",
+            },
         ]
 
-    async def _get_sentry_error_count(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> int:
+    async def _get_sentry_error_count(self, start_time: datetime, end_time: datetime) -> int:
         """Mock Sentry error count"""
         return 125  # Mock value
 
-    async def _get_total_requests(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> int:
+    async def _get_total_requests(self, start_time: datetime, end_time: datetime) -> int:
         """Mock total requests count"""
         return 5000  # Mock value
 
@@ -999,12 +908,9 @@ class DashboardService:
     def _cache_dashboard(self, dashboard: Dashboard) -> None:
         """Cache dashboard data"""
         cache_key = f"dashboard:{dashboard.id}"
-        self._dashboard_cache[cache_key] = {
-            "dashboard": dashboard,
-            "timestamp": datetime.utcnow()
-        }
+        self._dashboard_cache[cache_key] = {"dashboard": dashboard, "timestamp": datetime.utcnow()}
 
-    def _get_cached_dashboard(self, dashboard_id: str) -> Optional[Dashboard]:
+    def _get_cached_dashboard(self, dashboard_id: str) -> Dashboard | None:
         """Get cached dashboard data"""
         cache_key = f"dashboard:{dashboard_id}"
         cached = self._dashboard_cache.get(cache_key)
@@ -1041,9 +947,7 @@ class DashboardService:
 
         # Start refresh task for each dashboard
         for dashboard_id in self._builtin_dashboards.keys():
-            task = asyncio.create_task(
-                self._background_dashboard_refresh(dashboard_id)
-            )
+            task = asyncio.create_task(self._background_dashboard_refresh(dashboard_id))
             self._refresh_tasks[dashboard_id] = task
 
         logger.info("Started background dashboard refresh tasks")
@@ -1071,10 +975,7 @@ class DashboardService:
                 dashboard = await self.get_dashboard(dashboard_id, refresh_data=True)
 
                 # Calculate sleep time based on dashboard's fastest refresh interval
-                min_interval = min(
-                    widget.refresh_interval
-                    for widget in dashboard.widgets
-                )
+                min_interval = min(widget.refresh_interval for widget in dashboard.widgets)
 
                 # Sleep for the minimum interval, but check if we should stop
                 for _ in range(min_interval):
@@ -1085,18 +986,18 @@ class DashboardService:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Background refresh failed for {dashboard_id}: {str(e)}")
+                logger.error(f"Background refresh failed for {dashboard_id}: {e!s}")
                 await asyncio.sleep(60)  # Wait 1 minute before retrying
 
 
 # Export the main service class
 __all__ = [
-    "DashboardService",
+    "ChartType",
     "Dashboard",
-    "DashboardWidget",
-    "MetricSeries",
-    "DataPoint",
+    "DashboardService",
     "DashboardType",
+    "DashboardWidget",
+    "DataPoint",
+    "MetricSeries",
     "TimeRange",
-    "ChartType"
 ]

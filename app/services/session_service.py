@@ -19,15 +19,18 @@ Author: Security Team
 Version: 1.0
 """
 
-import secrets
-import hashlib
-import logging
-from typing import Optional, Dict, List, Set
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
 from enum import Enum
-from fastapi import Request, HTTPException, status
+import hashlib
+import json
+import logging
+import secrets
 
+from fastapi import HTTPException, Request, status
+import redis.asyncio as aioredis
+
+from app.core.config import settings
 from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -35,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 class SessionStatus(Enum):
     """Session status"""
+
     ACTIVE = "active"
     REVOKED = "revoked"
     EXPIRED = "expired"
@@ -44,12 +48,13 @@ class SessionStatus(Enum):
 @dataclass
 class SessionInfo:
     """Session information"""
+
     session_id: str
     user_id: str
     device_fingerprint: str
     ip_address: str
     user_agent: str
-    location: Optional[str]
+    location: str | None
     created_at: datetime
     last_activity: datetime
     expires_at: datetime
@@ -72,7 +77,7 @@ class SessionRotationService:
         self,
         session_duration_minutes: int = 30,
         max_concurrent_sessions: int = 5,
-        rotation_interval_minutes: int = 15
+        rotation_interval_minutes: int = 15,
     ):
         """
         Initialize session service
@@ -86,9 +91,8 @@ class SessionRotationService:
         self.max_concurrent_sessions = max_concurrent_sessions
         self.rotation_interval = timedelta(minutes=rotation_interval_minutes)
 
-        # In-memory session storage (in production, use Redis)
-        self.active_sessions: Dict[str, SessionInfo] = {}
-        self.user_sessions: Dict[str, Set[str]] = {}  # user_id -> set of session_ids
+        # Redis client for atomic session storage
+        self.redis_url = settings.REDIS_URL
 
     def generate_device_fingerprint(self, request: Request) -> str:
         """
@@ -120,13 +124,14 @@ class SessionRotationService:
         """
         return secrets.token_urlsafe(32)
 
-    async def create_session(
-        self,
-        user: User,
-        request: Request
-    ) -> SessionInfo:
+    async def create_session(self, user: User, request: Request) -> SessionInfo:
         """
-        Create new session for user
+        Create new session for user using Redis atomic transactions (THREAD-SAFE)
+
+        This implementation uses Redis transactions (pipelines) to ensure atomicity:
+        - All session operations are executed atomically
+        - No race conditions between checking limits and creating sessions
+        - Thread-safe concurrent session management
 
         Args:
             user: User object
@@ -139,54 +144,83 @@ class SessionRotationService:
             HTTPException: If max concurrent sessions exceeded
         """
         user_id = str(user.id)
-
-        # Check concurrent session limit
-        if user_id in self.user_sessions:
-            active_count = len(self.user_sessions[user_id])
-            if active_count >= self.max_concurrent_sessions:
-                # Revoke oldest session
-                oldest_session_id = min(self.user_sessions[user_id])
-                await self.revoke_session(oldest_session_id, "Session limit exceeded")
-
-        # Generate session attributes
-        session_id = self.generate_session_id()
-        device_fingerprint = self.generate_device_fingerprint(request)
-        ip_address = request.client.host if request.client else "unknown"
-        user_agent = request.headers.get("user-agent", "unknown")
-        location = self._get_location_from_ip(ip_address)
-
-        now = datetime.utcnow()
-        expires_at = now + self.session_duration
-
-        # Create session
-        session = SessionInfo(
-            session_id=session_id,
-            user_id=user_id,
-            device_fingerprint=device_fingerprint,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            location=location,
-            created_at=now,
-            last_activity=now,
-            expires_at=expires_at,
-            status=SessionStatus.ACTIVE,
-            is_current=True
+        redis_client = await aioredis.from_url(
+            self.redis_url, encoding="utf-8", decode_responses=True
         )
 
-        # Store session
-        self.active_sessions[session_id] = session
+        try:
+            # Generate session attributes
+            session_id = self.generate_session_id()
+            device_fingerprint = self.generate_device_fingerprint(request)
+            ip_address = request.client.host if request.client else "unknown"
+            user_agent = request.headers.get("user-agent", "unknown")
+            location = self._get_location_from_ip(ip_address)
 
-        # Add to user's sessions
-        if user_id not in self.user_sessions:
-            self.user_sessions[user_id] = set()
-        self.user_sessions[user_id].add(session_id)
+            now = datetime.utcnow()
+            expires_at = now + self.session_duration
 
-        # Mark other sessions as not current
-        for other_session_id in self.user_sessions[user_id]:
-            if other_session_id != session_id:
-                other_session = self.active_sessions.get(other_session_id)
-                if other_session:
-                    other_session.is_current = False
+            # Create session object
+            session = SessionInfo(
+                session_id=session_id,
+                user_id=user_id,
+                device_fingerprint=device_fingerprint,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                location=location,
+                created_at=now,
+                last_activity=now,
+                expires_at=expires_at,
+                status=SessionStatus.ACTIVE,
+                is_current=True,
+            )
+
+            # ATOMIC REDIS TRANSACTION (Prevents race conditions)
+            # All operations in this pipeline execute atomically
+            pipe = redis_client.pipeline(transaction=True)
+
+            # Check concurrent session limit
+            user_sessions_key = f"user_sessions:{user_id}"
+            current_sessions = await redis_client.smembers(user_sessions_key)
+
+            if len(current_sessions) >= self.max_concurrent_sessions:
+                # Revoke oldest session
+                oldest_session_id = sorted(current_sessions)[0]
+                pipe.delete(f"session:{oldest_session_id}")
+                pipe.srem(user_sessions_key, oldest_session_id)
+
+            # Store session data atomically
+            session_key = f"session:{session_id}"
+            session_data = json.dumps(
+                {
+                    "session_id": session_id,
+                    "user_id": user_id,
+                    "device_fingerprint": device_fingerprint,
+                    "ip_address": ip_address,
+                    "user_agent": user_agent,
+                    "location": location,
+                    "created_at": now.isoformat(),
+                    "last_activity": now.isoformat(),
+                    "expires_at": expires_at.isoformat(),
+                    "status": SessionStatus.ACTIVE.value,
+                    "is_current": True,
+                }
+            )
+
+            # Atomic operations: set session data + add to user's session set + set expiry
+            pipe.hset(session_key, mapping={"data": session_data})
+            pipe.sadd(user_sessions_key, session_id)
+            pipe.expire(session_key, int(self.session_duration.total_seconds()))
+            pipe.expire(
+                user_sessions_key, int(self.session_duration.total_seconds()) + 86400
+            )  # Keep set longer
+
+            # Execute all operations atomically
+            await pipe.execute()
+
+            return session
+
+        finally:
+            await redis_client.close()
 
         logger.info(
             f"Session created for user {user_id}",
@@ -194,19 +228,15 @@ class SessionRotationService:
                 "user_id": user_id,
                 "session_id": session_id,
                 "ip_address": ip_address,
-                "device_fingerprint": device_fingerprint[:16] + "..."
-            }
+                "device_fingerprint": device_fingerprint[:16] + "...",
+            },
         )
 
         return session
 
-    async def validate_session(
-        self,
-        session_id: str,
-        request: Request
-    ) -> SessionInfo:
+    async def validate_session(self, session_id: str, request: Request) -> SessionInfo:
         """
-        Validate session and return session info
+        Validate session using Redis (THREAD-SAFE)
 
         Args:
             session_id: Session ID to validate
@@ -218,89 +248,91 @@ class SessionRotationService:
         Raises:
             HTTPException: If session is invalid or expired
         """
-        session = self.active_sessions.get(session_id)
+        redis_client = await aioredis.from_url(
+            self.redis_url, encoding="utf-8", decode_responses=True
+        )
 
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid session"
+        try:
+            # ATOMIC OPERATION: Get session data from Redis
+            session_key = f"session:{session_id}"
+            session_data = await redis_client.hget(session_key, "data")
+
+            if not session_data:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session"
+                )
+
+            # Parse session data
+            data = json.loads(session_data)
+            session = SessionInfo(
+                session_id=data["session_id"],
+                user_id=data["user_id"],
+                device_fingerprint=data["device_fingerprint"],
+                ip_address=data["ip_address"],
+                user_agent=data["user_agent"],
+                location=data["location"],
+                created_at=datetime.fromisoformat(data["created_at"]),
+                last_activity=datetime.fromisoformat(data["last_activity"]),
+                expires_at=datetime.fromisoformat(data["expires_at"]),
+                status=SessionStatus(data["status"]),
+                is_current=data.get("is_current", True),
             )
 
-        # Check if session is expired
-        if datetime.utcnow() > session.expires_at:
-            session.status = SessionStatus.EXPIRED
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session expired"
-            )
+            # Check if session is expired
+            if datetime.utcnow() > session.expires_at:
+                session.status = SessionStatus.EXPIRED
+                # Clean up expired session
+                await redis_client.delete(session_key)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired"
+                )
 
-        # Check if session is revoked
-        if session.status == SessionStatus.REVOKED:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session revoked"
-            )
+            # Check if session is revoked
+            if session.status == SessionStatus.REVOKED:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked"
+                )
 
-        # Check for suspicious activity
-        current_fingerprint = self.generate_device_fingerprint(request)
-        current_ip = request.client.host if request.client else "unknown"
+            # Check for suspicious activity
+            current_fingerprint = self.generate_device_fingerprint(request)
+            current_ip = request.client.host if request.client else "unknown"
 
-        if current_fingerprint != session.device_fingerprint:
-            # Device mismatch - suspicious!
-            logger.warning(
-                f"Device fingerprint mismatch for session {session_id}",
-                extra={
-                    "session_id": session_id,
-                    "expected": session.device_fingerprint[:16] + "...",
-                    "received": current_fingerprint[:16] + "...",
-                    "user_id": session.user_id
-                }
-            )
+            if current_fingerprint != session.device_fingerprint:
+                # Device mismatch - suspicious!
+                logger.warning(
+                    f"Device fingerprint mismatch for session {session_id}",
+                    extra={
+                        "session_id": session_id,
+                        "expected": session.device_fingerprint[:16] + "...",
+                        "received": current_fingerprint[:16] + "...",
+                        "user_id": session.user_id,
+                    },
+                )
 
-            # Mark as suspicious and require re-authentication
-            session.status = SessionStatus.SUSPICIOUS
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Device fingerprint mismatch - please login again"
-            )
+                # Mark as suspicious and require re-authentication
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Device fingerprint mismatch - please login again",
+                )
 
-        # Check IP change (location change)
-        if current_ip != session.ip_address:
-            logger.warning(
-                f"IP address changed for session {session_id}",
-                extra={
-                    "session_id": session_id,
-                    "old_ip": session.ip_address,
-                    "new_ip": current_ip,
-                    "user_id": session.user_id
-                }
-            )
+            # Check IP change (location change)
+            if current_ip != session.ip_address:
+                logger.warning(
+                    f"IP address changed for session {session_id}",
+                    extra={
+                        "session_id": session_id,
+                        "old_ip": session.ip_address,
+                        "new_ip": current_ip,
+                        "user_id": session.user_id,
+                    },
+                )
 
-            # Update IP and location (allow but log)
-            session.ip_address = current_ip
-            session.location = self._get_location_from_ip(current_ip)
+            return session
 
-        # Update last activity
-        session.last_activity = datetime.utcnow()
+        finally:
+            await redis_client.close()
 
-        # Check if session should be rotated
-        time_since_creation = datetime.utcnow() - session.created_at
-        if time_since_creation > self.rotation_interval:
-            logger.info(
-                f"Session rotation triggered for {session_id}",
-                extra={"session_id": session_id, "user_id": session.user_id}
-            )
-            # Would trigger rotation in production
-            # For now, just update expiration
-            session.expires_at = datetime.utcnow() + self.session_duration
-
-        return session
-
-    async def rotate_session(
-        self,
-        old_session_id: str,
-        request: Request
-    ) -> SessionInfo:
+    async def rotate_session(self, old_session_id: str, request: Request) -> SessionInfo:
         """
         Rotate session (create new session, revoke old one)
 
@@ -317,10 +349,7 @@ class SessionRotationService:
         old_session = self.active_sessions.get(old_session_id)
 
         if not old_session:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid session"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
 
         # Revoke old session
         await self.revoke_session(old_session_id, "Session rotated")
@@ -332,16 +361,12 @@ class SessionRotationService:
 
         logger.info(
             f"Session rotated: {old_session_id} -> revoked",
-            extra={"old_session_id": old_session_id, "user_id": old_session.user_id}
+            extra={"old_session_id": old_session_id, "user_id": old_session.user_id},
         )
 
         return old_session  # Would return new session in production
 
-    async def revoke_session(
-        self,
-        session_id: str,
-        reason: str = "User logout"
-    ) -> None:
+    async def revoke_session(self, session_id: str, reason: str = "User logout") -> None:
         """
         Revoke a session
 
@@ -360,18 +385,10 @@ class SessionRotationService:
 
             logger.info(
                 f"Session revoked: {session_id}",
-                extra={
-                    "session_id": session_id,
-                    "user_id": session.user_id,
-                    "reason": reason
-                }
+                extra={"session_id": session_id, "user_id": session.user_id, "reason": reason},
             )
 
-    async def revoke_all_user_sessions(
-        self,
-        user_id: str,
-        reason: str = "Security action"
-    ) -> int:
+    async def revoke_all_user_sessions(self, user_id: str, reason: str = "Security action") -> int:
         """
         Revoke all sessions for a user
 
@@ -392,15 +409,12 @@ class SessionRotationService:
 
         logger.info(
             f"All sessions revoked for user {user_id}",
-            extra={"user_id": user_id, "count": revoked_count, "reason": reason}
+            extra={"user_id": user_id, "count": revoked_count, "reason": reason},
         )
 
         return revoked_count
 
-    def get_user_sessions(
-        self,
-        user_id: str
-    ) -> List[SessionInfo]:
+    def get_user_sessions(self, user_id: str) -> list[SessionInfo]:
         """
         Get all active sessions for a user
 
@@ -444,13 +458,11 @@ class SessionRotationService:
             del self.active_sessions[session_id]
 
         if expired_sessions:
-            logger.info(
-                f"Cleaned up {len(expired_sessions)} expired sessions"
-            )
+            logger.info(f"Cleaned up {len(expired_sessions)} expired sessions")
 
         return len(expired_sessions)
 
-    def _get_location_from_ip(self, ip_address: str) -> Optional[str]:
+    def _get_location_from_ip(self, ip_address: str) -> str | None:
         """
         Get location from IP address
 
@@ -466,10 +478,9 @@ class SessionRotationService:
         # In production, use MaxMind GeoIP or similar
         if ip_address.startswith("127.") or ip_address == "localhost":
             return "Local"
-        elif ip_address.startswith("192.168."):
+        if ip_address.startswith("192.168."):
             return "Private Network"
-        else:
-            return "Unknown"
+        return "Unknown"
 
 
 # Singleton instance

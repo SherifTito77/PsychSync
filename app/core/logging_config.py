@@ -1,8 +1,8 @@
 # app/core/logging_config.py
 import logging
-import sys
-import os
 from pathlib import Path
+import sys
+
 from app.core.log_sanitizer import SensitiveDataFilter
 
 
@@ -51,16 +51,14 @@ class StructuredFormatter(logging.Formatter):
 def setup_logging():
     """Setup comprehensive logging configuration with sensitive data sanitization"""
     # Create logs directory if it doesn't exist (use local directory for development)
-    log_dir = Path('./logs')
+    log_dir = Path("./logs")
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Configure logging format
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     # Create sensitive data filter
-    sensitive_filter = SensitiveDataFilter(redaction_string='[REDACTED]')
+    sensitive_filter = SensitiveDataFilter(redaction_string="[REDACTED]")
 
     # Setup handlers
     handlers = []
@@ -71,14 +69,14 @@ def setup_logging():
 
     # Add file handler if log directory is writable
     try:
-        file_handler = logging.FileHandler(log_dir / 'app.log')
+        file_handler = logging.FileHandler(log_dir / "app.log")
         file_handler.setFormatter(formatter)
         file_handler.addFilter(sensitive_filter)  # Add sanitization to file logs
         handlers.append(file_handler)
     except (OSError, PermissionError):
         # Fall back to current directory logging if /var/log is not writable
         try:
-            fallback_handler = logging.FileHandler('app.log')
+            fallback_handler = logging.FileHandler("app.log")
             fallback_handler.setFormatter(formatter)
             fallback_handler.addFilter(sensitive_filter)  # Add sanitization to fallback
             handlers.append(fallback_handler)
@@ -89,16 +87,16 @@ def setup_logging():
     # Configure root logger
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=handlers,
-        force=True  # Override existing configuration
+        force=True,  # Override existing configuration
     )
 
     # Set specific loggers to appropriate levels
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
-    logging.getLogger('passlib').setLevel(logging.WARNING)  # Suppress bcrypt warnings
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+    logging.getLogger("passlib").setLevel(logging.WARNING)  # Suppress bcrypt warnings
+
 
 # Create a logger for use throughout the application
 logger = logging.getLogger(__name__)
-

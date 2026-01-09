@@ -3,25 +3,21 @@ SECURE Email Service for sending notifications and communications
 Handles template rendering and email delivery with comprehensive security controls
 """
 
-import os
-import re
+from datetime import datetime
 import html
-import secrets
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
 import logging
-from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
 from pathlib import Path
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
-from pydantic import EmailStr
-from app.core.config import settings
-
-from app.core.path_utils import sanitize_path, safe_filename
-from app.core.security_validator import security_validator
-from app.core.audit_logger import AuditLogger, SecurityEventType
+import secrets
+from typing import Any
 from urllib.parse import urlparse
+
 import bleach
-import dns.resolver
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from app.core.audit_logger import AuditLogger, SecurityEventType
+from app.core.config import settings
+from app.core.security_validator import security_validator
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +32,11 @@ conf = ConnectionConfig(
     MAIL_STARTTLS=settings.SMTP_TLS,
     MAIL_SSL_TLS=False,  # SSL TLS not in settings
     USE_CREDENTIALS=bool(settings.SMTP_USER and settings.SMTP_PASSWORD),
-    VALIDATE_CERTS=getattr(settings, 'MAIL_VALIDATE_CERTS', False)
+    VALIDATE_CERTS=getattr(settings, "MAIL_VALIDATE_CERTS", False),
 )
 
 # Create FastMail instance
 fm = FastMail(conf)
-
 
 
 def get_email_headers(content_type: str = "html") -> dict:
@@ -55,14 +50,9 @@ def get_email_headers(content_type: str = "html") -> dict:
         Dict of email headers
     """
     if content_type == "html":
-        return {
-            "Content-Type": "text/html; charset=utf-8",
-            "MIME-Version": "1.0"
-        }
-    else:
-        return {
-            "Content-Type": "text/plain; charset=utf-8"
-        }
+        return {"Content-Type": "text/html; charset=utf-8", "MIME-Version": "1.0"}
+    return {"Content-Type": "text/plain; charset=utf-8"}
+
 
 class EmailService:
     """SECURE: Enhanced email service with comprehensive security controls"""
@@ -73,10 +63,10 @@ class EmailService:
         # Secure Jinja2 environment with autoescape
         self.env = Environment(
             loader=FileSystemLoader(str(self.template_dir)),
-            autoescape=select_autoescape(['html', 'xml']),
+            autoescape=select_autoescape(["html", "xml"]),
             auto_reload=False,  # Security: disable auto-reload in production
             trim_blocks=True,
-            lstrip_blocks=True
+            lstrip_blocks=True,
         )
 
         # Load base template if it exists
@@ -89,7 +79,7 @@ class EmailService:
         # Security settings
         self.max_recipients = 50
         self.max_template_size = 100000  # 100KB
-        self.allowed_template_extensions = {'.html', '.htm', '.txt'}
+        self.allowed_template_extensions = {".html", ".htm", ".txt"}
         self.rate_limit_window = 3600  # 1 hour
         self.rate_limit_max = 100  # Max 100 emails per hour per sender
 
@@ -106,22 +96,28 @@ class EmailService:
                 return False
 
             # Additional security checks
-            domain = email.split('@')[1].lower()
+            domain = email.split("@")[1].lower()
 
             # Check for suspicious domains
             suspicious_domains = [
-                'tempmail', '10minutemail', 'guerrillamail', 'mailinator',
-                'yopmail', 'throwaway', 'disposable', 'temporary'
+                "tempmail",
+                "10minutemail",
+                "guerrillamail",
+                "mailinator",
+                "yopmail",
+                "throwaway",
+                "disposable",
+                "temporary",
             ]
             if any(suspicious in domain for suspicious in suspicious_domains):
                 AuditLogger.log_security_event(
                     event_type=SecurityEventType.SUSPICIOUS_ACTIVITY,
-                    details=f"Disposable email detected: {email}"
+                    details=f"Disposable email detected: {email}",
                 )
                 return False
 
             # Check for suspicious patterns
-            if email.count('@') != 1:
+            if email.count("@") != 1:
                 return False
 
             # Length restrictions
@@ -129,16 +125,16 @@ class EmailService:
                 return False
 
             # Domain validation (basic)
-            if len(domain) < 4 or domain.startswith('.') or domain.endswith('.'):
+            if len(domain) < 4 or domain.startswith(".") or domain.endswith("."):
                 return False
 
             return True
 
         except Exception as e:
-            logger.error(f"Email validation error for {email}: {str(e)}")
+            logger.error(f"Email validation error for {email}: {e!s}")
             return False
 
-    def _sanitize_template_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_template_context(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Sanitize template context to prevent injection attacks
         """
@@ -149,9 +145,9 @@ class EmailService:
                 # Sanitize string values
                 sanitized_value = bleach.clean(
                     value,
-                    tags=['p', 'br', 'strong', 'em', 'u', 'span', 'div'],
-                    attributes={'*': ['class', 'id']},
-                    strip=True
+                    tags=["p", "br", "strong", "em", "u", "span", "div"],
+                    attributes={"*": ["class", "id"]},
+                    strip=True,
                 )
                 sanitized[key] = sanitized_value
             elif isinstance(value, dict):
@@ -172,7 +168,7 @@ class EmailService:
         """
         try:
             # Check for path traversal attempts
-            if '..' in template_name or '/' in template_name or '\\' in template_name:
+            if ".." in template_name or "/" in template_name or "\\" in template_name:
                 return False
 
             # Check extension
@@ -189,7 +185,7 @@ class EmailService:
         except Exception:
             return False
 
-    def _render_template(self, template_name: str, context: Dict[str, Any]) -> str:
+    def _render_template(self, template_name: str, context: dict[str, Any]) -> str:
         """
         SECURE: Render email template with comprehensive security controls
         """
@@ -206,14 +202,22 @@ class EmailService:
 
             # Add secure default context
             default_context = {
-                'user_name': 'User',
-                'dashboard_url': self._sanitize_url(settings.FRONTEND_URL or 'https://app.psychsync.com/dashboard'),
-                'help_url': self._sanitize_url(f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/help"),
-                'settings_url': self._sanitize_url(f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/settings"),
-                'unsubscribe_url': self._sanitize_url(f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/unsubscribe"),
-                'company_name': 'PsychSync',
-                'current_year': datetime.now().year,
-                'generated_at': datetime.utcnow().isoformat()
+                "user_name": "User",
+                "dashboard_url": self._sanitize_url(
+                    settings.FRONTEND_URL or "https://app.psychsync.com/dashboard"
+                ),
+                "help_url": self._sanitize_url(
+                    f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/help"
+                ),
+                "settings_url": self._sanitize_url(
+                    f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/settings"
+                ),
+                "unsubscribe_url": self._sanitize_url(
+                    f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/unsubscribe"
+                ),
+                "company_name": "PsychSync",
+                "current_year": datetime.now().year,
+                "generated_at": datetime.utcnow().isoformat(),
             }
 
             merged_context = {**default_context, **sanitized_context}
@@ -225,22 +229,54 @@ class EmailService:
             rendered_content = bleach.clean(
                 rendered_content,
                 tags=[
-                    'html', 'head', 'body', 'title', 'meta', 'link', 'style',
-                    'div', 'span', 'p', 'br', 'strong', 'em', 'u', 'i', 'b',
-                    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                    'ul', 'ol', 'li', 'a', 'img', 'table', 'tr', 'td', 'th',
-                    'header', 'footer', 'section', 'article', 'aside', 'nav'
+                    "html",
+                    "head",
+                    "body",
+                    "title",
+                    "meta",
+                    "link",
+                    "style",
+                    "div",
+                    "span",
+                    "p",
+                    "br",
+                    "strong",
+                    "em",
+                    "u",
+                    "i",
+                    "b",
+                    "h1",
+                    "h2",
+                    "h3",
+                    "h4",
+                    "h5",
+                    "h6",
+                    "ul",
+                    "ol",
+                    "li",
+                    "a",
+                    "img",
+                    "table",
+                    "tr",
+                    "td",
+                    "th",
+                    "header",
+                    "footer",
+                    "section",
+                    "article",
+                    "aside",
+                    "nav",
                 ],
                 attributes={
-                    '*': ['class', 'id'],
-                    'a': ['href', 'title', 'target'],
-                    'img': ['src', 'alt', 'width', 'height', 'title'],
-                    'meta': ['name', 'content', 'charset'],
-                    'link': ['rel', 'href', 'type'],
-                    'style': ['type'],
-                    'table': ['border', 'cellpadding', 'cellspacing']
+                    "*": ["class", "id"],
+                    "a": ["href", "title", "target"],
+                    "img": ["src", "alt", "width", "height", "title"],
+                    "meta": ["name", "content", "charset"],
+                    "link": ["rel", "href", "type"],
+                    "style": ["type"],
+                    "table": ["border", "cellpadding", "cellspacing"],
                 },
-                strip=True
+                strip=True,
             )
 
             # Check template size
@@ -251,17 +287,20 @@ class EmailService:
             AuditLogger.log_security_event(
                 event_type=SecurityEventType.DATA_ACCESS,
                 details=f"Email template rendered: {template_name}",
-                additional_data={"template_name": template_name, "content_length": len(rendered_content)}
+                additional_data={
+                    "template_name": template_name,
+                    "content_length": len(rendered_content),
+                },
             )
 
             return rendered_content
 
         except Exception as e:
-            logger.error(f"Failed to render email template {template_name}: {str(e)}")
+            logger.error(f"Failed to render email template {template_name}: {e!s}")
             AuditLogger.log_security_event(
                 event_type=SecurityEventType.SYSTEM_ERROR,
-                details=f"Template rendering failed: {template_name} - {str(e)}",
-                additional_data={"template_name": template_name, "error": str(e)}
+                details=f"Template rendering failed: {template_name} - {e!s}",
+                additional_data={"template_name": template_name, "error": str(e)},
             )
             # Return safe fallback
             return f"<p>Email template {template_name} could not be rendered. Please contact support.</p>"
@@ -278,12 +317,12 @@ class EmailService:
             parsed = urlparse(url)
 
             # Only allow specific schemes
-            allowed_schemes = {'http', 'https'}
+            allowed_schemes = {"http", "https"}
             if parsed.scheme.lower() not in allowed_schemes:
                 return ""
 
             # Check for suspicious patterns
-            if 'javascript:' in url.lower() or 'data:' in url.lower():
+            if "javascript:" in url.lower() or "data:" in url.lower():
                 return ""
 
             # Ensure URL is properly encoded
@@ -307,9 +346,9 @@ class EmailService:
         email_to: str,
         subject: str,
         body: str,
-        html: Optional[str] = None,
-        sender_email: Optional[str] = None,
-        tracking_id: Optional[str] = None
+        html: str | None = None,
+        sender_email: str | None = None,
+        tracking_id: str | None = None,
     ) -> bool:
         """
         SECURE: Send email with comprehensive security controls
@@ -331,7 +370,7 @@ class EmailService:
                 AuditLogger.log_security_event(
                     event_type=SecurityEventType.INVALID_INPUT,
                     details=f"Invalid recipient email: {email_to}",
-                    additional_data={"recipient_email": email_to}
+                    additional_data={"recipient_email": email_to},
                 )
                 return False
 
@@ -349,7 +388,7 @@ class EmailService:
                 AuditLogger.log_security_event(
                     event_type=SecurityEventType.INVALID_INPUT,
                     details=f"Invalid sender email: {sender_email}",
-                    additional_data={"sender_email": sender_email}
+                    additional_data={"sender_email": sender_email},
                 )
                 return False
 
@@ -358,14 +397,14 @@ class EmailService:
                 AuditLogger.log_security_event(
                     event_type=SecurityEventType.RATE_LIMIT_EXCEEDED,
                     details=f"Email rate limit exceeded for sender: {sender_email or 'default'}",
-                    additional_data={"sender_email": sender_email}
+                    additional_data={"sender_email": sender_email},
                 )
                 return False
 
             # CONTENT SANITIZATION
             # Sanitize body content
             if body:
-                body = bleach.clean(body, tags=['p', 'br', 'strong', 'em'], strip=True)
+                body = bleach.clean(body, tags=["p", "br", "strong", "em"], strip=True)
                 if len(body) > 50000:  # 50KB limit
                     body = body[:50000] + "... [content truncated]"
 
@@ -374,17 +413,44 @@ class EmailService:
                 html = bleach.clean(
                     html,
                     tags=[
-                        'html', 'head', 'body', 'title', 'meta', 'link', 'style',
-                        'div', 'span', 'p', 'br', 'strong', 'em', 'u', 'i', 'b',
-                        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-                        'ul', 'ol', 'li', 'a', 'img', 'table', 'tr', 'td', 'th'
+                        "html",
+                        "head",
+                        "body",
+                        "title",
+                        "meta",
+                        "link",
+                        "style",
+                        "div",
+                        "span",
+                        "p",
+                        "br",
+                        "strong",
+                        "em",
+                        "u",
+                        "i",
+                        "b",
+                        "h1",
+                        "h2",
+                        "h3",
+                        "h4",
+                        "h5",
+                        "h6",
+                        "ul",
+                        "ol",
+                        "li",
+                        "a",
+                        "img",
+                        "table",
+                        "tr",
+                        "td",
+                        "th",
                     ],
                     attributes={
-                        '*': ['class', 'id'],
-                        'a': ['href', 'title', 'target'],
-                        'img': ['src', 'alt', 'width', 'height', 'title']
+                        "*": ["class", "id"],
+                        "a": ["href", "title", "target"],
+                        "img": ["src", "alt", "width", "height", "title"],
                     },
-                    strip=True
+                    strip=True,
                 )
                 if len(html) > 100000:  # 100KB limit
                     html = html[:100000] + "... [content truncated]"
@@ -395,7 +461,7 @@ class EmailService:
                 AuditLogger.log_security_event(
                     event_type=SecurityEventType.SYSTEM_ERROR,
                     details="Email service not properly configured",
-                    additional_data={"recipient_email": email_to, "subject": subject}
+                    additional_data={"recipient_email": email_to, "subject": subject},
                 )
                 return True  # Don't fail the operation for configuration issues
 
@@ -413,7 +479,7 @@ class EmailService:
                     "X-Mailer": "PsychSync Email Service",
                     "X-Tracking-ID": tracking_id,
                     "List-Unsubscribe": f"<{settings.FRONTEND_URL}/unsubscribe?email={email_to}>",
-                }
+                },
             )
 
             # SEND EMAIL WITH ERROR HANDLING
@@ -431,11 +497,13 @@ class EmailService:
                         "subject": subject,
                         "tracking_id": tracking_id,
                         "execution_time": execution_time,
-                        "has_html": html is not None
-                    }
+                        "has_html": html is not None,
+                    },
                 )
 
-                logger.info(f"SECURE: Email sent to {email_to} (tracking: {tracking_id}) in {execution_time:.2f}s")
+                logger.info(
+                    f"SECURE: Email sent to {email_to} (tracking: {tracking_id}) in {execution_time:.2f}s"
+                )
                 return True
 
             except Exception as send_error:
@@ -450,11 +518,11 @@ class EmailService:
                         "subject": subject,
                         "tracking_id": tracking_id,
                         "execution_time": execution_time,
-                        "error_type": type(send_error).__name__
-                    }
+                        "error_type": type(send_error).__name__,
+                    },
                 )
 
-                logger.error(f"Failed to send email to {email_to}: {str(send_error)}")
+                logger.error(f"Failed to send email to {email_to}: {send_error!s}")
 
                 # Don't expose specific error details to prevent information disclosure
                 return False
@@ -462,132 +530,165 @@ class EmailService:
         except Exception as e:
             AuditLogger.log_security_event(
                 event_type=SecurityEventType.SYSTEM_ERROR,
-                details=f"Unexpected error in email sending process",
-                additional_data={"error_type": type(e).__name__, "recipient": email_to[:50] + "..." if email_to else "unknown"}
+                details="Unexpected error in email sending process",
+                additional_data={
+                    "error_type": type(e).__name__,
+                    "recipient": email_to[:50] + "..." if email_to else "unknown",
+                },
             )
-            logger.error(f"Unexpected error in email sending: {str(e)}")
+            logger.error(f"Unexpected error in email sending: {e!s}")
             return False
 
     async def send_welcome_email(self, user_email: str, user_name: str, **kwargs) -> bool:
         """Send welcome email to new user using template"""
         try:
-            html_content = self._render_template("welcome.html", {
-                'user_name': user_name,
-                'dashboard_url': f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/dashboard",
-                'header_message': "Start your team intelligence journey",
-                **kwargs
-            })
+            html_content = self._render_template(
+                "welcome.html",
+                {
+                    "user_name": user_name,
+                    "dashboard_url": f"{settings.FRONTEND_URL or 'https://app.psychsync.com'}/dashboard",
+                    "header_message": "Start your team intelligence journey",
+                    **kwargs,
+                },
+            )
 
             subject = "Welcome to PsychSync! 🎉"
             return await self.send_email(user_email, subject, "", html_content)
 
         except Exception as e:
-            logger.error(f"Failed to send welcome email to {user_email}: {str(e)}")
+            logger.error(f"Failed to send welcome email to {user_email}: {e!s}")
             return False
 
-    async def send_assessment_completed_email(self, user_email: str, user_name: str,
-                                       assessment_data: Dict[str, Any], **kwargs) -> bool:
+    async def send_assessment_completed_email(
+        self, user_email: str, user_name: str, assessment_data: dict[str, Any], **kwargs
+    ) -> bool:
         """Send email when user completes an assessment using template"""
         try:
-            html_content = self._render_template("assessment_completed.html", {
-                'user_name': user_name,
-                'assessment_name': assessment_data.get('assessment_name', 'Assessment'),
-                'personality_type': assessment_data.get('personality_type'),
-                'personality_description': assessment_data.get('personality_description'),
-                'trait_scores': assessment_data.get('trait_scores', {}),
-                'strengths': assessment_data.get('strengths', []),
-                'development_areas': assessment_data.get('development_areas', []),
-                'recommendations': assessment_data.get('recommendations', []),
-                'results_url': assessment_data.get('results_url', f"{settings.FRONTEND_URL}/results"),
-                'team_analysis_url': assessment_data.get('team_analysis_url', f"{settings.FRONTEND_URL}/team-analysis"),
-                'privacy_settings_url': f"{settings.FRONTEND_URL}/settings/privacy",
-                **kwargs
-            })
+            html_content = self._render_template(
+                "assessment_completed.html",
+                {
+                    "user_name": user_name,
+                    "assessment_name": assessment_data.get("assessment_name", "Assessment"),
+                    "personality_type": assessment_data.get("personality_type"),
+                    "personality_description": assessment_data.get("personality_description"),
+                    "trait_scores": assessment_data.get("trait_scores", {}),
+                    "strengths": assessment_data.get("strengths", []),
+                    "development_areas": assessment_data.get("development_areas", []),
+                    "recommendations": assessment_data.get("recommendations", []),
+                    "results_url": assessment_data.get(
+                        "results_url", f"{settings.FRONTEND_URL}/results"
+                    ),
+                    "team_analysis_url": assessment_data.get(
+                        "team_analysis_url", f"{settings.FRONTEND_URL}/team-analysis"
+                    ),
+                    "privacy_settings_url": f"{settings.FRONTEND_URL}/settings/privacy",
+                    **kwargs,
+                },
+            )
 
-            subject = f"Your {assessment_data.get('assessment_name', 'Assessment')} Results Are Ready! 📊"
+            subject = (
+                f"Your {assessment_data.get('assessment_name', 'Assessment')} Results Are Ready! 📊"
+            )
             return await self.send_email(user_email, subject, "", html_content)
 
         except Exception as e:
-            logger.error(f"Failed to send assessment completion email to {user_email}: {str(e)}")
+            logger.error(f"Failed to send assessment completion email to {user_email}: {e!s}")
             return False
 
-    async def send_team_optimization_email(self, user_email: str, user_name: str,
-                                      optimization_data: Dict[str, Any], **kwargs) -> bool:
+    async def send_team_optimization_email(
+        self, user_email: str, user_name: str, optimization_data: dict[str, Any], **kwargs
+    ) -> bool:
         """Send email with team optimization results using template"""
         try:
-            html_content = self._render_template("team_optimization.html", {
-                'user_name': user_name,
-                'optimization_objective': optimization_data.get('objective', 'performance'),
-                'overall_score': optimization_data.get('overall_score', 0.85),
-                'recommended_teams': optimization_data.get('recommended_teams', []),
-                'insights': optimization_data.get('insights', []),
-                'total_members': optimization_data.get('total_members', 0),
-                'compatibility_pairs': optimization_data.get('compatibility_pairs', 0),
-                'unique_skills': optimization_data.get('unique_skills', 0),
-                'algorithm_runtime': optimization_data.get('algorithm_runtime', 0),
-                'improvements_needed': optimization_data.get('improvements_needed', []),
-                'dashboard_url': optimization_data.get('dashboard_url', f"{settings.FRONTEND_URL}/dashboard"),
-                'download_report_url': optimization_data.get('download_report_url', f"{settings.FRONTEND_URL}/download-report"),
-                'consult_url': optimization_data.get('consult_url', f"{settings.FRONTEND_URL}/consult"),
-                **kwargs
-            })
+            html_content = self._render_template(
+                "team_optimization.html",
+                {
+                    "user_name": user_name,
+                    "optimization_objective": optimization_data.get("objective", "performance"),
+                    "overall_score": optimization_data.get("overall_score", 0.85),
+                    "recommended_teams": optimization_data.get("recommended_teams", []),
+                    "insights": optimization_data.get("insights", []),
+                    "total_members": optimization_data.get("total_members", 0),
+                    "compatibility_pairs": optimization_data.get("compatibility_pairs", 0),
+                    "unique_skills": optimization_data.get("unique_skills", 0),
+                    "algorithm_runtime": optimization_data.get("algorithm_runtime", 0),
+                    "improvements_needed": optimization_data.get("improvements_needed", []),
+                    "dashboard_url": optimization_data.get(
+                        "dashboard_url", f"{settings.FRONTEND_URL}/dashboard"
+                    ),
+                    "download_report_url": optimization_data.get(
+                        "download_report_url", f"{settings.FRONTEND_URL}/download-report"
+                    ),
+                    "consult_url": optimization_data.get(
+                        "consult_url", f"{settings.FRONTEND_URL}/consult"
+                    ),
+                    **kwargs,
+                },
+            )
 
             subject = "Team Optimization Results Ready! 🎯"
             return await self.send_email(user_email, subject, "", html_content)
 
         except Exception as e:
-            logger.error(f"Failed to send team optimization email to {user_email}: {str(e)}")
+            logger.error(f"Failed to send team optimization email to {user_email}: {e!s}")
             return False
 
-    async def send_billing_email(self, user_email: str, user_name: str, billing_data: Dict[str, Any],
-                           **kwargs) -> bool:
+    async def send_billing_email(
+        self, user_email: str, user_name: str, billing_data: dict[str, Any], **kwargs
+    ) -> bool:
         """Send billing-related email using template"""
         try:
-            html_content = self._render_template("billing.html", {
-                'user_name': user_name,
-                'billing_event': billing_data.get('event', 'update'),
-                'amount': billing_data.get('amount', 0),
-                'currency': billing_data.get('currency', 'usd'),
-                'payment_date': billing_data.get('payment_date', datetime.now()),
-                'transaction_id': billing_data.get('transaction_id'),
-                'invoice_id': billing_data.get('invoice_id'),
-                'failure_reason': billing_data.get('failure_reason'),
-                'payment_method_type': billing_data.get('payment_method_type', 'card'),
-                'payment_method_last4': billing_data.get('payment_method_last4'),
-                'plan_name': billing_data.get('plan_name', 'Free'),
-                'plan_features': billing_data.get('plan_features', []),
-                'monthly_price': billing_data.get('monthly_price', 0),
-                'billing_cycle': billing_data.get('billing_cycle', 'monthly'),
-                'annual_discount': billing_data.get('annual_discount'),
-                'auto_renew': billing_data.get('auto_renew', True),
-                'next_billing_date': billing_data.get('next_billing_date'),
-                'current_period_end': billing_data.get('current_period_end'),
-                'upgraded': billing_data.get('upgraded', False),
-                'dashboard_url': f"{settings.FRONTEND_URL}/dashboard",
-                'getting_started_url': f"{settings.FRONTEND_URL}/getting-started",
-                'billing_url': f"{settings.FRONTEND_URL}/billing",
-                'support_url': f"{settings.FRONTEND_URL}/support",
-                'invoice_url': billing_data.get('invoice_url', f"{settings.FRONTEND_URL}/invoice/{billing_data.get('invoice_id')}"),
-                'reactivate_url': f"{settings.FRONTEND_URL}/reactivate",
-                'email_settings_url': f"{settings.FRONTEND_URL}/settings/notifications",
-                **kwargs
-            })
+            html_content = self._render_template(
+                "billing.html",
+                {
+                    "user_name": user_name,
+                    "billing_event": billing_data.get("event", "update"),
+                    "amount": billing_data.get("amount", 0),
+                    "currency": billing_data.get("currency", "usd"),
+                    "payment_date": billing_data.get("payment_date", datetime.now()),
+                    "transaction_id": billing_data.get("transaction_id"),
+                    "invoice_id": billing_data.get("invoice_id"),
+                    "failure_reason": billing_data.get("failure_reason"),
+                    "payment_method_type": billing_data.get("payment_method_type", "card"),
+                    "payment_method_last4": billing_data.get("payment_method_last4"),
+                    "plan_name": billing_data.get("plan_name", "Free"),
+                    "plan_features": billing_data.get("plan_features", []),
+                    "monthly_price": billing_data.get("monthly_price", 0),
+                    "billing_cycle": billing_data.get("billing_cycle", "monthly"),
+                    "annual_discount": billing_data.get("annual_discount"),
+                    "auto_renew": billing_data.get("auto_renew", True),
+                    "next_billing_date": billing_data.get("next_billing_date"),
+                    "current_period_end": billing_data.get("current_period_end"),
+                    "upgraded": billing_data.get("upgraded", False),
+                    "dashboard_url": f"{settings.FRONTEND_URL}/dashboard",
+                    "getting_started_url": f"{settings.FRONTEND_URL}/getting-started",
+                    "billing_url": f"{settings.FRONTEND_URL}/billing",
+                    "support_url": f"{settings.FRONTEND_URL}/support",
+                    "invoice_url": billing_data.get(
+                        "invoice_url",
+                        f"{settings.FRONTEND_URL}/invoice/{billing_data.get('invoice_id')}",
+                    ),
+                    "reactivate_url": f"{settings.FRONTEND_URL}/reactivate",
+                    "email_settings_url": f"{settings.FRONTEND_URL}/settings/notifications",
+                    **kwargs,
+                },
+            )
 
             # Dynamic subject based on event
             event_subjects = {
-                'payment_succeeded': "Payment Successful! 💳",
-                'subscription_created': f"Welcome to {billing_data.get('plan_name', 'Pro')}! 🎉",
-                'subscription_updated': "Subscription Updated! 🔄",
-                'subscription_cancelled': "Subscription Cancelled 📧",
-                'invoice_failed': "Payment Failed ⚠️",
-                'payment_method_added': "Payment Method Added 💳",
+                "payment_succeeded": "Payment Successful! 💳",
+                "subscription_created": f"Welcome to {billing_data.get('plan_name', 'Pro')}! 🎉",
+                "subscription_updated": "Subscription Updated! 🔄",
+                "subscription_cancelled": "Subscription Cancelled 📧",
+                "invoice_failed": "Payment Failed ⚠️",
+                "payment_method_added": "Payment Method Added 💳",
             }
 
-            subject = event_subjects.get(billing_data.get('event'), "Billing Update 📋")
+            subject = event_subjects.get(billing_data.get("event"), "Billing Update 📋")
             return await self.send_email(user_email, subject, "", html_content)
 
         except Exception as e:
-            logger.error(f"Failed to send billing email to {user_email}: {str(e)}")
+            logger.error(f"Failed to send billing email to {user_email}: {e!s}")
             return False
 
     async def send_verification_email(self, email: str, token: str, name: str):
@@ -595,7 +696,7 @@ class EmailService:
         if not settings.SMTP_HOST or not settings.SMTP_USER:
             # SECURITY: Use logger instead of print to prevent token leakage
             logger.warning(f"Email not configured. Verification email not sent to {email}")
-            return
+            return None
 
         frontend_url = settings.FRONTEND_EMAIL_VERIFY_URL or "http://localhost:3000/verify-email"
         verify_link = f"{frontend_url}?token={token}"
@@ -635,14 +736,16 @@ class EmailService:
             return True
 
         subject = "Welcome to PsychSync!"
-        html_content = self._render_template("welcome.html", {
-            'user_name': name,
-            'dashboard_url': f"{settings.FRONTEND_URL}/dashboard"
-        })
+        html_content = self._render_template(
+            "welcome.html",
+            {"user_name": name, "dashboard_url": f"{settings.FRONTEND_URL}/dashboard"},
+        )
 
         return await self.send_email(email, subject, "", html_content)
 
-    async def send_password_reset_email(self, user_email: str, token: str, user_name: str = None, **kwargs) -> bool:
+    async def send_password_reset_email(
+        self, user_email: str, token: str, user_name: str = None, **kwargs
+    ) -> bool:
         """Send password reset email using embedded template"""
         try:
             template_content = f"""
@@ -650,10 +753,10 @@ class EmailService:
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #4F46E5;">Reset Your Password</h2>
-                    <p>Hi {user_name or 'there'},</p>
+                    <p>Hi {user_name or "there"},</p>
                     <p>We received a request to reset your password. Click the button below to set a new password:</p>
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="{settings.FRONTEND_PASSWORD_RESET_URL or f"http://localhost:3000/reset-password"}?token={token}"
+                        <a href="{settings.FRONTEND_PASSWORD_RESET_URL or "http://localhost:3000/reset-password"}?token={token}"
                            style="display: inline-block; padding: 12px 24px; background: #ef4444; color: white;
                                   text-decoration: none; border-radius: 6px; font-weight: 600;">
                             Reset Password
@@ -673,10 +776,12 @@ class EmailService:
             return await self.send_email(user_email, subject, "", template_content)
 
         except Exception as e:
-            logger.error(f"Failed to send password reset email to {user_email}: {str(e)}")
+            logger.error(f"Failed to send password reset email to {user_email}: {e!s}")
             return False
 
-    async def send_team_invitation(self, user_email: str, team_name: str, inviter_name: str, invite_link: str, **kwargs) -> bool:
+    async def send_team_invitation(
+        self, user_email: str, team_name: str, inviter_name: str, invite_link: str, **kwargs
+    ) -> bool:
         """Send team invitation email using template"""
         try:
             template_content = f"""
@@ -717,14 +822,14 @@ class EmailService:
             return await self.send_email(user_email, subject, "", template_content)
 
         except Exception as e:
-            logger.error(f"Failed to send team invitation email to {user_email}: {str(e)}")
+            logger.error(f"Failed to send team invitation email to {user_email}: {e!s}")
             return False
 
-    def preview_email(self, template_name: str, context: Dict[str, Any]) -> str:
+    def preview_email(self, template_name: str, context: dict[str, Any]) -> str:
         """Preview email content without sending"""
         try:
             return self._render_template(template_name, context)
 
         except Exception as e:
-            logger.error(f"Failed to preview email template {template_name}: {str(e)}")
-            return f"Error rendering template: {str(e)}"
+            logger.error(f"Failed to preview email template {template_name}: {e!s}")
+            return f"Error rendering template: {e!s}"

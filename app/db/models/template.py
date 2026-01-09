@@ -1,19 +1,15 @@
 # app/db/models/template.py
-from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
+
 from app.core.database import Base
 
 
 class Template(Base):
     __tablename__ = "templates"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        server_default=func.gen_random_uuid()
-    )
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
 
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
@@ -30,24 +26,14 @@ class Template(Base):
 
     # Foreign keys
     created_by_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-        index=True
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships with proper lazy loading
     # created_by_user = relationship(
@@ -59,10 +45,10 @@ class Template(Base):
 
     # Define table indexes for performance
     __table_args__ = (
-        Index('idx_template_type_active', 'template_type', 'is_active'),
-        Index('idx_template_created_by', 'created_by_id', 'created_at'),
-        Index('idx_template_public_active', 'is_public', 'is_active'),
-        Index('idx_template_name_type', 'name', 'template_type'),
+        Index("idx_template_type_active", "template_type", "is_active"),
+        Index("idx_template_created_by", "created_by_id", "created_at"),
+        Index("idx_template_public_active", "is_public", "is_active"),
+        Index("idx_template_name_type", "name", "template_type"),
     )
 
     def __repr__(self):

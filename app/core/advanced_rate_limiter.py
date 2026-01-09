@@ -10,10 +10,10 @@ Layers:
 """
 
 import hashlib
-from typing import Optional, Tuple
-from fastapi import Request, HTTPException, status
-from redis.asyncio import Redis
 import time
+
+from fastapi import Request
+from redis.asyncio import Redis
 
 
 class AdvancedRateLimiter:
@@ -33,11 +33,8 @@ class AdvancedRateLimiter:
         self.redis = redis
 
     async def check_rate_limit(
-        self,
-        request: Request,
-        username: Optional[str] = None,
-        endpoint: str = "default"
-    ) -> Tuple[bool, str, dict]:
+        self, request: Request, username: str | None = None, endpoint: str = "default"
+    ) -> tuple[bool, str, dict]:
         """
         Check rate limits across multiple dimensions.
 
@@ -56,10 +53,7 @@ class AdvancedRateLimiter:
 
         # Layer 1: IP-based rate limiting
         ip_allowed, ip_limit = await self._check_limit(
-            f"rate_limit:ip:{endpoint}:{client_ip}",
-            max_requests=100,
-            window=60,
-            identifier="IP"
+            f"rate_limit:ip:{endpoint}:{client_ip}", max_requests=100, window=60, identifier="IP"
         )
 
         if not ip_allowed:
@@ -71,11 +65,11 @@ class AdvancedRateLimiter:
                 f"rate_limit:username:{endpoint}:{username.lower()}",
                 max_requests=10,
                 window=60,
-                identifier="Username"
+                identifier="Username",
             )
 
             if not username_allowed:
-                return False, f"Username rate limit exceeded", username_limit
+                return False, "Username rate limit exceeded", username_limit
 
         # Layer 3: Device fingerprinting
         device_id = self._get_device_fingerprint(request)
@@ -83,34 +77,38 @@ class AdvancedRateLimiter:
             f"rate_limit:device:{endpoint}:{device_id}",
             max_requests=20,
             window=60,
-            identifier="Device"
+            identifier="Device",
         )
 
         if not device_allowed:
             return False, "Device rate limit exceeded", device_limit
 
         # Layer 4: Geolocation tracking (rough grouping by first octet)
-        geo_group = client_ip.split('.')[0] if '.' in client_ip else 'unknown'
+        geo_group = client_ip.split(".")[0] if "." in client_ip else "unknown"
         geo_allowed, geo_limit = await self._check_limit(
             f"rate_limit:geo:{endpoint}:{geo_group}",
             max_requests=500,
             window=60,
-            identifier="Geographic"
+            identifier="Geographic",
         )
 
         if not geo_allowed:
-            return False, f"Geographic rate limit exceeded", geo_limit
+            return False, "Geographic rate limit exceeded", geo_limit
 
         # Track attempt for analytics
         await self._track_attempt(client_ip, username, device_id)
 
         # Return success with rate limit info
-        return True, "OK", {
-            "ip_limit": ip_limit,
-            "username_limit": username_limit if username else None,
-            "device_limit": device_limit,
-            "geo_limit": geo_limit,
-        }
+        return (
+            True,
+            "OK",
+            {
+                "ip_limit": ip_limit,
+                "username_limit": username_limit if username else None,
+                "device_limit": device_limit,
+                "geo_limit": geo_limit,
+            },
+        )
 
     def _get_client_ip(self, request: Request) -> str:
         """
@@ -158,12 +156,8 @@ class AdvancedRateLimiter:
         return hashlib.sha256(fingerprint.encode()).hexdigest()[:16]
 
     async def _check_limit(
-        self,
-        key: str,
-        max_requests: int,
-        window: int,
-        identifier: str
-    ) -> Tuple[bool, dict]:
+        self, key: str, max_requests: int, window: int, identifier: str
+    ) -> tuple[bool, dict]:
         """
         Check if limit exceeded using sliding window counter.
 
@@ -195,12 +189,7 @@ class AdvancedRateLimiter:
 
         return allowed, limit_info
 
-    async def _track_attempt(
-        self,
-        ip: str,
-        username: Optional[str],
-        device: str
-    ):
+    async def _track_attempt(self, ip: str, username: str | None, device: str):
         """
         Track rate limit attempt for analytics.
 
@@ -220,11 +209,7 @@ class AdvancedRateLimiter:
         if device:
             await self.redis.sadd(f"rate_limit:device_ips:{device}", ip)
 
-    async def get_rate_limit_status(
-        self,
-        request: Request,
-        username: Optional[str] = None
-    ) -> dict:
+    async def get_rate_limit_status(self, request: Request, username: str | None = None) -> dict:
         """
         Get current rate limit status for a client.
 
@@ -238,11 +223,7 @@ class AdvancedRateLimiter:
         client_ip = self._get_client_ip(request)
         device_id = self._get_device_fingerprint(request)
 
-        status = {
-            "ip": client_ip,
-            "device_fingerprint": device_id,
-            "limits": {}
-        }
+        status = {"ip": client_ip, "device_fingerprint": device_id, "limits": {}}
 
         # Check IP limits
         ip_key = f"rate_limit:ip:default:{client_ip}"
@@ -265,11 +246,7 @@ class AdvancedRateLimiter:
 
         return status
 
-    async def reset_rate_limit(
-        self,
-        request: Request,
-        username: Optional[str] = None
-    ):
+    async def reset_rate_limit(self, request: Request, username: str | None = None):
         """
         Reset rate limits for a client (admin function).
 
@@ -292,10 +269,10 @@ class AdvancedRateLimiter:
 
 
 # Singleton instance (initialized in app startup)
-_rate_limiter: Optional[AdvancedRateLimiter] = None
+_rate_limiter: AdvancedRateLimiter | None = None
 
 
-def get_rate_limiter() -> Optional[AdvancedRateLimiter]:
+def get_rate_limiter() -> AdvancedRateLimiter | None:
     """
     Get the rate limiter instance.
 

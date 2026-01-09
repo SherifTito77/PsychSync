@@ -8,6 +8,7 @@ from typing import Literal
 
 EnvironmentType = Literal["development", "staging", "production"]
 
+
 class ProductionSecurityConfig:
     """Security configuration based on environment."""
 
@@ -97,23 +98,22 @@ class ProductionSecurityConfig:
         if self.is_production:
             # In production, only allow specific domains
             return os.getenv("ALLOWED_ORIGINS", "").split(",")
-        elif self.is_staging:
+        if self.is_staging:
             return [
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "http://localhost:5174",
                 os.getenv("STAGING_URL", ""),
             ]
-        else:
-            # Development: allow all local origins
-            return [
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "http://localhost:5174",
-                "http://127.0.0.1:3000",
-                "http://127.0.0.1:5173",
-                "http://127.0.0.1:5174",
-            ]
+        # Development: allow all local origins
+        return [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+        ]
 
 
 # Global config instance
@@ -133,16 +133,20 @@ def require_production(feature: str = ""):
             # Only runs in production
             pass
     """
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             if not security_config.is_production:
                 from fastapi import HTTPException
+
                 raise HTTPException(
                     status_code=403,
-                    detail=f"This feature ({feature}) is only available in production environment"
+                    detail=f"This feature ({feature}) is only available in production environment",
                 )
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -153,14 +157,18 @@ def require_production_or_staging(feature: str = ""):
     Args:
         feature: Feature name for error message
     """
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             if not (security_config.is_production or security_config.is_staging):
                 from fastapi import HTTPException
+
                 raise HTTPException(
                     status_code=403,
-                    detail=f"This feature ({feature}) is only available in production or staging"
+                    detail=f"This feature ({feature}) is only available in production or staging",
                 )
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

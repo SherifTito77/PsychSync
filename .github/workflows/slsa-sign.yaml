@@ -1,0 +1,310 @@
+name: SLSA Build & Sign with Provenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*.*.*'
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC token
+  packages: write
+  actions: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # BUILD & SIGN WITH SLSA PROVENANCE
+  # ============================================================================
+  build-sign:
+    name: Build, Sign & Generate Provenance
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for provenance
+
+      # -------------------------------------------------------------------------
+      # Set up Docker Buildx for multi-platform builds
+      # -------------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.3.0
+
+      # -------------------------------------------------------------------------
+      # Log in to GitHub Container Registry
+      # -------------------------------------------------------------------------
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3.0.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # -------------------------------------------------------------------------
+      # Extract metadata for Docker image
+      # -------------------------------------------------------------------------
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5.5.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=${{ github.event.repository.name }}
+            org.opencontainers.image.description=${{ github.event.repository.description }}
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.licenses=${{ github.event.repository.license.name || 'Proprietary' }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.authors=${{ github.actor }}
+
+      # -------------------------------------------------------------------------
+      # BUILD & PUSH DOCKER IMAGE
+      # -------------------------------------------------------------------------
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5.1.0
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+          provenance: true
+          sbom: true
+
+      # -------------------------------------------------------------------------
+      # GENERATE SBOM WITH SYFT
+      # -------------------------------------------------------------------------
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0.15.0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: true
+
+      # -------------------------------------------------------------------------
+      # SIGN IMAGE WITH COSIGN (OIDC)
+      # -------------------------------------------------------------------------
+      - name: Sign image with Cosign
+        uses: sigstore/cosign-installer@v3.1.2
+        with:
+          cosign-release: 'v2.2.3'
+
+      # Extract the image digest for signing
+      - name: Extract image digest
+        id: digest
+        run: |
+          DIGEST="${{ steps.build.outputs.digest }}"
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      # Sign with OIDC token
+      - name: Sign Docker image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.digest.outputs.digest }}"
+
+          # Sign with Cosign using GitHub OIDC token
+          cosign sign \
+            --yes \
+            --annotations "org.opencontainers.image.revision=${{ github.sha }}" \
+            --annotations "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --annotations "com.github.workflow_run=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "$IMAGE"
+
+      # Attach SBOM signature
+      - name: Attach SBOM to image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.digest.outputs.digest }}"
+
+          # Attach SBOM
+          cosign attach sbom \
+            --type spdx \
+            --sbom sbom.spdx.json \
+            "$IMAGE"
+
+      # -------------------------------------------------------------------------
+      # GENERATE SLSA PROVENANCE
+      # -------------------------------------------------------------------------
+      - name: Generate SLSA provenance
+        uses: slsa-framework/slsa-github-generator@slsa1/slsa1-github-generator@v1.10.0
+        with:
+          image-url: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          provenance-name: "${{ env.IMAGE_NAME }}-provenance"
+          upload-tag-name: "slsa-provenance"
+
+      # -------------------------------------------------------------------------
+      # OUTPUT SUMMARY
+      # -------------------------------------------------------------------------
+      - name: Output build summary
+        run: |
+          echo "## 🎯 Build & Sign Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Image Built**: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Digest**: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🏷️ **Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✍️ **Signed**: Yes (Cosign + OIDC)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📜 **Provenance**: SLSA Level 1" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📋 **SBOM**: Generated and attached" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # VERIFY INTEGRITY BEFORE DEPLOY
+  # ============================================================================
+  verify:
+    name: Verify Signatures & Provenance
+    runs-on: ubuntu-latest
+    needs: build-sign
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.1.2
+        with:
+          cosign-release: 'v2.2.3'
+
+      - name: Install SLSA verifier
+        run: |
+          curl -L https://github.com/slsa-framework/slsa-verifier/releases/download/v2.4.0/slsa-verifier-linux-amd64 -o slsa-verifier
+          chmod +x slsa-verifier
+          sudo mv slsa-verifier /usr/local/bin/
+
+      - name: Verify Cosign signature
+        run: |
+          IMAGE="${{ needs.build-sign.outputs.image-tag }}"
+
+          echo "Verifying Cosign signature for: $IMAGE"
+
+          cosign verify \
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/slsa-sign.yaml@refs/tags/${{ github.ref_name }}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE"
+
+      - name: Verify SLSA provenance
+        run: |
+          IMAGE_DIGEST="${{ needs.build-sign.outputs.image-digest }}"
+
+          echo "Verifying SLSA provenance for digest: $IMAGE_DIGEST"
+
+          slsa-verifier verify-image \
+            --source-uri github.com/${{ github.repository }} \
+            --provenance-path "https://github.com/${{ github.repository }}/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+            "$IMAGE_DIGEST"
+
+      - name: Verify SBOM
+        run: |
+          IMAGE="${{ needs.build-sign.outputs.image-tag }}"
+
+          echo "Verifying SBOM for: $IMAGE"
+
+          cosign verify-attestation \
+            --type spdxjson \
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/slsa-sign.yaml@refs/tags/${{ github.ref_name }}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$IMAGE"
+
+      - name: Output verification summary
+        run: |
+          echo "## ✅ Verification Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Cosign Signature**: VALID" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **SLSA Provenance**: VALID" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **SBOM**: VERIFIED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **Supply Chain**: INTEGRITY CONFIRMED" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # DEPLOY TO PRODUCTION (OPTIONAL)
+  # ============================================================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: verify
+    if: github.event_name == 'release' && github.event.action == 'created'
+    environment:
+      name: production
+      url: https://psychsync.ai
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying verified image to production..."
+          echo "Image: ${{ needs.build-sign.outputs.image-tag }}"
+          echo "Digest: ${{ needs.build-sign.outputs.image-digest }}"
+
+          # Add your deployment commands here
+          # kubectl set image deployment/psychsync \
+          #   psychsync=${{ needs.build-sign.outputs.image-tag }} \
+          #   --namespace=production
+
+      - name: Post-deployment verification
+        run: |
+          echo "Verifying deployment..."
+
+          # Verify the deployed image matches the signed image
+          # Add your verification steps here
+
+  # ============================================================================
+  # GENERATE ARTIFACTS FOR DOWNLOAD
+  # ============================================================================
+  artifacts:
+    name: Generate Artifacts
+    runs-on: ubuntu-latest
+    needs: build-sign
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Upload combined artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: slsa-artifacts-${{ github.ref_name }}
+          path: |
+            sbom.spdx.json
+            provenance.intoto.jsonl
+          retention-days: 90

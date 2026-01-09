@@ -3,17 +3,18 @@ Simple in-memory rate limiter for authentication endpoints.
 Uses a sliding window algorithm to track requests per IP.
 """
 
-import time
-from typing import Dict
 from functools import wraps
-from fastapi import Request, HTTPException, status
+import time
+
+from fastapi import HTTPException, Request, status
+
 
 class SimpleRateLimiter:
     """Simple in-memory rate limiter using sliding window."""
 
     def __init__(self):
         # Store request timestamps per key
-        self.requests: Dict[str, list] = {}
+        self.requests: dict[str, list] = {}
         # Clean up old entries periodically
         self._last_cleanup = time.time()
 
@@ -28,12 +29,7 @@ class SimpleRateLimiter:
             }
             self._last_cleanup = now
 
-    def is_rate_limited(
-        self,
-        key: str,
-        max_requests: int = 5,
-        window_seconds: int = 60
-    ) -> bool:
+    def is_rate_limited(self, key: str, max_requests: int = 5, window_seconds: int = 60) -> bool:
         """
         Check if the given key has exceeded the rate limit.
 
@@ -55,10 +51,7 @@ class SimpleRateLimiter:
 
         # Remove timestamps outside the window
         window_start = now - window_seconds
-        self.requests[key] = [
-            ts for ts in self.requests[key]
-            if ts > window_start
-        ]
+        self.requests[key] = [ts for ts in self.requests[key] if ts > window_start]
 
         # Check if limit exceeded
         if len(self.requests[key]) >= max_requests:
@@ -67,6 +60,7 @@ class SimpleRateLimiter:
         # Add current request timestamp
         self.requests[key].append(now)
         return False
+
 
 # Global rate limiter instance
 rate_limiter = SimpleRateLimiter()
@@ -85,6 +79,7 @@ def rate_limit(max_requests: int = 5, window_seconds: int = 60):
         async def login_endpoint(request: Request):
             ...
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -97,7 +92,7 @@ def rate_limit(max_requests: int = 5, window_seconds: int = 60):
 
             if request is None:
                 # Try to get request from kwargs
-                request = kwargs.get('request')
+                request = kwargs.get("request")
 
             if request is None:
                 # No request object found, skip rate limiting
@@ -114,17 +109,18 @@ def rate_limit(max_requests: int = 5, window_seconds: int = 60):
                     detail={
                         "error": "Rate limit exceeded",
                         "message": f"Too many requests. Maximum {max_requests} requests per {window_seconds} seconds.",
-                        "retry_after": window_seconds
+                        "retry_after": window_seconds,
                     },
                     headers={
                         "Retry-After": str(window_seconds),
                         "X-RateLimit-Limit": str(max_requests),
                         "X-RateLimit-Remaining": "0",
-                        "X-RateLimit-Reset": str(int(time.time()) + window_seconds)
-                    }
+                        "X-RateLimit-Reset": str(int(time.time()) + window_seconds),
+                    },
                 )
 
             return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator

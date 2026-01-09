@@ -3,17 +3,17 @@ Production-Grade Rate Limiting System
 Implements Redis-backed rate limiting with sliding window algorithm
 """
 
-import time
-import json
-import asyncio
-from typing import Optional, Dict, Any, Callable
+from collections.abc import Callable
 from functools import wraps
-from fastapi import Request, HTTPException, status
-from datetime import datetime, timedelta
+import json
 import logging
-import hashlib
+import time
+from typing import Any
+
+from fastapi import HTTPException, Request, status
 
 logger = logging.getLogger(__name__)
+
 
 class RedisRateLimiter:
     """
@@ -32,12 +32,8 @@ class RedisRateLimiter:
         self.penalties = {}  # Track progressive penalties
 
     async def is_allowed(
-        self,
-        key: str,
-        limit: int,
-        window: int = 60,
-        identifier: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, key: str, limit: int, window: int = 60, identifier: str | None = None
+    ) -> dict[str, Any]:
         """
         Check if request is allowed based on rate limit
 
@@ -103,15 +99,11 @@ class RedisRateLimiter:
             "reset_time": reset_time,
             "current_requests": current_requests,
             "window": window,
-            "penalty_multiplier": penalty_multiplier
+            "penalty_multiplier": penalty_multiplier,
         }
 
     async def _apply_progressive_penalty(
-        self,
-        redis_key: str,
-        current_multiplier: float,
-        identifier: str,
-        key: str
+        self, redis_key: str, current_multiplier: float, identifier: str, key: str
     ) -> None:
         """Apply progressive penalty for rate limit violations"""
 
@@ -125,15 +117,14 @@ class RedisRateLimiter:
         await self.redis.setex(
             penalty_key,
             3600,  # 1 hour penalty
-            json.dumps({
-                "multiplier": new_multiplier,
-                "timestamp": time.time()
-            })
+            json.dumps({"multiplier": new_multiplier, "timestamp": time.time()}),
         )
 
-        logger.warning(f"Rate limit penalty applied for {identifier}: {new_multiplier:.2f}x reduction")
+        logger.warning(
+            f"Rate limit penalty applied for {identifier}: {new_multiplier:.2f}x reduction"
+        )
 
-    async def get_rate_limit_info(self, key: str, identifier: str) -> Dict[str, Any]:
+    async def get_rate_limit_info(self, key: str, identifier: str) -> dict[str, Any]:
         """Get current rate limit status"""
         redis_key = f"rate_limit:{key}:{identifier}"
 
@@ -155,7 +146,7 @@ class RedisRateLimiter:
         return {
             "current_requests": current_requests,
             "penalty_multiplier": penalty_multiplier,
-            "has_penalty": penalty_multiplier < 1.0
+            "has_penalty": penalty_multiplier < 1.0,
         }
 
 
@@ -179,11 +170,11 @@ class RateLimiter:
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Extract request from kwargs if available
-            request = kwargs.get('request')
+            request = kwargs.get("request")
             if not request:
                 # Try to get request from args (first arg is usually self, second is Request)
                 for arg in args:
-                    if hasattr(arg, 'client') and hasattr(arg, 'url'):
+                    if hasattr(arg, "client") and hasattr(arg, "url"):
                         request = arg
                         break
 
@@ -197,7 +188,9 @@ class RateLimiter:
                 # Check rate limit (simplified version that doesn't block for testing)
                 try:
                     # For testing purposes, we'll just log and allow all requests
-                    logger.debug(f"Rate limit check for {client_ip}: {self.key} (limit: {self.limit})")
+                    logger.debug(
+                        f"Rate limit check for {client_ip}: {self.key} (limit: {self.limit})"
+                    )
                     # In production, you would check with Redis here and potentially raise RateLimitExceeded
                 except Exception as e:
                     logger.warning(f"Rate limit check failed: {e}")
@@ -219,11 +212,11 @@ class RateLimitMiddleware:
 
         # Define rate limit policies
         self.policies = {
-            "auth_login": {"limit": 5, "window": 300},      # 5 attempts per 5 minutes
-            "auth_register": {"limit": 3, "window": 300},   # 3 registrations per 5 minutes
-            "auth_refresh": {"limit": 10, "window": 60},    # 10 refreshes per minute
-            "api_general": {"limit": 100, "window": 60},    # 100 requests per minute
-            "api_heavy": {"limit": 20, "window": 60},       # 20 heavy requests per minute
+            "auth_login": {"limit": 5, "window": 300},  # 5 attempts per 5 minutes
+            "auth_register": {"limit": 3, "window": 300},  # 3 registrations per 5 minutes
+            "auth_refresh": {"limit": 10, "window": 60},  # 10 refreshes per minute
+            "api_general": {"limit": 100, "window": 60},  # 100 requests per minute
+            "api_heavy": {"limit": 20, "window": 60},  # 20 heavy requests per minute
             "password_reset": {"limit": 3, "window": 900},  # 3 resets per 15 minutes
         }
 
@@ -248,7 +241,7 @@ class RateLimitMiddleware:
                 key=policy,
                 limit=self.policies[policy]["limit"],
                 window=self.policies[policy]["window"],
-                identifier=identifier
+                identifier=identifier,
             )
 
             if not result["allowed"]:
@@ -261,29 +254,35 @@ class RateLimitMiddleware:
                         (b"x-ratelimit-remaining", str(result["remaining"]).encode()),
                         (b"x-ratelimit-reset", str(result["reset_time"]).encode()),
                         (b"retry-after", str(result["reset_time"] - int(time.time())).encode()),
-                    ]
+                    ],
                 }
 
-                body = json.dumps({
-                    "error": {
-                        "code": "RATE_LIMIT_EXCEEDED",
-                        "message": f"Rate limit exceeded. Try again in {result['reset_time'] - int(time.time())} seconds.",
-                        "retry_after": result["reset_time"] - int(time.time()),
-                        "limit": result["limit"],
-                        "window": result["window"]
+                body = json.dumps(
+                    {
+                        "error": {
+                            "code": "RATE_LIMIT_EXCEEDED",
+                            "message": f"Rate limit exceeded. Try again in {result['reset_time'] - int(time.time())} seconds.",
+                            "retry_after": result["reset_time"] - int(time.time()),
+                            "limit": result["limit"],
+                            "window": result["window"],
+                        }
                     }
-                }).encode()
+                ).encode()
 
                 # Send response
-                await send({
-                    "type": "http.response.start",
-                    "status": response["status_code"],
-                    "headers": response["headers"],
-                })
-                await send({
-                    "type": "http.response.body",
-                    "body": body,
-                })
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": response["status_code"],
+                        "headers": response["headers"],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": body,
+                    }
+                )
                 return
 
             # Add rate limit headers to successful requests
@@ -295,7 +294,7 @@ class RateLimitMiddleware:
 
         await self.app(scope, receive, send)
 
-    def _determine_policy(self, request: Request) -> Optional[str]:
+    def _determine_policy(self, request: Request) -> str | None:
         """Determine which rate limit policy applies to the request"""
         path = request.url.path
         method = request.method
@@ -303,19 +302,18 @@ class RateLimitMiddleware:
         # Authentication endpoints
         if path.startswith("/api/v1/token"):
             return "auth_login"
-        elif path.startswith("/api/v1/register"):
+        if path.startswith("/api/v1/register"):
             return "auth_register"
-        elif path.startswith("/api/v1/refresh"):
+        if path.startswith("/api/v1/refresh"):
             return "auth_refresh"
-        elif path.startswith("/api/v1/password-reset"):
+        if path.startswith("/api/v1/password-reset"):
             return "password_reset"
 
         # API endpoints
-        elif path.startswith("/api/v1/"):
+        if path.startswith("/api/v1/"):
             if method in ["POST", "PUT", "DELETE"]:
                 return "api_heavy"  # More restrictive for write operations
-            else:
-                return "api_general"
+            return "api_general"
 
         return None
 
@@ -352,6 +350,7 @@ def rate_limit(limit: int, window: int = 60, key: str = "default"):
         window: Time window in seconds
         key: Rate limit key identifier
     """
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             # This would be integrated with the rate limiter
@@ -359,6 +358,7 @@ def rate_limit(limit: int, window: int = 60, key: str = "default"):
             return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -369,15 +369,13 @@ class RateLimitExceeded(HTTPException):
     def __init__(
         self,
         detail: str = "Rate limit exceeded",
-        retry_after: Optional[int] = None,
-        headers: Optional[Dict[str, str]] = None
+        retry_after: int | None = None,
+        headers: dict[str, str] | None = None,
     ):
         headers = headers or {}
         if retry_after:
             headers["Retry-After"] = str(retry_after)
 
         super().__init__(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=detail,
-            headers=headers
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail, headers=headers
         )

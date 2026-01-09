@@ -5,20 +5,16 @@ for centralized logging across all application components.
 """
 
 import asyncio
-import logging
-import json
-import gzip
-import re
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union, Callable, Pattern
-from dataclasses import dataclass, field
-from enum import Enum
-from pathlib import Path
 from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+import gzip
+import json
+import logging
+import re
+from typing import Any
 import uuid
-
-from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, text
 
 logger = logging.getLogger(__name__)
 
@@ -68,22 +64,22 @@ class LogEntry:
     service: str = ""
     message: str = ""
     raw_message: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    tags: List[str] = field(default_factory=list)
-    trace_id: Optional[str] = None
-    span_id: Optional[str] = None
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    request_id: Optional[str] = None
-    correlation_id: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+    trace_id: str | None = None
+    span_id: str | None = None
+    user_id: str | None = None
+    session_id: str | None = None
+    request_id: str | None = None
+    correlation_id: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
     environment: str = "production"
-    hostname: Optional[str] = None
-    process_id: Optional[int] = None
-    thread_id: Optional[str] = None
+    hostname: str | None = None
+    process_id: int | None = None
+    thread_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert log entry to dictionary"""
         return {
             "id": self.id,
@@ -111,7 +107,7 @@ class LogEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "LogEntry":
+    def from_dict(cls, data: dict[str, Any]) -> "LogEntry":
         """Create log entry from dictionary"""
         return cls(
             id=data.get("id", str(uuid.uuid4())),
@@ -141,23 +137,23 @@ class LogEntry:
 @dataclass
 class LogQuery:
     """Query parameters for log search"""
-    search_term: Optional[str] = None
-    levels: Optional[List[LogLevel]] = None
-    sources: Optional[List[LogSource]] = None
-    services: Optional[List[str]] = None
-    tags: Optional[List[str]] = None
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    user_id: Optional[str] = None
-    trace_id: Optional[str] = None
-    request_id: Optional[str] = None
-    metadata_filters: Dict[str, Any] = field(default_factory=dict)
+    search_term: str | None = None
+    levels: list[LogLevel] | None = None
+    sources: list[LogSource] | None = None
+    services: list[str] | None = None
+    tags: list[str] | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    user_id: str | None = None
+    trace_id: str | None = None
+    request_id: str | None = None
+    metadata_filters: dict[str, Any] = field(default_factory=dict)
     limit: int = 1000
     offset: int = 0
     sort_by: str = "timestamp"
     sort_order: str = "desc"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert query to dictionary"""
         return {
             "search_term": self.search_term,
@@ -186,14 +182,14 @@ class LogStats:
     warning_count: int = 0
     info_count: int = 0
     debug_count: int = 0
-    level_distribution: Dict[str, int] = field(default_factory=dict)
-    source_distribution: Dict[str, int] = field(default_factory=dict)
-    service_distribution: Dict[str, int] = field(default_factory=dict)
-    hourly_distribution: Dict[str, int] = field(default_factory=dict)
-    top_errors: List[Dict[str, Any]] = field(default_factory=list)
-    top_services: List[Dict[str, Any]] = field(default_factory=list)
+    level_distribution: dict[str, int] = field(default_factory=dict)
+    source_distribution: dict[str, int] = field(default_factory=dict)
+    service_distribution: dict[str, int] = field(default_factory=dict)
+    hourly_distribution: dict[str, int] = field(default_factory=dict)
+    top_errors: list[dict[str, Any]] = field(default_factory=list)
+    top_services: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert stats to dictionary"""
         return {
             "total_count": self.total_count,
@@ -274,11 +270,11 @@ class LogAggregationService:
 
     async def ingest_log(
         self,
-        log_data: Union[str, Dict[str, Any]],
+        log_data: str | dict[str, Any],
         source: LogSource = LogSource.APPLICATION,
         format: LogFormat = LogFormat.JSON,
         service: str = "",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> str:
         """Ingest a log entry"""
         try:
@@ -299,17 +295,17 @@ class LogAggregationService:
             return log_entry.id
 
         except Exception as e:
-            logger.error(f"Failed to ingest log: {str(e)}")
+            logger.error(f"Failed to ingest log: {e!s}")
             raise
 
     async def ingest_logs_batch(
         self,
-        logs: List[Union[str, Dict[str, Any]]],
+        logs: list[str | dict[str, Any]],
         source: LogSource = LogSource.APPLICATION,
         format: LogFormat = LogFormat.JSON,
         service: str = "",
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> List[str]:
+        metadata: dict[str, Any] | None = None
+    ) -> list[str]:
         """Ingest multiple log entries"""
         log_ids = []
 
@@ -318,12 +314,12 @@ class LogAggregationService:
                 log_id = await self.ingest_log(log_data, source, format, service, metadata)
                 log_ids.append(log_id)
             except Exception as e:
-                logger.error(f"Failed to ingest log in batch: {str(e)}")
+                logger.error(f"Failed to ingest log in batch: {e!s}")
                 continue
 
         return log_ids
 
-    async def search_logs(self, query: LogQuery) -> List[LogEntry]:
+    async def search_logs(self, query: LogQuery) -> list[LogEntry]:
         """Search logs based on query parameters"""
         try:
             # Get logs from store (in production, query from log database)
@@ -357,10 +353,10 @@ class LogAggregationService:
             return filtered_logs[start_idx:end_idx]
 
         except Exception as e:
-            logger.error(f"Log search failed: {str(e)}")
+            logger.error(f"Log search failed: {e!s}")
             return []
 
-    async def get_log_by_id(self, log_id: str) -> Optional[LogEntry]:
+    async def get_log_by_id(self, log_id: str) -> LogEntry | None:
         """Get a specific log entry by ID"""
         # In production, query from log database
         for log in self._log_store:
@@ -369,20 +365,20 @@ class LogAggregationService:
 
         return None
 
-    async def get_logs_by_trace_id(self, trace_id: str) -> List[LogEntry]:
+    async def get_logs_by_trace_id(self, trace_id: str) -> list[LogEntry]:
         """Get all logs for a specific trace"""
         query = LogQuery(trace_id=trace_id, limit=1000)
         return await self.search_logs(query)
 
-    async def get_logs_by_user_id(self, user_id: str, limit: int = 1000) -> List[LogEntry]:
+    async def get_logs_by_user_id(self, user_id: str, limit: int = 1000) -> list[LogEntry]:
         """Get logs for a specific user"""
         query = LogQuery(user_id=user_id, limit=limit)
         return await self.search_logs(query)
 
     async def get_log_stats(
         self,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        start_time: datetime | None = None,
+        end_time: datetime | None = None
     ) -> LogStats:
         """Get log statistics for a time period"""
         try:
@@ -463,7 +459,7 @@ class LogAggregationService:
             return stats
 
         except Exception as e:
-            logger.error(f"Failed to get log statistics: {str(e)}")
+            logger.error(f"Failed to get log statistics: {e!s}")
             return LogStats()
 
     async def export_logs(
@@ -480,7 +476,7 @@ class LogAggregationService:
             # Convert to desired format
             if format == "json":
                 export_data = [log.to_dict() for log in logs]
-                content = json.dumps(export_data, indent=2).encode('utf-8')
+                content = json.dumps(export_data, indent=2).encode("utf-8")
             elif format == "csv":
                 # Simple CSV export
                 import csv
@@ -494,7 +490,7 @@ class LogAggregationService:
                     for log in logs:
                         writer.writerow(log.to_dict())
 
-                content = output.getvalue().encode('utf-8')
+                content = output.getvalue().encode("utf-8")
             else:
                 raise ValueError(f"Unsupported export format: {format}")
 
@@ -505,14 +501,14 @@ class LogAggregationService:
             return content
 
         except Exception as e:
-            logger.error(f"Log export failed: {str(e)}")
+            logger.error(f"Log export failed: {e!s}")
             raise
 
     async def create_log_alert(
         self,
         name: str,
-        conditions: Dict[str, Any],
-        notification_channels: List[str],
+        conditions: dict[str, Any],
+        notification_channels: list[str],
         enabled: bool = True
     ) -> str:
         """Create a log-based alert rule"""
@@ -536,10 +532,10 @@ class LogAggregationService:
                 # Process the log entry
                 await self._process_log_entry(log_entry)
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except Exception as e:
-                logger.error(f"Error processing log queue: {str(e)}")
+                logger.error(f"Error processing log queue: {e!s}")
                 await asyncio.sleep(1)
 
     async def _process_log_entry(self, log_entry: LogEntry) -> None:
@@ -557,7 +553,7 @@ class LogAggregationService:
             logger.debug(f"Processed log entry: {log_entry.id}")
 
         except Exception as e:
-            logger.error(f"Failed to process log entry {log_entry.id}: {str(e)}")
+            logger.error(f"Failed to process log entry {log_entry.id}: {e!s}")
 
     async def _parse_log_entry(
         self,
@@ -586,7 +582,7 @@ class LogAggregationService:
             # Extract standard fields
             timestamp = data.get("timestamp")
             if timestamp:
-                timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                timestamp = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             else:
                 timestamp = datetime.utcnow()
 
@@ -622,7 +618,7 @@ class LogAggregationService:
 
         except Exception as e:
             # Fallback to plain text parsing
-            logger.warning(f"Failed to parse JSON log, falling back to plain text: {str(e)}")
+            logger.warning(f"Failed to parse JSON log, falling back to plain text: {e!s}")
             return await self._parse_plain_text_log(log_data, source, service)
 
     async def _parse_plain_text_log(
@@ -633,16 +629,16 @@ class LogAggregationService:
     ) -> LogEntry:
         """Parse plain text log entry"""
         # Try to extract common log patterns
-        timestamp_match = re.search(r'(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})', log_data)
-        level_match = re.search(r'\b(DEBUG|INFO|NOTICE|WARN|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY)\b', log_data, re.IGNORECASE)
+        timestamp_match = re.search(r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})", log_data)
+        level_match = re.search(r"\b(DEBUG|INFO|NOTICE|WARN|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY)\b", log_data, re.IGNORECASE)
 
         timestamp = None
         if timestamp_match:
             try:
-                timestamp_str = timestamp_match.group(1).replace(' ', 'T')
-                if 'T' in timestamp_str and '+' not in timestamp_str:
-                    timestamp_str += 'Z'
-                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                timestamp_str = timestamp_match.group(1).replace(" ", "T")
+                if "T" in timestamp_str and "+" not in timestamp_str:
+                    timestamp_str += "Z"
+                timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
             except:
                 pass
 
@@ -677,26 +673,26 @@ class LogAggregationService:
         message_parts = []
 
         for part in parts:
-            if '=' in part:
-                key, value = part.split('=', 1)
+            if "=" in part:
+                key, value = part.split("=", 1)
                 metadata[key] = value.strip('"\'')
             else:
                 message_parts.append(part)
 
-        message = ' '.join(message_parts)
+        message = " ".join(message_parts)
 
         # Try to extract timestamp and level from metadata
         timestamp = None
-        if 'timestamp' in metadata:
+        if "timestamp" in metadata:
             try:
-                timestamp = datetime.fromisoformat(metadata['timestamp'].replace('Z', '+00:00'))
+                timestamp = datetime.fromisoformat(metadata["timestamp"].replace("Z", "+00:00"))
             except:
                 pass
 
         level = LogLevel.INFO
-        if 'level' in metadata:
+        if "level" in metadata:
             try:
-                level = LogLevel[metadata['level'].upper()]
+                level = LogLevel[metadata["level"].upper()]
             except:
                 pass
 
@@ -708,10 +704,10 @@ class LogAggregationService:
             message=message,
             raw_message=log_data,
             metadata=metadata,
-            trace_id=metadata.get('trace_id'),
-            span_id=metadata.get('span_id'),
-            user_id=metadata.get('user_id'),
-            request_id=metadata.get('request_id')
+            trace_id=metadata.get("trace_id"),
+            span_id=metadata.get("span_id"),
+            user_id=metadata.get("user_id"),
+            request_id=metadata.get("request_id")
         )
 
     async def _parse_syslog_log(
@@ -723,7 +719,7 @@ class LogAggregationService:
         """Parse syslog format log entry"""
         # Basic syslog parsing (RFC 3164 format)
         # <priority>timestamp hostname tag: message
-        priority_match = re.match(r'^<(\d+)>', log_data)
+        priority_match = re.match(r"^<(\d+)>", log_data)
 
         if priority_match:
             priority = int(priority_match.group(1))
@@ -757,7 +753,7 @@ class LogAggregationService:
             service=service,
             message=remaining_log,
             raw_message=log_data,
-            metadata={"syslog_facility": facility if 'priority_match' in locals() else None}
+            metadata={"syslog_facility": facility if "priority_match" in locals() else None}
         )
 
     def _update_indexes(self, log_entry: LogEntry) -> None:
@@ -839,7 +835,6 @@ class LogAggregationService:
         """Check if log entry triggers any alerts"""
         # TODO: Implement log alert checking
         # This would evaluate log-based alert rules and trigger notifications
-        pass
 
     async def _cleanup_old_logs(self) -> None:
         """Background task to clean up old logs"""
@@ -874,7 +869,7 @@ class LogAggregationService:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error during log cleanup: {str(e)}")
+                logger.error(f"Error during log cleanup: {e!s}")
                 await asyncio.sleep(60)
 
     def _remove_from_indexes(self, log_entry: LogEntry) -> None:
@@ -899,7 +894,7 @@ class LogAggregationService:
 
     # Utility methods for external integration
 
-    def get_default_log_config(self) -> Dict[str, Any]:
+    def get_default_log_config(self) -> dict[str, Any]:
         """Get default logging configuration for application integration"""
         return {
             "version": 1,
@@ -910,7 +905,7 @@ class LogAggregationService:
                     "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d"
                 },
                 "structured": {
-                    "format": "%(asctime)s level=%(levelname)s logger=%(name)s message=\"%(message)s\" pathname=%(pathname)s lineno=%(lineno)d"
+                    "format": '%(asctime)s level=%(levelname)s logger=%(name)s message="%(message)s" pathname=%(pathname)s lineno=%(lineno)d'
                 }
             },
             "handlers": {
@@ -940,9 +935,9 @@ class LogAggregationService:
 __all__ = [
     "LogAggregationService",
     "LogEntry",
-    "LogQuery",
-    "LogStats",
+    "LogFormat",
     "LogLevel",
+    "LogQuery",
     "LogSource",
-    "LogFormat"
+    "LogStats"
 ]

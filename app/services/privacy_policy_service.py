@@ -2,21 +2,23 @@
 Privacy Policy Service with Versioning and Management
 """
 
-import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import Column, String, Text, DateTime, Boolean, Integer, ForeignKey
+from datetime import datetime
+import logging
+from typing import Any
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
-import logging
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
+
 class PrivacyPolicy(Base):
     """Privacy Policy version model"""
+
     __tablename__ = "privacy_policies"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
@@ -31,8 +33,10 @@ class PrivacyPolicy(Base):
     def __repr__(self):
         return f"<PrivacyPolicy(version={self.version}, active={self.is_active})>"
 
+
 class UserConsent(Base):
     """User consent tracking model"""
+
     __tablename__ = "user_consents"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
@@ -45,16 +49,17 @@ class UserConsent(Base):
     user_agent = Column(Text)
     withdrawn_at = Column(DateTime)
 
+
 class PrivacyPolicyService:
     """Privacy policy management service"""
 
     def __init__(self):
         self.consent_types = [
             "data_processing",  # Required for service operation
-            "analytics",        # Usage analytics
-            "marketing",        # Marketing communications
-            "research",         # Research and development
-            "sharing"           # Data sharing with third parties
+            "analytics",  # Usage analytics
+            "marketing",  # Marketing communications
+            "research",  # Research and development
+            "sharing",  # Data sharing with third parties
         ]
 
     async def create_privacy_policy(
@@ -65,8 +70,8 @@ class PrivacyPolicyService:
         content: str,
         effective_date: datetime,
         created_by_id: str,
-        activate_immediately: bool = False
-    ) -> Dict[str, Any]:
+        activate_immediately: bool = False,
+    ) -> dict[str, Any]:
         """
         Create a new privacy policy version
 
@@ -84,9 +89,7 @@ class PrivacyPolicyService:
         """
         try:
             # Check if version already exists
-            existing = db.query(PrivacyPolicy).filter(
-                PrivacyPolicy.version == version
-            ).first()
+            existing = db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
 
             if existing:
                 raise ValueError(f"Privacy policy version {version} already exists")
@@ -98,16 +101,16 @@ class PrivacyPolicyService:
                 content=content,
                 effective_date=effective_date,
                 created_by_id=created_by_id,
-                is_active=activate_immediately
+                is_active=activate_immediately,
             )
 
             db.add(policy)
 
             # If activating immediately, deactivate other policies
             if activate_immediately:
-                db.query(PrivacyPolicy).filter(
-                    PrivacyPolicy.id != policy.id
-                ).update({"is_active": False})
+                db.query(PrivacyPolicy).filter(PrivacyPolicy.id != policy.id).update(
+                    {"is_active": False}
+                )
 
             db.commit()
             db.refresh(policy)
@@ -120,20 +123,17 @@ class PrivacyPolicyService:
                 "title": policy.title,
                 "effective_date": policy.effective_date.isoformat(),
                 "is_active": policy.is_active,
-                "created_at": policy.created_at.isoformat()
+                "created_at": policy.created_at.isoformat(),
             }
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Failed to create privacy policy: {str(e)}")
+            logger.error(f"Failed to create privacy policy: {e!s}")
             raise
 
     async def activate_policy_version(
-        self,
-        db: Session,
-        version: str,
-        activated_by_id: str
-    ) -> Dict[str, Any]:
+        self, db: Session, version: str, activated_by_id: str
+    ) -> dict[str, Any]:
         """Activate a specific privacy policy version"""
 
         try:
@@ -141,9 +141,7 @@ class PrivacyPolicyService:
             db.query(PrivacyPolicy).update({"is_active": False})
 
             # Activate specified version
-            policy = db.query(PrivacyPolicy).filter(
-                PrivacyPolicy.version == version
-            ).first()
+            policy = db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
 
             if not policy:
                 raise ValueError(f"Privacy policy version {version} not found")
@@ -156,43 +154,18 @@ class PrivacyPolicyService:
             return {
                 "version": policy.version,
                 "title": policy.title,
-                "activated_at": datetime.utcnow().isoformat()
+                "activated_at": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Failed to activate policy version {version}: {str(e)}")
+            logger.error(f"Failed to activate policy version {version}: {e!s}")
             raise
 
-    async def get_active_policy(self, db: Session) -> Optional[Dict[str, Any]]:
+    async def get_active_policy(self, db: Session) -> dict[str, Any] | None:
         """Get the currently active privacy policy"""
 
-        policy = db.query(PrivacyPolicy).filter(
-            PrivacyPolicy.is_active == True
-        ).first()
-
-        if not policy:
-            return None
-
-        return {
-            "id": str(policy.id),
-            "version": policy.version,
-            "title": policy.title,
-            "content": policy.content,
-            "effective_date": policy.effective_date.isoformat(),
-            "created_at": policy.created_at.isoformat()
-        }
-
-    async def get_policy_version(
-        self,
-        db: Session,
-        version: str
-    ) -> Optional[Dict[str, Any]]:
-        """Get a specific privacy policy version"""
-
-        policy = db.query(PrivacyPolicy).filter(
-            PrivacyPolicy.version == version
-        ).first()
+        policy = db.query(PrivacyPolicy).filter(PrivacyPolicy.is_active == True).first()
 
         if not policy:
             return None
@@ -204,14 +177,29 @@ class PrivacyPolicyService:
             "content": policy.content,
             "effective_date": policy.effective_date.isoformat(),
             "created_at": policy.created_at.isoformat(),
-            "is_active": policy.is_active
+        }
+
+    async def get_policy_version(self, db: Session, version: str) -> dict[str, Any] | None:
+        """Get a specific privacy policy version"""
+
+        policy = db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
+
+        if not policy:
+            return None
+
+        return {
+            "id": str(policy.id),
+            "version": policy.version,
+            "title": policy.title,
+            "content": policy.content,
+            "effective_date": policy.effective_date.isoformat(),
+            "created_at": policy.created_at.isoformat(),
+            "is_active": policy.is_active,
         }
 
     async def list_policy_versions(
-        self,
-        db: Session,
-        include_inactive: bool = False
-    ) -> List[Dict[str, Any]]:
+        self, db: Session, include_inactive: bool = False
+    ) -> list[dict[str, Any]]:
         """List all privacy policy versions"""
 
         query = db.query(PrivacyPolicy)
@@ -227,7 +215,7 @@ class PrivacyPolicyService:
                 "title": policy.title,
                 "effective_date": policy.effective_date.isoformat(),
                 "is_active": policy.is_active,
-                "created_at": policy.created_at.isoformat()
+                "created_at": policy.created_at.isoformat(),
             }
             for policy in policies
         ]
@@ -240,8 +228,8 @@ class PrivacyPolicyService:
         consent_type: str,
         granted: bool,
         ip_address: str = None,
-        user_agent: str = None
-    ) -> Dict[str, Any]:
+        user_agent: str = None,
+    ) -> dict[str, Any]:
         """Record user consent for a specific policy version and consent type"""
 
         try:
@@ -251,10 +239,7 @@ class PrivacyPolicyService:
 
             # Withdraw existing consent for this type
             db.query(UserConsent).filter(
-                and_(
-                    UserConsent.user_id == user_id,
-                    UserConsent.consent_type == consent_type
-                )
+                and_(UserConsent.user_id == user_id, UserConsent.consent_type == consent_type)
             ).update({"withdrawn_at": datetime.utcnow()})
 
             # Create new consent record
@@ -264,7 +249,7 @@ class PrivacyPolicyService:
                 consent_type=consent_type,
                 granted=granted,
                 ip_address=ip_address,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
 
             db.add(consent)
@@ -276,20 +261,17 @@ class PrivacyPolicyService:
                 "consent_type": consent.consent_type,
                 "policy_version": consent.policy_version,
                 "granted": consent.granted,
-                "granted_at": consent.granted_at.isoformat()
+                "granted_at": consent.granted_at.isoformat(),
             }
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Failed to record user consent: {str(e)}")
+            logger.error(f"Failed to record user consent: {e!s}")
             raise
 
     async def get_user_consents(
-        self,
-        db: Session,
-        user_id: str,
-        active_only: bool = True
-    ) -> List[Dict[str, Any]]:
+        self, db: Session, user_id: str, active_only: bool = True
+    ) -> list[dict[str, Any]]:
         """Get user's current consents"""
 
         query = db.query(UserConsent).filter(UserConsent.user_id == user_id)
@@ -306,35 +288,30 @@ class PrivacyPolicyService:
                 "policy_version": consent.policy_version,
                 "granted": consent.granted,
                 "granted_at": consent.granted_at.isoformat(),
-                "withdrawn_at": consent.withdrawn_at.isoformat() if consent.withdrawn_at else None
+                "withdrawn_at": consent.withdrawn_at.isoformat() if consent.withdrawn_at else None,
             }
             for consent in consents
         ]
 
-    async def check_user_consent(
-        self,
-        db: Session,
-        user_id: str,
-        consent_type: str
-    ) -> bool:
+    async def check_user_consent(self, db: Session, user_id: str, consent_type: str) -> bool:
         """Check if user has granted specific consent"""
 
-        consent = db.query(UserConsent).filter(
-            and_(
-                UserConsent.user_id == user_id,
-                UserConsent.consent_type == consent_type,
-                UserConsent.granted == True,
-                UserConsent.withdrawn_at.is_(None)
+        consent = (
+            db.query(UserConsent)
+            .filter(
+                and_(
+                    UserConsent.user_id == user_id,
+                    UserConsent.consent_type == consent_type,
+                    UserConsent.granted == True,
+                    UserConsent.withdrawn_at.is_(None),
+                )
             )
-        ).first()
+            .first()
+        )
 
         return consent is not None
 
-    async def get_consent_summary(
-        self,
-        db: Session,
-        policy_version: str = None
-    ) -> Dict[str, Any]:
+    async def get_consent_summary(self, db: Session, policy_version: str = None) -> dict[str, Any]:
         """Get summary of user consents for analytics"""
 
         query = db.query(UserConsent)
@@ -349,19 +326,19 @@ class PrivacyPolicyService:
                 and_(
                     UserConsent.consent_type == consent_type,
                     UserConsent.granted == True,
-                    UserConsent.withdrawn_at.is_(None)
+                    UserConsent.withdrawn_at.is_(None),
                 )
             ).count()
 
             consent_summary[consent_type] = {
                 "granted": granted,
-                "percentage": (granted / total_users * 100) if total_users > 0 else 0
+                "percentage": (granted / total_users * 100) if total_users > 0 else 0,
             }
 
         return {
             "total_users": total_users,
             "policy_version": policy_version,
-            "consents": consent_summary
+            "consents": consent_summary,
         }
 
     async def generate_privacy_policy_template(self) -> str:
@@ -524,11 +501,7 @@ We process your personal data based on:
         return template
 
     async def send_policy_update_notification(
-        self,
-        user_email: str,
-        user_name: str,
-        new_policy_version: str,
-        summary: str
+        self, user_email: str, user_name: str, new_policy_version: str, summary: str
     ):
         """Send notification about privacy policy updates"""
         try:
@@ -544,7 +517,7 @@ We're writing to inform you about important updates to our Privacy Policy.
 {summary}
 
 **New Policy Version:** {new_policy_version}
-**Effective Date:** {datetime.utcnow().strftime('%Y-%m-%d')}
+**Effective Date:** {datetime.utcnow().strftime("%Y-%m-%d")}
 
 **What This Means for You:**
 - Please review the updated policy
@@ -565,4 +538,4 @@ The PsychSync Team
             logger.info(f"Privacy policy update notification sent to {user_email}")
 
         except Exception as e:
-            logger.error(f"Failed to send policy update notification: {str(e)}")
+            logger.error(f"Failed to send policy update notification: {e!s}")

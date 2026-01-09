@@ -3,16 +3,18 @@
 Response Service - Cleaned and fixed version
 Handles assessment responses with proper async support
 """
-from uuid import UUID
+
 from datetime import datetime
-from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.db.models.response import Response, AssessmentResponse
+
+from app.db.models.response import Response
 from app.schemas.response import ResponseCreate, ResponseUpdate
 
-class ResponseService:
 
+class ResponseService:
     @staticmethod
     async def create(db: AsyncSession, *, response_in: ResponseCreate) -> Response:
         """Create a new assessment response."""
@@ -20,11 +22,11 @@ class ResponseService:
             assessment_id=response_in.assessment_id,
             user_id=response_in.user_id,
             question_id=response_in.question_id,
-            answer_text=getattr(response_in, 'answer_text', None),
-            answer_value=getattr(response_in, 'answer_value', None),
-            answer_data=getattr(response_in, 'answer_data', None),
-            response_time_ms=getattr(response_in, 'response_time_ms', None),
-            confidence_rating=getattr(response_in, 'confidence_rating', None),
+            answer_text=getattr(response_in, "answer_text", None),
+            answer_value=getattr(response_in, "answer_value", None),
+            answer_data=getattr(response_in, "answer_data", None),
+            response_time_ms=getattr(response_in, "response_time_ms", None),
+            confidence_rating=getattr(response_in, "confidence_rating", None),
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )
@@ -39,17 +41,15 @@ class ResponseService:
         return response
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, response_id: UUID) -> Optional[Response]:
+    async def get_by_id(db: AsyncSession, response_id: UUID) -> Response | None:
         """Get response by ID."""
         result = await db.execute(select(Response).where(Response.id == response_id))
         return result.scalar_one_or_none()
 
     @staticmethod
     async def get_by_assessment(
-        db: AsyncSession,
-        assessment_id: UUID,
-        user_id: Optional[UUID] = None
-    ) -> List[Response]:
+        db: AsyncSession, assessment_id: UUID, user_id: UUID | None = None
+    ) -> list[Response]:
         """Get responses for an assessment, optionally filtered by user."""
         query = select(Response).where(Response.assessment_id == assessment_id)
 
@@ -60,11 +60,7 @@ class ResponseService:
         return result.scalars().all()
 
     @staticmethod
-    async def get_by_user(
-        db: AsyncSession,
-        user_id: UUID,
-        limit: int = 100
-    ) -> List[Response]:
+    async def get_by_user(db: AsyncSession, user_id: UUID, limit: int = 100) -> list[Response]:
         """Get user's responses."""
         result = await db.execute(
             select(Response)
@@ -76,11 +72,8 @@ class ResponseService:
 
     @staticmethod
     async def update(
-        db: AsyncSession,
-        *,
-        response_id: UUID,
-        response_in: ResponseUpdate
-    ) -> Optional[Response]:
+        db: AsyncSession, *, response_id: UUID, response_in: ResponseUpdate
+    ) -> Response | None:
         """Update a response."""
         result = await db.execute(select(Response).where(Response.id == response_id))
         response = result.scalar_one_or_none()
@@ -98,7 +91,7 @@ class ResponseService:
         await db.refresh(response)
 
         # Recalculate score if answer changed
-        if any(key in update_data for key in ['answer_text', 'answer_value', 'answer_data']):
+        if any(key in update_data for key in ["answer_text", "answer_value", "answer_data"]):
             await ResponseService._calculate_score(db, response)
 
         return response
@@ -118,34 +111,32 @@ class ResponseService:
 
     @staticmethod
     async def get_assessment_completion(
-        db: AsyncSession,
-        assessment_id: UUID,
-        user_id: UUID
+        db: AsyncSession, assessment_id: UUID, user_id: UUID
     ) -> dict:
         """Get completion status for a user's assessment."""
+        # Use func.count() to avoid loading all data into memory
         total_result = await db.execute(
-            select(Response).where(
-                Response.assessment_id == assessment_id,
-                Response.user_id == user_id
+            select(func.count(Response.id)).where(
+                Response.assessment_id == assessment_id, Response.user_id == user_id
             )
         )
-        total_responses = len(total_result.scalars().all())
+        total_responses = total_result.scalar() or 0
 
         scored_result = await db.execute(
-            select(Response).where(
+            select(func.count(Response.id)).where(
                 Response.assessment_id == assessment_id,
                 Response.user_id == user_id,
-                Response.score.isnot(None)
+                Response.score.isnot(None),
             )
         )
-        scored_responses = len(scored_result.scalars().all())
+        scored_responses = scored_result.scalar() or 0
 
         return {
             "total_questions": total_responses,
             "answered_questions": total_responses,
             "scored_questions": scored_responses,
             "completion_rate": total_responses / max(total_responses, 1),
-            "score_rate": scored_responses / max(total_responses, 1)
+            "score_rate": scored_responses / max(total_responses, 1),
         }
 
     @staticmethod
@@ -160,10 +151,7 @@ class ResponseService:
         await db.commit()
 
     @staticmethod
-    async def bulk_create(
-        db: AsyncSession,
-        responses: List[ResponseCreate]
-    ) -> List[Response]:
+    async def bulk_create(db: AsyncSession, responses: list[ResponseCreate]) -> list[Response]:
         """Create multiple responses efficiently."""
         created_responses = []
 

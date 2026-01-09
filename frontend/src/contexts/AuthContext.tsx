@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.tsx
 // Enhanced authentication context with httpOnly cookie-based authentication
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { User, ApiResponse, RegisterFormData } from '../types';
 import { login as authServiceLogin, register, getCurrentUser, logout as authServiceLogout } from '../services/authService';
 import { SecurityUtils } from '../utils/securityUtils';
@@ -264,7 +264,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => clearInterval(sessionMonitor);
   }, [lastActivity, handleLogout]);
-  const value: AuthContextType = {
+
+  // ✅ MEMOIZED: Only creates new object when dependencies change
+  const value: AuthContextType = useMemo(() => ({
     user,
     isLoading,
     login: handleLogin,
@@ -274,7 +276,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isSessionExpired,
     lastActivity,
     updateLastActivity,
-  };
+  }), [user, isLoading, handleLogin, handleRegister, handleLogout, refreshToken, isSessionExpired, lastActivity, updateLastActivity]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

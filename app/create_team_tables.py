@@ -3,18 +3,19 @@
 Create team tables
 Run this once: python create_team_tables.py
 """
+
 from sqlalchemy import create_engine
+
 from app.core.config import settings
 from app.core.database import Base
-from app.db.models.user import User
-from app.db.models.team import Team, TeamMember
+
 
 def create_tables():
     engine = create_engine(settings.DATABASE_URL)
     Base.metadata.create_all(bind=engine)
     print("✓ Team tables created successfully!")
 
+
 if __name__ == "__main__":
     print("Creating team tables...")
     create_tables()
-    

@@ -17,17 +17,16 @@ Author: Security Team
 Version: 1.0
 """
 
-import json
-import logging
-from typing import Any, Dict, Optional, Set, List
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from dataclasses import dataclass
+import json
+import logging
+from typing import Any
 
 from app.services.data_encryption_service import (
     DataEncryptionService,
     EncryptionResult,
-    EncryptionKey
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ class FieldEncryptionMetadata:
     algorithm: str
     encrypted_at: datetime
     access_count: int = 0
-    last_accessed: Optional[datetime] = None
+    last_accessed: datetime | None = None
 
 
 class FieldLevelEncryptionService:
@@ -73,7 +72,7 @@ class FieldLevelEncryptionService:
             base_encryption_service: Base encryption service
         """
         self.encryption_service = base_encryption_service
-        self.field_access_log: Dict[str, List[Dict]] = {}
+        self.field_access_log: dict[str, list[dict]] = {}
 
         # Define which fields should be encrypted for each model
         self.encryption_rules = {
@@ -139,7 +138,7 @@ class FieldLevelEncryptionService:
         self,
         model_name: str,
         field_name: str
-    ) -> Optional[FieldSensitivity]:
+    ) -> FieldSensitivity | None:
         """
         Get sensitivity level for a field
 
@@ -160,7 +159,7 @@ class FieldLevelEncryptionService:
         model_name: str,
         field_name: str,
         value: Any,
-        user_id: Optional[str] = None
+        user_id: str | None = None
     ) -> str:
         """
         Encrypt a field value
@@ -224,7 +223,7 @@ class FieldLevelEncryptionService:
             return json.dumps(metadata)
 
         except Exception as e:
-            logger.error(f"Field encryption failed: {str(e)}")
+            logger.error(f"Field encryption failed: {e!s}")
             raise
 
     def decrypt_field(
@@ -232,7 +231,7 @@ class FieldLevelEncryptionService:
         model_name: str,
         field_name: str,
         encrypted_value: str,
-        user_id: Optional[str] = None
+        user_id: str | None = None
     ) -> Any:
         """
         Decrypt a field value
@@ -272,8 +271,8 @@ class FieldLevelEncryptionService:
             return decrypted
 
         except Exception as e:
-            logger.error(f"Field decryption failed: {str(e)}")
-            raise ValueError(f"Decryption failed: {str(e)}")
+            logger.error(f"Field decryption failed: {e!s}")
+            raise ValueError(f"Decryption failed: {e!s}")
 
     def _get_key_for_sensitivity(
         self,
@@ -301,7 +300,7 @@ class FieldLevelEncryptionService:
         self,
         model_name: str,
         field_name: str,
-        user_id: Optional[str],
+        user_id: str | None,
         sensitivity: str
     ) -> None:
         """
@@ -345,7 +344,7 @@ class FieldLevelEncryptionService:
         model_name: str,
         field_name: str,
         limit: int = 100
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Get access log for a field
 
@@ -365,7 +364,7 @@ class FieldLevelEncryptionService:
         model_name: str,
         field_name: str,
         encrypted_value: str,
-        new_key_id: Optional[str] = None
+        new_key_id: str | None = None
     ) -> str:
         """
         Rotate encryption for a field (decrypt with old key, encrypt with new)
@@ -424,15 +423,15 @@ class FieldLevelEncryptionService:
             return json.dumps(metadata)
 
         except Exception as e:
-            logger.error(f"Field rotation failed: {str(e)}")
+            logger.error(f"Field rotation failed: {e!s}")
             raise
 
     def bulk_encrypt_fields(
         self,
         model_name: str,
-        data: Dict[str, Any],
-        user_id: Optional[str] = None
-    ) -> Dict[str, str]:
+        data: dict[str, Any],
+        user_id: str | None = None
+    ) -> dict[str, str]:
         """
         Encrypt multiple fields in a record
 
@@ -456,16 +455,16 @@ class FieldLevelEncryptionService:
                         user_id
                     )
                 except Exception as e:
-                    logger.error(f"Failed to encrypt {field_name}: {str(e)}")
+                    logger.error(f"Failed to encrypt {field_name}: {e!s}")
 
         return encrypted_fields
 
     def bulk_decrypt_fields(
         self,
         model_name: str,
-        encrypted_data: Dict[str, str],
-        user_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        encrypted_data: dict[str, str],
+        user_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Decrypt multiple fields in a record
 
@@ -489,14 +488,14 @@ class FieldLevelEncryptionService:
                         user_id
                     )
                 except Exception as e:
-                    logger.error(f"Failed to decrypt {field_name}: {str(e)}")
+                    logger.error(f"Failed to decrypt {field_name}: {e!s}")
                     decrypted_fields[field_name] = "[DECRYPTION FAILED]"
 
         return decrypted_fields
 
 
 # Singleton instance (initialized in main app)
-field_encryption_service: Optional[FieldLevelEncryptionService] = None
+field_encryption_service: FieldLevelEncryptionService | None = None
 
 
 def get_field_encryption_service() -> FieldLevelEncryptionService:

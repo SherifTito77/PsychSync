@@ -13,40 +13,35 @@ Author: Security Team
 Version: 1.0
 """
 
+import base64
+import io
+import logging
 import secrets
+from typing import Any
+
 import pyotp
 import qrcode
-import io
-import base64
-import logging
-from typing import List, Tuple, Optional, Dict, Any
-from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from app.db.models.user import User, UserRole
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
 
 class MFAError(Exception):
     """Base exception for MFA-related errors"""
-    pass
 
 
 class MFASetupError(MFAError):
     """Raised when MFA setup fails"""
-    pass
 
 
 class MFAVerificationError(MFAError):
     """Raised when MFA verification fails"""
-    pass
 
 
 class BackupCodeError(MFAError):
     """Raised when backup code operations fail"""
-    pass
 
 
 class MFAService:
@@ -70,11 +65,7 @@ class MFAService:
         self.max_attempts = 3  # Max verification attempts
         self.attempt_window = 300  # 5 minutes
 
-    async def generate_totp_secret(
-        self,
-        user: User,
-        db: AsyncSession
-    ) -> Tuple[str, str]:
+    async def generate_totp_secret(self, user: User, db: AsyncSession) -> tuple[str, str]:
         """
         Generate a new TOTP secret for a user
 
@@ -99,30 +90,23 @@ class MFAService:
             await db.commit()
 
             # Generate provisioning URI for QR code
-            totp = pyotp.TOTP(
-                secret,
-                digits=self.totp_digits,
-                interval=self.totp_interval
-            )
+            totp = pyotp.TOTP(secret, digits=self.totp_digits, interval=self.totp_interval)
 
             # Create provisioning URI
             # Format: otpauth://totp/Service:username?secret=SECRET&issuer=Service
-            qr_url = totp.provisioning_uri(
-                name=user.email,
-                issuer_name="PsychSync"
-            )
+            qr_url = totp.provisioning_uri(name=user.email, issuer_name="PsychSync")
 
             logger.info(
                 f"MFA setup initiated for user {user.id}",
-                extra={"user_id": str(user.id), "email": user.email}
+                extra={"user_id": str(user.id), "email": user.email},
             )
 
             return secret, qr_url
 
         except Exception as e:
-            logger.error(f"Failed to generate TOTP secret: {str(e)}")
+            logger.error(f"Failed to generate TOTP secret: {e!s}")
             await db.rollback()
-            raise MFASetupError(f"Failed to setup MFA: {str(e)}")
+            raise MFASetupError(f"Failed to setup MFA: {e!s}")
 
     def generate_qr_code(self, qr_url: str) -> str:
         """
@@ -150,20 +134,16 @@ class MFAService:
 
             # Convert to base64
             buffer = io.BytesIO()
-            img.save(buffer, format='PNG')
+            img.save(buffer, format="PNG")
             img_str = base64.b64encode(buffer.getvalue()).decode()
 
             return f"data:image/png;base64,{img_str}"
 
         except Exception as e:
-            logger.error(f"Failed to generate QR code: {str(e)}")
-            raise MFASetupError(f"Failed to generate QR code: {str(e)}")
+            logger.error(f"Failed to generate QR code: {e!s}")
+            raise MFASetupError(f"Failed to generate QR code: {e!s}")
 
-    async def generate_backup_codes(
-        self,
-        user: User,
-        db: AsyncSession
-    ) -> List[str]:
+    async def generate_backup_codes(self, user: User, db: AsyncSession) -> list[str]:
         """
         Generate backup recovery codes for MFA
 
@@ -192,22 +172,17 @@ class MFAService:
 
             logger.info(
                 f"Generated {len(backup_codes)} backup codes for user {user.id}",
-                extra={"user_id": str(user.id)}
+                extra={"user_id": str(user.id)},
             )
 
             return backup_codes  # Return ONLY for display to user
 
         except Exception as e:
-            logger.error(f"Failed to generate backup codes: {str(e)}")
+            logger.error(f"Failed to generate backup codes: {e!s}")
             await db.rollback()
-            raise BackupCodeError(f"Failed to generate backup codes: {str(e)}")
+            raise BackupCodeError(f"Failed to generate backup codes: {e!s}")
 
-    async def verify_totp_code(
-        self,
-        user: User,
-        code: str,
-        db: AsyncSession
-    ) -> bool:
+    async def verify_totp_code(self, user: User, code: str, db: AsyncSession) -> bool:
         """
         Verify TOTP code from authenticator app
 
@@ -232,9 +207,7 @@ class MFAService:
 
             # Create TOTP instance
             totp = pyotp.TOTP(
-                user.two_factor_secret,
-                digits=self.totp_digits,
-                interval=self.totp_interval
+                user.two_factor_secret, digits=self.totp_digits, interval=self.totp_interval
             )
 
             # Verify code (allows for clock skew)
@@ -242,14 +215,12 @@ class MFAService:
 
             if not is_valid:
                 logger.warning(
-                    f"Invalid TOTP code attempt for user {user.id}",
-                    extra={"user_id": str(user.id)}
+                    f"Invalid TOTP code attempt for user {user.id}", extra={"user_id": str(user.id)}
                 )
                 raise MFAVerificationError("Invalid authentication code")
 
             logger.info(
-                f"Successful TOTP verification for user {user.id}",
-                extra={"user_id": str(user.id)}
+                f"Successful TOTP verification for user {user.id}", extra={"user_id": str(user.id)}
             )
 
             return True
@@ -257,15 +228,11 @@ class MFAService:
         except MFAVerificationError:
             raise
         except Exception as e:
-            logger.error(f"TOTP verification error: {str(e)}")
-            raise MFAVerificationError(f"Verification failed: {str(e)}")
+            logger.error(f"TOTP verification error: {e!s}")
+            raise MFAVerificationError(f"Verification failed: {e!s}")
 
     async def verify_backup_code(
-        self,
-        user: User,
-        code: str,
-        db: AsyncSession,
-        consume: bool = True
+        self, user: User, code: str, db: AsyncSession, consume: bool = True
     ) -> bool:
         """
         Verify backup recovery code
@@ -292,7 +259,7 @@ class MFAService:
             if code not in backup_codes:
                 logger.warning(
                     f"Invalid backup code attempt for user {user.id}",
-                    extra={"user_id": str(user.id)}
+                    extra={"user_id": str(user.id)},
                 )
                 raise BackupCodeError("Invalid backup code")
 
@@ -304,12 +271,12 @@ class MFAService:
 
                 logger.info(
                     f"Backup code consumed for user {user.id}. {len(backup_codes)} remaining.",
-                    extra={"user_id": str(user.id), "remaining_codes": len(backup_codes)}
+                    extra={"user_id": str(user.id), "remaining_codes": len(backup_codes)},
                 )
             else:
                 logger.info(
                     f"Backup code verified (not consumed) for user {user.id}",
-                    extra={"user_id": str(user.id)}
+                    extra={"user_id": str(user.id)},
                 )
 
             return True
@@ -317,14 +284,10 @@ class MFAService:
         except BackupCodeError:
             raise
         except Exception as e:
-            logger.error(f"Backup code verification error: {str(e)}")
-            raise BackupCodeError(f"Verification failed: {str(e)}")
+            logger.error(f"Backup code verification error: {e!s}")
+            raise BackupCodeError(f"Verification failed: {e!s}")
 
-    async def enable_mfa(
-        self,
-        user: User,
-        db: AsyncSession
-    ) -> None:
+    async def enable_mfa(self, user: User, db: AsyncSession) -> None:
         """
         Enable MFA for user after successful verification
 
@@ -338,16 +301,36 @@ class MFAService:
         user.two_factor_enabled = True
         await db.commit()
 
+        logger.info(f"MFA enabled for user {user.id}", extra={"user_id": str(user.id)})
+
+    async def verify_mfa_setup(self, user: User, totp_code: str, db: AsyncSession) -> bool:
+        """
+        Verify MFA setup by validating TOTP code and enabling MFA
+
+        Args:
+            user: User object
+            totp_code: 6-digit TOTP code from authenticator app
+            db: Database session
+
+        Returns:
+            True if verification successful and MFA enabled
+
+        Raises:
+            MFAVerificationError: If TOTP code is invalid
+        """
+        # Verify the TOTP code
+        await self.verify_totp_code(user, totp_code, db)
+
+        # Enable MFA for the user
+        await self.enable_mfa(user, db)
+
         logger.info(
-            f"MFA enabled for user {user.id}",
-            extra={"user_id": str(user.id)}
+            f"MFA setup verified and enabled for user {user.id}", extra={"user_id": str(user.id)}
         )
 
-    async def disable_mfa(
-        self,
-        user: User,
-        db: AsyncSession
-    ) -> None:
+        return True
+
+    async def disable_mfa(self, user: User, db: AsyncSession) -> None:
         """
         Disable MFA for user (requires re-authentication)
 
@@ -360,12 +343,9 @@ class MFAService:
         user.two_factor_recovery_codes = None
         await db.commit()
 
-        logger.info(
-            f"MFA disabled for user {user.id}",
-            extra={"user_id": str(user.id)}
-        )
+        logger.info(f"MFA disabled for user {user.id}", extra={"user_id": str(user.id)})
 
-    def get_mfa_status(self, user: User) -> Dict[str, Any]:
+    def get_mfa_status(self, user: User) -> dict[str, Any]:
         """
         Get MFA status for user (safe for client response)
 
@@ -380,7 +360,9 @@ class MFAService:
             "has_backup_codes": bool(
                 user.two_factor_recovery_codes and len(user.two_factor_recovery_codes) > 0
             ),
-            "backup_codes_count": len(user.two_factor_recovery_codes) if user.two_factor_recovery_codes else 0
+            "backup_codes_count": len(user.two_factor_recovery_codes)
+            if user.two_factor_recovery_codes
+            else 0,
         }
 
 

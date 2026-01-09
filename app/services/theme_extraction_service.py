@@ -4,28 +4,26 @@ Specialized service for extracting and analyzing key themes from text data
 using advanced NLP techniques and statistical analysis.
 """
 
-import asyncio
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 import logging
 import re
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Set, Union
-from dataclasses import dataclass, field
-from enum import Enum
-from collections import Counter, defaultdict
-import json
+from typing import Any
 
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-from app.services.nlp_service import NLPService, Theme, TextAnalysis
+from app.services.nlp_service import NLPService, Theme
 
 logger = logging.getLogger(__name__)
 
 
 class ThemeExtractionMethod(Enum):
     """Methods for theme extraction"""
+
     FREQUENCY = "frequency"
     TFIDF = "tfidf"
     TOPIC_MODELING = "topic_modeling"
@@ -35,26 +33,28 @@ class ThemeExtractionMethod(Enum):
 
 class ThemeType(Enum):
     """Types of themes"""
+
     CONCEPT = "concept"  # Abstract concepts and ideas
     EMOTION = "emotion"  # Emotional themes
-    ACTION = "action"    # Action-oriented themes
-    ENTITY = "entity"    # Named entities and people
-    TOPIC = "topic"      # General topics
+    ACTION = "action"  # Action-oriented themes
+    ENTITY = "entity"  # Named entities and people
+    TOPIC = "topic"  # General topics
     BEHAVIOR = "behavior"  # Behavioral patterns
 
 
 @dataclass
 class ThemeCluster:
     """Cluster of related themes"""
+
     cluster_id: str
     name: str
-    themes: List[Theme]
+    themes: list[Theme]
     centrality_score: float
     coherence_score: float
     dominant_sentiment: str
-    time_trend: Dict[str, float] = field(default_factory=dict)
+    time_trend: dict[str, float] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cluster_id": self.cluster_id,
             "name": self.name,
@@ -62,23 +62,24 @@ class ThemeCluster:
             "centrality_score": self.centrality_score,
             "coherence_score": self.coherence_score,
             "dominant_sentiment": self.dominant_sentiment,
-            "time_trend": self.time_trend
+            "time_trend": self.time_trend,
         }
 
 
 @dataclass
 class ThemeTrend:
     """Temporal analysis of theme evolution"""
+
     theme_id: str
     theme_name: str
-    time_points: List[datetime]
-    frequency_values: List[float]
-    sentiment_values: List[float]
+    time_points: list[datetime]
+    frequency_values: list[float]
+    sentiment_values: list[float]
     trend_direction: str  # increasing, decreasing, stable, volatile
     trend_strength: float
     seasonal_pattern: bool
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "theme_id": self.theme_id,
             "theme_name": self.theme_name,
@@ -87,35 +88,36 @@ class ThemeTrend:
             "sentiment_values": self.sentiment_values,
             "trend_direction": self.trend_direction,
             "trend_strength": self.trend_strength,
-            "seasonal_pattern": self.seasonal_pattern
+            "seasonal_pattern": self.seasonal_pattern,
         }
 
 
 @dataclass
 class ThemeRelationship:
     """Relationship between themes"""
+
     theme1_id: str
     theme2_id: str
     relationship_type: str  # co_occurrence, semantic, temporal
     strength: float
     confidence: float
-    context_examples: List[str] = field(default_factory=list)
+    context_examples: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "theme1_id": self.theme1_id,
             "theme2_id": self.theme2_id,
             "relationship_type": self.relationship_type,
             "strength": self.strength,
             "confidence": self.confidence,
-            "context_examples": self.context_examples[:5]
+            "context_examples": self.context_examples[:5],
         }
 
 
 class ThemeExtractionService:
     """Advanced theme extraction and analysis service"""
 
-    def __init__(self, nlp_service: Optional[NLPService] = None):
+    def __init__(self, nlp_service: NLPService | None = None):
         self.nlp_service = nlp_service or NLPService()
 
         # Configuration
@@ -124,7 +126,7 @@ class ThemeExtractionService:
             "max_num_themes": 20,
             "similarity_threshold": 0.7,
             "trend_window_days": 30,
-            "sentiment_threshold": 0.1
+            "sentiment_threshold": 0.1,
         }
 
         # Caches for performance
@@ -140,12 +142,12 @@ class ThemeExtractionService:
 
     async def extract_themes(
         self,
-        texts: List[str],
+        texts: list[str],
         method: ThemeExtractionMethod = ThemeExtractionMethod.HYBRID,
-        num_themes: Optional[int] = None,
-        time_metadata: Optional[List[datetime]] = None,
-        metadata: Optional[List[Dict[str, Any]]] = None
-    ) -> Dict[str, Any]:
+        num_themes: int | None = None,
+        time_metadata: list[datetime] | None = None,
+        metadata: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """Extract themes from a collection of texts"""
         try:
             start_time = datetime.utcnow()
@@ -204,19 +206,17 @@ class ThemeExtractionService:
                     "num_texts": len(texts),
                     "num_themes": len(themes),
                     "processing_time_seconds": processing_time,
-                    "extraction_timestamp": start_time.isoformat()
-                }
+                    "extraction_timestamp": start_time.isoformat(),
+                },
             }
 
         except Exception as e:
-            logger.error(f"Theme extraction failed: {str(e)}")
+            logger.error(f"Theme extraction failed: {e!s}")
             return {"themes": [], "metadata": {"error": str(e)}}
 
     async def _extract_themes_frequency(
-        self,
-        texts: List[str],
-        num_themes: Optional[int] = None
-    ) -> List[Theme]:
+        self, texts: list[str], num_themes: int | None = None
+    ) -> list[Theme]:
         """Extract themes using frequency-based analysis"""
         try:
             # Analyze word frequency across all texts
@@ -226,7 +226,7 @@ class ThemeExtractionService:
             themes = []
             theme_keywords = set()
 
-            for freq in word_frequencies[:num_themes or self.config["max_num_themes"]]:
+            for freq in word_frequencies[: num_themes or self.config["max_num_themes"]]:
                 if freq.word in theme_keywords:
                     continue
 
@@ -235,7 +235,9 @@ class ThemeExtractionService:
 
                 if len(related_words) >= 2:  # Need at least 2 related words for a theme
                     theme_id = f"freq_theme_{len(themes)}"
-                    theme_name = self._generate_theme_name_from_words([freq.word] + related_words[:3])
+                    theme_name = self._generate_theme_name_from_words(
+                        [freq.word] + related_words[:3]
+                    )
 
                     # Calculate sentiment distribution
                     sentiment_dist = await self._calculate_theme_sentiment(
@@ -249,13 +251,11 @@ class ThemeExtractionService:
                         id=theme_id,
                         name=theme_name,
                         keywords=[freq.word] + related_words[:5],
-                        frequency=freq.frequency + sum(
-                            f.frequency for f in word_frequencies
-                            if f.word in related_words
-                        ),
+                        frequency=freq.frequency
+                        + sum(f.frequency for f in word_frequencies if f.word in related_words),
                         relevance_score=freq.normalized_frequency,
                         examples=examples,
-                        sentiment_distribution=sentiment_dist
+                        sentiment_distribution=sentiment_dist,
                     )
 
                     themes.append(theme)
@@ -264,24 +264,22 @@ class ThemeExtractionService:
             return themes
 
         except Exception as e:
-            logger.error(f"Frequency-based theme extraction failed: {str(e)}")
+            logger.error(f"Frequency-based theme extraction failed: {e!s}")
             return []
 
     async def _extract_themes_tfidf(
-        self,
-        texts: List[str],
-        num_themes: Optional[int] = None
-    ) -> List[Theme]:
+        self, texts: list[str], num_themes: int | None = None
+    ) -> list[Theme]:
         """Extract themes using TF-IDF analysis"""
         try:
             # Initialize TF-IDF vectorizer
             if self._tfidf_vectorizer is None:
                 self._tfidf_vectorizer = TfidfVectorizer(
                     max_features=1000,
-                    stop_words='english',
+                    stop_words="english",
                     ngram_range=(1, 3),
                     min_df=2,
-                    max_df=0.8
+                    max_df=0.8,
                 )
 
             # Fit and transform texts
@@ -292,7 +290,9 @@ class ThemeExtractionService:
             mean_scores = np.mean(tfidf_matrix.toarray(), axis=0)
 
             # Get top terms by TF-IDF score
-            top_indices = np.argsort(mean_scores)[::-1][:num_themes or self.config["max_num_themes"]]
+            top_indices = np.argsort(mean_scores)[::-1][
+                : num_themes or self.config["max_num_themes"]
+            ]
 
             themes = []
             for idx in top_indices:
@@ -312,7 +312,7 @@ class ThemeExtractionService:
                 sentiment_dist = await self._calculate_theme_sentiment(keywords, texts)
 
                 theme_id = f"tfidf_theme_{len(themes)}"
-                theme_name = term.replace('_', ' ').title()
+                theme_name = term.replace("_", " ").title()
 
                 theme = Theme(
                     id=theme_id,
@@ -321,7 +321,7 @@ class ThemeExtractionService:
                     frequency=int(score * len(texts)),  # Approximate frequency
                     relevance_score=score,
                     examples=examples,
-                    sentiment_distribution=sentiment_dist
+                    sentiment_distribution=sentiment_dist,
                 )
 
                 themes.append(theme)
@@ -329,27 +329,23 @@ class ThemeExtractionService:
             return themes
 
         except Exception as e:
-            logger.error(f"TF-IDF theme extraction failed: {str(e)}")
+            logger.error(f"TF-IDF theme extraction failed: {e!s}")
             return []
 
     async def _extract_themes_topic_modeling(
-        self,
-        texts: List[str],
-        num_themes: Optional[int] = None
-    ) -> List[Theme]:
+        self, texts: list[str], num_themes: int | None = None
+    ) -> list[Theme]:
         """Extract themes using topic modeling (LDA)"""
         try:
             # Use NLP service for LDA-based theme extraction
             themes = []
             num_topics = num_themes or min(10, len(texts) // 3)
 
-            for i, text in enumerate(texts[:num_topics * 5]):  # Sample texts for processing
+            for i, text in enumerate(texts[: num_topics * 5]):  # Sample texts for processing
                 try:
                     # Extract themes from individual text using LDA
                     text_themes = await self.nlp_service.extract_themes(
-                        text,
-                        num_themes=3,
-                        method="topic_modeling"
+                        text, num_themes=3, method="topic_modeling"
                     )
 
                     for theme in text_themes:
@@ -368,35 +364,30 @@ class ThemeExtractionService:
                                 frequency=theme.frequency,
                                 relevance_score=theme.relevance_score,
                                 examples=theme.examples,
-                                sentiment_distribution=theme.sentiment_distribution
+                                sentiment_distribution=theme.sentiment_distribution,
                             )
                             themes.append(new_theme)
 
                 except Exception as e:
-                    logger.warning(f"Failed to process text {i} for topic modeling: {str(e)}")
+                    logger.warning(f"Failed to process text {i} for topic modeling: {e!s}")
                     continue
 
             # Sort by relevance and limit
             themes.sort(key=lambda t: t.relevance_score, reverse=True)
-            return themes[:num_themes or self.config["max_num_themes"]]
+            return themes[: num_themes or self.config["max_num_themes"]]
 
         except Exception as e:
-            logger.error(f"Topic modeling theme extraction failed: {str(e)}")
+            logger.error(f"Topic modeling theme extraction failed: {e!s}")
             return []
 
     async def _extract_themes_clustering(
-        self,
-        texts: List[str],
-        num_themes: Optional[int] = None
-    ) -> List[Theme]:
+        self, texts: list[str], num_themes: int | None = None
+    ) -> list[Theme]:
         """Extract themes using clustering analysis"""
         try:
             # Initialize TF-IDF for clustering
             vectorizer = TfidfVectorizer(
-                max_features=500,
-                stop_words='english',
-                ngram_range=(1, 2),
-                min_df=2
+                max_features=500, stop_words="english", ngram_range=(1, 2), min_df=2
             )
 
             tfidf_matrix = vectorizer.fit_transform(texts)
@@ -411,13 +402,15 @@ class ThemeExtractionService:
             themes = []
             for cluster_id in range(n_clusters):
                 # Get texts in this cluster
-                cluster_texts = [texts[i] for i in range(len(texts)) if cluster_labels[i] == cluster_id]
+                cluster_texts = [
+                    texts[i] for i in range(len(texts)) if cluster_labels[i] == cluster_id
+                ]
 
                 if len(cluster_texts) < 2:
                     continue
 
                 # Combine cluster texts and extract key terms
-                combined_text = ' '.join(cluster_texts)
+                combined_text = " ".join(cluster_texts)
 
                 # Get top terms for this cluster
                 cluster_center = kmeans.cluster_centers_[cluster_id]
@@ -429,7 +422,9 @@ class ThemeExtractionService:
 
                 # Create theme from cluster
                 theme_name = self._generate_theme_name_from_words(top_terms[:3])
-                keywords = [term.replace('_', ' ').split()[0] for term in top_terms[:5]]  # First words only
+                keywords = [
+                    term.replace("_", " ").split()[0] for term in top_terms[:5]
+                ]  # First words only
 
                 # Find examples
                 examples = await self._find_theme_examples(keywords[:3], cluster_texts)
@@ -444,24 +439,22 @@ class ThemeExtractionService:
                     frequency=len(cluster_texts),
                     relevance_score=float(np.max(cluster_center)),
                     examples=examples,
-                    sentiment_distribution=sentiment_dist
+                    sentiment_distribution=sentiment_dist,
                 )
 
                 themes.append(theme)
 
             # Sort by relevance
             themes.sort(key=lambda t: t.relevance_score, reverse=True)
-            return themes[:num_themes or self.config["max_num_themes"]]
+            return themes[: num_themes or self.config["max_num_themes"]]
 
         except Exception as e:
-            logger.error(f"Clustering theme extraction failed: {str(e)}")
+            logger.error(f"Clustering theme extraction failed: {e!s}")
             return []
 
     async def _extract_themes_hybrid(
-        self,
-        texts: List[str],
-        num_themes: Optional[int] = None
-    ) -> List[Theme]:
+        self, texts: list[str], num_themes: int | None = None
+    ) -> list[Theme]:
         """Extract themes using hybrid approach combining multiple methods"""
         try:
             # Extract themes using multiple methods
@@ -489,17 +482,15 @@ class ThemeExtractionService:
 
             # Sort by relevance and limit
             merged_themes.sort(key=lambda t: t.relevance_score, reverse=True)
-            return merged_themes[:num_themes or self.config["max_num_themes"]]
+            return merged_themes[: num_themes or self.config["max_num_themes"]]
 
         except Exception as e:
-            logger.error(f"Hybrid theme extraction failed: {str(e)}")
+            logger.error(f"Hybrid theme extraction failed: {e!s}")
             return []
 
     async def _analyze_theme_relationships(
-        self,
-        themes: List[Theme],
-        texts: List[str]
-    ) -> List[ThemeRelationship]:
+        self, themes: list[Theme], texts: list[str]
+    ) -> list[ThemeRelationship]:
         """Analyze relationships between themes"""
         try:
             relationships = []
@@ -508,7 +499,7 @@ class ThemeExtractionService:
             co_occurrence_matrix = await self._calculate_co_occurrence_matrix(themes, texts)
 
             for i, theme1 in enumerate(themes):
-                for j, theme2 in enumerate(themes[i+1:], i+1):
+                for j, theme2 in enumerate(themes[i + 1 :], i + 1):
                     co_occurrence = co_occurrence_matrix[i][j]
 
                     if co_occurrence > 0:
@@ -528,7 +519,7 @@ class ThemeExtractionService:
                                 relationship_type="co_occurrence",
                                 strength=strength,
                                 confidence=confidence,
-                                context_examples=context_examples
+                                context_examples=context_examples,
                             )
 
                             relationships.append(relationship)
@@ -536,15 +527,12 @@ class ThemeExtractionService:
             return relationships
 
         except Exception as e:
-            logger.error(f"Theme relationship analysis failed: {str(e)}")
+            logger.error(f"Theme relationship analysis failed: {e!s}")
             return []
 
     async def _analyze_theme_trends(
-        self,
-        themes: List[Theme],
-        texts: List[str],
-        timestamps: List[datetime]
-    ) -> List[ThemeTrend]:
+        self, themes: list[Theme], texts: list[str], timestamps: list[datetime]
+    ) -> list[ThemeTrend]:
         """Analyze temporal trends of themes"""
         try:
             trends = []
@@ -571,7 +559,7 @@ class ThemeExtractionService:
 
                     # Calculate average sentiment for this day
                     sentiment = await self._calculate_theme_sentiment(theme.keywords, day_texts)
-                    avg_sentiment = sentiment.get('positive', 0) - sentiment.get('negative', 0)
+                    avg_sentiment = sentiment.get("positive", 0) - sentiment.get("negative", 0)
 
                     time_points.append(datetime.combine(date, datetime.min.time()))
                     frequency_values.append(freq)
@@ -592,7 +580,7 @@ class ThemeExtractionService:
                         sentiment_values=sentiment_values,
                         trend_direction=trend_direction,
                         trend_strength=trend_strength,
-                        seasonal_pattern=seasonal_pattern
+                        seasonal_pattern=seasonal_pattern,
                     )
 
                     trends.append(trend)
@@ -600,10 +588,10 @@ class ThemeExtractionService:
             return trends
 
         except Exception as e:
-            logger.error(f"Theme trend analysis failed: {str(e)}")
+            logger.error(f"Theme trend analysis failed: {e!s}")
             return []
 
-    async def _cluster_themes(self, themes: List[Theme]) -> List[ThemeCluster]:
+    async def _cluster_themes(self, themes: list[Theme]) -> list[ThemeCluster]:
         """Cluster related themes together"""
         try:
             if len(themes) < 2:
@@ -635,13 +623,17 @@ class ThemeExtractionService:
             # Create theme clusters
             clusters = []
             for cluster_id in range(n_clusters):
-                cluster_themes = [themes[i] for i in range(len(themes)) if cluster_labels[i] == cluster_id]
+                cluster_themes = [
+                    themes[i] for i in range(len(themes)) if cluster_labels[i] == cluster_id
+                ]
 
                 if len(cluster_themes) < 2:
                     continue
 
                 # Calculate cluster metrics
-                centrality_score = self._calculate_cluster_centrality(cluster_themes, kmeans.cluster_centers_[cluster_id])
+                centrality_score = self._calculate_cluster_centrality(
+                    cluster_themes, kmeans.cluster_centers_[cluster_id]
+                )
                 coherence_score = self._calculate_cluster_coherence(cluster_themes)
 
                 # Get dominant sentiment
@@ -650,10 +642,14 @@ class ThemeExtractionService:
                     for sentiment, score in theme.sentiment_distribution.items():
                         all_sentiments.append((sentiment, score))
 
-                dominant_sentiment = max(
-                    Counter(s for s, score in all_sentiments for _ in range(int(score * 10))),
-                    key=Counter().get
-                ) if all_sentiments else "neutral"
+                dominant_sentiment = (
+                    max(
+                        Counter(s for s, score in all_sentiments for _ in range(int(score * 10))),
+                        key=Counter().get,
+                    )
+                    if all_sentiments
+                    else "neutral"
+                )
 
                 cluster = ThemeCluster(
                     cluster_id=f"cluster_{cluster_id}",
@@ -661,7 +657,7 @@ class ThemeExtractionService:
                     themes=cluster_themes,
                     centrality_score=centrality_score,
                     coherence_score=coherence_score,
-                    dominant_sentiment=dominant_sentiment
+                    dominant_sentiment=dominant_sentiment,
                 )
 
                 clusters.append(cluster)
@@ -669,65 +665,90 @@ class ThemeExtractionService:
             return clusters
 
         except Exception as e:
-            logger.error(f"Theme clustering failed: {str(e)}")
+            logger.error(f"Theme clustering failed: {e!s}")
             return []
 
-    async def _classify_themes(self, themes: List[Theme]) -> List[Theme]:
+    async def _classify_themes(self, themes: list[Theme]) -> list[Theme]:
         """Classify themes by type (concept, emotion, action, etc.)"""
         try:
             emotion_keywords = {
-                'happy', 'sad', 'angry', 'love', 'hate', 'fear', 'joy', 'excitement',
-                'anxiety', 'depression', 'contentment', 'frustration', 'worry', 'hope'
+                "happy",
+                "sad",
+                "angry",
+                "love",
+                "hate",
+                "fear",
+                "joy",
+                "excitement",
+                "anxiety",
+                "depression",
+                "contentment",
+                "frustration",
+                "worry",
+                "hope",
             }
 
             action_keywords = {
-                'work', 'play', 'run', 'jump', 'sleep', 'eat', 'drink', 'drive',
-                'write', 'read', 'think', 'create', 'destroy', 'build', 'learn'
+                "work",
+                "play",
+                "run",
+                "jump",
+                "sleep",
+                "eat",
+                "drink",
+                "drive",
+                "write",
+                "read",
+                "think",
+                "create",
+                "destroy",
+                "build",
+                "learn",
             }
 
             for theme in themes:
                 theme_words = set(word.lower() for word in theme.keywords)
 
                 # Classify based on keyword overlap
-                emotion_overlap = len(theme_words & emotion_keywords) / len(theme_words) if theme_words else 0
-                action_overlap = len(theme_words & action_keywords) / len(theme_words) if theme_words else 0
+                emotion_overlap = (
+                    len(theme_words & emotion_keywords) / len(theme_words) if theme_words else 0
+                )
+                action_overlap = (
+                    len(theme_words & action_keywords) / len(theme_words) if theme_words else 0
+                )
 
                 # Add theme type as metadata (extend the Theme class if needed)
                 if emotion_overlap > 0.3:
-                    theme.metadata = getattr(theme, 'metadata', {})
-                    theme.metadata['type'] = 'emotion'
+                    theme.metadata = getattr(theme, "metadata", {})
+                    theme.metadata["type"] = "emotion"
                 elif action_overlap > 0.3:
-                    theme.metadata = getattr(theme, 'metadata', {})
-                    theme.metadata['type'] = 'action'
+                    theme.metadata = getattr(theme, "metadata", {})
+                    theme.metadata["type"] = "action"
                 else:
-                    theme.metadata = getattr(theme, 'metadata', {})
-                    theme.metadata['type'] = 'concept'
+                    theme.metadata = getattr(theme, "metadata", {})
+                    theme.metadata["type"] = "concept"
 
             return themes
 
         except Exception as e:
-            logger.error(f"Theme classification failed: {str(e)}")
+            logger.error(f"Theme classification failed: {e!s}")
             return themes
 
     # Helper methods
 
-    async def _preprocess_texts(self, texts: List[str]) -> List[str]:
+    async def _preprocess_texts(self, texts: list[str]) -> list[str]:
         """Preprocess texts for theme extraction"""
         processed = []
         for text in texts:
             # Basic preprocessing
-            text = re.sub(r'\s+', ' ', text.strip())  # Normalize whitespace
+            text = re.sub(r"\s+", " ", text.strip())  # Normalize whitespace
             if len(text) > 10:  # Filter very short texts
                 processed.append(text)
         return processed
 
     async def _find_related_words(
-        self,
-        target_word: str,
-        word_frequencies: List,
-        texts: List[str],
-        max_related: int = 5
-    ) -> List[str]:
+        self, target_word: str, word_frequencies: list, texts: list[str], max_related: int = 5
+    ) -> list[str]:
         """Find words related to target word"""
         try:
             target_word = target_word.lower()
@@ -751,15 +772,12 @@ class ThemeExtractionService:
             return related_words
 
         except Exception as e:
-            logger.error(f"Failed to find related words for {target_word}: {str(e)}")
+            logger.error(f"Failed to find related words for {target_word}: {e!s}")
             return []
 
     async def _find_theme_examples(
-        self,
-        keywords: List[str],
-        texts: List[str],
-        max_examples: int = 3
-    ) -> List[str]:
+        self, keywords: list[str], texts: list[str], max_examples: int = 3
+    ) -> list[str]:
         """Find example sentences containing theme keywords"""
         try:
             examples = []
@@ -767,7 +785,7 @@ class ThemeExtractionService:
 
             for text in texts:
                 # Split into sentences
-                sentences = re.split(r'[.!?]+', text)
+                sentences = re.split(r"[.!?]+", text)
 
                 for sentence in sentences:
                     sentence = sentence.strip()
@@ -781,14 +799,12 @@ class ThemeExtractionService:
             return examples
 
         except Exception as e:
-            logger.error(f"Failed to find theme examples: {str(e)}")
+            logger.error(f"Failed to find theme examples: {e!s}")
             return []
 
     async def _calculate_theme_sentiment(
-        self,
-        keywords: List[str],
-        texts: List[str]
-    ) -> Dict[str, float]:
+        self, keywords: list[str], texts: list[str]
+    ) -> dict[str, float]:
         """Calculate sentiment distribution for theme"""
         try:
             sentiment_scores = []
@@ -809,32 +825,27 @@ class ThemeExtractionService:
             negative = sum(1 for s in sentiment_scores if s < -0.1) / len(sentiment_scores)
             neutral = 1.0 - positive - negative
 
-            return {
-                "positive": positive,
-                "negative": negative,
-                "neutral": max(0.0, neutral)
-            }
+            return {"positive": positive, "negative": negative, "neutral": max(0.0, neutral)}
 
         except Exception as e:
-            logger.error(f"Failed to calculate theme sentiment: {str(e)}")
+            logger.error(f"Failed to calculate theme sentiment: {e!s}")
             return {"neutral": 1.0}
 
-    def _generate_theme_name_from_words(self, words: List[str]) -> str:
+    def _generate_theme_name_from_words(self, words: list[str]) -> str:
         """Generate a readable theme name from keywords"""
         if not words:
             return "Unknown Theme"
 
         # Clean and capitalize words
-        clean_words = [word.replace('_', ' ').title() for word in words[:3]]
+        clean_words = [word.replace("_", " ").title() for word in words[:3]]
 
         if len(clean_words) == 1:
             return clean_words[0]
-        elif len(clean_words) == 2:
+        if len(clean_words) == 2:
             return f"{clean_words[0]} & {clean_words[1]}"
-        else:
-            return f"{clean_words[0]}, {clean_words[1]} & {clean_words[2]}"
+        return f"{clean_words[0]}, {clean_words[1]} & {clean_words[2]}"
 
-    async def _find_similar_theme(self, theme: Theme, existing_themes: List[Theme]) -> Optional[Theme]:
+    async def _find_similar_theme(self, theme: Theme, existing_themes: list[Theme]) -> Theme | None:
         """Find existing theme similar to given theme"""
         try:
             for existing in existing_themes:
@@ -849,7 +860,7 @@ class ThemeExtractionService:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to find similar theme: {str(e)}")
+            logger.error(f"Failed to find similar theme: {e!s}")
             return None
 
     async def _merge_themes(self, base_theme: Theme, new_theme: Theme) -> None:
@@ -866,19 +877,23 @@ class ThemeExtractionService:
             base_theme.examples = base_theme.examples[:5]  # Limit examples
 
             # Update relevance score (average)
-            base_theme.relevance_score = (base_theme.relevance_score + new_theme.relevance_score) / 2
+            base_theme.relevance_score = (
+                base_theme.relevance_score + new_theme.relevance_score
+            ) / 2
 
         except Exception as e:
-            logger.error(f"Failed to merge themes: {str(e)}")
+            logger.error(f"Failed to merge themes: {e!s}")
 
-    async def _calculate_theme_relevance(self, theme: Theme, texts: List[str]) -> float:
+    async def _calculate_theme_relevance(self, theme: Theme, texts: list[str]) -> float:
         """Calculate relevance score for theme"""
         try:
             # Factors: frequency, diversity, uniqueness
             frequency_score = theme.frequency / len(texts)
 
             # Diversity: how many different texts contain this theme
-            text_count = sum(1 for text in texts if any(kw in text.lower() for kw in theme.keywords))
+            text_count = sum(
+                1 for text in texts if any(kw in text.lower() for kw in theme.keywords)
+            )
             diversity_score = text_count / len(texts)
 
             # Uniqueness: based on keyword uniqueness
@@ -886,15 +901,15 @@ class ThemeExtractionService:
             uniqueness_score = min(1.0, theme.frequency / avg_word_freq)
 
             # Combined score
-            relevance = (frequency_score * 0.4 + diversity_score * 0.4 + uniqueness_score * 0.2)
+            relevance = frequency_score * 0.4 + diversity_score * 0.4 + uniqueness_score * 0.2
 
             return min(1.0, relevance)
 
         except Exception as e:
-            logger.error(f"Failed to calculate theme relevance: {str(e)}")
+            logger.error(f"Failed to calculate theme relevance: {e!s}")
             return 0.0
 
-    def _calculate_trend(self, values: List[float]) -> Tuple[str, float]:
+    def _calculate_trend(self, values: list[float]) -> tuple[str, float]:
         """Calculate trend direction and strength"""
         try:
             if len(values) < 3:
@@ -926,10 +941,10 @@ class ThemeExtractionService:
             return direction, strength
 
         except Exception as e:
-            logger.error(f"Failed to calculate trend: {str(e)}")
+            logger.error(f"Failed to calculate trend: {e!s}")
             return "unknown", 0.0
 
-    def _detect_seasonal_pattern(self, time_points: List[datetime], values: List[float]) -> bool:
+    def _detect_seasonal_pattern(self, time_points: list[datetime], values: list[float]) -> bool:
         """Detect if there's a seasonal pattern in the data"""
         try:
             if len(time_points) < 7:  # Need at least a week of data
@@ -955,10 +970,10 @@ class ThemeExtractionService:
             return seasonal_ratio > 0.3
 
         except Exception as e:
-            logger.error(f"Failed to detect seasonal pattern: {str(e)}")
+            logger.error(f"Failed to detect seasonal pattern: {e!s}")
             return False
 
-    def _generate_cluster_name(self, themes: List[Theme]) -> str:
+    def _generate_cluster_name(self, themes: list[Theme]) -> str:
         """Generate name for theme cluster"""
         if not themes:
             return "Empty Cluster"
@@ -967,7 +982,7 @@ class ThemeExtractionService:
         main_theme = max(themes, key=lambda t: t.relevance_score)
         return f"{main_theme.name} Group"
 
-    def _calculate_cluster_centrality(self, themes: List[Theme], center) -> float:
+    def _calculate_cluster_centrality(self, themes: list[Theme], center) -> float:
         """Calculate centrality score for cluster"""
         try:
             # Simple centrality based on average relevance
@@ -975,7 +990,7 @@ class ThemeExtractionService:
         except Exception:
             return 0.0
 
-    def _calculate_cluster_coherence(self, themes: List[Theme]) -> float:
+    def _calculate_cluster_coherence(self, themes: list[Theme]) -> float:
         """Calculate coherence score for cluster"""
         try:
             if len(themes) < 2:
@@ -986,7 +1001,7 @@ class ThemeExtractionService:
             comparisons = 0
 
             for i, theme1 in enumerate(themes):
-                for theme2 in themes[i+1:]:
+                for theme2 in themes[i + 1 :]:
                     overlap = len(set(theme1.keywords) & set(theme2.keywords))
                     total = len(set(theme1.keywords) | set(theme2.keywords))
                     if total > 0:
@@ -999,26 +1014,28 @@ class ThemeExtractionService:
             return 0.0
 
     async def _calculate_theme_statistics(
-        self,
-        themes: List[Theme],
-        texts: List[str]
-    ) -> Dict[str, Any]:
+        self, themes: list[Theme], texts: list[str]
+    ) -> dict[str, Any]:
         """Calculate overall theme statistics"""
         try:
             return {
                 "total_themes": len(themes),
-                "average_frequency": np.mean([theme.frequency for theme in themes]) if themes else 0,
-                "average_relevance": np.mean([theme.relevance_score for theme in themes]) if themes else 0,
+                "average_frequency": np.mean([theme.frequency for theme in themes])
+                if themes
+                else 0,
+                "average_relevance": np.mean([theme.relevance_score for theme in themes])
+                if themes
+                else 0,
                 "theme_diversity": len(set(kw for theme in themes for kw in theme.keywords)),
                 "sentiment_distribution": self._calculate_overall_sentiment(themes),
-                "theme_types": self._get_theme_type_distribution(themes)
+                "theme_types": self._get_theme_type_distribution(themes),
             }
 
         except Exception as e:
-            logger.error(f"Failed to calculate theme statistics: {str(e)}")
+            logger.error(f"Failed to calculate theme statistics: {e!s}")
             return {}
 
-    def _calculate_overall_sentiment(self, themes: List[Theme]) -> Dict[str, float]:
+    def _calculate_overall_sentiment(self, themes: list[Theme]) -> dict[str, float]:
         """Calculate overall sentiment distribution across themes"""
         try:
             all_sentiments = defaultdict(float)
@@ -1031,25 +1048,32 @@ class ThemeExtractionService:
                 total_weight += weight
 
             if total_weight > 0:
-                return {sentiment: score / total_weight for sentiment, score in all_sentiments.items()}
-            else:
-                return {"neutral": 1.0}
+                return {
+                    sentiment: score / total_weight for sentiment, score in all_sentiments.items()
+                }
+            return {"neutral": 1.0}
 
         except Exception:
             return {"neutral": 1.0}
 
-    def _get_theme_type_distribution(self, themes: List[Theme]) -> Dict[str, int]:
+    def _get_theme_type_distribution(self, themes: list[Theme]) -> dict[str, int]:
         """Get distribution of theme types"""
         try:
             type_counts = defaultdict(int)
             for theme in themes:
-                theme_type = getattr(theme.metadata, 'type', 'unknown') if hasattr(theme, 'metadata') else 'unknown'
+                theme_type = (
+                    getattr(theme.metadata, "type", "unknown")
+                    if hasattr(theme, "metadata")
+                    else "unknown"
+                )
                 type_counts[theme_type] += 1
             return dict(type_counts)
         except Exception:
             return {"unknown": len(themes)}
 
-    async def _calculate_co_occurrence_matrix(self, themes: List[Theme], texts: List[str]) -> List[List[float]]:
+    async def _calculate_co_occurrence_matrix(
+        self, themes: list[Theme], texts: list[str]
+    ) -> list[list[float]]:
         """Calculate co-occurrence matrix for themes"""
         try:
             n = len(themes)
@@ -1077,16 +1101,12 @@ class ThemeExtractionService:
             return matrix
 
         except Exception as e:
-            logger.error(f"Failed to calculate co-occurrence matrix: {str(e)}")
+            logger.error(f"Failed to calculate co-occurrence matrix: {e!s}")
             return [[0.0] * len(themes) for _ in range(len(themes))]
 
     async def _find_co_occurrence_examples(
-        self,
-        keywords1: List[str],
-        keywords2: List[str],
-        texts: List[str],
-        max_examples: int = 2
-    ) -> List[str]:
+        self, keywords1: list[str], keywords2: list[str], texts: list[str], max_examples: int = 2
+    ) -> list[str]:
         """Find examples where both sets of keywords co-occur"""
         try:
             examples = []
@@ -1106,10 +1126,10 @@ class ThemeExtractionService:
             return examples
 
         except Exception as e:
-            logger.error(f"Failed to find co-occurrence examples: {str(e)}")
+            logger.error(f"Failed to find co-occurrence examples: {e!s}")
             return []
 
-    async def _calculate_theme_frequency_in_texts(self, theme: Theme, texts: List[str]) -> float:
+    async def _calculate_theme_frequency_in_texts(self, theme: Theme, texts: list[str]) -> float:
         """Calculate how often theme appears in given texts"""
         try:
             count = 0
@@ -1121,16 +1141,16 @@ class ThemeExtractionService:
             return count / len(texts) if texts else 0.0
 
         except Exception as e:
-            logger.error(f"Failed to calculate theme frequency: {str(e)}")
+            logger.error(f"Failed to calculate theme frequency: {e!s}")
             return 0.0
 
 
 # Export the main service class
 __all__ = [
-    "ThemeExtractionService",
     "ThemeCluster",
-    "ThemeTrend",
-    "ThemeRelationship",
     "ThemeExtractionMethod",
-    "ThemeType"
+    "ThemeExtractionService",
+    "ThemeRelationship",
+    "ThemeTrend",
+    "ThemeType",
 ]

@@ -81,7 +81,7 @@ def list_templates(
         skip=skip,
         limit=limit
     )
-    
+
     return {
         "templates": templates,
         "total": len(templates)
@@ -89,7 +89,7 @@ def list_templates(
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/search", response_model=List[TemplateSchema])
 def search_templates(
     q: str = Query(..., min_length=2),
@@ -99,7 +99,7 @@ def search_templates(
     Search templates by name or description.
     """
     templat
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 es = TemplateService.search(db, query=q)
     return templates
 
@@ -113,21 +113,21 @@ def get_template(
     Get template details with full data.
     """
     template = TemplateService.get_by_id(db, template_id=template_id)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found"
         )
-    
+
     if not template.is_public:
         raise HTTPException(
-         
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
    status_code=status.HTTP_403_FORBIDDEN,
             detail="This template is not public"
         )
-    
+
     return template
 
 
@@ -142,26 +142,26 @@ def create_assessment_from_template(
     Create a new assessment from a template.
     """
     template = TemplateService.get_by_id(db, template_id=template_id)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found"
         )
-    
+
     if not template.is_public:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This template is not public"
         )
-    
+
     assessment = TemplateService.create_assessment_from_template(
         db,
         template=template,
         creator_id=current_user.id,
         team_id=team_id
     )
-    
+
     return assessment
 
 
@@ -177,22 +177,22 @@ def create_template_from_assessment(
     Create a template from an existing assessment.
     """
     import app.services.assessment_service as AssessmentService
-    
+
     assessment = AssessmentService.get_by_id(db, assessment_id=assessment_id)
-    
+
     if not assessment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assessment not found"
         )
-    
+
     # Check permission
     if assessment.created_by_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only create templates from your own assessments"
         )
-    
+
     template = TemplateService.create_template_from_assessment(
         db,
         assessment=assessment,
@@ -200,7 +200,7 @@ def create_template_from_assessment(
         template_description=description,
         creator_id=current_user.id
     )
-    
+
     return template
 
 
@@ -215,13 +215,13 @@ def update_template(
     Update template.
     """
     template = TemplateService.get_by_id(db, template_id=template_id)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found"
         )
-    
+
     # Check permission
     if template.created_by_id != current_user.id:
         from app.services.user_service import user_service
@@ -230,7 +230,7 @@ def update_template(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to update this template"
             )
-    
+
     updated_template = TemplateService.update(db, template=template, template_in=template_in)
     return updated_template
 
@@ -245,13 +245,13 @@ def delete_template(
     Delete template.
     """
     template = TemplateService.get_by_id(db, template_id=template_id)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found"
         )
-    
+
     # Check permission
     if template.created_by_id != current_user.id:
         from app.services.user_service import user_service
@@ -260,7 +260,6 @@ def delete_template(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this template"
             )
-    
+
     TemplateService.delete(db, template=template)
     return None
-

@@ -11,12 +11,10 @@ Features:
 - Redis-backed for distributed systems
 """
 
-import time
-from typing import Optional, Tuple, Dict
-from fastapi import HTTPException, status
-from redis.asyncio import Redis
-from datetime import datetime, timedelta
 import logging
+import time
+
+from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +32,7 @@ class AccountLockoutManager:
 
     # Lockout thresholds (attempts, duration_minutes)
     LOCKOUT_THRESHOLDS = [
-        (5, 5),    # 5 attempts = 5 minute lockout
+        (5, 5),  # 5 attempts = 5 minute lockout
         (10, 30),  # 10 attempts = 30 minute lockout
         (15, 60),  # 15 attempts = 60 minute lockout
     ]
@@ -51,10 +49,8 @@ class AccountLockoutManager:
         self.redis = redis
 
     async def check_login_attempt(
-        self,
-        identifier: str,
-        ip_address: str = "unknown"
-    ) -> Tuple[bool, Optional[str], Dict]:
+        self, identifier: str, ip_address: str = "unknown"
+    ) -> tuple[bool, str | None, dict]:
         """
         Check if login attempt should be allowed.
 
@@ -77,7 +73,7 @@ class AccountLockoutManager:
 
         if is_locked:
             # Calculate remaining time
-            remaining_time = lockout_info['unlock_time'] - int(time.time())
+            remaining_time = lockout_info["unlock_time"] - int(time.time())
             reason = (
                 f"Account temporarily locked due to {lockout_info['attempts']} "
                 f"failed login attempts. Please try again in {remaining_time // 60} minutes."
@@ -93,19 +89,20 @@ class AccountLockoutManager:
         # Check if we should show a warning
         show_warning = user_attempts >= self.WARNING_THRESHOLD
 
-        return True, None, {
-            "user_attempts": user_attempts,
-            "ip_attempts": ip_attempts,
-            "show_warning": show_warning,
-            "attempts_remaining": self._get_lockout_threshold(user_attempts) - user_attempts
-        }
+        return (
+            True,
+            None,
+            {
+                "user_attempts": user_attempts,
+                "ip_attempts": ip_attempts,
+                "show_warning": show_warning,
+                "attempts_remaining": self._get_lockout_threshold(user_attempts) - user_attempts,
+            },
+        )
 
     async def record_failed_attempt(
-        self,
-        identifier: str,
-        ip_address: str = "unknown",
-        details: Optional[str] = None
-    ) -> Dict:
+        self, identifier: str, ip_address: str = "unknown", details: str | None = None
+    ) -> dict:
         """
         Record a failed login attempt.
 
@@ -151,14 +148,10 @@ class AccountLockoutManager:
             "user_attempts": user_attempts,
             "ip_attempts": ip_attempts,
             "locked": lockout_duration is not None,
-            "lockout_duration_minutes": lockout_duration
+            "lockout_duration_minutes": lockout_duration,
         }
 
-    async def record_successful_login(
-        self,
-        identifier: str,
-        ip_address: str = "unknown"
-    ):
+    async def record_successful_login(self, identifier: str, ip_address: str = "unknown"):
         """
         Record a successful login and clear attempt counters.
 
@@ -189,7 +182,7 @@ class AccountLockoutManager:
                 return threshold
         return self.LOCKOUT_THRESHOLDS[-1][0] + 5
 
-    async def _is_account_locked(self, identifier: str) -> Tuple[bool, Dict]:
+    async def _is_account_locked(self, identifier: str) -> tuple[bool, dict]:
         """
         Check if account is currently locked.
 
@@ -203,9 +196,10 @@ class AccountLockoutManager:
             return False, {}
 
         import json
+
         try:
             lock_info = json.loads(lock_data)
-            unlock_time = lock_info.get('unlock_time', 0)
+            unlock_time = lock_info.get("unlock_time", 0)
 
             # Check if lockout has expired
             if int(time.time()) >= unlock_time:
@@ -218,12 +212,7 @@ class AccountLockoutManager:
             await self.redis.delete(lock_key)
             return False, {}
 
-    async def _lock_account(
-        self,
-        identifier: str,
-        duration_minutes: int,
-        attempts: int
-    ):
+    async def _lock_account(self, identifier: str, duration_minutes: int, attempts: int):
         """
         Lock an account for specified duration.
 
@@ -236,50 +225,39 @@ class AccountLockoutManager:
         unlock_time = int(time.time()) + (duration_minutes * 60)
 
         import json
+
         lock_info = {
-            'locked_at': int(time.time()),
-            'unlock_time': unlock_time,
-            'duration_minutes': duration_minutes,
-            'attempts': attempts,
-            'reason': f'Too many failed login attempts ({attempts})'
+            "locked_at": int(time.time()),
+            "unlock_time": unlock_time,
+            "duration_minutes": duration_minutes,
+            "attempts": attempts,
+            "reason": f"Too many failed login attempts ({attempts})",
         }
 
-        await self.redis.setex(
-            lock_key,
-            duration_minutes * 60,
-            json.dumps(lock_info)
-        )
+        await self.redis.setex(lock_key, duration_minutes * 60, json.dumps(lock_info))
 
     async def _log_failed_attempt(
-        self,
-        identifier: str,
-        ip_address: str,
-        attempts: int,
-        details: Optional[str]
+        self, identifier: str, ip_address: str, attempts: int, details: str | None
     ):
         """Log failed attempt for security monitoring."""
-        logger.warning(
-            f"Failed login attempt #{attempts} for {identifier} from {ip_address}"
-        )
+        logger.warning(f"Failed login attempt #{attempts} for {identifier} from {ip_address}")
 
         # Store in security event log (for review)
         event_key = f"security_events:failed_login:{int(time.time())}"
         import json
+
         event_data = {
-            'identifier': identifier,
-            'ip_address': ip_address,
-            'attempts': attempts,
-            'timestamp': int(time.time()),
-            'details': details
+            "identifier": identifier,
+            "ip_address": ip_address,
+            "attempts": attempts,
+            "timestamp": int(time.time()),
+            "details": details,
         }
 
         # Keep for 7 days
         await self.redis.setex(event_key, 7 * 24 * 3600, json.dumps(event_data))
 
-    async def get_account_status(
-        self,
-        identifier: str
-    ) -> Dict:
+    async def get_account_status(self, identifier: str) -> dict:
         """
         Get current account status including lockout info.
 
@@ -293,19 +271,15 @@ class AccountLockoutManager:
         is_locked, lock_info = await self._is_account_locked(identifier)
 
         status = {
-            'identifier': identifier,
-            'failed_attempts': user_attempts,
-            'is_locked': is_locked,
-            'lockout_info': lock_info if is_locked else None
+            "identifier": identifier,
+            "failed_attempts": user_attempts,
+            "is_locked": is_locked,
+            "lockout_info": lock_info if is_locked else None,
         }
 
         return status
 
-    async def unlock_account(
-        self,
-        identifier: str,
-        admin_user: str
-    ):
+    async def unlock_account(self, identifier: str, admin_user: str):
         """
         Manually unlock an account (admin function).
 
@@ -316,15 +290,9 @@ class AccountLockoutManager:
         await self.redis.delete(f"account_locked:{identifier}")
         await self.redis.delete(f"login_attempts:user:{identifier}")
 
-        logger.info(
-            f"Account {identifier} manually unlocked by admin {admin_user}"
-        )
+        logger.info(f"Account {identifier} manually unlocked by admin {admin_user}")
 
-    async def get_failed_login_history(
-        self,
-        identifier: str,
-        hours: int = 24
-    ) -> list:
+    async def get_failed_login_history(self, identifier: str, hours: int = 24) -> list:
         """
         Get failed login history for an account.
 
@@ -341,10 +309,10 @@ class AccountLockoutManager:
 
 
 # Singleton instance
-_lockout_manager: Optional[AccountLockoutManager] = None
+_lockout_manager: AccountLockoutManager | None = None
 
 
-def get_lockout_manager() -> Optional[AccountLockoutManager]:
+def get_lockout_manager() -> AccountLockoutManager | None:
     """Get the account lockout manager instance."""
     return _lockout_manager
 

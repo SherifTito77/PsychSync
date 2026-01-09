@@ -3,17 +3,16 @@ Slack Integration Service
 Handles Slack bot commands and team assessment integration
 """
 
-import logging
-from typing import Dict, List, Optional, Any
-from uuid import UUID
-import json
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
+import logging
+from typing import Any
+from uuid import UUID
 
-from app.services.assessment_service import AssessmentService
-from app.services.team_optimization_service import TeamOptimizationService
-from app.services.compatibility_analysis_service import TeamCompatibilityAnalysisService
 from app.core.config import settings
+from app.services.assessment_service import AssessmentService
+from app.services.compatibility_analysis_service import TeamCompatibilityAnalysisService
+from app.services.team_optimization_service import TeamOptimizationService
 
 logger = logging.getLogger(__name__)
 
@@ -29,24 +28,24 @@ class SlackIntegrationService:
 
         # Slack command registry
         self.commands = {
-            '/team-assessment': self.handle_team_assessment,
-            '/team-status': self.handle_team_status,
-            '/team-compatibility': self.handle_team_compatibility,
-            '/team-insights': self.handle_team_insights,
-            '/quick-poll': self.handle_quick_poll,
-            '/team-checkin': self.handle_team_checkin,
-            '/help': self.handle_help
+            "/team-assessment": self.handle_team_assessment,
+            "/team-status": self.handle_team_status,
+            "/team-compatibility": self.handle_team_compatibility,
+            "/team-insights": self.handle_team_insights,
+            "/quick-poll": self.handle_quick_poll,
+            "/team-checkin": self.handle_team_checkin,
+            "/help": self.handle_help
         }
 
-    async def process_slash_command(self, command_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process_slash_command(self, command_data: dict[str, Any]) -> dict[str, Any]:
         """Process incoming Slack slash command"""
         try:
-            command = command_data.get('command', '').lower()
-            user_id = command_data.get('user_id')
-            channel_id = command_data.get('channel_id')
-            team_id = command_data.get('team_id')
-            text = command_data.get('text', '').strip()
-            response_url = command_data.get('response_url')
+            command = command_data.get("command", "").lower()
+            user_id = command_data.get("user_id")
+            channel_id = command_data.get("channel_id")
+            team_id = command_data.get("team_id")
+            text = command_data.get("text", "").strip()
+            response_url = command_data.get("response_url")
 
             # Verify team exists in our system
             slack_team_id = await self._get_internal_team_id(team_id)
@@ -61,7 +60,7 @@ class SlackIntegrationService:
                 # Acknowledge immediately (Slash commands must respond within 3 seconds)
                 initial_response = {
                     "response_type": "in_channel",
-                    "text": f"🔄 Processing `/command`..."
+                    "text": "🔄 Processing `/command`..."
                 }
 
                 # Process command asynchronously
@@ -73,14 +72,13 @@ class SlackIntegrationService:
                 )
 
                 return initial_response
-            else:
-                return {
-                    "response_type": "ephemeral",
-                    "text": f"❌ Unknown command: {command}. Type `/help` for available commands."
-                }
+            return {
+                "response_type": "ephemeral",
+                "text": f"❌ Unknown command: {command}. Type `/help` for available commands."
+            }
 
         except Exception as e:
-            logger.error(f"Error processing Slack command: {str(e)}")
+            logger.error(f"Error processing Slack command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ An error occurred while processing your command. Please try again."
@@ -104,7 +102,7 @@ class SlackIntegrationService:
             await self._update_slack_response(response_url, result)
 
         except Exception as e:
-            logger.error(f"Error in async command processing: {str(e)}")
+            logger.error(f"Error in async command processing: {e!s}")
             error_response = {
                 "response_type": "ephemeral",
                 "text": "❌ An error occurred while processing your command."
@@ -113,7 +111,7 @@ class SlackIntegrationService:
 
     async def handle_team_assessment(
         self, text: str, user_id: str, channel_id: str, team_id: UUID
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle /team-assessment command"""
         try:
             # Parse command arguments
@@ -123,7 +121,7 @@ class SlackIntegrationService:
 
             # Create quick assessment for team
             assessment_data = {
-                "title": f"Team Quick Check-in",
+                "title": "Team Quick Check-in",
                 "description": f"Quick team pulse check - {duration}",
                 "assessment_type": "team_pulse",
                 "questions": [
@@ -193,14 +191,13 @@ class SlackIntegrationService:
                         }
                     ]
                 }
-            else:
-                return {
-                    "response_type": "ephemeral",
-                    "text": "❌ Failed to create team assessment. Please try again."
-                }
+            return {
+                "response_type": "ephemeral",
+                "text": "❌ Failed to create team assessment. Please try again."
+            }
 
         except Exception as e:
-            logger.error(f"Error in team assessment command: {str(e)}")
+            logger.error(f"Error in team assessment command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error creating team assessment."
@@ -208,7 +205,7 @@ class SlackIntegrationService:
 
     async def handle_team_status(
         self, text: str, user_id: str, channel_id: str, team_id: UUID
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle /team-status command"""
         try:
             # Get team analytics
@@ -221,9 +218,9 @@ class SlackIntegrationService:
                 }
 
             # Format team status for Slack
-            completion_rate = analytics.get('completion_rate', 0) * 100
-            avg_performance = analytics.get('avg_performance_score', 0) * 100
-            team_size = analytics.get('team_size', 0)
+            completion_rate = analytics.get("completion_rate", 0) * 100
+            avg_performance = analytics.get("avg_performance_score", 0) * 100
+            team_size = analytics.get("team_size", 0)
 
             # Determine status emoji
             if completion_rate > 80:
@@ -285,7 +282,7 @@ class SlackIntegrationService:
             }
 
         except Exception as e:
-            logger.error(f"Error in team status command: {str(e)}")
+            logger.error(f"Error in team status command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error retrieving team status."
@@ -293,7 +290,7 @@ class SlackIntegrationService:
 
     async def handle_team_compatibility(
         self, text: str, user_id: str, channel_id: str, team_id: UUID
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle /team-compatibility command"""
         try:
             # Parse team members if specified
@@ -314,7 +311,7 @@ class SlackIntegrationService:
                             "type": "section",
                             "text": {
                                 "type": "mrkdwn",
-                                "text": f"🤝 *Member Compatibility Analysis*"
+                                "text": "🤝 *Member Compatibility Analysis*"
                             }
                         },
                         {
@@ -343,55 +340,54 @@ class SlackIntegrationService:
                         }
                     ]
                 }
-            else:
-                # Analyze overall team compatibility
-                team_compatibility = await self.compatibility_service.analyze_team_compatibility(team_id)
+            # Analyze overall team compatibility
+            team_compatibility = await self.compatibility_service.analyze_team_compatibility(team_id)
 
-                return {
-                    "response_type": "in_channel",
-                    "blocks": [
-                        {
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": f"👥 *Team Compatibility Report*"
-                            }
-                        },
-                        {
-                            "type": "divider"
-                        },
-                        {
-                            "type": "section",
-                            "fields": [
-                                {
-                                    "type": "mrkdwn",
-                                    "text": f"*Overall Compatibility:*\n{team_compatibility.overall_compatibility:.1%}"
-                                },
-                                {
-                                    "type": "mrkdwn",
-                                    "text": f"*Team Balance Score:*\n{team_compatibility.team_balance_score:.1%}"
-                                }
-                            ]
-                        },
-                        {
-                            "type": "actions",
-                            "elements": [
-                                {
-                                    "type": "button",
-                                    "text": {
-                                        "type": "plain_text",
-                                        "text": "View Full Report"
-                                    },
-                                    "url": f"{settings.FRONTEND_URL}/team/compatibility/{team_id}",
-                                    "style": "primary"
-                                }
-                            ]
+            return {
+                "response_type": "in_channel",
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "👥 *Team Compatibility Report*"
                         }
-                    ]
-                }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Overall Compatibility:*\n{team_compatibility.overall_compatibility:.1%}"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Team Balance Score:*\n{team_compatibility.team_balance_score:.1%}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "View Full Report"
+                                },
+                                "url": f"{settings.FRONTEND_URL}/team/compatibility/{team_id}",
+                                "style": "primary"
+                            }
+                        ]
+                    }
+                ]
+            }
 
         except Exception as e:
-            logger.error(f"Error in team compatibility command: {str(e)}")
+            logger.error(f"Error in team compatibility command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error analyzing team compatibility."
@@ -399,7 +395,7 @@ class SlackIntegrationService:
 
     async def handle_team_insights(
         self, text: str, user_id: str, channel_id: str, team_id: UUID
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle /team-insights command"""
         try:
             # Get team insights and recommendations
@@ -412,9 +408,9 @@ class SlackIntegrationService:
                 }
 
             # Extract key insights
-            strengths = insights.get('strengths', [])
-            recommendations = insights.get('recommendations', [])
-            trends = insights.get('performance_trends', [])
+            strengths = insights.get("strengths", [])
+            recommendations = insights.get("recommendations", [])
+            trends = insights.get("performance_trends", [])
 
             # Format insights for Slack
             blocks = [
@@ -487,7 +483,7 @@ class SlackIntegrationService:
             }
 
         except Exception as e:
-            logger.error(f"Error in team insights command: {str(e)}")
+            logger.error(f"Error in team insights command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error retrieving team insights."
@@ -495,14 +491,14 @@ class SlackIntegrationService:
 
     async def handle_quick_poll(
         self, text: str, user_id: str, channel_id: str, team_id: UUID
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle /quick-poll command"""
         try:
             # Parse poll question
             if not text:
                 return {
                     "response_type": "ephemeral",
-                    "text": "❌ Please provide a poll question. Usage: `/quick-poll \"Question here\"`"
+                    "text": '❌ Please provide a poll question. Usage: `/quick-poll "Question here"`'
                 }
 
             # Create poll options (thumbs up/down, or custom)
@@ -545,7 +541,7 @@ class SlackIntegrationService:
             }
 
         except Exception as e:
-            logger.error(f"Error in quick poll command: {str(e)}")
+            logger.error(f"Error in quick poll command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error creating quick poll."
@@ -553,7 +549,7 @@ class SlackIntegrationService:
 
     async def handle_team_checkin(
         self, text: str, user_id: str, channel_id: str, team_id: UUID
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle /team-checkin command"""
         try:
             # Create daily check-in
@@ -602,7 +598,7 @@ class SlackIntegrationService:
             }
 
         except Exception as e:
-            logger.error(f"Error in team checkin command: {str(e)}")
+            logger.error(f"Error in team checkin command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error creating team check-in."
@@ -610,7 +606,7 @@ class SlackIntegrationService:
 
     async def handle_help(
         self, text: str, user_id: str, channel_id: str, team_id: UUID
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Handle /help command"""
         try:
             return {
@@ -652,7 +648,7 @@ class SlackIntegrationService:
                         "fields": [
                             {
                                 "type": "mrkdwn",
-                                "text": "*`/quick-poll \"question\"`*\nCreate instant team poll"
+                                "text": '*`/quick-poll "question"`*\nCreate instant team poll'
                             },
                             {
                                 "type": "mrkdwn",
@@ -668,40 +664,39 @@ class SlackIntegrationService:
             }
 
         except Exception as e:
-            logger.error(f"Error in help command: {str(e)}")
+            logger.error(f"Error in help command: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error displaying help."
             }
 
-    async def handle_interactive_component(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_interactive_component(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle interactive components (button clicks, etc.)"""
         try:
-            action = payload.get('actions', [{}])[0]
-            action_id = action.get('action_id')
-            user_id = payload.get('user', {}).get('id')
+            action = payload.get("actions", [{}])[0]
+            action_id = action.get("action_id")
+            user_id = payload.get("user", {}).get("id")
 
-            if action_id == 'thumbs_up' or action_id == 'thumbs_down':
+            if action_id == "thumbs_up" or action_id == "thumbs_down":
                 # Handle poll response
                 return await self._handle_poll_response(payload)
-            else:
-                return {
-                    "response_type": "ephemeral",
-                    "text": "❌ Unknown action."
-                }
+            return {
+                "response_type": "ephemeral",
+                "text": "❌ Unknown action."
+            }
 
         except Exception as e:
-            logger.error(f"Error handling interactive component: {str(e)}")
+            logger.error(f"Error handling interactive component: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error processing your action."
             }
 
-    async def _handle_poll_response(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_poll_response(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Handle poll button responses"""
         try:
-            action = payload.get('actions', [{}])[0]
-            original_message = payload.get('original_message', {})
+            action = payload.get("actions", [{}])[0]
+            original_message = payload.get("original_message", {})
 
             # Update the original message to show poll results
             # (This is simplified - in production, you'd track votes in database)
@@ -712,22 +707,22 @@ class SlackIntegrationService:
             }
 
         except Exception as e:
-            logger.error(f"Error handling poll response: {str(e)}")
+            logger.error(f"Error handling poll response: {e!s}")
             return {
                 "response_type": "ephemeral",
                 "text": "❌ Error recording your vote."
             }
 
-    async def _get_internal_team_id(self, slack_team_id: str) -> Optional[UUID]:
+    async def _get_internal_team_id(self, slack_team_id: str) -> UUID | None:
         """Convert Slack team ID to internal team ID"""
         try:
             # In production, this would query your database
             # For now, return a placeholder
-            return UUID('00000000-0000-0000-0000-000000000001')
+            return UUID("00000000-0000-0000-0000-000000000001")
         except Exception:
             return None
 
-    async def _update_slack_response(self, response_url: str, response_data: Dict[str, Any]):
+    async def _update_slack_response(self, response_url: str, response_data: dict[str, Any]):
         """Update original Slack response with processed results"""
         try:
             import aiohttp
@@ -737,7 +732,7 @@ class SlackIntegrationService:
                     if resp.status != 200:
                         logger.error(f"Failed to update Slack response: {resp.status}")
         except Exception as e:
-            logger.error(f"Error updating Slack response: {str(e)}")
+            logger.error(f"Error updating Slack response: {e!s}")
 
     def _is_valid_uuid(self, uuid_string: str) -> bool:
         """Check if string is a valid UUID"""
@@ -747,18 +742,18 @@ class SlackIntegrationService:
         except ValueError:
             return False
 
-    async def verify_slack_request(self, headers: Dict[str, str], body: str) -> bool:
+    async def verify_slack_request(self, headers: dict[str, str], body: str) -> bool:
         """Verify that request is from Slack"""
         try:
-            import hmac
             import hashlib
+            import hmac
 
             slack_signing_secret = settings.SLACK_SIGNING_SECRET
             if not slack_signing_secret:
                 return True  # Skip verification if not configured
 
-            timestamp = headers.get('X-Slack-Request-Timestamp')
-            slack_signature = headers.get('X-Slack-Signature')
+            timestamp = headers.get("X-Slack-Request-Timestamp")
+            slack_signature = headers.get("X-Slack-Signature")
 
             if not timestamp or not slack_signature:
                 return False
@@ -769,7 +764,7 @@ class SlackIntegrationService:
 
             # Create signature
             sig_basestring = f"v0:{timestamp}:{body}"
-            my_signature = 'v0=' + hmac.new(
+            my_signature = "v0=" + hmac.new(
                 slack_signing_secret.encode(),
                 sig_basestring.encode(),
                 hashlib.sha256
@@ -778,5 +773,5 @@ class SlackIntegrationService:
             return hmac.compare_digest(my_signature, slack_signature)
 
         except Exception as e:
-            logger.error(f"Error verifying Slack request: {str(e)}")
+            logger.error(f"Error verifying Slack request: {e!s}")
             return False

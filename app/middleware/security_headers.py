@@ -14,7 +14,6 @@ Comprehensive Security Headers Middleware
 """
 
 import logging
-from typing import Dict, List, Optional, Set
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -37,8 +36,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         app,
         enable_hsts: bool = True,
         enable_csp: bool = True,
-        custom_headers: Optional[Dict[str, str]] = None,
-        exclude_paths: Optional[List[str]] = None,
+        custom_headers: dict[str, str] | None = None,
+        exclude_paths: list[str] | None = None,
     ):
         super().__init__(app)
         self.enable_hsts = enable_hsts
@@ -64,15 +63,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Skip for health checks and monitoring
-        if path.startswith('/health') or path.startswith('/metrics') or path.startswith('/status'):
+        if path.startswith("/health") or path.startswith("/metrics") or path.startswith("/status"):
             return True
 
         # Skip for static files
-        if path.startswith('/static/') or path.startswith('/favicon'):
+        if path.startswith("/static/") or path.startswith("/favicon"):
             return True
 
         # Skip for documentation
-        if path.startswith('/docs') or path.startswith('/redoc') or path.startswith('/openapi'):
+        if path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi"):
             return True
 
         # Skip custom excluded paths
@@ -82,7 +81,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """Add comprehensive security headers to response"""
 
         # HTTP Strict Transport Security (HSTS)
-        if self.enable_hsts and request.url.scheme == 'https':
+        if self.enable_hsts and request.url.scheme == "https":
             self._add_hsts_headers(response)
 
         # Content Security Policy (CSP)
@@ -114,7 +113,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
 
         # Cache Control for API responses
-        if request.url.path.startswith('/api/'):
+        if request.url.path.startswith("/api/"):
             self._add_api_cache_headers(response)
 
         # Remove server information
@@ -127,9 +126,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
     def _add_hsts_headers(self, response: Response):
         """Add HTTP Strict Transport Security headers"""
-        max_age = getattr(settings, 'HSTS_MAX_AGE', 31536000)  # 1 year
-        include_subdomains = getattr(settings, 'HSTS_INCLUDE_SUBDOMAINS', True)
-        preload = getattr(settings, 'HSTS_PRELOAD', False)
+        max_age = getattr(settings, "HSTS_MAX_AGE", 31536000)  # 1 year
+        include_subdomains = getattr(settings, "HSTS_INCLUDE_SUBDOMAINS", True)
+        preload = getattr(settings, "HSTS_PRELOAD", False)
 
         hsts_value = f"max-age={max_age}"
 
@@ -149,59 +148,48 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = csp_config
 
         # Add CSP report-only header for development
-        if getattr(settings, 'ENVIRONMENT', 'development') == "development":
+        if getattr(settings, "ENVIRONMENT", "development") == "development":
             csp_report_only = self._build_csp_policy(request, report_only=True)
             response.headers["Content-Security-Policy-Report-Only"] = csp_report_only
 
     def _build_csp_policy(self, request: Request, report_only: bool = False) -> str:
         """Build Content Security Policy based on environment and request"""
-        is_development = getattr(settings, 'ENVIRONMENT', 'development') == "development"
-        is_production = getattr(settings, 'ENVIRONMENT', 'development') == "production"
+        is_development = getattr(settings, "ENVIRONMENT", "development") == "development"
+        is_production = getattr(settings, "ENVIRONMENT", "development") == "production"
 
         # Base CSP directives
         directives = {
             # Default policy for everything
             "default-src": ["'self'"],
-
             # Script sources
             "script-src": ["'self'"],
-
             # Style sources
-            "style-src": ["'self'", "'unsafe-inline'"],  # Inline styles needed for some CSS frameworks
-
+            "style-src": [
+                "'self'",
+                "'unsafe-inline'",
+            ],  # Inline styles needed for some CSS frameworks
             # Image sources
             "img-src": ["'self'", "data:", "https:"],
-
             # Font sources
             "font-src": ["'self'", "data:", "https:"],
-
             # Connect sources (API calls, WebSockets)
             "connect-src": ["'self'"],
-
             # Frame sources
             "frame-src": ["'none'"],
-
             # Frame ancestors
             "frame-ancestors": ["'none'"],
-
             # Form action
             "form-action": ["'self'"],
-
             # Base URI
             "base-uri": ["'self'"],
-
             # Manifest
             "manifest-src": ["'self'"],
-
             # Object sources
             "object-src": ["'none'"],
-
             # Worker sources
             "worker-src": ["'self'"],
-
             # Prefetch sources
             "prefetch-src": ["'self'"],
-
             # Child sources
             "child-src": ["'none'"],
         }
@@ -209,30 +197,40 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Development-specific CSP adjustments
         if is_development:
             # Allow hot reload and dev tools
-            directives["script-src"].extend([
-                "'unsafe-eval'",  # Required for hot reload
-                "'unsafe-inline'",  # For development
-                "ws:",  # WebSockets for hot reload
-            ])
+            directives["script-src"].extend(
+                [
+                    "'unsafe-eval'",  # Required for hot reload
+                    "'unsafe-inline'",  # For development
+                    "ws:",  # WebSockets for hot reload
+                ]
+            )
 
             # Allow local development servers
-            directives["connect-src"].extend([
-                "ws:",
-                "wss:",
-                "http://localhost:*",
-                "https://localhost:*",
-                "http://127.0.0.1:*",
-                "https://127.0.0.1:*",
-            ])
+            directives["connect-src"].extend(
+                [
+                    "ws:",
+                    "wss:",
+                    "http://localhost:*",
+                    "https://localhost:*",
+                    "http://127.0.0.1:*",
+                    "https://127.0.0.1:*",
+                ]
+            )
 
         # Production-specific CSP adjustments
         if is_production:
             # Remove unsafe sources in production
-            directives["script-src"] = [src for src in directives["script-src"] if src not in ["'unsafe-eval'", "'unsafe-inline'"]]
-            directives["style-src"] = [src for src in directives["style-src"] if src != "'unsafe-inline'"]
+            directives["script-src"] = [
+                src
+                for src in directives["script-src"]
+                if src not in ["'unsafe-eval'", "'unsafe-inline'"]
+            ]
+            directives["style-src"] = [
+                src for src in directives["style-src"] if src != "'unsafe-inline'"
+            ]
 
         # Add third-party domains as needed
-        allowed_third_parties = getattr(settings, 'CSP_ALLOWED_THIRD_PARTIES', [])
+        allowed_third_parties = getattr(settings, "CSP_ALLOWED_THIRD_PARTIES", [])
         if allowed_third_parties:
             # Add to connect-src for API calls
             directives["connect-src"].extend(allowed_third_parties)
@@ -244,7 +242,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             directives["style-src"].extend(allowed_third_parties)
 
         # Add CDN domains
-        cdn_domains = getattr(settings, 'CSP_CDN_DOMAINS', [])
+        cdn_domains = getattr(settings, "CSP_CDN_DOMAINS", [])
         if cdn_domains:
             directives["script-src"].extend(cdn_domains)
             directives["style-src"].extend(cdn_domains)
@@ -265,12 +263,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # 'SAMEORIGIN' allows framing from same origin
         # 'ALLOW-FROM uri' allows framing from specific origin
 
-        frame_options = getattr(settings, 'X_FRAME_OPTIONS', 'DENY')
+        frame_options = getattr(settings, "X_FRAME_OPTIONS", "DENY")
         response.headers["X-Frame-Options"] = frame_options
 
     def _add_referrer_policy_headers(self, response: Response):
         """Add Referrer-Policy header"""
-        referrer_policy = getattr(settings, 'REFERRER_POLICY', 'strict-origin-when-cross-origin')
+        referrer_policy = getattr(settings, "REFERRER_POLICY", "strict-origin-when-cross-origin")
         response.headers["Referrer-Policy"] = referrer_policy
 
     def _add_permissions_policy_headers(self, response: Response):
@@ -279,42 +277,30 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         features = {
             # Geolocation
             "geolocation": [],
-
             # Camera and microphone
             "camera": [],
             "microphone": [],
-
             # Payment
             "payment": [],
-
             # USB
             "usb": [],
-
             # Magnetometer
             "magnetometer": [],
-
             # Gyroscope and accelerometer
             "gyroscope": [],
             "accelerometer": [],
-
             # Ambient light sensor
             "ambient-light-sensor": [],
-
             # WebVR
             "vr": [],
-
             # Fullscreen
             "fullscreen": ["'self'"],
-
             # Screen wake lock
             "wake-lock": [],
-
             # Web-share API
             "web-share": [],
-
             # Sync-XHR (XMLHttpRequest)
             "sync-xhr": [],
-
             # Document domain
             "document-domain": [],
         }
@@ -370,25 +356,21 @@ class SecurityReportingMiddleware(BaseHTTPMiddleware):
                     "client_ip": self._get_client_ip(request),
                     "user_agent": request.headers.get("user-agent"),
                     "blocked_uri": report_data.get("csp-report", {}).get("blocked-uri"),
-                    "violated_directive": report_data.get("csp-report", {}).get("violated-directive"),
+                    "violated_directive": report_data.get("csp-report", {}).get(
+                        "violated-directive"
+                    ),
                     "document_uri": report_data.get("csp-report", {}).get("document-uri"),
-                }
+                },
             )
 
             # TODO: Store report in database for analysis
             # TODO: Send alert to security team if critical violation
 
-            return JSONResponse(
-                status_code=204,
-                content={"message": "Report received"}
-            )
+            return JSONResponse(status_code=204, content={"message": "Report received"})
 
         except Exception as e:
-            logger.error(f"Failed to handle security report: {str(e)}")
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Invalid report format"}
-            )
+            logger.error(f"Failed to handle security report: {e!s}")
+            return JSONResponse(status_code=400, content={"error": "Invalid report format"})
 
     def _get_client_ip(self, request: Request) -> str:
         """Get client IP address from request"""
@@ -405,9 +387,7 @@ class SecurityReportingMiddleware(BaseHTTPMiddleware):
 
 # Factory function for creating security middleware stack
 def create_security_middleware_stack(
-    app,
-    environment: str = None,
-    custom_config: Dict[str, any] = None
+    app, environment: str = None, custom_config: dict[str, any] = None
 ) -> None:
     """
     Create and add security middleware stack to FastAPI app
@@ -417,20 +397,17 @@ def create_security_middleware_stack(
         environment: Environment name (development, staging, production)
         custom_config: Custom security configuration
     """
-    environment = environment or getattr(settings, 'ENVIRONMENT', 'development')
+    environment = environment or getattr(settings, "ENVIRONMENT", "development")
     custom_config = custom_config or {}
 
     # Security headers middleware (always enabled)
     app.add_middleware(
         SecurityHeadersMiddleware,
-        enable_hsts=environment == 'production',
+        enable_hsts=environment == "production",
         enable_csp=True,
-        custom_headers=custom_config.get('headers', {}),
-        exclude_paths=custom_config.get('exclude_paths', [])
+        custom_headers=custom_config.get("headers", {}),
+        exclude_paths=custom_config.get("exclude_paths", []),
     )
 
     # Security reporting middleware
-    app.add_middleware(
-        SecurityReportingMiddleware,
-        report_endpoint="/api/v1/security/reports"
-    )
+    app.add_middleware(SecurityReportingMiddleware, report_endpoint="/api/v1/security/reports")

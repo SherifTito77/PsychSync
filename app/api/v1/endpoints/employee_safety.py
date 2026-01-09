@@ -93,7 +93,7 @@ class SafetyResourceRequest(BaseModel):
 # Incident Reporting Endpoints
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/incidents", response_model=Dict[str, Any])
 async def report_incident(
     incident_data: IncidentReportRequest,
@@ -155,8 +155,8 @@ async def report_incident(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
       detail=f"Failed to report incident: {str(e)}"
         )
 
@@ -240,8 +240,8 @@ async def get_incidents(
         raise
     except Exception as e:
         raise HTTPException(
-   
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
          status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get incidents: {str(e)}"
         )

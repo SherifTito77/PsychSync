@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics/growth", tags=["Growth Analytics"])
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/events/track")
 async def track_conversion_event(
     user_id: str,
@@ -78,8 +78,8 @@ async def track_conversion_event(
         logger.error(f"Failed to track conversion event: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
 detail=f"Failed to track conversion event: {str(e)}"
         )
 
@@ -115,8 +115,8 @@ async def analyze_user_behavior(
     except Exception as e:
         logger.error(f"Failed to analyze user behavior: {str(e)}")
         raise HTTPException(
-          
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
   status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to analyze user behavior: {str(e)}"
         )

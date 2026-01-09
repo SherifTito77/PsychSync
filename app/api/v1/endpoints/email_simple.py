@@ -96,7 +96,7 @@ class SyncOptions(BaseModel):
     analyze_contacts: bool = Field(True, description="Analyze communication patterns")
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/providers", response_model=Dict[str, Any])
 async def get_email_providers():
     """Get list of supported email providers with setup information"""
@@ -104,7 +104,7 @@ async def get_email_providers():
         "providers": IMAP_PROVIDERS,
         "default_provider": "gmail",
         "setup_guide_url": "/api/v1/email-simple/setup-guide
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ",
         "most_popular": ["gmail", "outlook", "yahoo"]
     }
@@ -196,7 +196,7 @@ async def get_setup_guide(provider: str):
     return EmailSetupGuide(
         provider=provider,
         setup_steps=setup_step
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 s,
         app_password_url=app_password_url,
         common_issues=common_issues,

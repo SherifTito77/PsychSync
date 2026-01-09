@@ -7,34 +7,36 @@ API Key Authentication System for Service-to-Service Communication
 - Key revocation and expiration
 """
 
-import secrets
-import hashlib
-import time
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from datetime import datetime
 from enum import Enum
+import hashlib
+import secrets
+import time
+from typing import Any
 
-from fastapi import HTTPException, status, Depends, Security
+from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
 
-from app.core.config import settings
 from app.core.enhanced_cache import get_cache_manager
+
 
 class APIKeyPermission(Enum):
     """API key permission levels"""
+
     READ = "read"
     WRITE = "write"
     ADMIN = "admin"
     FULL_ACCESS = "full_access"
 
+
 class APIKeyStatus(Enum):
     """API key status"""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     REVOKED = "revoked"
     EXPIRED = "expired"
+
 
 class APIKey:
     """
@@ -98,11 +100,11 @@ class APIKeyManager:
     async def create_api_key(
         self,
         name: str,
-        permissions: List[APIKeyPermission],
-        expires_at: Optional[datetime] = None,
-        rate_limit: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        permissions: list[APIKeyPermission],
+        expires_at: datetime | None = None,
+        rate_limit: int | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Create a new API key
 
@@ -133,7 +135,7 @@ class APIKeyManager:
             "rate_limit": rate_limit or 1000,  # Default 1000 requests per hour
             "last_used": None,
             "usage_count": 0,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         # Cache the key data
@@ -148,10 +150,10 @@ class APIKeyManager:
             "permissions": [p.value for p in permissions],
             "expires_at": expires_at.isoformat() if expires_at else None,
             "rate_limit": rate_limit or 1000,
-            "created_at": key_data["created_at"]
+            "created_at": key_data["created_at"],
         }
 
-    async def validate_api_key(self, api_key: str) -> Optional[Dict[str, Any]]:
+    async def validate_api_key(self, api_key: str) -> dict[str, Any] | None:
         """
         Validate API key and return key information
 
@@ -182,10 +184,9 @@ class APIKeyManager:
                     if await self._is_key_valid(key_data):
                         await self._update_key_usage(key_id, key_data)
                         return key_data
-                    else:
-                        # Key is invalid, remove from cache
-                        await self.cache.delete(cache_key)
-                        await self.cache.delete(reverse_key)
+                    # Key is invalid, remove from cache
+                    await self.cache.delete(cache_key)
+                    await self.cache.delete(reverse_key)
 
         return None
 
@@ -218,7 +219,7 @@ class APIKeyManager:
 
         return False
 
-    async def get_key_usage(self, key_id: str, time_range: str = "1h") -> Dict[str, Any]:
+    async def get_key_usage(self, key_id: str, time_range: str = "1h") -> dict[str, Any]:
         """
         Get API key usage statistics
 
@@ -241,12 +242,12 @@ class APIKeyManager:
                 "last_request": None,
                 "endpoints": {},
                 "status_codes": {},
-                "errors": 0
+                "errors": 0,
             }
 
         return usage_data
 
-    async def _is_key_valid(self, key_data: Dict[str, Any]) -> bool:
+    async def _is_key_valid(self, key_data: dict[str, Any]) -> bool:
         """Check if API key is still valid"""
         # Check status
         if key_data.get("status") != APIKeyStatus.ACTIVE.value:
@@ -256,7 +257,7 @@ class APIKeyManager:
         expires_at = key_data.get("expires_at")
         if expires_at:
             try:
-                expire_date = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                expire_date = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
                 if datetime.utcnow() > expire_date:
                     return False
             except:
@@ -264,7 +265,7 @@ class APIKeyManager:
 
         return True
 
-    async def _update_key_usage(self, key_id: str, key_data: Dict[str, Any]):
+    async def _update_key_usage(self, key_id: str, key_data: dict[str, Any]):
         """Update key usage statistics"""
         if not self.cache:
             return
@@ -284,7 +285,7 @@ class APIKeyManager:
             "last_request": None,
             "endpoints": {},
             "status_codes": {},
-            "errors": 0
+            "errors": 0,
         }
 
         current_usage["request_count"] += 1
@@ -300,7 +301,8 @@ class APIKeyManager:
 # FastAPI dependencies
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-_api_key_manager: Optional[APIKeyManager] = None
+_api_key_manager: APIKeyManager | None = None
+
 
 def get_api_key_manager() -> APIKeyManager:
     """Get global API key manager instance"""
@@ -310,9 +312,7 @@ def get_api_key_manager() -> APIKeyManager:
     return _api_key_manager
 
 
-async def verify_api_key(
-    api_key: str = Security(api_key_header)
-) -> Dict[str, Any]:
+async def verify_api_key(api_key: str = Security(api_key_header)) -> dict[str, Any]:
     """
     FastAPI dependency to verify API key
 
@@ -345,9 +345,7 @@ async def verify_api_key(
     return key_data
 
 
-async def verify_api_key_permission(
-    required_permission: APIKeyPermission
-):
+async def verify_api_key_permission(required_permission: APIKeyPermission):
     """
     FastAPI dependency factory for specific permission requirements
 
@@ -357,9 +355,10 @@ async def verify_api_key_permission(
     Returns:
         Dependency function
     """
+
     async def permission_dependency(
-        api_key_data: Dict[str, Any] = Depends(verify_api_key)
-    ) -> Dict[str, Any]:
+        api_key_data: dict[str, Any] = Depends(verify_api_key),
+    ) -> dict[str, Any]:
         permissions = api_key_data.get("permissions", [])
 
         # Check if user has required permission or higher
@@ -367,20 +366,26 @@ async def verify_api_key_permission(
             APIKeyPermission.READ,
             APIKeyPermission.WRITE,
             APIKeyPermission.ADMIN,
-            APIKeyPermission.FULL_ACCESS
+            APIKeyPermission.FULL_ACCESS,
         ]
 
         required_level = permission_hierarchy.index(required_permission)
-        user_level = max([
-            permission_hierarchy.index(APIKeyPermission(p))
-            for p in permissions
-            if p in [perm.value for perm in permission_hierarchy]
-        ]) if permissions else -1
+        user_level = (
+            max(
+                [
+                    permission_hierarchy.index(APIKeyPermission(p))
+                    for p in permissions
+                    if p in [perm.value for perm in permission_hierarchy]
+                ]
+            )
+            if permissions
+            else -1
+        )
 
         if user_level < required_level:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient permissions. Required: {required_permission.value}"
+                detail=f"Insufficient permissions. Required: {required_permission.value}",
             )
 
         return api_key_data
@@ -407,8 +412,8 @@ class APIKeyRateLimiter:
         self,
         key_id: str,
         limit: int,
-        window: int = 3600  # 1 hour
-    ) -> tuple[bool, Dict[str, Any]]:
+        window: int = 3600,  # 1 hour
+    ) -> tuple[bool, dict[str, Any]]:
         """
         Check if API key is within rate limit
 
@@ -444,7 +449,7 @@ class APIKeyRateLimiter:
                     "remaining": 0,
                     "reset_time": reset_time,
                     "limit": limit,
-                    "current": current_requests
+                    "current": current_requests,
                 }
 
             # Add current request
@@ -458,9 +463,9 @@ class APIKeyRateLimiter:
                 "remaining": max(0, remaining),
                 "reset_time": reset_time,
                 "limit": limit,
-                "current": current_requests + 1
+                "current": current_requests + 1,
             }
 
-        except Exception as e:
+        except Exception:
             # Fail open if rate limiter fails
             return True, {"remaining": limit - 1, "reset_time": time.time() + window}

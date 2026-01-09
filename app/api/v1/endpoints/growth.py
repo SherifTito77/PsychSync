@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/growth", tags=["Growth Marketing"])
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/campaigns/trigger")
 async def trigger_growth_campaign(
     campaign_id: str,
@@ -69,8 +69,8 @@ async def trigger_growth_campaign(
         logger.error(f"Failed to trigger campaign {campaign_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
       detail=f"Failed to trigger campaign: {str(e)}"
         )
 
@@ -102,7 +102,7 @@ async def list_campaigns():
     except Exception as e:
         logger.error(f"Failed to list campaigns: {str(e)}")
         raise HTTPExcepti
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 on(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve campaigns"

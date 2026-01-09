@@ -10,25 +10,28 @@ Features:
 """
 
 import asyncio
-import logging
-import time
-from datetime import datetime, timedelta
-from typing import Callable, Any, Optional, Dict, List
+from collections.abc import Callable
+from datetime import datetime
 from enum import Enum
 from functools import wraps
-import random
+import logging
+import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class CircuitState(Enum):
     """Circuit breaker states"""
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Circuit is open, blocking calls
+
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Circuit is open, blocking calls
     HALF_OPEN = "half_open"  # Testing if service has recovered
+
 
 class CircuitBreakerError(Exception):
     """Exception raised when circuit breaker is open"""
-    pass
+
 
 class CircuitBreaker:
     """
@@ -41,7 +44,7 @@ class CircuitBreaker:
         recovery_timeout: float = 60.0,
         expected_exception: type = Exception,
         success_threshold: int = 3,
-        monitoring_enabled: bool = True
+        monitoring_enabled: bool = True,
     ):
         """
         Initialize circuit breaker
@@ -62,15 +65,15 @@ class CircuitBreaker:
         # Circuit state
         self._state = CircuitState.CLOSED
         self._failure_count = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._success_count = 0
 
         # Performance monitoring
         self._call_count = 0
         self._success_count_total = 0
         self._failure_count_total = 0
-        self._last_call_time: Optional[float] = None
-        self._response_times: List[float] = []
+        self._last_call_time: float | None = None
+        self._response_times: list[float] = []
 
         # Lock for thread safety
         self._lock = asyncio.Lock()
@@ -115,7 +118,7 @@ class CircuitBreaker:
 
             return result
 
-        except self.expected_exception as e:
+        except self.expected_exception:
             # Record failure
             async with self._lock:
                 await self._on_failure()
@@ -176,9 +179,7 @@ class CircuitBreaker:
     def _open_circuit(self):
         """Open the circuit"""
         self._state = CircuitState.OPEN
-        logger.warning(
-            f"Circuit breaker OPENED after {self._failure_count} failures"
-        )
+        logger.warning(f"Circuit breaker OPENED after {self._failure_count} failures")
 
     def _close_circuit(self):
         """Close the circuit"""
@@ -219,13 +220,13 @@ class CircuitBreaker:
         return (self._success_count_total / self._call_count) * 100
 
     @property
-    def average_response_time(self) -> Optional[float]:
+    def average_response_time(self) -> float | None:
         """Get average response time"""
         if not self._response_times:
             return None
         return sum(self._response_times) / len(self._response_times)
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get comprehensive metrics"""
         return {
             "state": self._state.value,
@@ -236,9 +237,11 @@ class CircuitBreaker:
             "total_failures": self._failure_count_total,
             "success_rate": self.success_rate,
             "average_response_time": self.average_response_time,
-            "last_failure_time": datetime.fromtimestamp(self._last_failure_time).isoformat() if self._last_failure_time else None,
+            "last_failure_time": datetime.fromtimestamp(self._last_failure_time).isoformat()
+            if self._last_failure_time
+            else None,
             "time_until_retry": self._get_time_until_retry(),
-            "recovery_timeout": self.recovery_timeout
+            "recovery_timeout": self.recovery_timeout,
         }
 
     def reset(self):
@@ -254,14 +257,14 @@ class CircuitBreakerRegistry:
     """Registry for managing multiple circuit breakers"""
 
     def __init__(self):
-        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
 
     def register(
         self,
         name: str,
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
-        expected_exception: type = Exception
+        expected_exception: type = Exception,
     ) -> CircuitBreaker:
         """Register a new circuit breaker"""
         if name in self._circuit_breakers:
@@ -270,27 +273,24 @@ class CircuitBreakerRegistry:
         circuit_breaker = CircuitBreaker(
             failure_threshold=failure_threshold,
             recovery_timeout=recovery_timeout,
-            expected_exception=expected_exception
+            expected_exception=expected_exception,
         )
 
         self._circuit_breakers[name] = circuit_breaker
         logger.info(f"Registered circuit breaker: {name}")
         return circuit_breaker
 
-    def get(self, name: str) -> Optional[CircuitBreaker]:
+    def get(self, name: str) -> CircuitBreaker | None:
         """Get circuit breaker by name"""
         return self._circuit_breakers.get(name)
 
-    def list_all(self) -> List[str]:
+    def list_all(self) -> list[str]:
         """List all registered circuit breaker names"""
         return list(self._circuit_breakers.keys())
 
-    def get_all_metrics(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_metrics(self) -> dict[str, dict[str, Any]]:
         """Get metrics for all circuit breakers"""
-        return {
-            name: cb.get_metrics()
-            for name, cb in self._circuit_breakers.items()
-        }
+        return {name: cb.get_metrics() for name, cb in self._circuit_breakers.items()}
 
     def reset_all(self):
         """Reset all circuit breakers"""
@@ -308,7 +308,7 @@ def circuit_breaker(
     name: str,
     failure_threshold: int = 5,
     recovery_timeout: float = 60.0,
-    expected_exception: type = Exception
+    expected_exception: type = Exception,
 ):
     """
     Decorator for circuit breaker protection
@@ -319,6 +319,7 @@ def circuit_breaker(
         recovery_timeout: Recovery timeout in seconds
         expected_exception: Exception type to consider as failure
     """
+
     def decorator(func):
         # Get or create circuit breaker
         cb = circuit_breaker_registry.get(name)
@@ -327,7 +328,7 @@ def circuit_breaker(
                 name=name,
                 failure_threshold=failure_threshold,
                 recovery_timeout=recovery_timeout,
-                expected_exception=expected_exception
+                expected_exception=expected_exception,
             )
 
         @wraps(func)
@@ -335,6 +336,7 @@ def circuit_breaker(
             return await cb.call(func, *args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -348,7 +350,7 @@ class ServiceCircuitBreaker:
         base_url: str,
         failure_threshold: int = 3,
         recovery_timeout: float = 30.0,
-        timeout: float = 10.0
+        timeout: float = 10.0,
     ):
         self.service_name = service_name
         self.base_url = base_url
@@ -359,15 +361,10 @@ class ServiceCircuitBreaker:
             name=f"service_{service_name}",
             failure_threshold=failure_threshold,
             recovery_timeout=recovery_timeout,
-            expected_exception=Exception
+            expected_exception=Exception,
         )
 
-    async def call(
-        self,
-        method: str,
-        endpoint: str,
-        **kwargs
-    ) -> Any:
+    async def call(self, method: str, endpoint: str, **kwargs) -> Any:
         """
         Make service call with circuit breaker protection
 
@@ -390,12 +387,12 @@ class ServiceCircuitBreaker:
 
         return await self.circuit_breaker.call(make_call)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get circuit breaker status for this service"""
         return {
             "service_name": self.service_name,
             "base_url": self.base_url,
-            "circuit_breaker": self.circuit_breaker.get_metrics()
+            "circuit_breaker": self.circuit_breaker.get_metrics(),
         }
 
 
@@ -404,18 +401,14 @@ class CircuitBreakerMonitor:
     """Monitor circuit breaker health and performance"""
 
     @staticmethod
-    def get_system_health() -> Dict[str, Any]:
+    def get_system_health() -> dict[str, Any]:
         """Get overall system health based on circuit breakers"""
         metrics = circuit_breaker_registry.get_all_metrics()
 
         total_circuits = len(metrics)
-        open_circuits = sum(
-            1 for m in metrics.values()
-            if m["state"] == CircuitState.OPEN.value
-        )
+        open_circuits = sum(1 for m in metrics.values() if m["state"] == CircuitState.OPEN.value)
         half_open_circuits = sum(
-            1 for m in metrics.values()
-            if m["state"] == CircuitState.HALF_OPEN.value
+            1 for m in metrics.values() if m["state"] == CircuitState.HALF_OPEN.value
         )
 
         # Calculate overall health score
@@ -431,13 +424,17 @@ class CircuitBreakerMonitor:
             "half_open_circuits": half_open_circuits,
             "open_circuits": open_circuits,
             "health_score": health_score,
-            "status": "healthy" if health_score >= 75 else "degraded" if health_score >= 50 else "unhealthy",
+            "status": "healthy"
+            if health_score >= 75
+            else "degraded"
+            if health_score >= 50
+            else "unhealthy",
             "timestamp": datetime.utcnow().isoformat(),
-            "circuit_breakers": metrics
+            "circuit_breakers": metrics,
         }
 
     @staticmethod
-    def get_circuits_requiring_attention() -> List[Dict[str, Any]]:
+    def get_circuits_requiring_attention() -> list[dict[str, Any]]:
         """Get circuit breakers that need attention"""
         metrics = circuit_breaker_registry.get_all_metrics()
         attention_needed = []
@@ -462,12 +459,9 @@ class CircuitBreakerMonitor:
                 issues.append(f"Slow response time: {metric['average_response_time']:.2f}s")
 
             if issues:
-                attention_needed.append({
-                    "name": name,
-                    "state": metric["state"],
-                    "issues": issues,
-                    "metrics": metric
-                })
+                attention_needed.append(
+                    {"name": name, "state": metric["state"], "issues": issues, "metrics": metric}
+                )
 
         return attention_needed
 

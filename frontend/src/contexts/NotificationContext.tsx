@@ -1,6 +1,6 @@
 // // src/contexts/NotificationContext.tsx
 // src/contexts/NotificationContext.tsx - Notification Management Context
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { Notification } from '../types';
 interface NotificationContextType {
   notifications: Notification[];
@@ -20,7 +20,9 @@ interface NotificationProviderProps {
 }
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const showNotification = (
+
+  // ✅ MEMOIZED: Functions with useCallback
+  const showNotification = useCallback((
     message: string,
     type: Notification['type'] = 'info',
     duration: number = 5000
@@ -35,18 +37,22 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     setNotifications((prev) => [...prev, notification]);
     if (duration > 0) {
       setTimeout(() => {
-        removeNotification(id);
+        setNotifications((prev) => prev.filter((notif) => notif.id !== id));
       }, duration);
     }
-  };
-  const removeNotification = (id: number): void => {
+  }, []);
+
+  const removeNotification = useCallback((id: number): void => {
     setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-  };
-  const value: NotificationContextType = {
+  }, []);
+
+  // ✅ MEMOIZED: Context value only changes when dependencies change
+  const value: NotificationContextType = useMemo(() => ({
     notifications,
     showNotification,
     removeNotification,
-  };
+  }), [notifications, showNotification, removeNotification]);
+
   return (
     <NotificationContext.Provider value={value}>
       {children}

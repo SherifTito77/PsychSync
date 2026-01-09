@@ -4,12 +4,12 @@ Implements PostgreSQL trigram search with relevance ranking
 Performance improvement: 80-95% over LIKE searches
 """
 
-from typing import List, Optional, Dict, Any, Type
-from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, func, or_, and_
-from sqlalchemy.orm import selectinload
 import logging
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -25,22 +25,21 @@ class FullTextSearchService:
         self,
         db: AsyncSession,
         query: str,
-        organization_id: Optional[UUID] = None,
+        organization_id: UUID | None = None,
         limit: int = 20,
         include_inactive: bool = False
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Full-text search for users with trigram similarity and relevance ranking
 
         Performance: 85-95% faster than LIKE searches
         """
-        from app.db.models.user import User
 
         if len(query.strip()) < self.min_search_length:
             return []
 
         # Build trigram search query
-        search_query = f"""
+        search_query = """
         SELECT
             u.id,
             u.email,
@@ -101,21 +100,20 @@ class FullTextSearchService:
         self,
         db: AsyncSession,
         query: str,
-        organization_id: Optional[UUID] = None,
-        assessment_type: Optional[str] = None,
-        status: Optional[str] = None,
+        organization_id: UUID | None = None,
+        assessment_type: str | None = None,
+        status: str | None = None,
         limit: int = 20
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Full-text search for assessments with relevance ranking
         """
-        from app.db.models.assessment import Assessment
 
         if len(query.strip()) < self.min_search_length:
             return []
 
         # Build search query
-        search_query = f"""
+        search_query = """
         SELECT
             a.id,
             a.title,
@@ -186,7 +184,7 @@ class FullTextSearchService:
         query: str,
         search_type: str = "users",
         limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get search suggestions based on partial matches
         """
@@ -224,12 +222,12 @@ class FullTextSearchService:
 
         return [
             {
-                "text": getattr(row, 'full_name', getattr(row, 'title', '')),
+                "text": getattr(row, "full_name", getattr(row, "title", "")),
                 "type": search_type,
                 "similarity_score": float(row.similarity_score),
                 "metadata": {
-                    "email": getattr(row, 'email', None),
-                    "assessment_type": getattr(row, 'assessment_type', None)
+                    "email": getattr(row, "email", None),
+                    "assessment_type": getattr(row, "assessment_type", None)
                 }
             }
             for row in suggestions
@@ -290,11 +288,11 @@ class SearchService:
         self,
         db: AsyncSession,
         query: str,
-        search_types: List[str] = None,
-        organization_id: Optional[UUID] = None,
+        search_types: list[str] = None,
+        organization_id: UUID | None = None,
         limit_per_type: int = 10,
         **filters
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         Unified search across multiple entity types
         """
@@ -329,8 +327,8 @@ class SearchService:
     async def get_search_analytics(
         self,
         db: AsyncSession,
-        organization_id: Optional[UUID] = None
-    ) -> Dict[str, Any]:
+        organization_id: UUID | None = None
+    ) -> dict[str, Any]:
         """
         Get analytics about search performance and popular searches
         """
@@ -363,14 +361,14 @@ class SearchService:
 search_service = SearchService()
 
 # Convenience functions
-async def search_users(db: AsyncSession, query: str, **kwargs) -> List[Dict[str, Any]]:
+async def search_users(db: AsyncSession, query: str, **kwargs) -> list[dict[str, Any]]:
     """Search users with full-text optimization"""
     return await search_service.fulltext.search_users(db, query, **kwargs)
 
-async def search_assessments(db: AsyncSession, query: str, **kwargs) -> List[Dict[str, Any]]:
+async def search_assessments(db: AsyncSession, query: str, **kwargs) -> list[dict[str, Any]]:
     """Search assessments with full-text optimization"""
     return await search_service.fulltext.search_assessments(db, query, **kwargs)
 
-async def get_search_suggestions(db: AsyncSession, query: str, **kwargs) -> List[Dict[str, Any]]:
+async def get_search_suggestions(db: AsyncSession, query: str, **kwargs) -> list[dict[str, Any]]:
     """Get search suggestions based on partial matches"""
     return await search_service.fulltext.get_search_suggestions(db, query, **kwargs)

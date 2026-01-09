@@ -3,21 +3,19 @@ PsychSync Datadog Configuration for APM and Log Management
 Comprehensive application performance monitoring and centralized logging
 """
 
-import os
-import logging
-import json
-import time
-from typing import Optional, Dict, Any, List
 from contextlib import asynccontextmanager
 from functools import wraps
+import json
+import logging
+import os
+from typing import Any
 
-from ddtrace import tracer, patch, config, Pin
-from ddtrace.contrib.fastapi import patch as patch_fastapi
-from ddtrace.contrib.sqlalchemy import patch as patch_sqlalchemy
-from ddtrace.contrib.redis import patch as patch_redis
-from ddtrace.contrib.httpx import patch as patch_httpx
+from ddtrace import Span, config, tracer
 from ddtrace.contrib.celery import patch as patch_celery
-from ddtrace import Span
+from ddtrace.contrib.fastapi import patch as patch_fastapi
+from ddtrace.contrib.httpx import patch as patch_httpx
+from ddtrace.contrib.redis import patch as patch_redis
+from ddtrace.contrib.sqlalchemy import patch as patch_sqlalchemy
 from ddtrace.internal.logger import get_logger
 
 # Datadog Configuration
@@ -77,12 +75,14 @@ def init_datadog() -> None:
         _patch_libraries()
 
         # Configure global tags
-        tracer.set_tags({
-            "service": DD_SERVICE,
-            "environment": DD_ENV,
-            "version": DD_VERSION,
-            "team": "backend",
-        })
+        tracer.set_tags(
+            {
+                "service": DD_SERVICE,
+                "environment": DD_ENV,
+                "version": DD_VERSION,
+                "team": "backend",
+            }
+        )
 
         # Configure filters for sensitive data
         _configure_filters()
@@ -90,7 +90,7 @@ def init_datadog() -> None:
         logging.info(f"Datadog initialized - Service: {DD_SERVICE}, Env: {DD_ENV}")
 
     except Exception as e:
-        logging.error(f"Failed to initialize Datadog: {e}")
+        logging.exception(f"Failed to initialize Datadog: {e}")
 
 
 def _patch_libraries() -> None:
@@ -141,7 +141,8 @@ def _configure_filters() -> None:
             if any(sensitive in url.lower() for sensitive in ["password", "token", "secret"]):
                 # Replace sensitive parameters
                 import re
-                url = re.sub(r'([?&])(password|token|secret|key)=[^&]*', r'\1\2=[FILTERED]', url)
+
+                url = re.sub(r"([?&])(password|token|secret|key)=[^&]*", r"\1\2=[FILTERED]", url)
                 span.set_tag("http.url", url)
 
     # Configure header filtering
@@ -177,11 +178,13 @@ class DatadogTracingMiddleware:
             span.set_tag("http.useragent", headers.get(b"user-agent", b"").decode())
 
             # Add custom tags
-            span.set_tags({
-                "component": "fastapi",
-                "span.kind": "server",
-                **{tag.split(":")[0]: tag.split(":")[1] for tag in CUSTOM_TAGS if ":" in tag}
-            })
+            span.set_tags(
+                {
+                    "component": "fastapi",
+                    "span.kind": "server",
+                    **{tag.split(":")[0]: tag.split(":")[1] for tag in CUSTOM_TAGS if ":" in tag},
+                }
+            )
 
             # Wrap send to capture response
             async def wrapped_send(message):
@@ -207,9 +210,9 @@ class DatadogTracingMiddleware:
 
 def trace_async_function(
     name: str,
-    service: Optional[str] = None,
-    resource: Optional[str] = None,
-    tags: Optional[Dict[str, str]] = None
+    service: str | None = None,
+    resource: str | None = None,
+    tags: dict[str, str] | None = None,
 ):
     """Decorator for tracing async functions"""
 
@@ -220,7 +223,7 @@ def trace_async_function(
                 name,
                 service=service or DD_SERVICE,
                 resource=resource or func.__name__,
-                tags=tags or {}
+                tags=tags or {},
             ) as span:
                 try:
                     result = await func(*args, **kwargs)
@@ -233,14 +236,15 @@ def trace_async_function(
                     raise
 
         return wrapper
+
     return decorator
 
 
 def trace_function(
     name: str,
-    service: Optional[str] = None,
-    resource: Optional[str] = None,
-    tags: Optional[Dict[str, str]] = None
+    service: str | None = None,
+    resource: str | None = None,
+    tags: dict[str, str] | None = None,
 ):
     """Decorator for tracing synchronous functions"""
 
@@ -251,7 +255,7 @@ def trace_function(
                 name,
                 service=service or DD_SERVICE,
                 resource=resource or func.__name__,
-                tags=tags or {}
+                tags=tags or {},
             ) as span:
                 try:
                     result = func(*args, **kwargs)
@@ -264,6 +268,7 @@ def trace_function(
                     raise
 
         return wrapper
+
     return decorator
 
 
@@ -280,12 +285,10 @@ class DatadogLogger:
         # Set up formatter with trace injection
         if DD_LOGS_INJECTION:
             formatter = logging.Formatter(
-                '%(asctime)s %(levelname)s [%(name)s] [%(dd.service)s] [%(dd.trace_id)s] [%(dd.span_id)s] - %(message)s'
+                "%(asctime)s %(levelname)s [%(name)s] [%(dd.service)s] [%(dd.trace_id)s] [%(dd.span_id)s] - %(message)s"
             )
         else:
-            formatter = logging.Formatter(
-                '%(asctime)s %(levelname)s [%(name)s] - %(message)s'
-            )
+            formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] - %(message)s")
 
         # Create handler if none exists
         if not self.logger.handlers:
@@ -294,42 +297,42 @@ class DatadogLogger:
             self.logger.addHandler(handler)
             self.logger.setLevel(logging.INFO)
 
-    def info(self, message: str, extra: Optional[Dict[str, Any]] = None):
+    def info(self, message: str, extra: dict[str, Any] | None = None):
         """Log info message with optional extra data"""
         if extra:
             self.logger.info(message, extra=extra)
         else:
             self.logger.info(message)
 
-    def warning(self, message: str, extra: Optional[Dict[str, Any]] = None):
+    def warning(self, message: str, extra: dict[str, Any] | None = None):
         """Log warning message with optional extra data"""
         if extra:
             self.logger.warning(message, extra=extra)
         else:
             self.logger.warning(message)
 
-    def error(self, message: str, extra: Optional[Dict[str, Any]] = None):
+    def error(self, message: str, extra: dict[str, Any] | None = None):
         """Log error message with optional extra data"""
         if extra:
             self.logger.error(message, extra=extra)
         else:
             self.logger.error(message)
 
-    def debug(self, message: str, extra: Optional[Dict[str, Any]] = None):
+    def debug(self, message: str, extra: dict[str, Any] | None = None):
         """Log debug message with optional extra data"""
         if extra:
             self.logger.debug(message, extra=extra)
         else:
             self.logger.debug(message)
 
-    def log_structured(self, level: str, message: str, data: Dict[str, Any]):
+    def log_structured(self, level: str, message: str, data: dict[str, Any]):
         """Log structured message with data"""
         log_data = {
             "message": message,
             "service": DD_SERVICE,
             "environment": DD_ENV,
             "version": DD_VERSION,
-            **data
+            **data,
         }
 
         if DD_LOGS_INJECTION:
@@ -345,23 +348,23 @@ class DatadogMetrics:
     """Custom metrics collection for Datadog"""
 
     def __init__(self):
-        self.counters: Dict[str, float] = {}
-        self.gauges: Dict[str, float] = {}
-        self.histograms: Dict[str, List[float]] = {}
+        self.counters: dict[str, float] = {}
+        self.gauges: dict[str, float] = {}
+        self.histograms: dict[str, list[float]] = {}
 
-    def increment(self, metric: str, value: float = 1.0, tags: Optional[List[str]] = None):
+    def increment(self, metric: str, value: float = 1.0, tags: list[str] | None = None):
         """Increment a counter metric"""
         key = self._make_key(metric, tags)
         self.counters[key] = self.counters.get(key, 0.0) + value
         self._send_to_datadog("counter", key, self.counters[key], tags)
 
-    def gauge(self, metric: str, value: float, tags: Optional[List[str]] = None):
+    def gauge(self, metric: str, value: float, tags: list[str] | None = None):
         """Set a gauge metric"""
         key = self._make_key(metric, tags)
         self.gauges[key] = value
         self._send_to_datadog("gauge", key, value, tags)
 
-    def histogram(self, metric: str, value: float, tags: Optional[List[str]] = None):
+    def histogram(self, metric: str, value: float, tags: list[str] | None = None):
         """Add value to histogram metric"""
         key = self._make_key(metric, tags)
         if key not in self.histograms:
@@ -369,14 +372,16 @@ class DatadogMetrics:
         self.histograms[key].append(value)
         self._send_to_datadog("histogram", key, value, tags)
 
-    def _make_key(self, metric: str, tags: Optional[List[str]] = None) -> str:
+    def _make_key(self, metric: str, tags: list[str] | None = None) -> str:
         """Create a key for the metric"""
         if tags:
             tag_str = ",".join(sorted(tags))
             return f"{metric},{tag_str}"
         return metric
 
-    def _send_to_datadog(self, metric_type: str, key: str, value: float, tags: Optional[List[str]] = None):
+    def _send_to_datadog(
+        self, metric_type: str, key: str, value: float, tags: list[str] | None = None
+    ):
         """Send metric to Datadog (placeholder for actual implementation)"""
         # In a real implementation, this would send to Datadog API
         # For now, we'll just log the metric
@@ -387,7 +392,7 @@ class DatadogMetrics:
 metrics = DatadogMetrics()
 
 
-def set_datadog_user(user_data: Dict[str, Any]) -> None:
+def set_datadog_user(user_data: dict[str, Any]) -> None:
     """Set user context for Datadog traces"""
     current_span = tracer.current_span()
     if current_span:
@@ -408,7 +413,7 @@ def set_datadog_user(user_data: Dict[str, Any]) -> None:
         current_span.set_tag("user.role", filtered_user.get("role", "unknown"))
 
 
-def add_datadog_tags(tags: Dict[str, str]) -> None:
+def add_datadog_tags(tags: dict[str, str]) -> None:
     """Add tags to current span"""
     current_span = tracer.current_span()
     if current_span:
@@ -432,7 +437,7 @@ async def datadog_transaction(name: str, operation: str = "function"):
             raise
 
 
-def check_datadog_health() -> Dict[str, Any]:
+def check_datadog_health() -> dict[str, Any]:
     """Check Datadog health and configuration"""
     return {
         "configured": bool(DD_API_KEY),

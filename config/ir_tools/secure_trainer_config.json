@@ -1,0 +1,13 @@
+{
+  "checkpoint_dir": "checkpoints/secure_training",
+  "audit_log_dir": "audit_logs/model_training",
+  "enable_gradient_monitoring": true,
+  "enable_adversarial_detection": true,
+  "enable_backdoor_detection": true,
+  "anomaly_threshold": 2.0,
+  "save_every_n_epochs": 1,
+  "max_checkpoints_to_keep": 5,
+  "gradient_explosion_threshold": 100.0,
+  "gradient_vanishing_threshold": 1e-07,
+  "loss_spike_multiplier": 3.0
+}

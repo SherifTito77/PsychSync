@@ -29,32 +29,32 @@ Usage:
     secure_pwd = service.generate_password()
 """
 
-import secrets
-import string
-import re
-import hashlib
-import logging
-from typing import Tuple, Optional, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime, timedelta
+import logging
+import re
+import secrets
+import string
+from typing import Any
 
 try:
     from argon2 import PasswordHasher
     from argon2.exceptions import VerifyMismatchError
+
     ARGON2_AVAILABLE = True
 except ImportError:
     ARGON2_AVAILABLE = False
 
 from passlib.context import CryptContext
 
-
 # ============================================================================
 # Password Policy Configuration
 # ============================================================================
 
+
 class PasswordPolicy(Enum):
     """Password policy levels"""
+
     BASIC = "basic"  # Minimum 8 chars
     STANDARD = "standard"  # 12+ chars, mixed case, numbers, symbols
     STRONG = "strong"  # 14+ chars, high entropy
@@ -64,6 +64,7 @@ class PasswordPolicy(Enum):
 @dataclass
 class PasswordPolicyConfig:
     """Password policy configuration"""
+
     min_length: int = 12
     max_length: int = 128
     require_uppercase: bool = True
@@ -79,14 +80,46 @@ class PasswordPolicyConfig:
 
 # Common passwords (top 100 most common passwords)
 COMMON_PASSWORDS = {
-    'password', '123456', '12345678', 'qwerty', 'abc123',
-    'monkey', '1234567', 'letmein', 'trustno1', 'dragon',
-    'baseball', '111111', 'iloveyou', 'master', 'sunshine',
-    'ashley', 'bailey', 'passw0rd', 'shadow', '123123',
-    '654321', 'superman', 'qazwsx', 'michael', 'football',
-    'password1', 'hello', 'jennifer', 'starwars', 'computer',
-    'corvette', 'password123', 'solo', 'qwerty123', 'mustang',
-    'password12', 'admin', 'welcome', 'login', 'princess'
+    "password",
+    "123456",
+    "12345678",
+    "qwerty",
+    "abc123",
+    "monkey",
+    "1234567",
+    "letmein",
+    "trustno1",
+    "dragon",
+    "baseball",
+    "111111",
+    "iloveyou",
+    "master",
+    "sunshine",
+    "ashley",
+    "bailey",
+    "passw0rd",
+    "shadow",
+    "123123",
+    "654321",
+    "superman",
+    "qazwsx",
+    "michael",
+    "football",
+    "password1",
+    "hello",
+    "jennifer",
+    "starwars",
+    "computer",
+    "corvette",
+    "password123",
+    "solo",
+    "qwerty123",
+    "mustang",
+    "password12",
+    "admin",
+    "welcome",
+    "login",
+    "princess",
 }
 
 
@@ -94,8 +127,10 @@ COMMON_PASSWORDS = {
 # Password Strength Meter
 # ============================================================================
 
+
 class PasswordStrength(Enum):
     """Password strength levels"""
+
     VERY_WEAK = 0
     WEAK = 1
     MODERATE = 2
@@ -106,17 +141,19 @@ class PasswordStrength(Enum):
 @dataclass
 class PasswordStrengthResult:
     """Result of password strength analysis"""
+
     strength: PasswordStrength
     score: int  # 0-100
     entropy_bits: float
-    crack_time_seconds: Optional[float]
-    suggestions: List[str]
-    warnings: List[str]
+    crack_time_seconds: float | None
+    suggestions: list[str]
+    warnings: list[str]
 
 
 # ============================================================================
 # Main Password Service
 # ============================================================================
+
 
 class PasswordService:
     """
@@ -144,22 +181,14 @@ class PasswordService:
             # memory_cost = 65536 (64 MB)
             # parallelism = 4 (threads)
             self.argon2_hasher = PasswordHasher(
-                time_cost=2,
-                memory_cost=65536,
-                parallelism=4,
-                hash_len=32,
-                salt_len=16
+                time_cost=2, memory_cost=65536, parallelism=4, hash_len=32, salt_len=16
             )
             self.logger.info("Using Argon2id password hashing")
         else:
             self.logger.warning("Argon2 not available, using bcrypt")
 
         # Initialize bcrypt as backup
-        self.bcrypt_context = CryptContext(
-            schemes=["bcrypt"],
-            deprecated="auto",
-            bcrypt__rounds=12
-        )
+        self.bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 
     def _get_policy_config(self, policy: PasswordPolicy) -> PasswordPolicyConfig:
         """Get policy configuration for level"""
@@ -261,10 +290,8 @@ class PasswordService:
             return False
 
     def validate_password(
-        self,
-        password: str,
-        user_info: Optional[Dict[str, Any]] = None
-    ) -> Tuple[bool, List[str]]:
+        self, password: str, user_info: dict[str, Any] | None = None
+    ) -> tuple[bool, list[str]]:
         """
         Validate password against policy
 
@@ -280,23 +307,19 @@ class PasswordService:
 
         # Check length
         if len(password) < self.config.min_length:
-            errors.append(
-                f"Password must be at least {self.config.min_length} characters"
-            )
+            errors.append(f"Password must be at least {self.config.min_length} characters")
 
         if len(password) > self.config.max_length:
-            errors.append(
-                f"Password must not exceed {self.config.max_length} characters"
-            )
+            errors.append(f"Password must not exceed {self.config.max_length} characters")
 
         # Check character requirements
-        if self.config.require_uppercase and not re.search(r'[A-Z]', password):
+        if self.config.require_uppercase and not re.search(r"[A-Z]", password):
             errors.append("Password must contain at least one uppercase letter")
 
-        if self.config.require_lowercase and not re.search(r'[a-z]', password):
+        if self.config.require_lowercase and not re.search(r"[a-z]", password):
             errors.append("Password must contain at least one lowercase letter")
 
-        if self.config.require_digits and not re.search(r'\d', password):
+        if self.config.require_digits and not re.search(r"\d", password):
             errors.append("Password must contain at least one digit")
 
         if self.config.require_special_chars and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
@@ -309,14 +332,14 @@ class PasswordService:
 
         # Check for user info in password
         if self.config.forbid_user_info and user_info:
-            username = user_info.get('username', '')
-            email = user_info.get('email', '')
+            username = user_info.get("username", "")
+            email = user_info.get("email", "")
 
             if username and username.lower() in password.lower():
                 errors.append("Password must not contain username")
 
             if email:
-                email_local = email.split('@')[0].lower()
+                email_local = email.split("@")[0].lower()
                 if email_local and email_local in password.lower():
                     errors.append("Password must not contain email address")
 
@@ -333,17 +356,17 @@ class PasswordService:
         # Check for sequential characters
         if self.config.max_sequential_chars > 0:
             for i in range(len(password) - self.config.max_sequential_chars):
-                slice_chars = password[i:i+self.config.max_sequential_chars+1]
+                slice_chars = password[i : i + self.config.max_sequential_chars + 1]
 
                 # Check sequential (abc, 123, etc.)
                 is_sequential = all(
-                    ord(slice_chars[j+1]) - ord(slice_chars[j]) == 1
+                    ord(slice_chars[j + 1]) - ord(slice_chars[j]) == 1
                     for j in range(len(slice_chars) - 1)
                 )
 
                 # Check reverse sequential (cba, 321, etc.)
                 is_reverse = all(
-                    ord(slice_chars[j]) - ord(slice_chars[j+1]) == 1
+                    ord(slice_chars[j]) - ord(slice_chars[j + 1]) == 1
                     for j in range(len(slice_chars) - 1)
                 )
 
@@ -382,7 +405,7 @@ class PasswordService:
         # Estimate crack time (assuming 10 billion guesses/second)
         crack_time = None
         if entropy > 0:
-            crack_time_seconds = 2 ** entropy / 10_000_000_000
+            crack_time_seconds = 2**entropy / 10_000_000_000
             crack_time = crack_time_seconds
 
         # Determine strength level
@@ -409,13 +432,13 @@ class PasswordService:
         if len(password) < 12:
             suggestions.append("Use at least 12 characters")
 
-        if not re.search(r'[A-Z]', password):
+        if not re.search(r"[A-Z]", password):
             suggestions.append("Add uppercase letters")
 
-        if not re.search(r'[a-z]', password):
+        if not re.search(r"[a-z]", password):
             suggestions.append("Add lowercase letters")
 
-        if not re.search(r'\d', password):
+        if not re.search(r"\d", password):
             suggestions.append("Add numbers")
 
         if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
@@ -425,10 +448,10 @@ class PasswordService:
             warnings.append("This is a very common password")
 
         # Check for patterns
-        if re.search(r'(\d)\1{3,}', password):
+        if re.search(r"(\d)\1{3,}", password):
             suggestions.append("Avoid repeating numbers")
 
-        if re.search(r'([a-zA-Z])\1{3,}', password):
+        if re.search(r"([a-zA-Z])\1{3,}", password):
             suggestions.append("Avoid repeating letters")
 
         return PasswordStrengthResult(
@@ -437,7 +460,7 @@ class PasswordService:
             entropy_bits=entropy,
             crack_time_seconds=crack_time,
             suggestions=suggestions,
-            warnings=warnings
+            warnings=warnings,
         )
 
     def generate_password(
@@ -447,7 +470,7 @@ class PasswordService:
         include_lowercase: bool = True,
         include_digits: bool = True,
         include_special: bool = True,
-        exclude_ambiguous: bool = True
+        exclude_ambiguous: bool = True,
     ) -> str:
         """
         Generate secure random password
@@ -478,7 +501,7 @@ class PasswordService:
         # Remove ambiguous characters
         if exclude_ambiguous:
             ambiguous = "0OIl1"
-            chars = ''.join(c for c in chars if c not in ambiguous)
+            chars = "".join(c for c in chars if c not in ambiguous)
 
         # Ensure minimum requirements
         password = []
@@ -498,15 +521,19 @@ class PasswordService:
         # Shuffle password
         secrets.SystemRandom().shuffle(password)
 
-        generated = ''.join(password)
+        generated = "".join(password)
 
         # Verify it meets policy
         is_valid, errors = self.validate_password(generated)
         if not is_valid:
             # Regenerate if it doesn't meet policy (rare)
             return self.generate_password(
-                length, include_uppercase, include_lowercase,
-                include_digits, include_special, exclude_ambiguous
+                length,
+                include_uppercase,
+                include_lowercase,
+                include_digits,
+                include_special,
+                exclude_ambiguous,
             )
 
         return generated
@@ -523,9 +550,9 @@ class PasswordService:
         """
 
         # Determine character set size
-        has_lowercase = bool(re.search(r'[a-z]', password))
-        has_uppercase = bool(re.search(r'[A-Z]', password))
-        has_digits = bool(re.search(r'\d', password))
+        has_lowercase = bool(re.search(r"[a-z]", password))
+        has_uppercase = bool(re.search(r"[A-Z]", password))
+        has_digits = bool(re.search(r"\d", password))
         has_special = bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password))
 
         pool_size = 0
@@ -544,14 +571,18 @@ class PasswordService:
 
         # Calculate entropy: log2(pool_size^length)
         import math
+
         entropy = len(password) * math.log2(pool_size)
 
         # Reduce entropy for common patterns
-        if re.search(r'(\d)\1{2,}', password):  # Repeating digits
+        if re.search(r"(\d)\1{2,}", password):  # Repeating digits
             entropy *= 0.7
-        if re.search(r'([a-zA-Z])\1{2,}', password):  # Repeating letters
+        if re.search(r"([a-zA-Z])\1{2,}", password):  # Repeating letters
             entropy *= 0.7
-        if re.search(r'(012|123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)', password.lower()):
+        if re.search(
+            r"(012|123|234|345|456|567|678|789|890|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)",
+            password.lower(),
+        ):
             entropy *= 0.8  # Sequential patterns
 
         # Reduce entropy for common words
@@ -560,7 +591,7 @@ class PasswordService:
 
         return max(0, entropy)
 
-    def check_breached_password(self, password: str) -> Tuple[bool, int]:
+    def check_breached_password(self, password: str) -> tuple[bool, int]:
         """
         Check if password has been breached using Have I Been Pwned API
 
@@ -605,11 +636,12 @@ class PasswordService:
 # Password Policy Enforcement
 # ============================================================================
 
+
 def enforce_password_policy(
     password: str,
     policy: PasswordPolicy = PasswordPolicy.STANDARD,
-    user_info: Optional[Dict[str, Any]] = None
-) -> Tuple[bool, List[str]]:
+    user_info: dict[str, Any] | None = None,
+) -> tuple[bool, list[str]]:
     """
     Convenience function to enforce password policy
 

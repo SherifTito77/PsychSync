@@ -16,21 +16,20 @@ Version: 1.0
 Date: December 23, 2024
 """
 
-import time
-import asyncio
-from typing import Optional, Dict, Any, Tuple
-from datetime import datetime, timedelta
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
-
-from app.core.cache import cache_get, cache_set, cache_delete
 import logging
+from typing import Any
+
+from app.core.cache import cache_delete, cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
 
 class LockoutReason(Enum):
     """Reasons for account lockout"""
+
     TOO_MANY_ATTEMPTS = "too_many_attempts"
     BRUTE_FORCE_DETECTED = "brute_force_detected"
     SUSPICIOUS_ACTIVITY = "suspicious_activity"
@@ -40,24 +39,26 @@ class LockoutReason(Enum):
 @dataclass
 class LoginAttempt:
     """Record of a login attempt"""
+
     timestamp: datetime
     success: bool
     ip_address: str
     user_agent: str
-    username: Optional[str] = None
+    username: str | None = None
 
 
 @dataclass
 class LockoutInfo:
     """Account lockout information"""
-    is_locked: bool
-    reason: Optional[LockoutReason]
-    locked_at: Optional[datetime]
-    expires_at: Optional[datetime]
-    attempts_count: int
-    metadata: Dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    is_locked: bool
+    reason: LockoutReason | None
+    locked_at: datetime | None
+    expires_at: datetime | None
+    attempts_count: int
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
             "is_locked": self.is_locked,
@@ -65,7 +66,7 @@ class LockoutInfo:
             "locked_at": self.locked_at.isoformat() if self.locked_at else None,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "attempts_count": self.attempts_count,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -83,7 +84,7 @@ class FailedLoginTracker:
         self,
         max_attempts: int = 5,
         lockout_duration_minutes: int = 15,
-        tracking_window_minutes: int = 15
+        tracking_window_minutes: int = 15,
     ):
         """
         Initialize failed login tracker
@@ -98,12 +99,8 @@ class FailedLoginTracker:
         self.tracking_window = timedelta(minutes=tracking_window_minutes)
 
     async def record_login_attempt(
-        self,
-        username: str,
-        success: bool,
-        ip_address: str,
-        user_agent: str = ""
-    ) -> Tuple[bool, Optional[LockoutInfo]]:
+        self, username: str, success: bool, ip_address: str, user_agent: str = ""
+    ) -> tuple[bool, LockoutInfo | None]:
         """
         Record a login attempt and check if account should be locked
 
@@ -122,11 +119,16 @@ class FailedLoginTracker:
             # Check if already locked first
             lockout_info = await self.get_lockout_status(username)
             if lockout_info.is_locked:
-                logger.warning(f"Login attempt for locked account: {username}", extra={
-                    "username": username,
-                    "ip_address": ip_address,
-                    "lockout_reason": lockout_info.reason.value if lockout_info.reason else None
-                })
+                logger.warning(
+                    f"Login attempt for locked account: {username}",
+                    extra={
+                        "username": username,
+                        "ip_address": ip_address,
+                        "lockout_reason": lockout_info.reason.value
+                        if lockout_info.reason
+                        else None,
+                    },
+                )
                 return False, lockout_info
 
             # If successful login, clear failed attempts
@@ -144,7 +146,7 @@ class FailedLoginTracker:
                     username=username,
                     reason=LockoutReason.TOO_MANY_ATTEMPTS,
                     ip_address=ip_address,
-                    attempts_count=attempts
+                    attempts_count=attempts,
                 )
                 return False, lockout_info
 
@@ -156,7 +158,7 @@ class FailedLoginTracker:
                     locked_at=None,
                     expires_at=None,
                     attempts_count=attempts,
-                    metadata={"warning": "One more attempt will lock account"}
+                    metadata={"warning": "One more attempt will lock account"},
                 )
                 return True, warning_info
 
@@ -167,12 +169,7 @@ class FailedLoginTracker:
             # Fail open - allow login on error
             return True, None
 
-    async def _record_failed_attempt(
-        self,
-        username: str,
-        ip_address: str,
-        user_agent: str
-    ):
+    async def _record_failed_attempt(self, username: str, ip_address: str, user_agent: str):
         """Record a failed login attempt in cache"""
         try:
             # Record per-user attempt
@@ -182,7 +179,7 @@ class FailedLoginTracker:
             attempt = {
                 "timestamp": datetime.utcnow().isoformat(),
                 "ip_address": ip_address,
-                "user_agent": user_agent[:200]  # Truncate for storage
+                "user_agent": user_agent[:200],  # Truncate for storage
             }
 
             user_attempts.append(attempt)
@@ -190,21 +187,19 @@ class FailedLoginTracker:
             # Clean old attempts outside tracking window
             cutoff_time = datetime.utcnow() - self.tracking_window
             user_attempts = [
-                a for a in user_attempts
-                if datetime.fromisoformat(a["timestamp"]) >= cutoff_time
+                a for a in user_attempts if datetime.fromisoformat(a["timestamp"]) >= cutoff_time
             ]
 
             # Store with expiration
-            await cache_set(user_key, user_attempts, expire_seconds=int(self.tracking_window.total_seconds()))
+            await cache_set(
+                user_key, user_attempts, expire_seconds=int(self.tracking_window.total_seconds())
+            )
 
             # Also track per-IP (for detecting credential stuffing)
             ip_key = f"{self.IP_ATTEMPTS_PREFIX}{ip_address}"
             ip_attempts = await cache_get(ip_key) or []
 
-            ip_attempt = {
-                "timestamp": datetime.utcnow().isoformat(),
-                "username": username
-            }
+            ip_attempt = {"timestamp": datetime.utcnow().isoformat(), "username": username}
 
             ip_attempts.append(ip_attempt)
 
@@ -247,11 +242,7 @@ class FailedLoginTracker:
             logger.error(f"Error clearing failed attempts: {e}")
 
     async def _lock_account(
-        self,
-        username: str,
-        reason: LockoutReason,
-        ip_address: str,
-        attempts_count: int
+        self, username: str, reason: LockoutReason, ip_address: str, attempts_count: int
     ) -> LockoutInfo:
         """Lock account after too many failed attempts"""
         try:
@@ -263,8 +254,8 @@ class FailedLoginTracker:
                 attempts_count=attempts_count,
                 metadata={
                     "locking_ip": ip_address,
-                    "lockout_duration_minutes": int(self.lockout_duration.total_seconds() / 60)
-                }
+                    "lockout_duration_minutes": int(self.lockout_duration.total_seconds() / 60),
+                },
             )
 
             # Store lockout info
@@ -272,17 +263,20 @@ class FailedLoginTracker:
             await cache_set(
                 lockout_key,
                 lockout_info.to_dict(),
-                expire_seconds=int(self.lockout_duration.total_seconds())
+                expire_seconds=int(self.lockout_duration.total_seconds()),
             )
 
             # Log the lockout
-            logger.warning(f"Account locked: {username}", extra={
-                "username": username,
-                "reason": reason.value,
-                "attempts": attempts_count,
-                "ip_address": ip_address,
-                "locked_until": lockout_info.expires_at.isoformat()
-            })
+            logger.warning(
+                f"Account locked: {username}",
+                extra={
+                    "username": username,
+                    "reason": reason.value,
+                    "attempts": attempts_count,
+                    "ip_address": ip_address,
+                    "locked_until": lockout_info.expires_at.isoformat(),
+                },
+            )
 
             return lockout_info
 
@@ -294,7 +288,7 @@ class FailedLoginTracker:
                 reason=reason,
                 locked_at=datetime.utcnow(),
                 expires_at=datetime.utcnow() + self.lockout_duration,
-                attempts_count=attempts_count
+                attempts_count=attempts_count,
             )
 
     async def get_lockout_status(self, username: str) -> LockoutInfo:
@@ -305,11 +299,7 @@ class FailedLoginTracker:
 
             if not lockout_data:
                 return LockoutInfo(
-                    is_locked=False,
-                    reason=None,
-                    locked_at=None,
-                    expires_at=None,
-                    attempts_count=0
+                    is_locked=False, reason=None, locked_at=None, expires_at=None, attempts_count=0
                 )
 
             # Check if lockout has expired
@@ -323,27 +313,29 @@ class FailedLoginTracker:
                         reason=None,
                         locked_at=None,
                         expires_at=None,
-                        attempts_count=0
+                        attempts_count=0,
                     )
 
             # Account is locked
             return LockoutInfo(
                 is_locked=True,
-                reason=LockoutReason(lockout_data["reason"]) if lockout_data.get("reason") else None,
-                locked_at=datetime.fromisoformat(lockout_data["locked_at"]) if lockout_data.get("locked_at") else None,
-                expires_at=datetime.fromisoformat(lockout_data["expires_at"]) if lockout_data.get("expires_at") else None,
+                reason=LockoutReason(lockout_data["reason"])
+                if lockout_data.get("reason")
+                else None,
+                locked_at=datetime.fromisoformat(lockout_data["locked_at"])
+                if lockout_data.get("locked_at")
+                else None,
+                expires_at=datetime.fromisoformat(lockout_data["expires_at"])
+                if lockout_data.get("expires_at")
+                else None,
                 attempts_count=lockout_data.get("attempts_count", 0),
-                metadata=lockout_data.get("metadata", {})
+                metadata=lockout_data.get("metadata", {}),
             )
 
         except Exception as e:
             logger.error(f"Error getting lockout status: {e}")
             return LockoutInfo(
-                is_locked=False,
-                reason=None,
-                locked_at=None,
-                expires_at=None,
-                attempts_count=0
+                is_locked=False, reason=None, locked_at=None, expires_at=None, attempts_count=0
             )
 
     async def unlock_account(self, username: str) -> bool:
@@ -399,11 +391,14 @@ class FailedLoginTracker:
             unique_usernames = set(a.get("username") for a in attempts if a.get("username"))
 
             if len(unique_usernames) >= threshold:
-                logger.warning(f"IP blocked due to credential stuffing: {ip_address}", extra={
-                    "ip_address": ip_address,
-                    "unique_usernames_attempted": len(unique_usernames),
-                    "total_attempts": len(attempts)
-                })
+                logger.warning(
+                    f"IP blocked due to credential stuffing: {ip_address}",
+                    extra={
+                        "ip_address": ip_address,
+                        "unique_usernames_attempted": len(unique_usernames),
+                        "total_attempts": len(attempts),
+                    },
+                )
                 return True
 
             return False
@@ -412,7 +407,7 @@ class FailedLoginTracker:
             logger.error(f"Error checking IP block: {e}")
             return False
 
-    async def get_statistics(self, username: Optional[str] = None) -> Dict[str, Any]:
+    async def get_statistics(self, username: str | None = None) -> dict[str, Any]:
         """
         Get failed login statistics
 
@@ -432,17 +427,16 @@ class FailedLoginTracker:
                     "failed_attempts": len(user_attempts),
                     "is_locked": user_lockout.is_locked,
                     "lockout_reason": user_lockout.reason.value if user_lockout.reason else None,
-                    "attempts": user_attempts[-10:] if user_attempts else []  # Last 10 attempts
+                    "attempts": user_attempts[-10:] if user_attempts else [],  # Last 10 attempts
                 }
-            else:
-                # Global stats would require scanning all keys - expensive
-                # Return placeholder for now
-                return {
-                    "message": "Per-user statistics available. Specify username parameter.",
-                    "max_attempts": self.max_attempts,
-                    "lockout_duration_minutes": int(self.lockout_duration.total_seconds() / 60),
-                    "tracking_window_minutes": int(self.tracking_window.total_seconds() / 60)
-                }
+            # Global stats would require scanning all keys - expensive
+            # Return placeholder for now
+            return {
+                "message": "Per-user statistics available. Specify username parameter.",
+                "max_attempts": self.max_attempts,
+                "lockout_duration_minutes": int(self.lockout_duration.total_seconds() / 60),
+                "tracking_window_minutes": int(self.tracking_window.total_seconds() / 60),
+            }
 
         except Exception as e:
             logger.error(f"Error getting statistics: {e}")
@@ -451,7 +445,5 @@ class FailedLoginTracker:
 
 # Global instance
 failed_login_tracker = FailedLoginTracker(
-    max_attempts=5,
-    lockout_duration_minutes=15,
-    tracking_window_minutes=15
+    max_attempts=5, lockout_duration_minutes=15, tracking_window_minutes=15
 )

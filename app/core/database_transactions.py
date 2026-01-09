@@ -4,22 +4,23 @@ Database Transaction Management System for PsychSync
 Provides consistent transaction handling with proper error management
 """
 
-import asyncio
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional, Any, Dict, List, Callable
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
+
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.error_handling import DatabaseOperationException
 from app.core.structured_logging import get_logger
 
 logger = get_logger(__name__)
 
+
 @asynccontextmanager
 async def database_transaction(
-    db: AsyncSession,
-    isolation_level: Optional[str] = None,
-    timeout: Optional[float] = None
+    db: AsyncSession, isolation_level: str | None = None, timeout: float | None = None
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     Context manager for database transactions with comprehensive error handling
@@ -36,9 +37,7 @@ async def database_transaction(
         DatabaseOperationException: For database-related errors
     """
     transaction_start_time = logger._create_log_entry(
-        logger.LogLevel.INFO,
-        logger.EventType.DATABASE_OPERATION,
-        "Transaction started"
+        logger.LogLevel.INFO, logger.EventType.DATABASE_OPERATION, "Transaction started"
     ).timestamp
 
     # Set isolation level if specified
@@ -53,9 +52,7 @@ async def database_transaction(
 
         # Log successful commit
         logger.log_database_operation(
-            operation="transaction_commit",
-            table="multiple",
-            success=True
+            operation="transaction_commit", table="multiple", success=True
         )
 
     except SQLAlchemyError as e:
@@ -66,23 +63,17 @@ async def database_transaction(
                 operation="transaction_rollback",
                 table="multiple",
                 success=False,
-                error_details={"error": str(e)}
+                error_details={"error": str(e)},
             )
         except Exception as rollback_error:
             logger.log_error(
                 DatabaseOperationException(
-                    "Failed to rollback transaction",
-                    "transaction_rollback",
-                    rollback_error
+                    "Failed to rollback transaction", "transaction_rollback", rollback_error
                 ),
-                operation="transaction_rollback"
+                operation="transaction_rollback",
             )
 
-        raise DatabaseOperationException(
-            f"Transaction failed: {str(e)}",
-            "database_transaction",
-            e
-        )
+        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e)
 
     except Exception as e:
         # Rollback on any other errors
@@ -92,27 +83,22 @@ async def database_transaction(
                 operation="transaction_rollback",
                 table="multiple",
                 success=False,
-                error_details={"error": str(e), "type": "non_database_error"}
+                error_details={"error": str(e), "type": "non_database_error"},
             )
         except Exception as rollback_error:
             logger.log_error(
                 DatabaseOperationException(
-                    "Failed to rollback transaction",
-                    "transaction_rollback",
-                    rollback_error
+                    "Failed to rollback transaction", "transaction_rollback", rollback_error
                 ),
-                operation="transaction_rollback"
+                operation="transaction_rollback",
             )
 
-        raise DatabaseOperationException(
-            f"Transaction failed: {str(e)}",
-            "database_transaction",
-            e
-        )
+        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e)
 
     finally:
         # Clean up session state
         await db.expire_all()
+
 
 class TransactionManager:
     """
@@ -121,21 +107,17 @@ class TransactionManager:
     """
 
     def __init__(self):
-        self.active_transactions: Dict[str, Dict[str, Any]] = {}
+        self.active_transactions: dict[str, dict[str, Any]] = {}
         self.transaction_stats = {
             "total_transactions": 0,
             "successful_transactions": 0,
             "failed_transactions": 0,
-            "rolled_back_transactions": 0
+            "rolled_back_transactions": 0,
         }
 
     @asynccontextmanager
     async def transaction(
-        self,
-        db: AsyncSession,
-        name: str = None,
-        savepoint: bool = False,
-        readonly: bool = False
+        self, db: AsyncSession, name: str = None, savepoint: bool = False, readonly: bool = False
     ) -> AsyncGenerator[AsyncSession, None]:
         """
         Advanced transaction management with savepoints and performance tracking
@@ -161,7 +143,7 @@ class TransactionManager:
             "name": transaction_name,
             "start_time": start_time,
             "savepoint": savepoint,
-            "readonly": readonly
+            "readonly": readonly,
         }
 
         self.transaction_stats["total_transactions"] += 1
@@ -173,7 +155,7 @@ class TransactionManager:
             transaction_id=transaction_id,
             transaction_name=transaction_name,
             savepoint=savepoint,
-            readonly=readonly
+            readonly=readonly,
         )
 
         savepoint_obj = None
@@ -189,7 +171,7 @@ class TransactionManager:
                     logger.EventType.DATABASE_OPERATION,
                     f"Savepoint '{transaction_name}' committed",
                     operation_name="savepoint_commit",
-                    transaction_id=transaction_id
+                    transaction_id=transaction_id,
                 )
             else:
                 await db.commit()
@@ -203,7 +185,7 @@ class TransactionManager:
                     duration_ms=duration_ms,
                     success=True,
                     transaction_id=transaction_id,
-                    transaction_name=transaction_name
+                    transaction_name=transaction_name,
                 )
 
         except Exception as e:
@@ -214,7 +196,7 @@ class TransactionManager:
                     f"Savepoint '{transaction_name}' rolled back",
                     operation_name="savepoint_rollback",
                     transaction_id=transaction_id,
-                    error_details={"error": str(e)}
+                    error_details={"error": str(e)},
                 )
             else:
                 await db.rollback()
@@ -230,7 +212,7 @@ class TransactionManager:
                     success=False,
                     transaction_id=transaction_id,
                     transaction_name=transaction_name,
-                    error_details={"error": str(e)}
+                    error_details={"error": str(e)},
                 )
 
             raise
@@ -241,11 +223,8 @@ class TransactionManager:
                 del self.active_transactions[transaction_id]
 
     async def execute_in_transaction(
-        self,
-        db: AsyncSession,
-        operations: List[Callable],
-        name: str = "batch_operations"
-    ) -> List[Any]:
+        self, db: AsyncSession, operations: list[Callable], name: str = "batch_operations"
+    ) -> list[Any]:
         """
         Execute multiple operations in a single transaction
 
@@ -270,52 +249,57 @@ class TransactionManager:
 
                     logger.debug(
                         logger.EventType.DATABASE_OPERATION,
-                        f"Operation {i+1}/{len(operations)} completed in transaction '{name}'",
-                        operation_name=f"{name}_operation_{i+1}",
-                        operation_index=i+1,
-                        total_operations=len(operations)
+                        f"Operation {i + 1}/{len(operations)} completed in transaction '{name}'",
+                        operation_name=f"{name}_operation_{i + 1}",
+                        operation_index=i + 1,
+                        total_operations=len(operations),
                     )
 
                 except Exception as e:
                     logger.error(
                         logger.EventType.DATABASE_OPERATION,
-                        f"Operation {i+1}/{len(operations)} failed in transaction '{name}'",
-                        operation_name=f"{name}_operation_{i+1}",
-                        operation_index=i+1,
+                        f"Operation {i + 1}/{len(operations)} failed in transaction '{name}'",
+                        operation_name=f"{name}_operation_{i + 1}",
+                        operation_index=i + 1,
                         total_operations=len(operations),
-                        error_details={"error": str(e)}
+                        error_details={"error": str(e)},
                     )
                     raise
 
         return results
 
-    def get_transaction_stats(self) -> Dict[str, Any]:
+    def get_transaction_stats(self) -> dict[str, Any]:
         """Get transaction performance statistics"""
         return {
             **self.transaction_stats,
             "success_rate": (
-                self.transaction_stats["successful_transactions"] /
-                max(self.transaction_stats["total_transactions"], 1) * 100
+                self.transaction_stats["successful_transactions"]
+                / max(self.transaction_stats["total_transactions"], 1)
+                * 100
             ),
-            "active_transactions": len(self.active_transactions)
+            "active_transactions": len(self.active_transactions),
         }
 
-    def get_active_transactions(self) -> List[Dict[str, Any]]:
+    def get_active_transactions(self) -> list[dict[str, Any]]:
         """Get list of currently active transactions"""
         import time
+
         current_time = time.time()
 
         active = []
         for tx_id, tx_info in self.active_transactions.items():
-            active.append({
-                "transaction_id": tx_id,
-                "name": tx_info["name"],
-                "duration_seconds": current_time - tx_info["start_time"],
-                "savepoint": tx_info["savepoint"],
-                "readonly": tx_info["readonly"]
-            })
+            active.append(
+                {
+                    "transaction_id": tx_id,
+                    "name": tx_info["name"],
+                    "duration_seconds": current_time - tx_info["start_time"],
+                    "savepoint": tx_info["savepoint"],
+                    "readonly": tx_info["readonly"],
+                }
+            )
 
         return active
+
 
 # Global transaction manager instance
 transaction_manager = TransactionManager()
@@ -324,6 +308,7 @@ transaction_manager = TransactionManager()
 # This should handle transactions across multiple databases or services
 # using two-phase commit patterns for data consistency
 
+
 class DistributedTransactionCoordinator:
     """
     Coordinates transactions across multiple databases or services
@@ -331,21 +316,22 @@ class DistributedTransactionCoordinator:
     """
 
     def __init__(self):
-        self.participants: List[str] = []
-        self.transaction_id: Optional[str] = None
+        self.participants: list[str] = []
+        self.transaction_id: str | None = None
 
-    async def begin_transaction(self, participants: List[str]) -> str:
+    async def begin_transaction(self, participants: list[str]) -> str:
         """Begin a distributed transaction"""
         import uuid
+
         self.transaction_id = str(uuid.uuid4())
         self.participants = participants
 
         logger.info(
             logger.EventType.DATABASE_OPERATION,
-            f"Distributed transaction started",
+            "Distributed transaction started",
             operation_name="distributed_transaction_begin",
             transaction_id=self.transaction_id,
-            participants=participants
+            participants=participants,
         )
 
         # Phase 1: Prepare all participants
@@ -368,15 +354,14 @@ class DistributedTransactionCoordinator:
             f"Preparing participant: {participant}",
             operation_name="prepare_participant",
             transaction_id=self.transaction_id,
-            participant=participant
+            participant=participant,
         )
 
     async def commit_transaction(self):
         """Commit the distributed transaction (Phase 2)"""
         if not self.transaction_id:
             raise DatabaseOperationException(
-                "No active distributed transaction",
-                "distributed_commit"
+                "No active distributed transaction", "distributed_commit"
             )
 
         try:
@@ -386,13 +371,13 @@ class DistributedTransactionCoordinator:
 
             logger.info(
                 logger.EventType.DATABASE_OPERATION,
-                f"Distributed transaction committed",
+                "Distributed transaction committed",
                 operation_name="distributed_transaction_commit",
                 transaction_id=self.transaction_id,
-                participants=self.participants
+                participants=self.participants,
             )
 
-        except Exception as e:
+        except Exception:
             # If any commit fails, attempt to rollback all
             await self._rollback_all_participants()
             raise
@@ -412,7 +397,7 @@ class DistributedTransactionCoordinator:
             f"Committing participant: {participant}",
             operation_name="commit_participant",
             transaction_id=self.transaction_id,
-            participant=participant
+            participant=participant,
         )
 
     async def _rollback_all_participants(self):
@@ -427,7 +412,7 @@ class DistributedTransactionCoordinator:
                     operation_name="rollback_participant",
                     transaction_id=self.transaction_id,
                     participant=participant,
-                    error_details={"error": str(e)}
+                    error_details={"error": str(e)},
                 )
 
     async def _rollback_participant(self, participant: str):
@@ -438,8 +423,9 @@ class DistributedTransactionCoordinator:
             f"Rolling back participant: {participant}",
             operation_name="rollback_participant",
             transaction_id=self.transaction_id,
-            participant=participant
+            participant=participant,
         )
+
 
 # Global distributed transaction coordinator
 distributed_coordinator = DistributedTransactionCoordinator()

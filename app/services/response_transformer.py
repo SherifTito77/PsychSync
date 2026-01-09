@@ -4,21 +4,22 @@ Advanced response processing with intelligent data transformation and formatting
 Performance improvement: 1000% faster response processing and client compatibility
 """
 
-from typing import Dict, Any, Optional, List, Union, Callable, TypeVar, Generic
-from datetime import datetime, date
-from enum import Enum
 import asyncio
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime
+from enum import Enum
 import json
+import logging
 import re
-from dataclasses import dataclass, field, asdict
-from pydantic import BaseModel
+from typing import Any, TypeVar
+
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
-import logging
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 class ResponseFormat(str, Enum):
     """Supported response formats"""
@@ -58,13 +59,13 @@ class TransformationConfig:
     case_style: TransformationRule = TransformationRule.CAMEL_CASE
     include_metadata: bool = True
     include_links: bool = True
-    filter_fields: List[str] = field(default_factory=list)
-    exclude_fields: List[str] = field(default_factory=list)
+    filter_fields: list[str] = field(default_factory=list)
+    exclude_fields: list[str] = field(default_factory=list)
     nest_level: int = 3
     pretty_print: bool = False
     date_format: str = "iso"
     null_handling: str = "include"  # include, exclude, default
-    custom_transformers: Dict[str, Callable] = field(default_factory=dict)
+    custom_transformers: dict[str, Callable] = field(default_factory=dict)
 
 @dataclass
 class ResponseMetadata:
@@ -75,9 +76,9 @@ class ResponseMetadata:
     format: ResponseFormat
     client_type: ClientType
     version: str = "v1"
-    pagination: Optional[Dict[str, Any]] = None
-    warnings: List[str] = field(default_factory=list)
-    debug_info: Dict[str, Any] = field(default_factory=dict)
+    pagination: dict[str, Any] | None = None
+    warnings: list[str] = field(default_factory=list)
+    debug_info: dict[str, Any] = field(default_factory=dict)
 
 class ResponseTransformer:
     """
@@ -201,19 +202,19 @@ class ResponseTransformer:
         # Check Accept header
         if "application/xml" in accept_header or "text/xml" in accept_header:
             return ResponseFormat.XML
-        elif "text/csv" in accept_header:
+        if "text/csv" in accept_header:
             return ResponseFormat.CSV
-        elif "application/x-yaml" in accept_header or "text/yaml" in accept_header:
+        if "application/x-yaml" in accept_header or "text/yaml" in accept_header:
             return ResponseFormat.YAML
-        elif "application/msgpack" in accept_header:
+        if "application/msgpack" in accept_header:
             return ResponseFormat.MSGPACK
 
         # Default based on client type
         if client_type == ClientType.API:
             return ResponseFormat.JSON
-        elif client_type == ClientType.MOBILE:
+        if client_type == ClientType.MOBILE:
             return ResponseFormat.JSON  # Mobile apps typically prefer JSON
-        elif client_type == ClientType.IOT:
+        if client_type == ClientType.IOT:
             return ResponseFormat.JSON  # IoT devices prefer lightweight formats
 
         return ResponseFormat.JSON
@@ -384,7 +385,7 @@ class ResponseTransformer:
 
         return result
 
-    async def _filter_fields(self, data: Any, fields: List[str]) -> Any:
+    async def _filter_fields(self, data: Any, fields: list[str]) -> Any:
         """
         Filter data to include only specified fields
 
@@ -397,19 +398,18 @@ class ResponseTransformer:
         """
         if isinstance(data, dict):
             return {k: v for k, v in data.items() if k in fields}
-        elif isinstance(data, list):
+        if isinstance(data, list):
             return [await self._filter_fields(item, fields) for item in data]
-        elif hasattr(data, '__dict__'):
-            obj_dict = asdict(data) if hasattr(data, '__dataclass_fields__') else data.__dict__
+        if hasattr(data, "__dict__"):
+            obj_dict = asdict(data) if hasattr(data, "__dataclass_fields__") else data.__dict__
             filtered_dict = {k: v for k, v in obj_dict.items() if k in fields}
             # Reconstruct object if possible
-            if hasattr(data, '__dataclass_fields__'):
+            if hasattr(data, "__dataclass_fields__"):
                 return data.__class__(**filtered_dict)
             return filtered_dict
-        else:
-            return data
+        return data
 
-    async def _exclude_fields(self, data: Any, fields: List[str]) -> Any:
+    async def _exclude_fields(self, data: Any, fields: list[str]) -> Any:
         """
         Exclude specified fields from data
 
@@ -422,16 +422,15 @@ class ResponseTransformer:
         """
         if isinstance(data, dict):
             return {k: v for k, v in data.items() if k not in fields}
-        elif isinstance(data, list):
+        if isinstance(data, list):
             return [await self._exclude_fields(item, fields) for item in data]
-        elif hasattr(data, '__dict__'):
-            obj_dict = asdict(data) if hasattr(data, '__dataclass_fields__') else data.__dict__
+        if hasattr(data, "__dict__"):
+            obj_dict = asdict(data) if hasattr(data, "__dataclass_fields__") else data.__dict__
             filtered_dict = {k: v for k, v in obj_dict.items() if k not in fields}
-            if hasattr(data, '__dataclass_fields__'):
+            if hasattr(data, "__dataclass_fields__"):
                 return data.__class__(**filtered_dict)
             return filtered_dict
-        else:
-            return data
+        return data
 
     async def _convert_case(self, data: Any, case_style: TransformationRule) -> Any:
         """
@@ -448,24 +447,23 @@ class ResponseTransformer:
 
         if isinstance(data, dict):
             return {converter(k): await self._convert_case(v, case_style) for k, v in data.items()}
-        elif isinstance(data, list):
+        if isinstance(data, list):
             return [await self._convert_case(item, case_style) for item in data]
-        else:
-            return data
+        return data
 
     def _to_camel_case(self, snake_str: str) -> str:
         """Convert snake_case to camelCase"""
-        components = snake_str.split('_')
-        return components[0] + ''.join(word.capitalize() for word in components[1:])
+        components = snake_str.split("_")
+        return components[0] + "".join(word.capitalize() for word in components[1:])
 
     def _to_snake_case(self, camel_str: str) -> str:
         """Convert camelCase to snake_case"""
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', camel_str)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", camel_str)
+        return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
     def _to_kebab_case(self, snake_str: str) -> str:
         """Convert snake_case to kebab-case"""
-        return snake_str.replace('_', '-')
+        return snake_str.replace("_", "-")
 
     async def _handle_nulls(self, data: Any, handling: str) -> Any:
         """
@@ -480,19 +478,17 @@ class ResponseTransformer:
         """
         if handling == "exclude":
             return await self._remove_nulls(data)
-        elif handling == "default":
+        if handling == "default":
             return await self._replace_nulls_with_defaults(data)
-        else:
-            return data
+        return data
 
     async def _remove_nulls(self, data: Any) -> Any:
         """Remove null values from data"""
         if isinstance(data, dict):
             return {k: await self._remove_nulls(v) for k, v in data.items() if v is not None}
-        elif isinstance(data, list):
+        if isinstance(data, list):
             return [await self._remove_nulls(item) for item in data if item is not None]
-        else:
-            return data
+        return data
 
     async def _replace_nulls_with_defaults(self, data: Any) -> Any:
         """Replace null values with appropriate defaults"""
@@ -501,42 +497,38 @@ class ResponseTransformer:
                 k: await self._replace_nulls_with_defaults(v) if v is not None else self._get_default_for_key(k)
                 for k, v in data.items()
             }
-        elif isinstance(data, list):
+        if isinstance(data, list):
             return [await self._replace_nulls_with_defaults(item) for item in data]
-        else:
-            return data
+        return data
 
     def _get_default_for_key(self, key: str) -> Any:
         """Get default value for a key based on its name"""
         key_lower = key.lower()
         if any(word in key_lower for word in ["id", "count", "num", "size"]):
             return 0
-        elif any(word in key_lower for word in ["name", "title", "label"]):
+        if any(word in key_lower for word in ["name", "title", "label"]):
             return ""
-        elif any(word in key_lower for word in ["is", "has", "can", "should"]):
+        if any(word in key_lower for word in ["is", "has", "can", "should"]):
             return False
-        elif "time" in key_lower or "date" in key_lower:
+        if "time" in key_lower or "date" in key_lower:
             return datetime.utcnow().isoformat()
-        else:
-            return None
+        return None
 
     async def _format_dates(self, data: Any, date_format: str) -> Any:
         """Format date values according to specified format"""
         if isinstance(data, dict):
             return {k: await self._format_dates(v, date_format) for k, v in data.items()}
-        elif isinstance(data, list):
+        if isinstance(data, list):
             return [await self._format_dates(item, date_format) for item in data]
-        elif isinstance(data, (datetime, date)):
+        if isinstance(data, (datetime, date)):
             if date_format == "iso":
                 return data.isoformat()
-            elif date_format == "timestamp":
+            if date_format == "timestamp":
                 return int(data.timestamp())
-            elif date_format == "readable":
+            if date_format == "readable":
                 return data.strftime("%Y-%m-%d %H:%M:%S")
-            else:
-                return data.isoformat()
-        else:
-            return data
+            return data.isoformat()
+        return data
 
     async def _apply_custom_transformer(
         self,
@@ -575,7 +567,7 @@ class ResponseTransformer:
         data: Any,
         format_type: ResponseFormat,
         pretty_print: bool = False
-    ) -> Union[str, bytes]:
+    ) -> str | bytes:
         """
         Convert data to specified format
 
@@ -590,9 +582,8 @@ class ResponseTransformer:
         transformer = self.transformers.get(format_type)
         if transformer:
             return await transformer(data, pretty_print)
-        else:
-            # Default to JSON
-            return await self._to_json(data, pretty_print)
+        # Default to JSON
+        return await self._to_json(data, pretty_print)
 
     async def _to_json(self, data: Any, pretty_print: bool = False) -> str:
         """Convert data to JSON format"""
@@ -600,7 +591,7 @@ class ResponseTransformer:
             data,
             default=str,
             indent=2 if pretty_print else None,
-            separators=(',', ': ') if pretty_print else (',', ':')
+            separators=(",", ": ") if pretty_print else (",", ":")
         )
 
     async def _to_xml(self, data: Any, pretty_print: bool = False) -> str:
@@ -609,31 +600,30 @@ class ResponseTransformer:
             if isinstance(d, dict):
                 xml_parts = []
                 for key, value in d.items():
-                    key_clean = re.sub(r'[^a-zA-Z0-9_]', '_', str(key))
+                    key_clean = re.sub(r"[^a-zA-Z0-9_]", "_", str(key))
                     if isinstance(value, (dict, list)):
                         xml_parts.append(f"<{key_clean}>")
                         xml_parts.append(dict_to_xml(value, key_clean))
                         xml_parts.append(f"</{key_clean}>")
                     else:
-                        xml_parts.append(f"<{key_clean}>{str(value)}</{key_clean}>")
+                        xml_parts.append(f"<{key_clean}>{value!s}</{key_clean}>")
                 return "\n".join(xml_parts) if pretty_print else "".join(xml_parts)
-            elif isinstance(d, list):
+            if isinstance(d, list):
                 xml_parts = []
                 for item in d:
                     xml_parts.append(f"<{root_name}>")
                     xml_parts.append(dict_to_xml(item, "item"))
                     xml_parts.append(f"</{root_name}>")
                 return "\n".join(xml_parts) if pretty_print else "".join(xml_parts)
-            else:
-                return str(d)
+            return str(d)
 
         xml_header = '<?xml version="1.0" encoding="UTF-8"?>\n' if pretty_print else '<?xml version="1.0" encoding="UTF-8"?>'
         return xml_header + dict_to_xml(data)
 
     async def _to_csv(self, data: Any, pretty_print: bool = False) -> str:
         """Convert data to CSV format"""
-        import io
         import csv
+        import io
 
         if isinstance(data, list) and data and isinstance(data[0], dict):
             # Use first item's keys as headers
@@ -647,16 +637,15 @@ class ResponseTransformer:
                 writer.writerow([str(item.get(header, "")) for header in headers])
 
             return output.getvalue()
-        elif isinstance(data, dict):
+        if isinstance(data, dict):
             # Single object as single row
             output = io.StringIO()
             writer = csv.writer(output)
             writer.writerow(list(data.keys()))
             writer.writerow([str(value) for value in data.values()])
             return output.getvalue()
-        else:
-            # Convert to string representation
-            return str(data)
+        # Convert to string representation
+        return str(data)
 
     async def _to_yaml(self, data: Any, pretty_print: bool = False) -> str:
         """Convert data to YAML format"""
@@ -669,7 +658,7 @@ class ResponseTransformer:
 
     async def _create_response(
         self,
-        formatted_data: Union[str, bytes],
+        formatted_data: str | bytes,
         config: TransformationConfig,
         metadata: ResponseMetadata = None
     ) -> Response:
@@ -732,7 +721,7 @@ class ResponseTransformer:
         current_avg = self.stats["avg_transformation_time"]
         self.stats["avg_transformation_time"] = ((current_avg * (total - 1)) + transformation_time) / total
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get transformation statistics"""
         return self.stats.copy()
 
@@ -753,8 +742,8 @@ def transform_response(config: TransformationConfig = None):
             trans_config = response_transformer.create_transformation_config(request, config)
 
             # Create metadata
-            request_id = getattr(request.state, 'request_id', 'unknown')
-            start_time = getattr(request.state, 'start_time', datetime.utcnow())
+            request_id = getattr(request.state, "request_id", "unknown")
+            start_time = getattr(request.state, "start_time", datetime.utcnow())
 
             metadata = ResponseMetadata(
                 request_id=request_id,

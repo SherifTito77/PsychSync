@@ -3,10 +3,11 @@ Clinical Assessment Service
 Provides clinical assessment and consent management functionality
 """
 
-import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Any
+
 from app.core.logging_config import logger
+
 
 class ClinicalAssessmentService:
     """Service for managing clinical assessments and consent"""
@@ -25,10 +26,10 @@ class ClinicalAssessmentService:
             self.logger.info(f"Consent verification for user {user_id} - {screening_type}: granted")
             return True
         except Exception as e:
-            self.logger.error(f"Consent verification failed: {str(e)}")
+            self.logger.error(f"Consent verification failed: {e!s}")
             return False
 
-    async def assess_crisis_severity(self, user_id: int, alert_type: str, severity_indicators: Dict[str, Any], immediate_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def assess_crisis_severity(self, user_id: int, alert_type: str, severity_indicators: dict[str, Any], immediate_context: dict[str, Any]) -> dict[str, Any]:
         """
         Assess crisis severity for immediate intervention
         """
@@ -63,10 +64,10 @@ class ClinicalAssessmentService:
                 "recommendations": self._get_crisis_recommendations(risk_level)
             }
         except Exception as e:
-            self.logger.error(f"Crisis severity assessment failed: {str(e)}")
+            self.logger.error(f"Crisis severity assessment failed: {e!s}")
             return {"risk_level": "unknown", "risk_score": 0}
 
-    def _get_crisis_recommendations(self, risk_level: str) -> List[str]:
+    def _get_crisis_recommendations(self, risk_level: str) -> list[str]:
         """Get crisis recommendations based on risk level"""
         recommendations = {
             "critical": [
@@ -96,7 +97,7 @@ class ClinicalAssessmentService:
         }
         return recommendations.get(risk_level, recommendations["low"])
 
-    async def generate_immediate_crisis_response(self, crisis_assessment: Dict[str, Any], alert_type: str) -> List[str]:
+    async def generate_immediate_crisis_response(self, crisis_assessment: dict[str, Any], alert_type: str) -> list[str]:
         """Generate immediate crisis response actions"""
         risk_level = crisis_assessment.get("risk_level", "low")
 
@@ -123,7 +124,7 @@ class ClinicalAssessmentService:
 
         return immediate_actions
 
-    async def get_emergency_resources(self, risk_level: str, user_location: Optional[str], alert_type: str) -> Dict[str, Any]:
+    async def get_emergency_resources(self, risk_level: str, user_location: str | None, alert_type: str) -> dict[str, Any]:
         """Get emergency resources based on risk and location"""
         resources = {
             "emergency_services": {
@@ -154,7 +155,7 @@ class ClinicalAssessmentService:
 
         return resources
 
-    async def create_immediate_safety_plan(self, user_id: int, crisis_assessment: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_immediate_safety_plan(self, user_id: int, crisis_assessment: dict[str, Any]) -> dict[str, Any]:
         """Create immediate safety plan"""
         risk_level = crisis_assessment.get("risk_level", "low")
 
@@ -181,7 +182,7 @@ class ClinicalAssessmentService:
 
         return safety_plan
 
-    async def assess_need_for_professional_intervention(self, crisis_assessment: Dict[str, Any], alert_type: str) -> Dict[str, Any]:
+    async def assess_need_for_professional_intervention(self, crisis_assessment: dict[str, Any], alert_type: str) -> dict[str, Any]:
         """Assess if professional intervention is needed"""
         risk_level = crisis_assessment.get("risk_level", "low")
 
@@ -199,7 +200,7 @@ class ClinicalAssessmentService:
             "type": "emergency" if risk_level == "critical" else "urgent_care" if risk_level == "high" else "outpatient"
         }
 
-    async def log_crisis_alert(self, user_id: int, alert_type: str, severity_level: str, actions_taken: List[str]):
+    async def log_crisis_alert(self, user_id: int, alert_type: str, severity_level: str, actions_taken: list[str]):
         """Log crisis alert for follow-up (while maintaining privacy)"""
         try:
             # In production, this would store in secure database
@@ -215,9 +216,9 @@ class ClinicalAssessmentService:
             self.logger.info(f"Crisis alert logged: {alert_type} - {severity_level} - {len(actions_taken)} actions taken")
 
         except Exception as e:
-            self.logger.error(f"Failed to log crisis alert: {str(e)}")
+            self.logger.error(f"Failed to log crisis alert: {e!s}")
 
-    async def schedule_crisis_follow_up(self, user_id: int, crisis_assessment: Dict[str, Any]) -> Dict[str, Any]:
+    async def schedule_crisis_follow_up(self, user_id: int, crisis_assessment: dict[str, Any]) -> dict[str, Any]:
         """Schedule crisis follow-up"""
         risk_level = crisis_assessment.get("risk_level", "low")
 
@@ -237,7 +238,7 @@ class ClinicalAssessmentService:
             "automated": risk_level in ["moderate", "low"]
         }
 
-    async def get_crisis_hotlines(self) -> List[Dict[str, str]]:
+    async def get_crisis_hotlines(self) -> list[dict[str, str]]:
         """Get crisis hotline information"""
         return [
             {
@@ -266,7 +267,7 @@ class ClinicalAssessmentService:
             }
         ]
 
-    async def get_clinical_resources(self, resource_type: Optional[str], condition: Optional[str], user_location: Optional[str]) -> Dict[str, Any]:
+    async def get_clinical_resources(self, resource_type: str | None, condition: str | None, user_location: str | None) -> dict[str, Any]:
         """Get clinical resources"""
         # Basic resource categories
         resources = {
@@ -319,13 +320,13 @@ class ClinicalAssessmentService:
 
         return resources
 
-    async def prioritize_resources(self, resources: Dict[str, List[Dict[str, Any]]], user_location: Optional[str]) -> Dict[str, Any]:
+    async def prioritize_resources(self, resources: dict[str, list[dict[str, Any]]], user_location: str | None) -> dict[str, Any]:
         """Prioritize resources based on availability and user preferences"""
         # For now, return resources as-is
         # In production, this would prioritize based on location, availability, user preferences
         return resources
 
-    async def get_crisis_resources(self) -> List[Dict[str, Any]]:
+    async def get_crisis_resources(self) -> list[dict[str, Any]]:
         """Get crisis resources (always included in responses)"""
         return [
             {

@@ -1,0 +1,196 @@
+# EditorConfig is awesome: https://EditorConfig.org
+# This file ensures consistent coding styles across different editors and IDEs
+# Most modern editors support EditorConfig natively or via plugins
+# VS Code: Install "EditorConfig for VS Code" extension
+# PyCharm: Built-in support
+# Sublime Text: Install EditorConfig plugin
+
+# Top-most EditorConfig file
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Python files
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+# Python i18n strings
+[python/**.py]
+indent_size = 4
+
+# HTML files
+[*.{html,htm}]
+indent_size = 2
+
+# CSS/SCSS/SASS files
+[*.{css,scss,sass,less}]
+indent_size = 2
+
+# JavaScript/TypeScript/JSX/TSX files
+[*.{js,jsx,ts,tsx}]
+indent_size = 2
+max_line_length = 100
+
+# JSON files
+[*.json]
+indent_size = 2
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# TOML files
+[*.toml]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Shell scripts
+[*.{sh,bash}]
+indent_size = 2
+end_of_line = lf
+
+# Dockerfile
+[Dockerfile*]
+indent_size = 2
+
+# Makefiles
+[Makefile]
+indent_style = tab
+
+# SQL files
+[*.sql]
+indent_size = 2
+
+# XML files
+[*.{xml,xsd}]
+indent_size = 2
+
+# Configuration files
+[*.{conf,config,ini}]
+indent_size = 2
+
+# Documentation files
+[*.{rst,txt}]
+indent_size = 2
+
+# CI/CD files
+[.{github,yamllint,jscpd,prettierrc}/**]
+indent_size = 2
+
+# Kubernetes manifests
+[*.{yaml,yml}]
+indent_size = 2
+
+# ==============================================================================
+# File-Type Specific Settings
+# ==============================================================================
+
+# Batch files (Windows)
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# PowerShell scripts
+[*.ps1]
+indent_size = 4
+end_of_line = lf
+
+# ==============================================================================
+# Project-Specific Patterns
+# ==============================================================================
+
+# Frontend source files
+[frontend/src/**]
+indent_size = 2
+
+# Backend application files
+[app/**]
+indent_size = 4
+
+# AI/ML processing files
+[ai/**]
+indent_size = 4
+
+# Test files
+[tests/**.py]
+indent_size = 4
+
+[frontend/src/**/*.test.{ts,tsx}]
+indent_size = 2
+
+[frontend/src/**/*.spec.{ts,tsx}]
+indent_size = 2
+
+# Documentation files
+[docs/**.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Configuration files at root
+[*.toml]
+indent_size = 2
+
+[*.yaml]
+indent_size = 2
+
+[*.yml]
+indent_size = 2
+
+# ==============================================================================
+# Rationale
+# ==============================================================================
+#
+# Character Encoding (UTF-8):
+# - Universal encoding supporting all characters
+# - Required for Python 3 source files
+# - Prevents encoding-related bugs
+#
+# Line Endings (LF):
+# - Unix-style line endings (\n)
+# - Consistent across Linux, macOS, and modern Windows tools
+# - Git can auto-convert for Windows (core.autocrlf)
+#
+# Final Newline:
+# - POSIX standard requires files to end with newline
+# - Prevents issues with file concatenation
+# - Most tools expect final newline
+#
+# Trailing Whitespace:
+# - Remove trailing whitespace to reduce diff noise
+# - Exceptions: Markdown files (where trailing spaces have meaning)
+#
+# Indentation:
+# - Spaces for consistency across editors and languages
+# - Python: 4 spaces (PEP 8)
+# - JavaScript/TypeScript: 2 spaces (Airbnb style guide)
+# - JSON/YAML: 2 spaces (standard)
+# - Makefiles: tabs (required)
+#
+# Line Length:
+# - Python: 100 characters (Ruff/Black standard)
+# - JavaScript/TypeScript: 100 characters (project standard)
+# - Markdown: off (allow wrapping)
+#
+# Team Benefits:
+# 1. Consistent formatting across team members
+# 2. No debates about tabs vs spaces
+# 3. Works with any editor/IDE
+# 4. Prevents whitespace-only commits
+# 5. Reduces merge conflicts from formatting differences
+#
+# Usage:
+# 1. Ensure your editor supports EditorConfig
+# 2. Add this file to the root of your project
+# 3. Editor will automatically apply settings when opening files
+# 4. No manual configuration needed per developer

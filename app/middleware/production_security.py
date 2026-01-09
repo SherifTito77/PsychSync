@@ -4,18 +4,16 @@ Production-Ready Security Middleware for PsychSync
 Addresses vibe coding security gaps
 """
 
-from typing import Callable, Optional
-from fastapi import Request, Response, HTTPException, status
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-import time
-import hashlib
-import secrets
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from datetime import datetime
 import logging
 import re
+import secrets
+import time
+
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
 
@@ -25,6 +23,7 @@ logger = logging.getLogger(__name__)
 # ============================================
 # 1. INPUT VALIDATION & SANITIZATION
 # ============================================
+
 
 class InputValidationMiddleware(BaseHTTPMiddleware):
     """
@@ -50,27 +49,18 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > 10_000_000:  # 10MB
             logger.warning(f"Request too large: {content_length} bytes")
-            return JSONResponse(
-                status_code=413,
-                content={"detail": "Request too large"}
-            )
+            return JSONResponse(status_code=413, content={"detail": "Request too large"})
 
         # Validate content type for POST/PUT
         if request.method in ["POST", "PUT", "PATCH"]:
             content_type = request.headers.get("content-type", "")
             if not content_type.startswith(("application/json", "multipart/form-data")):
-                return JSONResponse(
-                    status_code=415,
-                    content={"detail": "Unsupported media type"}
-                )
+                return JSONResponse(status_code=415, content={"detail": "Unsupported media type"})
 
         # Check for malicious patterns in URL
         if self._contains_malicious_pattern(str(request.url)):
             logger.critical(f"Malicious pattern detected in URL: {request.url}")
-            return JSONResponse(
-                status_code=400,
-                content={"detail": "Invalid request"}
-            )
+            return JSONResponse(status_code=400, content={"detail": "Invalid request"})
 
         response = await call_next(request)
         return response
@@ -87,6 +77,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
 # 2. ADVANCED RATE LIMITING
 # ============================================
 
+
 class SmartRateLimitMiddleware(BaseHTTPMiddleware):
     """
     Intelligent rate limiting with multiple strategies
@@ -98,8 +89,8 @@ class SmartRateLimitMiddleware(BaseHTTPMiddleware):
 
         # Different limits for different endpoint types
         self.limits = {
-            "auth": ("5", 60),      # 5 requests per minute (login, register)
-            "api": ("100", 60),     # 100 requests per minute
+            "auth": ("5", 60),  # 5 requests per minute (login, register)
+            "api": ("100", 60),  # 100 requests per minute
             "export": ("10", 3600),  # 10 requests per hour
             "upload": ("20", 3600),  # 20 requests per hour
         }
@@ -140,11 +131,8 @@ class SmartRateLimitMiddleware(BaseHTTPMiddleware):
 
             return JSONResponse(
                 status_code=429,
-                content={
-                    "detail": "Rate limit exceeded",
-                    "retry_after": str(period)
-                },
-                headers={"Retry-After": str(period)}
+                content={"detail": "Rate limit exceeded", "retry_after": str(period)},
+                headers={"Retry-After": str(period)},
             )
 
         # Increment counter
@@ -174,7 +162,7 @@ class SmartRateLimitMiddleware(BaseHTTPMiddleware):
         offense_count, _ = self.request_counts.get(backoff_key, (0, 0))
 
         # Ban for 2^offense_count minutes (max 60 min)
-        ban_minutes = min(2 ** offense_count, 60)
+        ban_minutes = min(2**offense_count, 60)
 
         self.request_counts[backoff_key] = (offense_count + 1, time.time())
 
@@ -182,6 +170,7 @@ class SmartRateLimitMiddleware(BaseHTTPMiddleware):
 # ============================================
 # 3. SECURITY HEADERS
 # ============================================
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
@@ -215,7 +204,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
 
         # Force HTTPS (in production)
-        if hasattr(settings, 'ENVIRONMENT') and settings.ENVIRONMENT == "production":
+        if hasattr(settings, "ENVIRONMENT") and settings.ENVIRONMENT == "production":
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains; preload"
             )
@@ -235,20 +224,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 # 4. AUDIT LOGGING
 # ============================================
 
+
 class AuditLoggingMiddleware(BaseHTTPMiddleware):
     """
     Logs ALL security-relevant events
     Required for: GDPR compliance, incident response
     """
 
-    SENSITIVE_ENDPOINTS = [
-        "/auth/",
-        "/users/",
-        "/teams/",
-        "/assessments/",
-        "/export/",
-        "/admin/"
-    ]
+    SENSITIVE_ENDPOINTS = ["/auth/", "/users/", "/teams/", "/assessments/", "/export/", "/admin/"]
 
     async def dispatch(self, request: Request, call_next: Callable):
         start_time = time.time()
@@ -269,12 +252,7 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 
             # Log response
             if should_log:
-                self._log_response(
-                    request,
-                    response,
-                    request_id,
-                    time.time() - start_time
-                )
+                self._log_response(request, response, request_id, time.time() - start_time)
 
             # Add request ID to response headers
             response.headers["X-Request-ID"] = request_id
@@ -302,15 +280,11 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
             # ❌ DO NOT LOG: Request body (may contain passwords)
         }
 
-        logger.info(f"API Request [{request_id}] {request.method} {request.url.path}", extra=log_data)
+        logger.info(
+            f"API Request [{request_id}] {request.method} {request.url.path}", extra=log_data
+        )
 
-    def _log_response(
-        self,
-        request: Request,
-        response: Response,
-        request_id: str,
-        duration: float
-    ):
+    def _log_response(self, request: Request, response: Response, request_id: str, duration: float):
         """Log response"""
         user_id = getattr(request.state, "user_id", "anonymous")
 
@@ -353,6 +327,7 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 # 5. REQUEST SIZE LIMITING
 # ============================================
 
+
 class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
     """
     Prevents DoS attacks via large requests
@@ -366,12 +341,14 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         if content_length:
             length = int(content_length)
             if length > self.MAX_REQUEST_SIZE:
-                logger.warning(f"Request too large: {length} bytes from {self._get_client_ip(request)}")
+                logger.warning(
+                    f"Request too large: {length} bytes from {self._get_client_ip(request)}"
+                )
                 return JSONResponse(
                     status_code=413,
                     content={
                         "detail": f"Request too large. Maximum size is {self.MAX_REQUEST_SIZE / 1024 / 1024}MB"
-                    }
+                    },
                 )
 
         response = await call_next(request)
@@ -388,6 +365,7 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 # ============================================
 # APPLY ALL MIDDLEWARE TO APP
 # ============================================
+
 
 def configure_production_security(app):
     """Apply all security middleware"""
@@ -434,6 +412,7 @@ app.include_router(api_router)
 # ============================================
 # TESTING MIDDLEWARE
 # ============================================
+
 
 def test_middleware():
     """Test middleware configuration (can be called from test suite)"""

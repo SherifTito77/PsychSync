@@ -3,22 +3,24 @@ DNS Security Configuration Module
 Provides secure DNS resolution with DNSSEC validation and monitoring
 """
 
-import socket
-import dns.resolver
-import dns.rdatatype
-import dns.exception
-import logging
 import asyncio
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import ipaddress
+import logging
+from typing import Any
+
+import dns.exception
+import dns.rdatatype
+import dns.resolver
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class DNSQueryResult:
     """Result of a DNS query with security validation"""
+
     hostname: str
     query_type: str
     result: str
@@ -26,7 +28,8 @@ class DNSQueryResult:
     dnssec_valid: bool
     response_time_ms: float
     ttl: int
-    security_issues: List[str]
+    security_issues: list[str]
+
 
 class DNSSecurityManager:
     """
@@ -37,14 +40,14 @@ class DNSSecurityManager:
     def __init__(self):
         self.secure_resolvers = [
             # Cloudflare DNS (with DNSSEC)
-            '1.1.1.1',
-            '1.0.0.1',
+            "1.1.1.1",
+            "1.0.0.1",
             # Google DNS (with DNSSEC)
-            '8.8.8.8',
-            '8.8.4.4',
+            "8.8.8.8",
+            "8.8.4.4",
             # OpenDNS (with DNSSEC)
-            '208.67.222.222',
-            '208.67.220.220'
+            "208.67.222.222",
+            "208.67.220.220",
         ]
 
         self.resolver = self._create_secure_resolver()
@@ -72,9 +75,7 @@ class DNSSecurityManager:
         return resolver
 
     async def resolve_hostname_secure(
-        self,
-        hostname: str,
-        record_type: str = 'A'
+        self, hostname: str, record_type: str = "A"
     ) -> DNSQueryResult:
         """
         Resolve a hostname with security validation
@@ -95,9 +96,11 @@ class DNSSecurityManager:
             if cache_key in self.query_cache:
                 cached_result = self.query_cache[cache_key]
                 # Check if cache entry is still valid
-                if datetime.now() - cached_result['timestamp'] < timedelta(seconds=cached_result['ttl']):
+                if datetime.now() - cached_result["timestamp"] < timedelta(
+                    seconds=cached_result["ttl"]
+                ):
                     logger.debug(f"DNS cache hit for {hostname}")
-                    return DNSQueryResult(**cached_result['data'])
+                    return DNSQueryResult(**cached_result["data"])
 
             # Perform secure DNS lookup
             answer = self.resolver.resolve(hostname, record_type)
@@ -107,7 +110,7 @@ class DNSSecurityManager:
 
             # Get first result
             result_ip = str(answer[0]) if answer else None
-            ttl = answer.rrset.ttl if answer and hasattr(answer, 'rrset') else 300
+            ttl = answer.rrset.ttl if answer and hasattr(answer, "rrset") else 300
 
             # Validate DNSSEC
             dnssec_valid = self._validate_dnssec(answer)
@@ -132,14 +135,14 @@ class DNSSecurityManager:
                 dnssec_valid=dnssec_valid,
                 response_time_ms=round(response_time, 2),
                 ttl=ttl,
-                security_issues=security_issues.copy()
+                security_issues=security_issues.copy(),
             )
 
             # Cache the result
             self.query_cache[cache_key] = {
-                'data': query_result.__dict__,
-                'timestamp': datetime.now(),
-                'ttl': ttl
+                "data": query_result.__dict__,
+                "timestamp": datetime.now(),
+                "ttl": ttl,
             }
 
             # Log security events
@@ -157,7 +160,7 @@ class DNSSecurityManager:
                 dnssec_valid=False,
                 response_time_ms=(asyncio.get_event_loop().time() - start_time) * 1000,
                 ttl=0,
-                security_issues=[]
+                security_issues=[],
             )
 
         except dns.resolver.NoAnswer:
@@ -170,7 +173,7 @@ class DNSSecurityManager:
                 dnssec_valid=False,
                 response_time_ms=(asyncio.get_event_loop().time() - start_time) * 1000,
                 ttl=0,
-                security_issues=security_issues
+                security_issues=security_issues,
             )
 
         except dns.exception.DNSException as e:
@@ -183,7 +186,7 @@ class DNSSecurityManager:
                 dnssec_valid=False,
                 response_time_ms=(asyncio.get_event_loop().time() - start_time) * 1000,
                 ttl=0,
-                security_issues=security_issues
+                security_issues=security_issues,
             )
 
         except Exception as e:
@@ -197,18 +200,18 @@ class DNSSecurityManager:
                 dnssec_valid=False,
                 response_time_ms=(asyncio.get_event_loop().time() - start_time) * 1000,
                 ttl=0,
-                security_issues=security_issues
+                security_issues=security_issues,
             )
 
     def _validate_dnssec(self, answer) -> bool:
         """Validate DNSSEC for the DNS response"""
         try:
             # Check if response has DNSSEC signatures
-            if hasattr(answer, 'response') and answer.response:
+            if hasattr(answer, "response") and answer.response:
                 response = answer.response
 
                 # Check for DNSSEC OK flag
-                if hasattr(response.flags, 'DO'):
+                if hasattr(response.flags, "DO"):
                     if not (response.flags & dns.flags.DO):
                         return False
 
@@ -247,10 +250,10 @@ class DNSSecurityManager:
 
             # Add more suspicious IP checks as needed
             suspicious_ranges = [
-                ipaddress.ip_network('0.0.0.0/8'),     # This network
-                ipaddress.ip_network('127.0.0.0/8'),   # Loopback
-                ipaddress.ip_network('169.254.0.0/16'), # Link-local
-                ipaddress.ip_network('224.0.0.0/4'),   # Multicast
+                ipaddress.ip_network("0.0.0.0/8"),  # This network
+                ipaddress.ip_network("127.0.0.0/8"),  # Loopback
+                ipaddress.ip_network("169.254.0.0/16"),  # Link-local
+                ipaddress.ip_network("224.0.0.0/4"),  # Multicast
             ]
 
             for suspicious_range in suspicious_ranges:
@@ -262,14 +265,14 @@ class DNSSecurityManager:
         except ValueError:
             return True  # Invalid IP is suspicious
 
-    def _log_security_event(self, hostname: str, record_type: str, issues: List[str]):
+    def _log_security_event(self, hostname: str, record_type: str, issues: list[str]):
         """Log DNS security events"""
         event = {
-            'timestamp': datetime.now().isoformat(),
-            'hostname': hostname,
-            'record_type': record_type,
-            'security_issues': issues,
-            'severity': 'HIGH' if 'DNSSEC validation failed' in issues else 'MEDIUM'
+            "timestamp": datetime.now().isoformat(),
+            "hostname": hostname,
+            "record_type": record_type,
+            "security_issues": issues,
+            "severity": "HIGH" if "DNSSEC validation failed" in issues else "MEDIUM",
         }
 
         self.security_events.append(event)
@@ -277,15 +280,15 @@ class DNSSecurityManager:
         # Log to application logger
         logger.warning(f"DNS Security Event - {hostname}: {'; '.join(issues)}")
 
-    def get_dns_health_status(self) -> Dict[str, Any]:
+    def get_dns_health_status(self) -> dict[str, Any]:
         """Get DNS resolver health status"""
         health_status = {
-            'timestamp': datetime.now().isoformat(),
-            'resolver_count': len(self.secure_resolvers),
-            'cache_entries': len(self.query_cache),
-            'security_events': len(self.security_events),
-            'recent_events': [],
-            'resolver_status': []
+            "timestamp": datetime.now().isoformat(),
+            "resolver_count": len(self.secure_resolvers),
+            "cache_entries": len(self.query_cache),
+            "security_events": len(self.security_events),
+            "recent_events": [],
+            "resolver_status": [],
         }
 
         # Test each resolver
@@ -297,27 +300,30 @@ class DNSSecurityManager:
                 test_resolver.timeout = 1.0
 
                 start_time = asyncio.get_event_loop().time()
-                answer = test_resolver.resolve('google.com', 'A')
+                answer = test_resolver.resolve("google.com", "A")
                 response_time = (asyncio.get_event_loop().time() - start_time) * 1000
 
-                health_status['resolver_status'].append({
-                    'resolver': resolver_ip,
-                    'status': 'healthy',
-                    'response_time_ms': round(response_time, 2),
-                    'test_result': str(answer[0]) if answer else None
-                })
+                health_status["resolver_status"].append(
+                    {
+                        "resolver": resolver_ip,
+                        "status": "healthy",
+                        "response_time_ms": round(response_time, 2),
+                        "test_result": str(answer[0]) if answer else None,
+                    }
+                )
 
             except Exception as e:
-                health_status['resolver_status'].append({
-                    'resolver': resolver_ip,
-                    'status': 'unhealthy',
-                    'error': str(e)
-                })
+                health_status["resolver_status"].append(
+                    {"resolver": resolver_ip, "status": "unhealthy", "error": str(e)}
+                )
 
         # Get recent security events
-        recent_events = [event for event in self.security_events
-                        if datetime.fromisoformat(event['timestamp']) > datetime.now() - timedelta(hours=24)]
-        health_status['recent_events'] = recent_events[-10:]  # Last 10 events
+        recent_events = [
+            event
+            for event in self.security_events
+            if datetime.fromisoformat(event["timestamp"]) > datetime.now() - timedelta(hours=24)
+        ]
+        health_status["recent_events"] = recent_events[-10:]  # Last 10 events
 
         return health_status
 
@@ -326,24 +332,28 @@ class DNSSecurityManager:
         self.query_cache.clear()
         logger.info("DNS cache cleared")
 
-    def get_security_summary(self) -> Dict[str, Any]:
+    def get_security_summary(self) -> dict[str, Any]:
         """Get DNS security summary"""
         last_24h = datetime.now() - timedelta(hours=24)
-        recent_events = [event for event in self.security_events
-                        if datetime.fromisoformat(event['timestamp']) > last_24h]
+        recent_events = [
+            event
+            for event in self.security_events
+            if datetime.fromisoformat(event["timestamp"]) > last_24h
+        ]
 
-        high_severity = len([e for e in recent_events if e['severity'] == 'HIGH'])
-        medium_severity = len([e for e in recent_events if e['severity'] == 'MEDIUM'])
+        high_severity = len([e for e in recent_events if e["severity"] == "HIGH"])
+        medium_severity = len([e for e in recent_events if e["severity"] == "MEDIUM"])
 
         return {
-            'total_security_events': len(recent_events),
-            'high_severity_events': high_severity,
-            'medium_severity_events': medium_severity,
-            'cache_size': len(self.query_cache),
-            'secure_resolvers': len(self.secure_resolvers),
-            'last_event': recent_events[-1]['timestamp'] if recent_events else None,
-            'security_score': max(0, 100 - (high_severity * 20) - (medium_severity * 10))
+            "total_security_events": len(recent_events),
+            "high_severity_events": high_severity,
+            "medium_severity_events": medium_severity,
+            "cache_size": len(self.query_cache),
+            "secure_resolvers": len(self.secure_resolvers),
+            "last_event": recent_events[-1]["timestamp"] if recent_events else None,
+            "security_score": max(0, 100 - (high_severity * 20) - (medium_severity * 10)),
         }
+
 
 # Global DNS security manager instance
 dns_security_manager = DNSSecurityManager()

@@ -10,19 +10,18 @@ Features:
 - Comprehensive strength assessment
 """
 
-import math
-import re
-import string
-from typing import Dict, List, Tuple
 from dataclasses import dataclass
+import math
+import string
 
 
 @dataclass
 class PasswordStrengthResult:
     """Result of password strength assessment."""
+
     score: int  # 0-100
     strength: str  # weak, fair, good, strong, excellent
-    feedback: List[str]
+    feedback: list[str]
     entropy_bits: float
     is_valid: bool
 
@@ -41,24 +40,61 @@ class EnterprisePasswordValidator:
 
     # Top 500 common passwords (truncated for brevity - expand in production)
     COMMON_PASSWORDS = {
-        'password', 'password123', 'password1', '123456', '12345678',
-        '123456789', 'qwerty', 'qwerty123', 'abc123', 'letmein',
-        'monkey', 'dragon', 'master', 'hello', 'login', 'welcome',
-        'admin', 'administrator', 'root', 'pass', 'test', 'guest',
-        'user', 'player', 'football', 'baseball', 'superman',
-        'batman', 'trustno1', 'iloveyou', 'starwars', 'michael',
-        'jennifer', 'jordan', 'charlie', 'andrew', 'matthew',
-        'password1234', 'password!', 'Password1', 'Welcome1',
-        'Admin123', 'Root123', 'Test123', 'User123', 'Login123',
+        "password",
+        "password123",
+        "password1",
+        "123456",
+        "12345678",
+        "123456789",
+        "qwerty",
+        "qwerty123",
+        "abc123",
+        "letmein",
+        "monkey",
+        "dragon",
+        "master",
+        "hello",
+        "login",
+        "welcome",
+        "admin",
+        "administrator",
+        "root",
+        "pass",
+        "test",
+        "guest",
+        "user",
+        "player",
+        "football",
+        "baseball",
+        "superman",
+        "batman",
+        "trustno1",
+        "iloveyou",
+        "starwars",
+        "michael",
+        "jennifer",
+        "jordan",
+        "charlie",
+        "andrew",
+        "matthew",
+        "password1234",
+        "password!",
+        "Password1",
+        "Welcome1",
+        "Admin123",
+        "Root123",
+        "Test123",
+        "User123",
+        "Login123",
     }
 
     # Sequential patterns to detect
     SEQUENTIAL_PATTERNS = [
-        'abcdefghijklmnopqrstuvwxyz',
-        'qwertyuiop',
-        'asdfghjkl',
-        'zxcvbnm',
-        '0123456789',
+        "abcdefghijklmnopqrstuvwxyz",
+        "qwertyuiop",
+        "asdfghjkl",
+        "zxcvbnm",
+        "0123456789",
     ]
 
     def __init__(self, min_length: int = 12, min_entropy: float = 60.0):
@@ -72,7 +108,7 @@ class EnterprisePasswordValidator:
         self.min_length = min_length
         self.min_entropy = min_entropy
 
-    def validate_password(self, password: str) -> Tuple[bool, List[str]]:
+    def validate_password(self, password: str) -> tuple[bool, list[str]]:
         """
         Validate password against enterprise requirements.
 
@@ -87,8 +123,8 @@ class EnterprisePasswordValidator:
         # Length requirement
         if len(password) < self.min_length:
             errors.append(
-                f'Password must be at least {self.min_length} characters long. '
-                f'Current length: {len(password)}'
+                f"Password must be at least {self.min_length} characters long. "
+                f"Current length: {len(password)}"
             )
 
         # Character variety
@@ -98,41 +134,41 @@ class EnterprisePasswordValidator:
         has_special = any(c in string.punctuation for c in password)
 
         if not has_upper:
-            errors.append('Password must contain at least one uppercase letter')
+            errors.append("Password must contain at least one uppercase letter")
         if not has_lower:
-            errors.append('Password must contain at least one lowercase letter')
+            errors.append("Password must contain at least one lowercase letter")
         if not has_digit:
-            errors.append('Password must contain at least one digit')
+            errors.append("Password must contain at least one digit")
         if not has_special:
-            errors.append('Password must contain at least one special character')
+            errors.append("Password must contain at least one special character")
 
         # Entropy check
         entropy = self._calculate_entropy(password)
         if entropy < self.min_entropy:
             errors.append(
-                f'Password is too predictable (entropy: {entropy:.1f} bits, '
-                f'required: {self.min_entropy} bits). '
-                f'Use a more complex combination of characters.'
+                f"Password is too predictable (entropy: {entropy:.1f} bits, "
+                f"required: {self.min_entropy} bits). "
+                f"Use a more complex combination of characters."
             )
 
         # Common password check
         if self._is_common_password(password):
             errors.append(
-                'This password is too common. '
-                'Please choose a unique password that is not easily guessable.'
+                "This password is too common. "
+                "Please choose a unique password that is not easily guessable."
             )
 
         # Pattern detection
         if self._has_sequential_pattern(password):
             errors.append(
                 'Password contains sequential patterns (e.g., "abc", "123", "qwerty"). '
-                'Avoid using consecutive characters.'
+                "Avoid using consecutive characters."
             )
 
         if self._has_repeated_pattern(password):
             errors.append(
                 'Password contains repeated characters (e.g., "aaa", "111"). '
-                'Avoid using the same character multiple times in a row.'
+                "Avoid using the same character multiple times in a row."
             )
 
         is_valid = len(errors) == 0
@@ -228,7 +264,7 @@ class EnterprisePasswordValidator:
             strength=strength,
             feedback=feedback if score < 90 else ["Excellent password!"],
             entropy_bits=entropy,
-            is_valid=is_valid
+            is_valid=is_valid,
         )
 
     def _calculate_entropy(self, password: str) -> float:
@@ -257,9 +293,8 @@ class EnterprisePasswordValidator:
 
     def _is_common_password(self, password: str) -> bool:
         """Check if password is in common password list."""
-        return (
-            password.lower() in self.COMMON_PASSWORDS or
-            any(pattern in password.lower() for pattern in self.COMMON_PASSWORDS)
+        return password.lower() in self.COMMON_PASSWORDS or any(
+            pattern in password.lower() for pattern in self.COMMON_PASSWORDS
         )
 
     def _has_sequential_pattern(self, password: str) -> bool:
@@ -269,7 +304,7 @@ class EnterprisePasswordValidator:
         # Check sequences
         for sequence in self.SEQUENTIAL_PATTERNS:
             for i in range(len(sequence) - 3):
-                seq = sequence[i:i+4]
+                seq = sequence[i : i + 4]
                 if seq in password_lower or seq[::-1] in password_lower:
                     return True
 
@@ -306,7 +341,7 @@ def validate_password_strength(password: str) -> str:
     is_valid, errors = password_validator.validate_password(password)
 
     if not is_valid:
-        error_message = '; '.join(errors)
+        error_message = "; ".join(errors)
         raise ValueError(error_message)
 
     return password

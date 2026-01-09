@@ -3,18 +3,18 @@ Enhanced Cache Service with Cache-Aside Pattern
 Redis-based caching with automatic lock management and cache warming
 Expected improvement: 25-40% for read-heavy workloads
 """
-import json
 import asyncio
-import hashlib
-from typing import Any, Optional, Union, List, Dict, Callable
-from datetime import datetime, timedelta
-from uuid import UUID
+from collections.abc import Callable
 from functools import wraps
+import hashlib
+import json
 import logging
+from typing import Any
+from uuid import UUID
 
 import redis.asyncio as redis
 from redis.asyncio import Redis
-from redis.exceptions import RedisError, ConnectionError
+from redis.exceptions import ConnectionError, RedisError
 
 from app.core.config import settings
 
@@ -31,7 +31,7 @@ class EnhancedCacheService:
     """
 
     def __init__(self):
-        self.redis_client: Optional[Redis] = None
+        self.redis_client: Redis | None = None
         self.lock_timeout = 10  # Maximum lock time in seconds
         self.circuit_breaker_threshold = 5
         self.circuit_breaker_timeout = 60
@@ -80,7 +80,7 @@ class EnhancedCacheService:
     # CORE CACHE OPERATIONS
     # =============================================================================
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """
         Get value from cache with circuit breaker protection
         """
@@ -110,7 +110,7 @@ class EnhancedCacheService:
         self,
         key: str,
         value: Any,
-        expire: Optional[int] = None,
+        expire: int | None = None,
         nx: bool = False
     ) -> bool:
         """
@@ -172,8 +172,8 @@ class EnhancedCacheService:
         self,
         key: str,
         data_fetcher: Callable,
-        expire: Optional[int] = None,
-        lock_timeout: Optional[int] = None
+        expire: int | None = None,
+        lock_timeout: int | None = None
     ) -> Any:
         """
         Cache-aside pattern with distributed locking to prevent stampedes
@@ -220,7 +220,7 @@ class EnhancedCacheService:
         self,
         key: str,
         data_fetcher: Callable,
-        expire: Optional[int] = None,
+        expire: int | None = None,
         background_refresh: bool = True
     ) -> None:
         """
@@ -353,7 +353,7 @@ class EnhancedCacheService:
     # PERFORMANCE METRICS
     # =============================================================================
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get cache performance metrics"""
         total_requests = self._metrics["hits"] + self._metrics["misses"]
         hit_rate = self._metrics["hits"] / total_requests if total_requests > 0 else 0
@@ -417,13 +417,12 @@ def cached(
                     background_refresh
                 )
                 return await data_fetcher()
-            else:
-                # Use cache-aside pattern
-                return await cache_service.get_or_set(
-                    cache_key,
-                    data_fetcher,
-                    expire
-                )
+            # Use cache-aside pattern
+            return await cache_service.get_or_set(
+                cache_key,
+                data_fetcher,
+                expire
+            )
 
         return wrapper
     return decorator
@@ -450,7 +449,7 @@ class CacheInvalidationService:
     def __init__(self, cache: EnhancedCacheService):
         self.cache = cache
 
-    async def invalidate_user_cache(self, user_id: Union[str, UUID]) -> None:
+    async def invalidate_user_cache(self, user_id: str | UUID) -> None:
         """Invalidate all cache entries for a user"""
         user_id_str = str(user_id)
         patterns = [
@@ -463,7 +462,7 @@ class CacheInvalidationService:
         for pattern in patterns:
             await self.cache.delete_pattern(pattern)
 
-    async def invalidate_team_cache(self, team_id: Union[str, UUID]) -> None:
+    async def invalidate_team_cache(self, team_id: str | UUID) -> None:
         """Invalidate all cache entries for a team"""
         team_id_str = str(team_id)
         patterns = [
@@ -475,7 +474,7 @@ class CacheInvalidationService:
         for pattern in patterns:
             await self.cache.delete_pattern(pattern)
 
-    async def invalidate_organization_cache(self, org_id: Union[str, UUID]) -> None:
+    async def invalidate_organization_cache(self, org_id: str | UUID) -> None:
         """Invalidate all cache entries for an organization"""
         org_id_str = str(org_id)
         patterns = [

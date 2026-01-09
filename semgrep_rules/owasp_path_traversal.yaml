@@ -1,0 +1,416 @@
+rules:
+  # RULE 1: Detect direct os.unlink() without path validation
+  - id: owasp-path-traversal-os-unlink
+    languages: [python]
+    message: |
+      Potential path traversal vulnerability: os.unlink() called with unvalidated file path.
+      This allows attackers to delete arbitrary files on the system.
+
+      Risk: Path Traversal (CWE-22)
+      Impact: Critical - arbitrary file deletion, data loss, DoS
+
+      Fix:
+      1. Validate file path is within expected directory
+      2. Use pathlib.Path().resolve() and .relative_to()
+      3. Reject paths outside allowed directory
+
+      Example secure code:
+      ```python
+      allowed_dir = Path("/exports").resolve()
+      file_path = Path(user_input).resolve()
+
+      try:
+          file_path.relative_to(allowed_dir)
+      except ValueError:
+          raise ValueError("Path outside allowed directory")
+      ```
+    severity: ERROR
+    pattern: os.unlink($FILE)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22: Improper Limitation of a Pathname to a Restricted Directory"
+      technology:
+        - python
+        - fastapi
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+    # Check that path is NOT validated before use
+    patterns-logic:
+      - pattern: os.unlink($FILE)
+      - not-pattern: |
+          $VALIDATED = _validate_file_path(...)
+          os.unlink($VALIDATED)
+      - not-pattern: |
+          $SAFE = Path(...).resolve()
+          $SAFE.relative_to(...)
+          os.unlink($SAFE)
+
+  # RULE 2: Detect open() without path validation
+  - id: owasp-path-traversal-open-file
+    languages: [python]
+    message: |
+      Potential path traversal vulnerability: open() called with unvalidated file path.
+      Attacker could read arbitrary files from the filesystem.
+
+      Risk: Path Traversal (CWE-22)
+      Impact: High - sensitive file disclosure
+
+      Fix: Validate file path is within expected directory before opening
+    severity: ERROR
+    pattern: open($FILE, 'rb')
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: open($FILE, 'rb')
+      - not-pattern: |
+          $VALIDATED = _validate_file_path(...)
+          open($VALIDATED, 'rb')
+
+  # RULE 3: Detect os.path.exists() without validation
+  - id: owasp-path-traversal-path-exists
+    languages: [python]
+    message: |
+      Potential path traversal: os.path.exists() used without path validation.
+      File paths from user input must be validated before filesystem operations.
+
+      Risk: Path Traversal (CWE-22)
+      Fix: Validate path is within allowed directory
+    severity: WARNING
+    pattern: os.path.exists($FILE)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: os.path.exists($FILE)
+      - not-pattern: |
+          $VALIDATED = _validate_file_path(...)
+          os.path.exists($VALIDATED)
+
+  # RULE 4: Detect FileResponse without path validation
+  - id: owasp-path-traversal-fileresponse
+    languages: [python]
+    message: |
+      Potential path traversal: FileResponse() with unvalidated file path.
+      User-controlled file paths must be validated before serving files.
+
+      Risk: Path Traversal (CWE-22)
+      Impact: High - arbitrary file disclosure
+
+      Fix: Validate file path before creating FileResponse
+    severity: ERROR
+    pattern: FileResponse(path=$FILE, ...)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 5: Detect string concatenation in file paths
+  - id: owasp-path-traversal-string-concatenation
+    languages: [python]
+    message: |
+      Potential path traversal: String concatenation used to build file path.
+      This allows path injection attacks.
+
+      Risk: Path Traversal (CWE-22)
+      Fix: Use pathlib.Path with proper validation
+    severity: WARNING
+    pattern: $DIR + "/" + $FILE
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 6: Detect f-strings in file paths (potential injection)
+  - id: owasp-path-traversal-f-string
+    languages: [python]
+    message: |
+      Potential path traversal: f-string used to build file path with user input.
+      This allows path injection attacks.
+
+      Risk: Path Traversal (CWE-22)
+      Fix: Use pathlib.Path with proper validation and sanitization
+    severity: WARNING
+    pattern: f"{$DIR}/{$USER_INPUT}..."
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 7: Detect missing _validate_file_path() before file operations
+  - id: owasp-missing-path-validation-function
+    languages: [python]
+    message: |
+      File operation without calling _validate_file_path() or similar validation.
+      All file paths from user input must be validated before filesystem operations.
+
+      Risk: Path Traversal (CWE-22)
+      Fix: Create and use path validation function
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          async def download_file($FILE):
+              return open($FILE, 'rb')
+      - pattern: |
+          async def delete_file($FILE):
+              os.unlink($FILE)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/services/**/*.py
+
+  # RULE 8: Detect relative path patterns in user input
+  - id: owasp-path-traversal-user-input-relative
+    languages: [python]
+    message: |
+      User input used directly in file path without checking for relative path traversal.
+      Patterns like "../" can escape the intended directory.
+
+      Risk: Path Traversal (CWE-22)
+      Fix: Validate and sanitize user input, resolve absolute paths
+    severity: WARNING
+    pattern-regex: '(file_path|filename|filepath)\s*=\s*["\'].*\.\.[/\\]'
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 9: Detect unsafe os.remove() usage
+  - id: owasp-path-traversal-os-remove
+    languages: [python]
+    message: |
+      Potential path traversal: os.remove() called with unvalidated file path.
+      This allows attackers to delete arbitrary files.
+
+      Risk: Path Traversal (CWE-22)
+      Impact: Critical - arbitrary file deletion
+      Fix: Validate file path before deletion
+    severity: ERROR
+    pattern: os.remove($FILE)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: os.remove($FILE)
+      - not-pattern: |
+          $VALIDATED = _validate_file_path(...)
+          os.remove($VALIDATED)
+
+  # RULE 10: Detect unsafe os.rmdir() usage
+  - id: owasp-path-traversal-os-rmdir
+    languages: [python]
+    message: |
+      Potential path traversal: os.rmdir() called with unvalidated directory path.
+      This allows attackers to delete arbitrary directories.
+
+      Risk: Path Traversal (CWE-22)
+      Impact: High - arbitrary directory deletion
+      Fix: Validate directory path before deletion
+    severity: ERROR
+    pattern: os.rmdir($DIR)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 11: Detect shared rate limiting ("public" identifier)
+  - id: owasp-shared-rate-limiting
+    languages: [python]
+    message: |
+      Rate limiting uses shared "public" identifier instead of per-user rate limiting.
+      This allows one user to exhaust the rate limit for all users.
+
+      Risk: DoS (CWE-770)
+      Impact: Medium - service disruption for all users
+
+      Fix: Use per-user rate limiting:
+      ```python
+      @check_rate_limit(
+          identifier=lambda user: f"endpoint:{user.id}",
+          endpoint_type="user"
+      )
+      ```
+    severity: WARNING
+    pattern: check_rate_limit(identifier="public", ...)
+    metadata:
+      category: security
+      owasp: "A04:2021 - Insecure Design"
+      cwe: "CWE-770: Allocation of Resources Without Limits or Throttling"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 12: Detect missing CSRF protection on state-changing endpoints
+  - id: owasp-missing-csrf-protection
+    languages: [python]
+    message: |
+      State-changing endpoint (POST/DELETE) without CSRF protection.
+      This allows Cross-Site Request Forgery attacks.
+
+      Risk: CSRF (CWE-352)
+      Impact: Medium - unauthorized actions performed on behalf of users
+
+      Fix: Require CSRF token:
+      ```python
+      from fastapi import Form
+
+      @router.post("/endpoint")
+      async def endpoint(
+          csrf_token: str = Form(...),
+          ...
+      ):
+          validate_csrf_token(csrf_token, user.id)
+      ```
+    severity: WARNING
+    pattern-either:
+      - pattern: |
+          @router.post(...)
+          async def $FUNC(...):
+              ...
+      - pattern: |
+          @router.delete(...)
+          async def $FUNC(...):
+              ...
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-352: Cross-Site Request Forgery (CSRF)"
+    paths:
+      include:
+        - app/api/v1/endpoints/*.py
+    # Check that CSRF token is NOT required
+    patterns-logic:
+      - pattern: |
+          @router.post(...)
+          async def $FUNC(...):
+            ...
+      - not-pattern: |
+          @router.post(...)
+          async def $FUNC(..., csrf_token: str = Form(...)):
+            ...
+
+  # RULE 13: Detect missing audit logging for export operations
+  - id: owasp-missing-export-audit-log
+    languages: [python]
+    message: |
+      Data export operation without comprehensive audit logging.
+      Data exports must be logged for compliance and security monitoring.
+
+      Risk: Security Monitoring Gap (CWE-778)
+      Impact: Medium - unable to detect data exfiltration
+
+      Fix: Add audit logging:
+      ```python
+      await audit_logger.log_event(AuditEvent(
+          action=AuditAction.CREATE,
+          user_id=user_id,
+          resource="/data-exports",
+          details={"export_id": export_id, "format": format}
+      ))
+      ```
+    severity: WARNING
+    pattern: |
+      @router.post("/data-exports")
+      ...
+      async def create_export(...):
+          ...
+          return SuccessResponse(...)
+    metadata:
+      category: security
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      cwe: "CWE-778: Insufficient Logging"
+    paths:
+      include:
+        - app/api/v1/endpoints/data_export*.py
+    patterns-logic:
+      - pattern: |
+          @router.post("/data-exports")
+          async def create_export(...):
+            ...
+            return SuccessResponse(...)
+      - not-pattern: |
+          @router.post("/data-exports")
+          async def create_export(...):
+            ...
+            await audit_logger.log_event(...)
+
+  # RULE 14: Detect syntax errors with misplaced decorators
+  - id: owasp-syntax-error-misplaced-decorator
+    languages: [python]
+    message: |
+      Syntax error: Decorator appears to be misplaced or incomplete.
+      This causes the application to fail on startup.
+
+      Risk: Application Broken (CWE-N/A)
+      Impact: Critical - code won't run
+
+      Fix: Properly structure decorators and exception handling
+    severity: ERROR
+    pattern-regex: '@\w+\([^)]*\)\s*\)\s*raise'
+    metadata:
+      category: code-quality
+      owasp: "A05:2021 - Security Misconfiguration"
+      cwe: "Code Error"
+    paths:
+      include:
+        - app/api/**/*.py
+
+  # RULE 15: Detect incomplete exception handling
+  - id: owasp-incomplete-exception-handling
+    languages: [python]
+    message: |
+      Syntax error: Incomplete exception handling.
+      This causes the application to fail on startup.
+
+      Risk: Application Broken
+      Impact: Critical - code won't run
+
+      Fix: Complete the exception handling block
+    severity: ERROR
+    pattern-regex: 'except\s+\w+\n\s*@'
+    metadata:
+      category: code-quality
+      owasp: "A05:2021 - Security Misconfiguration"
+    paths:
+      include:
+        - app/api/**/*.py

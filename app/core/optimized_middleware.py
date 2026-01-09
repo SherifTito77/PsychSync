@@ -3,17 +3,20 @@ Performance-Optimized Middleware Configuration
 Conditional middleware loading based on environment and load
 """
 
-import time
+from collections.abc import Callable
 import gzip
-from typing import Callable, Dict, Any, Optional
+import logging
+import time
+from typing import Any
+
 from fastapi import Request, Response
 from fastapi.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 
 from app.core.config import settings
-import logging
 
 logger = logging.getLogger("app.middleware.optimized")
+
 
 class OptimizedCompressionMiddleware(BaseHTTPMiddleware):
     """
@@ -30,10 +33,7 @@ class OptimizedCompressionMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Only compress if response meets criteria
-        if (
-            self.should_compress(response) and
-            not isinstance(response, StreamingResponse)
-        ):
+        if self.should_compress(response) and not isinstance(response, StreamingResponse):
             response = await self.compress_response(response)
 
         return response
@@ -54,8 +54,12 @@ class OptimizedCompressionMiddleware(BaseHTTPMiddleware):
         # Don't compress images, videos, and other binary content
         content_type = response.headers.get("content-type", "").lower()
         skip_types = [
-            "image/", "video/", "audio/", "application/pdf",
-            "application/zip", "application/octet-stream"
+            "image/",
+            "video/",
+            "audio/",
+            "application/pdf",
+            "application/zip",
+            "application/octet-stream",
         ]
         if any(skip_type in content_type for skip_type in skip_types):
             return False
@@ -108,7 +112,9 @@ class SmartLoggingMiddleware(BaseHTTPMiddleware):
     Smart logging middleware that reduces overhead under load
     """
 
-    def __init__(self, app, log_slow_requests_only: bool = True, slow_request_threshold: float = 1.0):
+    def __init__(
+        self, app, log_slow_requests_only: bool = True, slow_request_threshold: float = 1.0
+    ):
         super().__init__(app)
         self.log_slow_requests_only = log_slow_requests_only
         self.slow_request_threshold = slow_request_threshold
@@ -120,9 +126,9 @@ class SmartLoggingMiddleware(BaseHTTPMiddleware):
 
         # Log based on configuration and response time
         should_log = (
-            not self.log_slow_requests_only or
-            duration > self.slow_request_threshold or
-            response.status_code >= 500
+            not self.log_slow_requests_only
+            or duration > self.slow_request_threshold
+            or response.status_code >= 500
         )
 
         if should_log:
@@ -139,16 +145,22 @@ class SmartLoggingMiddleware(BaseHTTPMiddleware):
                 "status_code": response.status_code,
                 "duration_ms": round(duration * 1000, 2),
                 "user_agent": request.headers.get("user-agent", "unknown"),
-                "client_ip": self.get_client_ip(request)
+                "client_ip": self.get_client_ip(request),
             }
 
             # Use appropriate log level
             if response.status_code >= 500:
-                logger.error(f"Server Error: {request.method} {request.url} - {response.status_code} ({log_data['duration_ms']}ms)")
+                logger.error(
+                    f"Server Error: {request.method} {request.url} - {response.status_code} ({log_data['duration_ms']}ms)"
+                )
             elif duration > self.slow_request_threshold:
-                logger.warning(f"Slow Request: {request.method} {request.url} - {response.status_code} ({log_data['duration_ms']}ms)")
+                logger.warning(
+                    f"Slow Request: {request.method} {request.url} - {response.status_code} ({log_data['duration_ms']}ms)"
+                )
             else:
-                logger.info(f"Request: {request.method} {request.url} - {response.status_code} ({log_data['duration_ms']}ms)")
+                logger.info(
+                    f"Request: {request.method} {request.url} - {response.status_code} ({log_data['duration_ms']}ms)"
+                )
 
         except Exception as e:
             logger.error(f"Logging failed: {e}")
@@ -169,7 +181,9 @@ def setup_optimized_middleware(app) -> None:
     if settings.ENVIRONMENT == "production":
         # Production: Enable optimized compression and smart logging
         app.add_middleware(OptimizedCompressionMiddleware, min_size=1024, compresslevel=3)
-        app.add_middleware(SmartLoggingMiddleware, log_slow_requests_only=True, slow_request_threshold=1.0)
+        app.add_middleware(
+            SmartLoggingMiddleware, log_slow_requests_only=True, slow_request_threshold=1.0
+        )
 
         logger.info("✅ Optimized middleware enabled for production")
 
@@ -190,31 +204,31 @@ def setup_optimized_middleware(app) -> None:
 
 
 # Performance monitoring
-def get_middleware_performance_info() -> Dict[str, Any]:
+def get_middleware_performance_info() -> dict[str, Any]:
     """Get current middleware performance information"""
     return {
         "compression_middleware": {
             "enabled": settings.ENVIRONMENT != "development",
             "min_size": 1024 if settings.ENVIRONMENT == "production" else 2048,
-            "compresslevel": 3 if settings.ENVIRONMENT == "production" else 1
+            "compresslevel": 3 if settings.ENVIRONMENT == "production" else 1,
         },
         "logging_middleware": {
             "enabled": settings.ENVIRONMENT != "development",
             "slow_request_only": settings.ENVIRONMENT == "production",
-            "slow_request_threshold": 1.0 if settings.ENVIRONMENT == "production" else 0.5
+            "slow_request_threshold": 1.0 if settings.ENVIRONMENT == "production" else 0.5,
         },
         "environment": settings.ENVIRONMENT,
         "optimizations_applied": [
             "Conditional compression",
             "Smart logging",
-            "Performance-first design"
-        ]
+            "Performance-first design",
+        ],
     }
 
 
 __all__ = [
     "OptimizedCompressionMiddleware",
     "SmartLoggingMiddleware",
+    "get_middleware_performance_info",
     "setup_optimized_middleware",
-    "get_middleware_performance_info"
 ]

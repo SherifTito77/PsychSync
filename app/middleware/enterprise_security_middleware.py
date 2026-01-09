@@ -3,38 +3,34 @@ Enterprise Security Middleware
 Integrates SOC 2, ISO 27001, GDPR, HIPAA, and FedRAMP compliance
 """
 
-import os
-import time
-import json
-import hashlib
+from datetime import datetime
+import logging
 import secrets
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any
-from fastapi import Request, Response, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import time
+
+from fastapi import HTTPException, Request, Response
+from fastapi.security import HTTPBearer
+import redis
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-import redis
-import logging
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-import jwt
-from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.database import get_db
 from app.core.enterprise_security import (
+    ComplianceStandard,
     EnterpriseSecurityManager,
     SecurityEvent,
-    ComplianceStandard,
-    DataClassification
 )
-from app.core.database import get_db
-from app.core.config import settings
 
 # Security configuration
 security = HTTPBearer(auto_error=False)
 limiter = Limiter(key_func=get_remote_address)
 logger = logging.getLogger(__name__)
+
 
 class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
     """
@@ -59,7 +55,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_timeout=True
+                retry_on_timeout=True,
             )
 
             # Test Redis connection
@@ -67,7 +63,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             logger.info("Redis connection established for security middleware")
 
         except Exception as e:
-            logger.error(f"Failed to initialize Redis: {str(e)}")
+            logger.error(f"Failed to initialize Redis: {e!s}")
             # Continue without Redis for development
             self.redis_client = None
 
@@ -96,7 +92,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             await self._log_security_event(request, "HTTP_EXCEPTION", e.detail, False)
             return self._create_secure_error_response(e.status_code, e.detail)
         except Exception as e:
-            logger.error(f"Security middleware error: {str(e)}")
+            logger.error(f"Security middleware error: {e!s}")
             await self._log_security_event(request, "SYSTEM_ERROR", str(e), False)
             return self._create_secure_error_response(500, "Internal server error")
 
@@ -107,18 +103,12 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check for blocked IPs
         if await self._is_ip_blocked(client_ip):
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied: IP address blocked"
-            )
+            raise HTTPException(status_code=403, detail="Access denied: IP address blocked")
 
         # Validate request size
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > 10 * 1024 * 1024:  # 10MB limit
-            raise HTTPException(
-                status_code=413,
-                detail="Request entity too large"
-            )
+            raise HTTPException(status_code=413, detail="Request entity too large")
 
         # Check for malicious patterns in headers
         await self._validate_request_headers(request)
@@ -141,10 +131,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         event_outcome = response.status_code < 400
 
         await self._log_security_event(
-            request,
-            "API_REQUEST",
-            f"Request processed in {processing_time:.3f}s",
-            event_outcome
+            request, "API_REQUEST", f"Request processed in {processing_time:.3f}s", event_outcome
         )
 
         # Monitor for suspicious patterns
@@ -178,17 +165,12 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             is_blocked = self.redis_client.get(f"blocked_ip:{ip_address}")
             return bool(is_blocked)
         except Exception as e:
-            logger.error(f"Failed to check blocked IP: {str(e)}")
+            logger.error(f"Failed to check blocked IP: {e!s}")
             return False
 
     async def _validate_request_headers(self, request: Request):
         """Validate request headers for security threats"""
-        suspicious_headers = [
-            "x-forwarded-host",
-            "x-original-url",
-            "x-rewrite-url",
-            "x-real-url"
-        ]
+        suspicious_headers = ["x-forwarded-host", "x-original-url", "x-rewrite-url", "x-real-url"]
 
         for header in suspicious_headers:
             if header in request.headers:
@@ -198,8 +180,14 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         # Check for common attack patterns
         user_agent = request.headers.get("user-agent", "").lower()
         attack_patterns = [
-            "sqlmap", "nikto", "nmap", "masscan", "dirb",
-            "python-requests", "curl", "wget"
+            "sqlmap",
+            "nikto",
+            "nmap",
+            "masscan",
+            "dirb",
+            "python-requests",
+            "curl",
+            "wget",
         ]
 
         for pattern in attack_patterns:
@@ -224,29 +212,25 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check global rate limit
         await self._check_rate_limit(
-            f"global:{client_ip}",
-            limits["global"],
-            "Global rate limit exceeded"
+            f"global:{client_ip}", limits["global"], "Global rate limit exceeded"
         )
 
         # Check endpoint-specific rate limit
         await self._check_rate_limit(
-            f"endpoint:{client_ip}:{endpoint}",
-            limits["endpoint"],
-            "Endpoint rate limit exceeded"
+            f"endpoint:{client_ip}:{endpoint}", limits["endpoint"], "Endpoint rate limit exceeded"
         )
 
         # Check burst protection
         await self._check_burst_protection(client_ip)
 
-    def _get_rate_limits_by_role(self, role: str) -> Dict[str, int]:
+    def _get_rate_limits_by_role(self, role: str) -> dict[str, int]:
         """Get rate limits based on user role"""
         limits = {
             "anonymous": {"global": 10, "endpoint": 5},
             "user": {"global": 100, "endpoint": 50},
             "premium_user": {"global": 500, "endpoint": 200},
             "admin": {"global": 1000, "endpoint": 500},
-            "super_admin": {"global": 2000, "endpoint": 1000}
+            "super_admin": {"global": 2000, "endpoint": 1000},
         }
         return limits.get(role, limits["user"])
 
@@ -263,7 +247,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         except RateLimitExceeded:
             raise
         except Exception as e:
-            logger.error(f"Rate limiting check failed: {str(e)}")
+            logger.error(f"Rate limiting check failed: {e!s}")
 
     async def _check_burst_protection(self, client_ip: str):
         """Check burst protection for rapid requests"""
@@ -278,11 +262,10 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             if burst_count > 20:
                 self.redis_client.setex(f"blocked_ip:{client_ip}", 300, "1")  # Block for 5 minutes
                 raise HTTPException(
-                    status_code=429,
-                    detail="Burst limit exceeded - temporarily blocked"
+                    status_code=429, detail="Burst limit exceeded - temporarily blocked"
                 )
         except Exception as e:
-            logger.error(f"Burst protection check failed: {str(e)}")
+            logger.error(f"Burst protection check failed: {e!s}")
 
     async def _add_security_headers(self, response: Response):
         """Add security headers to response"""
@@ -307,7 +290,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                 "camera=(), microphone=(), geolocation=(), "
                 "payment=(), usb=(), magnetometer=(), "
                 "gyroscope=(), accelerometer=(), ambient-light-sensor=()"
-            )
+            ),
         }
 
         for header, value in security_headers.items():
@@ -319,10 +302,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         """Log security event for compliance monitoring"""
         try:
             # Determine applicable compliance standards
-            compliance_standards = [
-                ComplianceStandard.SOC_2_TYPE_II,
-                ComplianceStandard.ISO_27001
-            ]
+            compliance_standards = [ComplianceStandard.SOC_2_TYPE_II, ComplianceStandard.ISO_27001]
 
             # Add GDPR for data-related events
             if any(keyword in event_type.lower() for keyword in ["data", "export", "erasure"]):
@@ -348,19 +328,19 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     "details": details,
                     "endpoint": str(request.url.path),
                     "user_agent": request.headers.get("user-agent", ""),
-                    "content_length": request.headers.get("content-length")
-                }
+                    "content_length": request.headers.get("content-length"),
+                },
             )
 
             # Log through security manager if available
-            if hasattr(self, 'security_manager') and self.security_manager:
+            if hasattr(self, "security_manager") and self.security_manager:
                 self.security_manager.log_security_event(event)
             else:
                 # Fallback logging
                 logger.info(f"Security Event: {event_type} - {details}")
 
         except Exception as e:
-            logger.error(f"Failed to log security event: {str(e)}")
+            logger.error(f"Failed to log security event: {e!s}")
 
     async def _increment_suspicious_activity(self, request: Request, activity_type: str):
         """Track suspicious activity for potential blocking"""
@@ -377,31 +357,25 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         if count >= 10:
             self.redis_client.setex(f"blocked_ip:{client_ip}", 3600, "1")  # Block for 1 hour
             await self._log_security_event(
-                request,
-                "SUSPICIOUS_ACTIVITY_BLOCKED",
-                f"IP blocked for {activity_type}",
-                False
+                request, "SUSPICIOUS_ACTIVITY_BLOCKED", f"IP blocked for {activity_type}", False
             )
 
     async def _monitor_slow_request(self, request: Request, processing_time: float):
         """Monitor slow requests for potential attacks"""
         if processing_time > 60:  # Very slow requests
             await self._log_security_event(
-                request,
-                "SLOW_REQUEST",
-                f"Request took {processing_time:.2f} seconds",
-                False
+                request, "SLOW_REQUEST", f"Request took {processing_time:.2f} seconds", False
             )
 
     async def _sanitize_response_data(self, response: Response) -> Response:
         """Sanitize response data to prevent information leakage"""
         try:
-            if hasattr(response, 'body') and response.body:
+            if hasattr(response, "body") and response.body:
                 # This would need to be implemented based on your response structure
                 # For now, ensure no error messages leak sensitive information
                 pass
         except Exception as e:
-            logger.error(f"Failed to sanitize response: {str(e)}")
+            logger.error(f"Failed to sanitize response: {e!s}")
 
         return response
 
@@ -416,7 +390,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             413: "Request too large",
             429: "Rate limit exceeded",
             500: "Internal server error",
-            503: "Service temporarily unavailable"
+            503: "Service temporarily unavailable",
         }
 
         safe_message = safe_messages.get(status_code, "An error occurred")
@@ -426,37 +400,29 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             content={
                 "error": safe_message,
                 "error_id": secrets.token_hex(8),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
     async def _handle_rate_limit_exceeded(
         self, request: Request, exc: RateLimitExceeded
     ) -> JSONResponse:
         """Handle rate limit exceeded exceptions"""
-        await self._log_security_event(
-            request,
-            "RATE_LIMIT_EXCEEDED",
-            str(exc),
-            False
-        )
+        await self._log_security_event(request, "RATE_LIMIT_EXCEEDED", str(exc), False)
 
-        return self._create_secure_error_response(
-            429,
-            "Rate limit exceeded"
-        )
+        return self._create_secure_error_response(429, "Rate limit exceeded")
+
 
 # GDPR Data Protection API endpoints
 from fastapi import APIRouter, Depends
+
 from app.db.database import get_db
 
 gdpr_router = APIRouter(prefix="/api/v1/gdpr", tags=["GDPR"])
 
+
 @gdpr_router.get("/data-portability/{user_id}")
-async def get_user_data_portability(
-    user_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_user_data_portability(user_id: str, db: Session = Depends(get_db)):
     """
     GDPR Article 20: Right to data portability
     Provides user's personal data in machine-readable format
@@ -471,14 +437,12 @@ async def get_user_data_portability(
         return JSONResponse(content=user_data)
 
     except Exception as e:
-        logger.error(f"GDPR data portability failed: {str(e)}")
+        logger.error(f"GDPR data portability failed: {e!s}")
         raise HTTPException(status_code=500, detail="Data export failed")
 
+
 @gdpr_router.delete("/right-to-erasure/{user_id}")
-async def request_data_erasure(
-    user_id: str,
-    db: Session = Depends(get_db)
-):
+async def request_data_erasure(user_id: str, db: Session = Depends(get_db)):
     """
     GDPR Article 17: Right to erasure ('right to be forgotten')
     Removes user's personal data from system
@@ -490,33 +454,31 @@ async def request_data_erasure(
         if "error" in erasure_results:
             raise HTTPException(status_code=500, detail="Data erasure failed")
 
-        return JSONResponse(content={
-            "message": "Data erasure request processed",
-            "results": erasure_results,
-            "request_id": secrets.token_hex(16)
-        })
+        return JSONResponse(
+            content={
+                "message": "Data erasure request processed",
+                "results": erasure_results,
+                "request_id": secrets.token_hex(16),
+            }
+        )
 
     except Exception as e:
-        logger.error(f"GDPR data erasure failed: {str(e)}")
+        logger.error(f"GDPR data erasure failed: {e!s}")
         raise HTTPException(status_code=500, detail="Data erasure failed")
+
 
 # Compliance Monitoring API
 compliance_router = APIRouter(prefix="/api/v1/compliance", tags=["Compliance"])
 
+
 @compliance_router.get("/security-report")
-async def get_security_report(
-    standards: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
+async def get_security_report(standards: str | None = None, db: Session = Depends(get_db)):
     """Generate compliance security report"""
     try:
         security_manager = EnterpriseSecurityManager(db, None)
 
         if standards:
-            selected_standards = [
-                ComplianceStandard(std.strip())
-                for std in standards.split(",")
-            ]
+            selected_standards = [ComplianceStandard(std.strip()) for std in standards.split(",")]
         else:
             selected_standards = list(ComplianceStandard)
 
@@ -528,14 +490,12 @@ async def get_security_report(
         return JSONResponse(content=report)
 
     except Exception as e:
-        logger.error(f"Compliance report generation failed: {str(e)}")
+        logger.error(f"Compliance report generation failed: {e!s}")
         raise HTTPException(status_code=500, detail="Report generation failed")
 
+
 @compliance_router.post("/access-review")
-async def perform_access_review(
-    review_period_days: int = 90,
-    db: Session = Depends(get_db)
-):
+async def perform_access_review(review_period_days: int = 90, db: Session = Depends(get_db)):
     """Perform access review for compliance"""
     try:
         security_manager = EnterpriseSecurityManager(db, None)
@@ -547,8 +507,9 @@ async def perform_access_review(
         return JSONResponse(content=review_report)
 
     except Exception as e:
-        logger.error(f"Access review failed: {str(e)}")
+        logger.error(f"Access review failed: {e!s}")
         raise HTTPException(status_code=500, detail="Access review failed")
+
 
 # Include routers in main application
 def include_security_routers(app):

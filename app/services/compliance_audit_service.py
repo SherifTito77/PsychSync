@@ -3,24 +3,27 @@ Enhanced Compliance Audit Service
 Provides comprehensive audit logging for GDPR compliance and security monitoring
 """
 
-import json
-import hashlib
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
-from sqlalchemy.orm import Session
-from sqlalchemy import Column, String, Text, DateTime, Boolean, Integer, ForeignKey, Index
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
 from enum import Enum
+import hashlib
+import json
 import logging
+from typing import Any
+
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
+
 class AuditAction(str, Enum):
     """Audit action types"""
+
     # User actions
     USER_REGISTER = "user_register"
     USER_LOGIN = "user_login"
@@ -52,8 +55,10 @@ class AuditAction(str, Enum):
     SYSTEM_MAINTENANCE = "system_maintenance"
     SYSTEM_ERROR = "system_error"
 
+
 class ComplianceAudit(Base):
     """Enhanced compliance audit log model"""
+
     __tablename__ = "compliance_audit_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
@@ -77,7 +82,7 @@ class ComplianceAudit(Base):
     # Data context
     old_values = Column(JSONB, nullable=True)  # Previous state
     new_values = Column(JSONB, nullable=True)  # New state
-    audit_metadata = Column(JSONB, nullable=True)   # Additional context
+    audit_metadata = Column(JSONB, nullable=True)  # Additional context
 
     # Compliance fields
     legal_basis = Column(String(100), nullable=True)  # GDPR legal basis
@@ -90,7 +95,9 @@ class ComplianceAudit(Base):
     error_message = Column(Text, nullable=True)
 
     # Classification
-    data_classification = Column(String(50), default="internal")  # public, internal, confidential, restricted
+    data_classification = Column(
+        String(50), default="internal"
+    )  # public, internal, confidential, restricted
     impact_level = Column(String(20), default="low")  # low, medium, high
 
     # Hashing for integrity
@@ -98,13 +105,14 @@ class ComplianceAudit(Base):
 
     # Indexes for performance
     __table_args__ = (
-        Index('idx_audit_user_timestamp', 'user_id', 'timestamp'),
-        Index('idx_audit_action_timestamp', 'action', 'timestamp'),
-        Index('idx_audit_resource', 'resource_type', 'resource_id'),
-        Index('idx_audit_compliance', 'legal_basis', 'retention_period'),
-        Index('idx_audit_security', 'risk_level', 'success'),
-        Index('idx_audit_data_subject', 'data_subject_id', 'timestamp'),
+        Index("idx_audit_user_timestamp", "user_id", "timestamp"),
+        Index("idx_audit_action_timestamp", "action", "timestamp"),
+        Index("idx_audit_resource", "resource_type", "resource_id"),
+        Index("idx_audit_compliance", "legal_basis", "retention_period"),
+        Index("idx_audit_security", "risk_level", "success"),
+        Index("idx_audit_data_subject", "data_subject_id", "timestamp"),
     )
+
 
 class ComplianceAuditService:
     """Enhanced compliance audit service"""
@@ -114,13 +122,13 @@ class ComplianceAuditService:
             AuditAction.GDPR_DATA_DELETE,
             AuditAction.USER_DELETE,
             AuditAction.SECURITY_2FA_DISABLED,
-            AuditAction.DATA_EXPORT
+            AuditAction.DATA_EXPORT,
         }
 
         self.sensitive_actions = {
             AuditAction.GDPR_DATA_EXPORT,
             AuditAction.GDPR_CONSENT_WITHDRAW,
-            AuditAction.SECURITY_PASSWORD_CHANGE
+            AuditAction.SECURITY_PASSWORD_CHANGE,
         }
 
     async def log_action(
@@ -131,9 +139,9 @@ class ComplianceAuditService:
         resource_id: str = None,
         user_id: str = None,
         session_id: str = None,
-        old_values: Dict = None,
-        new_values: Dict = None,
-        audit_metadata: Dict = None,
+        old_values: dict = None,
+        new_values: dict = None,
+        audit_metadata: dict = None,
         ip_address: str = None,
         user_agent: str = None,
         request_method: str = None,
@@ -142,7 +150,7 @@ class ComplianceAuditService:
         data_subject_id: str = None,
         success: bool = True,
         error_message: str = None,
-        data_classification: str = "internal"
+        data_classification: str = "internal",
     ) -> ComplianceAudit:
         """
         Log an audit action with comprehensive context
@@ -196,7 +204,7 @@ class ComplianceAuditService:
                 data_classification=data_classification,
                 impact_level=impact_level,
                 risk_level=risk_level,
-                retention_period=self._determine_retention_period(action, data_classification)
+                retention_period=self._determine_retention_period(action, data_classification),
             )
 
             # Calculate integrity hash
@@ -217,18 +225,18 @@ class ComplianceAuditService:
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Failed to log audit action: {str(e)}")
+            logger.error(f"Failed to log audit action: {e!s}")
             raise
 
     async def search_audit_logs(
         self,
         db: Session,
-        filters: Dict[str, Any] = None,
+        filters: dict[str, Any] = None,
         page: int = 1,
         limit: int = 50,
         sort_by: str = "timestamp",
-        sort_desc: bool = True
-    ) -> Dict[str, Any]:
+        sort_desc: bool = True,
+    ) -> dict[str, Any]:
         """
         Search audit logs with advanced filtering
 
@@ -264,7 +272,9 @@ class ComplianceAuditService:
                     query = query.filter(ComplianceAudit.risk_level == filters["risk_level"])
 
                 if filters.get("data_subject_id"):
-                    query = query.filter(ComplianceAudit.data_subject_id == filters["data_subject_id"])
+                    query = query.filter(
+                        ComplianceAudit.data_subject_id == filters["data_subject_id"]
+                    )
 
                 if filters.get("start_date"):
                     query = query.filter(ComplianceAudit.timestamp >= filters["start_date"])
@@ -306,7 +316,7 @@ class ComplianceAuditService:
                     "old_values": log.old_values,
                     "new_values": log.new_values,
                     "metadata": log.metadata,
-                    "error_message": log.error_message
+                    "error_message": log.error_message,
                 }
                 for log in results
             ]
@@ -316,30 +326,28 @@ class ComplianceAuditService:
                 "total": total,
                 "page": page,
                 "limit": limit,
-                "total_pages": (total + limit - 1) // limit
+                "total_pages": (total + limit - 1) // limit,
             }
 
         except Exception as e:
-            logger.error(f"Failed to search audit logs: {str(e)}")
+            logger.error(f"Failed to search audit logs: {e!s}")
             raise
 
     async def get_user_activity_summary(
-        self,
-        db: Session,
-        user_id: str,
-        days: int = 30
-    ) -> Dict[str, Any]:
+        self, db: Session, user_id: str, days: int = 30
+    ) -> dict[str, Any]:
         """Get activity summary for a specific user"""
 
         start_date = datetime.utcnow() - timedelta(days=days)
 
         # Get user's audit logs
-        logs = db.query(ComplianceAudit).filter(
-            and_(
-                ComplianceAudit.user_id == user_id,
-                ComplianceAudit.timestamp >= start_date
+        logs = (
+            db.query(ComplianceAudit)
+            .filter(
+                and_(ComplianceAudit.user_id == user_id, ComplianceAudit.timestamp >= start_date)
             )
-        ).all()
+            .all()
+        )
 
         # Analyze activity patterns
         actions_by_type = {}
@@ -366,7 +374,9 @@ class ComplianceAuditService:
             "period_days": days,
             "total_actions": total_actions,
             "failed_actions": failed_actions,
-            "success_rate": ((total_actions - failed_actions) / total_actions * 100) if total_actions > 0 else 0,
+            "success_rate": ((total_actions - failed_actions) / total_actions * 100)
+            if total_actions > 0
+            else 0,
             "actions_by_type": actions_by_type,
             "actions_by_risk": actions_by_risk,
             "recent_activity": [
@@ -375,73 +385,83 @@ class ComplianceAuditService:
                     "action": log.action,
                     "resource_type": log.resource_type,
                     "success": log.success,
-                    "risk_level": log.risk_level
+                    "risk_level": log.risk_level,
                 }
                 for log in recent_logs
-            ]
+            ],
         }
 
     async def generate_compliance_report(
-        self,
-        db: Session,
-        start_date: datetime,
-        end_date: datetime
-    ) -> Dict[str, Any]:
+        self, db: Session, start_date: datetime, end_date: datetime
+    ) -> dict[str, Any]:
         """Generate comprehensive compliance report"""
 
         # Get all audit logs in the period
-        logs = db.query(ComplianceAudit).filter(
-            and_(
-                ComplianceAudit.timestamp >= start_date,
-                ComplianceAudit.timestamp <= end_date
+        logs = (
+            db.query(ComplianceAudit)
+            .filter(
+                and_(ComplianceAudit.timestamp >= start_date, ComplianceAudit.timestamp <= end_date)
             )
-        ).all()
+            .all()
+        )
 
         # Analyze data
         report_data = {
             "report_period": {
                 "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat()
+                "end_date": end_date.isoformat(),
             },
             "summary": {
                 "total_actions": len(logs),
                 "successful_actions": sum(1 for log in logs if log.success),
                 "failed_actions": sum(1 for log in logs if not log.success),
-                "high_risk_actions": sum(1 for log in logs if log.risk_level in ["high", "critical"]),
-                "gdpr_actions": sum(1 for log in logs if log.action.startswith("gdpr_"))
+                "high_risk_actions": sum(
+                    1 for log in logs if log.risk_level in ["high", "critical"]
+                ),
+                "gdpr_actions": sum(1 for log in logs if log.action.startswith("gdpr_")),
             },
             "actions_by_type": {},
             "actions_by_risk_level": {},
             "actions_by_legal_basis": {},
             "data_access_patterns": {},
-            "security_incidents": []
+            "security_incidents": [],
         }
 
         # Categorize actions
         for log in logs:
             # By action type
-            report_data["actions_by_type"][log.action] = report_data["actions_by_type"].get(log.action, 0) + 1
+            report_data["actions_by_type"][log.action] = (
+                report_data["actions_by_type"].get(log.action, 0) + 1
+            )
 
             # By risk level
-            report_data["actions_by_risk_level"][log.risk_level] = report_data["actions_by_risk_level"].get(log.risk_level, 0) + 1
+            report_data["actions_by_risk_level"][log.risk_level] = (
+                report_data["actions_by_risk_level"].get(log.risk_level, 0) + 1
+            )
 
             # By legal basis
             if log.legal_basis:
-                report_data["actions_by_legal_basis"][log.legal_basis] = report_data["actions_by_legal_basis"].get(log.legal_basis, 0) + 1
+                report_data["actions_by_legal_basis"][log.legal_basis] = (
+                    report_data["actions_by_legal_basis"].get(log.legal_basis, 0) + 1
+                )
 
             # Data access patterns
             if log.action in [AuditAction.DATA_READ, AuditAction.DATA_EXPORT]:
-                report_data["data_access_patterns"][log.resource_type] = report_data["data_access_patterns"].get(log.resource_type, 0) + 1
+                report_data["data_access_patterns"][log.resource_type] = (
+                    report_data["data_access_patterns"].get(log.resource_type, 0) + 1
+                )
 
             # Security incidents
             if not log.success and log.risk_level in ["high", "critical"]:
-                report_data["security_incidents"].append({
-                    "timestamp": log.timestamp.isoformat(),
-                    "user_id": str(log.user_id) if log.user_id else None,
-                    "action": log.action,
-                    "error_message": log.error_message,
-                    "ip_address": log.ip_address
-                })
+                report_data["security_incidents"].append(
+                    {
+                        "timestamp": log.timestamp.isoformat(),
+                        "user_id": str(log.user_id) if log.user_id else None,
+                        "action": log.action,
+                        "error_message": log.error_message,
+                        "ip_address": log.ip_address,
+                    }
+                )
 
         # Add recommendations
         report_data["recommendations"] = self._generate_compliance_recommendations(report_data)
@@ -453,22 +473,20 @@ class ComplianceAuditService:
 
         if action in self.high_risk_actions:
             return "critical"
-        elif action in self.sensitive_actions:
+        if action in self.sensitive_actions:
             return "high"
-        elif data_classification in ["confidential", "restricted"]:
+        if data_classification in ["confidential", "restricted"]:
             return "medium"
-        else:
-            return "low"
+        return "low"
 
     def _determine_impact_level(self, action: str, success: bool) -> str:
         """Determine impact level based on action and success"""
 
         if not success and action in self.high_risk_actions:
             return "high"
-        elif action in self.high_risk_actions:
+        if action in self.high_risk_actions:
             return "medium"
-        else:
-            return "low"
+        return "low"
 
     def _determine_retention_period(self, action: str, data_classification: str) -> int:
         """Determine retention period in days"""
@@ -476,21 +494,24 @@ class ComplianceAuditService:
         # GDPR requires audit logs to be kept for specific periods
         if action.startswith("gdpr_"):
             return 2555  # 7 years for GDPR compliance
-        elif data_classification in ["confidential", "restricted"]:
+        if data_classification in ["confidential", "restricted"]:
             return 1825  # 5 years for sensitive data
-        else:
-            return 1095  # 3 years for standard logs
+        return 1095  # 3 years for standard logs
 
     def _calculate_data_hash(self, audit_log: ComplianceAudit) -> str:
         """Calculate SHA-256 hash for data integrity"""
 
-        data_string = f"{audit_log.action}{audit_log.resource_type}{audit_log.timestamp}{audit_log.user_id}"
+        data_string = (
+            f"{audit_log.action}{audit_log.resource_type}{audit_log.timestamp}{audit_log.user_id}"
+        )
         return hashlib.sha256(data_string.encode()).hexdigest()
 
     async def _trigger_security_alert(self, audit_log: ComplianceAudit):
         """Trigger security alert for high-risk actions"""
         try:
-            alert_message = f"High-risk action detected: {audit_log.action} by user {audit_log.user_id}"
+            alert_message = (
+                f"High-risk action detected: {audit_log.action} by user {audit_log.user_id}"
+            )
             logger.warning(alert_message)
 
             # Here you could integrate with:
@@ -500,7 +521,7 @@ class ComplianceAuditService:
             # - Incident response workflows
 
         except Exception as e:
-            logger.error(f"Failed to trigger security alert: {str(e)}")
+            logger.error(f"Failed to trigger security alert: {e!s}")
 
     async def _log_to_external_system(self, audit_log: ComplianceAudit):
         """Log to external monitoring systems"""
@@ -520,34 +541,46 @@ class ComplianceAuditService:
                 "ip_address": audit_log.ip_address,
                 "risk_level": audit_log.risk_level,
                 "success": audit_log.success,
-                "data_classification": audit_log.data_classification
+                "data_classification": audit_log.data_classification,
             }
 
             logger.info(f"External audit log: {json.dumps(external_log)}")
 
         except Exception as e:
-            logger.error(f"Failed to log to external system: {str(e)}")
+            logger.error(f"Failed to log to external system: {e!s}")
 
-    def _generate_compliance_recommendations(self, report_data: Dict[str, Any]) -> List[str]:
+    def _generate_compliance_recommendations(self, report_data: dict[str, Any]) -> list[str]:
         """Generate compliance recommendations based on report data"""
 
         recommendations = []
 
         # High failure rate
-        if report_data["summary"]["failed_actions"] / max(report_data["summary"]["total_actions"], 1) > 0.1:
-            recommendations.append("High failure rate detected. Review error handling and user guidance.")
+        if (
+            report_data["summary"]["failed_actions"]
+            / max(report_data["summary"]["total_actions"], 1)
+            > 0.1
+        ):
+            recommendations.append(
+                "High failure rate detected. Review error handling and user guidance."
+            )
 
         # High number of high-risk actions
         if report_data["summary"]["high_risk_actions"] > 100:
-            recommendations.append("Consider implementing additional approval workflows for high-risk actions.")
+            recommendations.append(
+                "Consider implementing additional approval workflows for high-risk actions."
+            )
 
         # Security incidents
         if len(report_data["security_incidents"]) > 0:
-            recommendations.append("Security incidents detected. Review security controls and monitoring.")
+            recommendations.append(
+                "Security incidents detected. Review security controls and monitoring."
+            )
 
         # GDPR compliance
         if report_data["summary"]["gdpr_actions"] == 0:
-            recommendations.append("No GDPR-related actions logged. Ensure privacy compliance is being tracked.")
+            recommendations.append(
+                "No GDPR-related actions logged. Ensure privacy compliance is being tracked."
+            )
 
         return recommendations
 
@@ -558,13 +591,13 @@ class ComplianceAuditService:
             cutoff_date = datetime.utcnow() - timedelta(days=3650)  # 10 years maximum
 
             # Delete old logs (in production, this would be more sophisticated)
-            deleted_count = db.query(ComplianceAudit).filter(
-                ComplianceAudit.timestamp < cutoff_date
-            ).delete()
+            deleted_count = (
+                db.query(ComplianceAudit).filter(ComplianceAudit.timestamp < cutoff_date).delete()
+            )
 
             db.commit()
             logger.info(f"Cleaned up {deleted_count} old audit logs")
 
         except Exception as e:
             db.rollback()
-            logger.error(f"Failed to cleanup old audit logs: {str(e)}")
+            logger.error(f"Failed to cleanup old audit logs: {e!s}")

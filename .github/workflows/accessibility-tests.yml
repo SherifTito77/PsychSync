@@ -1,0 +1,282 @@
+name: Accessibility Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  accessibility:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Install accessibility testing tools
+        working-directory: ./frontend
+        run: |
+          npm install -D @axe-core/playwright playwright
+          npx playwright install --with-deps chromium
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Start production server
+        working-directory: ./frontend
+        run: |
+          npx serve dist -l 5173 &
+          echo $! > .server.pid
+          sleep 10
+
+      - name: Run accessibility tests
+        working-directory: ./frontend
+        run: |
+          chmod +x scripts/test-accessibility.sh
+          ./scripts/test-accessibility.sh
+
+      - name: Generate accessibility report
+        if: always()
+        working-directory: ./frontend
+        run: |
+          mkdir -p accessibility-reports
+
+          # Run axe-core on key pages and save reports
+          cat > accessibility-reports/generate-report.js << 'EOF'
+          const { chromium } = require('playwright');
+          const { AxeBuilder } = require('@axe-core/playwright');
+          const fs = require('fs');
+
+          const pages = [
+            { url: 'http://localhost:5173', name: 'Home' },
+            { url: 'http://localhost:5173/login', name: 'Login' },
+            { url: 'http://localhost:5173/register', name: 'Register' },
+          ];
+
+          async function testAccessibility() {
+            const browser = await chromium.launch();
+            const results = [];
+
+            for (const page of pages) {
+              const p = await browser.newPage();
+              await p.goto(page.url, { waitUntil: 'networkidle' });
+
+              const scanResults = await new AxeBuilder({ p })
+                .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+                .analyze();
+
+              results.push({
+                page: page.name,
+                url: page.url,
+                violations: scanResults.violations,
+                passes: scanResults.passes.length,
+              });
+
+              await p.close();
+            }
+
+            await browser.close();
+
+            // Save results
+            fs.writeFileSync(
+              'accessibility-reports/results.json',
+              JSON.stringify(results, null, 2)
+            );
+
+            // Generate HTML report
+            let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Accessibility Report</title>
+              <style>
+                body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+                h1 { color: #333; }
+                .page { border: 1px solid #ddd; margin: 20px 0; padding: 20px; border-radius: 8px; }
+                .page.pass { border-color: #10b981; }
+                .page.fail { border-color: #ef4444; }
+                .violation { background: #fef2f2; border-left: 4px solid #ef4444; padding: 10px; margin: 10px 0; }
+                .violation h4 { margin: 0 0 5px 0; color: #dc2626; }
+                .stats { display: flex; gap: 20px; margin: 20px 0; }
+                .stat { flex: 1; background: #f3f4f6; padding: 15px; border-radius: 8px; }
+                .stat-label { font-size: 12px; color: #6b7280; }
+                .stat-value { font-size: 24px; font-weight: bold; }
+              </style>
+            </head>
+            <body>
+              <h1>♿ Accessibility Test Report</h1>
+              <p>Generated: ${new Date().toISOString()}</p>
+            `;
+
+            const totalViolations = results.reduce((sum, r) => sum + r.violations.length, 0);
+            const totalPasses = results.reduce((sum, r) => sum + r.passes, 0);
+
+            html += `
+              <div class="stats">
+                <div class="stat">
+                  <div class="stat-value">${results.length}</div>
+                  <div class="stat-label">Pages Tested</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value">${totalViolations}</div>
+                  <div class="stat-label">Violations</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value">${totalPasses}</div>
+                  <div class="stat-label">Passed Rules</div>
+                </div>
+              </div>
+            `;
+
+            for (const result of results) {
+              const statusClass = result.violations.length === 0 ? 'pass' : 'fail';
+              html += `
+                <div class="page ${statusClass}">
+                  <h2>${result.page}</h2>
+                  <p><strong>URL:</strong> ${result.url}</p>
+                  <p><strong>Violations:</strong> ${result.violations.length} | <strong>Passed:</strong> ${result.passes}</p>
+              `;
+
+              if (result.violations.length > 0) {
+                html += '<h3>Violations:</h3>';
+                for (const violation of result.violations) {
+                  html += `
+                    <div class="violation">
+                      <h4>${violation.id} - ${violation.description}</h4>
+                      <p><strong>Impact:</strong> ${violation.impact}</p>
+                      <p><strong>Elements affected:</strong> ${violation.nodes.length}</p>
+                      <p><a href="${violation.helpUrl}" target="_blank">Learn more</a></p>
+                    </div>
+                  `;
+                }
+              } else {
+                html += '<p style="color: #10b981;">✅ No violations found!</p>';
+              }
+
+              html += '</div>';
+            }
+
+            html += '</body></html>';
+            fs.writeFileSync('accessibility-reports/report.html', html);
+          }
+
+          testAccessibility().catch(console.error);
+          EOF
+
+          node accessibility-reports/generate-report.js
+
+      - name: Upload accessibility report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-report
+          path: frontend/accessibility-reports/
+          retention-days: 30
+
+      - name: Comment PR with accessibility results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read results if available
+            const resultsPath = './frontend/accessibility-reports/results.json';
+            if (!fs.existsSync(resultsPath)) {
+              console.log('No accessibility results found');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+            const totalViolations = results.reduce((sum, r) => sum + r.violations.length, 0);
+            const totalPasses = results.reduce((sum, r) => sum + r.passes, 0);
+
+            // Build comment
+            let comment = `## ♿ Accessibility Test Results\n\n`;
+            comment += `### Summary\n\n`;
+            comment += `| Metric | Count |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| **Pages Tested** | ${results.length} |\n`;
+            comment += `| **Total Violations** | ${totalViolations} |\n`;
+            comment += `| **Total Passed Rules** | ${totalPasses} |\n\n`;
+
+            if (totalViolations > 0) {
+              comment += `### ⚠️ Issues Found\n\n`;
+              for (const result of results) {
+                if (result.violations.length > 0) {
+                  comment += `#### ${result.page}\n`;
+                  for (const v of result.violations.slice(0, 3)) {
+                    comment += `- **${v.id}**: ${v.description}\n`;
+                  }
+                  if (result.violations.length > 3) {
+                    comment += `  _...and ${result.violations.length - 3} more_\n`;
+                  }
+                  comment += '\n';
+                }
+              }
+              comment += `\n📄 See the full report in the workflow artifacts.\n`;
+            } else {
+              comment += `### ✅ No Accessibility Issues Found!\n\n`;
+              comment += `All tested pages passed accessibility checks.\n`;
+            }
+
+            comment += `\n---\n`;
+            comment += `💡 This comment is automatically generated by the Accessibility Tests workflow.`;
+
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Stop production server
+        if: always()
+        working-directory: ./frontend
+        run: |
+          if [ -f .server.pid ]; then
+            kill $(cat .server.pid) || true
+            rm .server.pid
+          fi
+
+      - name: Build summary
+        if: always()
+        run: |
+          echo "### Accessibility Test Results ♿" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the uploaded accessibility report artifact for detailed results." >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail on violations
+        if: always()
+        working-directory: ./frontend
+        run: |
+          if [ -f "accessibility-reports/results.json" ]; then
+            violations=$(cat accessibility-reports/results.json | grep -o '"violations":\[[0-9]*' | grep -o '[0-9]*' | awk '{sum+=$1} END {print sum}')
+            if [ "$violations" -gt 0 ]; then
+              echo "❌ Found $violations accessibility violations"
+              exit 1
+            else
+              echo "✅ No accessibility violations found"
+            fi
+          fi

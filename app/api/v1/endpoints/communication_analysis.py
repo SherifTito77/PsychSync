@@ -86,7 +86,7 @@ class InsightsSummaryResponse(BaseModel):
     recommendations_count: int
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/sentiment/summary", response_model=Dict[str, Any])
 async def get_sentiment_summary(
     days_back: int = Query(default=30, ge=1, le=365),
@@ -106,8 +106,8 @@ async def get_sentiment_summary(
         logger.error(f"Error getting sentiment summary: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-     
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
        detail="Failed to generate sentiment summary"
         )
 
@@ -146,8 +146,8 @@ async def get_communication_patterns(
     except Exception as e:
         logger.error(f"Error getting communication patterns: {e}")
         raise HTTPException(
-        
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze communication patterns"
         )

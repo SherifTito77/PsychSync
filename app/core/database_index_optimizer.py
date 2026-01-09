@@ -4,23 +4,24 @@ Advanced Database Index Optimization System for PsychSync
 Intelligent index management, analysis, and automated optimization
 """
 
-import asyncio
-import re
-from typing import Dict, Any, List, Optional, Tuple, Set
 from dataclasses import dataclass, field
-from enum import Enum
 from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, inspect
-from sqlalchemy.schema import Index, CreateTable, DropIndex
+from enum import Enum
+import re
+from typing import Any
 
-from app.core.query_optimizer import query_optimizer, QueryMetrics
-from app.core.structured_logging import get_logger, EventType
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.query_optimizer import QueryMetrics
+from app.core.structured_logging import EventType, get_logger
 
 logger = get_logger(__name__)
 
+
 class IndexType(Enum):
     """Types of database indexes"""
+
     BTREE = "btree"
     HASH = "hash"
     GIN = "gin"
@@ -30,58 +31,67 @@ class IndexType(Enum):
     EXPRESSION = "expression"
     COMPOSITE = "composite"
 
+
 class IndexPriority(Enum):
     """Priority levels for index creation"""
+
     CRITICAL = "critical"  # Immediate impact on performance
-    HIGH = "high"         # Significant improvement
-    MEDIUM = "medium"     # Moderate improvement
-    LOW = "low"          # Minor improvement
+    HIGH = "high"  # Significant improvement
+    MEDIUM = "medium"  # Moderate improvement
+    LOW = "low"  # Minor improvement
+
 
 @dataclass
 class IndexMetrics:
     """Metrics for a specific database index"""
+
     index_name: str
     table_name: str
-    column_names: List[str]
+    column_names: list[str]
     index_type: IndexType
     size_mb: float
     usage_count: int = 0
-    last_used: Optional[datetime] = None
+    last_used: datetime | None = None
     scan_count: int = 0
     tuples_read: int = 0
     tuples_returned: int = 0
-    creation_time: Optional[datetime] = None
+    creation_time: datetime | None = None
     is_partial: bool = False
     is_unique: bool = False
+
 
 @dataclass
 class IndexRecommendation:
     """Intelligent index recommendation based on query analysis"""
+
     table_name: str
-    column_names: List[str]
+    column_names: list[str]
     index_type: IndexType
     priority: IndexPriority
     estimated_improvement_ms: float
     estimated_impact_queries: int
     creation_sql: str
-    removal_sql: Optional[str] = None
+    removal_sql: str | None = None
     rationale: str = ""
-    dependencies: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
     risk_level: str = "LOW"  # LOW, MEDIUM, HIGH
     implementation_cost: str = "LOW"  # LOW, MEDIUM, HIGH
+
 
 @dataclass
 class IndexAnalysisReport:
     """Comprehensive index analysis report"""
+
     total_indexes: int
-    unused_indexes: List[IndexMetrics]
-    underutilized_indexes: List[IndexMetrics]
-    missing_indexes: List[IndexRecommendation]
-    oversized_indexes: List[IndexMetrics]
-    duplicate_indexes: List[IndexMetrics]
+    unused_indexes: list[IndexMetrics]
+    underutilized_indexes: list[IndexMetrics]
+    missing_indexes: list[IndexRecommendation]
+    oversized_indexes: list[IndexMetrics]
+    duplicate_indexes: list[IndexMetrics]
     index_efficiency_score: float
     potential_improvement_ms: float
-    recommendations: List[str]
+    recommendations: list[str]
+
 
 class DatabaseIndexOptimizer:
     """
@@ -91,12 +101,12 @@ class DatabaseIndexOptimizer:
 
     def __init__(self):
         self.logger = get_logger(__name__)
-        self.index_cache: Dict[str, IndexMetrics] = {}
-        self.query_index_mapping: Dict[str, List[str]] = {}
-        self.analysis_cache: Dict[str, Any] = {}
-        self.last_analysis_time: Optional[datetime] = None
+        self.index_cache: dict[str, IndexMetrics] = {}
+        self.query_index_mapping: dict[str, list[str]] = {}
+        self.analysis_cache: dict[str, Any] = {}
+        self.last_analysis_time: datetime | None = None
 
-    async def analyze_current_indexes(self, db: AsyncSession) -> List[IndexMetrics]:
+    async def analyze_current_indexes(self, db: AsyncSession) -> list[IndexMetrics]:
         """
         Analyze current database indexes and their usage statistics
         """
@@ -129,7 +139,7 @@ class DatabaseIndexOptimizer:
                     index_type=index_type,
                     size_mb=row.size_bytes / (1024 * 1024),
                     is_partial="WHERE" in row.indexdef.upper(),
-                    is_unique="UNIQUE" in row.indexdef.upper()
+                    is_unique="UNIQUE" in row.indexdef.upper(),
                 )
 
                 indexes.append(index_metrics)
@@ -142,7 +152,7 @@ class DatabaseIndexOptimizer:
                 EventType.DATABASE_OPERATION,
                 f"Analyzed {len(indexes)} database indexes",
                 operation_name="index_analysis",
-                index_count=len(indexes)
+                index_count=len(indexes),
             )
 
             return indexes
@@ -151,7 +161,7 @@ class DatabaseIndexOptimizer:
             self.logger.log_error(e, operation="analyze_current_indexes")
             raise
 
-    async def _update_index_usage_stats(self, db: AsyncSession, indexes: List[IndexMetrics]):
+    async def _update_index_usage_stats(self, db: AsyncSession, indexes: list[IndexMetrics]):
         """Update index usage statistics from PostgreSQL"""
         try:
             usage_query = text("""
@@ -182,10 +192,10 @@ class DatabaseIndexOptimizer:
             # Usage stats might not be available in all PostgreSQL versions
             logger.warning(f"Could not fetch index usage stats: {e}")
 
-    def _parse_index_definition(self, index_def: str) -> Tuple[List[str], IndexType]:
+    def _parse_index_definition(self, index_def: str) -> tuple[list[str], IndexType]:
         """Parse index definition to extract columns and type"""
         # Extract columns between parentheses
-        columns_match = re.search(r'\(([^)]+)\)', index_def)
+        columns_match = re.search(r"\(([^)]+)\)", index_def)
         if not columns_match:
             return [], IndexType.BTREE
 
@@ -193,13 +203,13 @@ class DatabaseIndexOptimizer:
 
         # Clean up column names
         columns = []
-        for col in columns_str.split(','):
+        for col in columns_str.split(","):
             col = col.strip()
             # Remove quotes if present
             if col.startswith('"') and col.endswith('"'):
                 col = col[1:-1]
             # Handle expressions (simplified)
-            if '(' in col or ')' in col:
+            if "(" in col or ")" in col:
                 return [col], IndexType.EXPRESSION
             columns.append(col)
 
@@ -225,9 +235,9 @@ class DatabaseIndexOptimizer:
     async def generate_index_recommendations(
         self,
         db: AsyncSession,
-        query_history: List[QueryMetrics],
-        min_priority: IndexPriority = IndexPriority.MEDIUM
-    ) -> List[IndexRecommendation]:
+        query_history: list[QueryMetrics],
+        min_priority: IndexPriority = IndexPriority.MEDIUM,
+    ) -> list[IndexRecommendation]:
         """
         Generate intelligent index recommendations based on query analysis
         """
@@ -245,11 +255,15 @@ class DatabaseIndexOptimizer:
                 recommendations.append(recommendation)
 
         # Sort by estimated impact
-        recommendations.sort(key=lambda x: x.estimated_improvement_ms * x.estimated_impact_queries, reverse=True)
+        recommendations.sort(
+            key=lambda x: x.estimated_improvement_ms * x.estimated_impact_queries, reverse=True
+        )
 
         return recommendations
 
-    def _analyze_query_patterns(self, query_history: List[QueryMetrics]) -> Dict[str, List[QueryMetrics]]:
+    def _analyze_query_patterns(
+        self, query_history: list[QueryMetrics]
+    ) -> dict[str, list[QueryMetrics]]:
         """Group queries by patterns for analysis"""
         patterns = {}
 
@@ -273,18 +287,16 @@ class DatabaseIndexOptimizer:
         pattern = query.lower().strip()
 
         # Remove specific values
-        pattern = re.sub(r'\b\d+\b', 'N', pattern)  # Numbers
-        pattern = re.sub(r":\w+", ':param', pattern)  # Named parameters
+        pattern = re.sub(r"\b\d+\b", "N", pattern)  # Numbers
+        pattern = re.sub(r":\w+", ":param", pattern)  # Named parameters
         pattern = re.sub(r"'[^']*'", "'VALUE'", pattern)  # String literals
         pattern = re.sub(r"\s+", " ", pattern)  # Normalize whitespace
 
         return pattern
 
     async def _create_index_recommendation(
-        self,
-        pattern: str,
-        queries: List[QueryMetrics]
-    ) -> Optional[IndexRecommendation]:
+        self, pattern: str, queries: list[QueryMetrics]
+    ) -> IndexRecommendation | None:
         """Create index recommendation for a query pattern"""
         # Extract table and column information
         table_columns = self._extract_table_columns_from_pattern(pattern)
@@ -304,27 +316,27 @@ class DatabaseIndexOptimizer:
 
         # Generate recommendation
         recommendation = IndexRecommendation(
-            table_name=best_config['table'],
-            column_names=best_config['columns'],
-            index_type=best_config['type'],
+            table_name=best_config["table"],
+            column_names=best_config["columns"],
+            index_type=best_config["type"],
             priority=self._calculate_recommendation_priority(estimated_improvement, len(queries)),
             estimated_improvement_ms=estimated_improvement,
             estimated_impact_queries=len(queries),
             creation_sql=self._generate_index_creation_sql(best_config),
-            rationale=best_config['rationale'],
-            risk_level=best_config['risk_level'],
-            implementation_cost=best_config['cost']
+            rationale=best_config["rationale"],
+            risk_level=best_config["risk_level"],
+            implementation_cost=best_config["cost"],
         )
 
         return recommendation
 
-    def _extract_table_columns_from_pattern(self, pattern: str) -> List[Tuple[str, List[str]]]:
+    def _extract_table_columns_from_pattern(self, pattern: str) -> list[tuple[str, list[str]]]:
         """Extract table and column information from query pattern"""
         table_columns = []
 
         # Simple regex patterns for common query structures
         # FROM clause
-        from_match = re.search(r'from\s+(\w+)', pattern)
+        from_match = re.search(r"from\s+(\w+)", pattern)
         if from_match:
             table = from_match.group(1)
             columns = self._extract_where_columns(pattern, table)
@@ -332,7 +344,7 @@ class DatabaseIndexOptimizer:
                 table_columns.append((table, columns))
 
         # JOIN clauses
-        join_matches = re.findall(r'join\s+(\w+)', pattern)
+        join_matches = re.findall(r"join\s+(\w+)", pattern)
         for table in join_matches:
             columns = self._extract_where_columns(pattern, table)
             if columns:
@@ -340,19 +352,19 @@ class DatabaseIndexOptimizer:
 
         return table_columns
 
-    def _extract_where_columns(self, pattern: str, table: str) -> List[str]:
+    def _extract_where_columns(self, pattern: str, table: str) -> list[str]:
         """Extract columns used in WHERE clauses for a specific table"""
         columns = []
 
         # WHERE conditions
         where_patterns = [
-            rf'where\s+{table}\.(\w+)\s*=',
-            rf'where\s+{table}\.(\w+)\s+>',
-            rf'where\s+{table}\.(\w+)\s+<',
-            rf'where\s+{table}\.(\w+)\s+between',
-            rf'where\s+{table}\.(\w+)\s+in',
-            rf'where\s+{table}\.(\w+)\s+like',
-            rf'join.*on\s+{table}\.(\w+)\s*=',
+            rf"where\s+{table}\.(\w+)\s*=",
+            rf"where\s+{table}\.(\w+)\s+>",
+            rf"where\s+{table}\.(\w+)\s+<",
+            rf"where\s+{table}\.(\w+)\s+between",
+            rf"where\s+{table}\.(\w+)\s+in",
+            rf"where\s+{table}\.(\w+)\s+like",
+            rf"join.*on\s+{table}\.(\w+)\s*=",
         ]
 
         for pattern_regex in where_patterns:
@@ -361,7 +373,9 @@ class DatabaseIndexOptimizer:
 
         return list(set(columns))  # Remove duplicates
 
-    def _determine_optimal_index_config(self, pattern: str, table_columns: List[Tuple[str, List[str]]]) -> Optional[Dict[str, Any]]:
+    def _determine_optimal_index_config(
+        self, pattern: str, table_columns: list[tuple[str, list[str]]]
+    ) -> dict[str, Any] | None:
         """Determine optimal index configuration based on usage pattern"""
         if not table_columns:
             return None
@@ -409,61 +423,66 @@ class DatabaseIndexOptimizer:
             rationale += " (truncated for performance)"
 
         return {
-            'table': table,
-            'columns': columns,
-            'type': index_type,
-            'rationale': rationale,
-            'risk_level': risk_level,
-            'cost': cost
+            "table": table,
+            "columns": columns,
+            "type": index_type,
+            "rationale": rationale,
+            "risk_level": risk_level,
+            "cost": cost,
         }
 
-    def _calculate_recommendation_priority(self, improvement_ms: float, query_count: int) -> IndexPriority:
+    def _calculate_recommendation_priority(
+        self, improvement_ms: float, query_count: int
+    ) -> IndexPriority:
         """Calculate priority for index recommendation"""
         total_impact = improvement_ms * query_count
 
         if total_impact > 10000:  # > 10 seconds total improvement
             return IndexPriority.CRITICAL
-        elif total_impact > 5000:  # > 5 seconds total improvement
+        if total_impact > 5000:  # > 5 seconds total improvement
             return IndexPriority.HIGH
-        elif total_impact > 1000:  # > 1 second total improvement
+        if total_impact > 1000:  # > 1 second total improvement
             return IndexPriority.MEDIUM
-        else:
-            return IndexPriority.LOW
+        return IndexPriority.LOW
 
-    def _generate_index_creation_sql(self, config: Dict[str, Any]) -> str:
+    def _generate_index_creation_sql(self, config: dict[str, Any]) -> str:
         """Generate SQL for index creation"""
-        table = config['table']
-        columns = config['columns']
-        index_type = config['type']
+        table = config["table"]
+        columns = config["columns"]
+        index_type = config["type"]
 
         index_name = f"idx_{table}_{'_'.join(columns)}"
         # Truncate if too long (PostgreSQL limit is 63 characters)
         if len(index_name) > 60:
             index_name = f"idx_{table}_composite"
 
-        columns_str = ', '.join(columns)
+        columns_str = ", ".join(columns)
 
         if index_type == IndexType.HASH:
             return f"CREATE INDEX CONCURRENTLY {index_name} ON {table} USING HASH ({columns_str});"
-        elif index_type == IndexType.GIN:
+        if index_type == IndexType.GIN:
             return f"CREATE INDEX CONCURRENTLY {index_name} ON {table} USING GIN ({columns_str});"
-        elif index_type == IndexType.BRIN:
+        if index_type == IndexType.BRIN:
             return f"CREATE INDEX CONCURRENTLY {index_name} ON {table} USING BRIN ({columns_str});"
-        else:  # BTREE or COMPOSITE
-            return f"CREATE INDEX CONCURRENTLY {index_name} ON {table} ({columns_str});"
+        # BTREE or COMPOSITE
+        return f"CREATE INDEX CONCURRENTLY {index_name} ON {table} ({columns_str});"
 
-    def _meets_priority_threshold(self, recommendation: IndexRecommendation, min_priority: IndexPriority) -> bool:
+    def _meets_priority_threshold(
+        self, recommendation: IndexRecommendation, min_priority: IndexPriority
+    ) -> bool:
         """Check if recommendation meets minimum priority threshold"""
         priority_order = {
             IndexPriority.CRITICAL: 0,
             IndexPriority.HIGH: 1,
             IndexPriority.MEDIUM: 2,
-            IndexPriority.LOW: 3
+            IndexPriority.LOW: 3,
         }
 
         return priority_order[recommendation.priority] <= priority_order[min_priority]
 
-    async def identify_unused_indexes(self, db: AsyncSession, days_unused: int = 30) -> List[IndexMetrics]:
+    async def identify_unused_indexes(
+        self, db: AsyncSession, days_unused: int = 30
+    ) -> list[IndexMetrics]:
         """Identify indexes that haven't been used recently"""
         if not self.index_cache:
             await self.analyze_current_indexes(db)
@@ -477,8 +496,9 @@ class DatabaseIndexOptimizer:
                 continue
 
             # Check if index has never been used or not used recently
-            if (index_metrics.usage_count == 0 or
-                (index_metrics.last_used and index_metrics.last_used < cutoff_time)):
+            if index_metrics.usage_count == 0 or (
+                index_metrics.last_used and index_metrics.last_used < cutoff_time
+            ):
                 unused_indexes.append(index_metrics)
 
         return unused_indexes
@@ -499,7 +519,9 @@ class DatabaseIndexOptimizer:
 
         return False
 
-    async def generate_index_analysis_report(self, db: AsyncSession, query_history: List[QueryMetrics]) -> IndexAnalysisReport:
+    async def generate_index_analysis_report(
+        self, db: AsyncSession, query_history: list[QueryMetrics]
+    ) -> IndexAnalysisReport:
         """Generate comprehensive index analysis report"""
         # Analyze current indexes
         current_indexes = await self.analyze_current_indexes(db)
@@ -512,7 +534,8 @@ class DatabaseIndexOptimizer:
 
         # Find underutilized indexes (low usage but not zero)
         underutilized = [
-            idx for idx in current_indexes
+            idx
+            for idx in current_indexes
             if 0 < idx.usage_count < 10 and not self._is_essential_index(idx)
         ]
 
@@ -523,9 +546,13 @@ class DatabaseIndexOptimizer:
         # Generate recommendations
         analysis_recommendations = []
         if len(unused_indexes) > 0:
-            analysis_recommendations.append(f"Consider dropping {len(unused_indexes)} unused indexes")
+            analysis_recommendations.append(
+                f"Consider dropping {len(unused_indexes)} unused indexes"
+            )
         if len(recommendations) > 0:
-            analysis_recommendations.append(f"Create {len(recommendations)} new indexes for potential {total_impact:.0f}ms improvement")
+            analysis_recommendations.append(
+                f"Create {len(recommendations)} new indexes for potential {total_impact:.0f}ms improvement"
+            )
         if len(underutilized) > 0:
             analysis_recommendations.append(f"Review {len(underutilized)} underutilized indexes")
 
@@ -538,8 +565,9 @@ class DatabaseIndexOptimizer:
             duplicate_indexes=[],  # TODO: Implement duplicate detection
             index_efficiency_score=efficiency_score,
             potential_improvement_ms=total_impact,
-            recommendations=analysis_recommendations
+            recommendations=analysis_recommendations,
         )
+
 
 # Global optimizer instance
 database_index_optimizer = DatabaseIndexOptimizer()

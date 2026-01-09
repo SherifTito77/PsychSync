@@ -5,20 +5,17 @@ Advanced R&D platform for A/B testing, gamification, and voice/video analysis.
 This module provides cutting-edge features for innovation and user engagement.
 """
 
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
-import pandas as pd
-import numpy as np
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-import json
 import hashlib
-import random
+import logging
+from typing import Any
+
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
+
 
 class ExperimentStatus(Enum):
     DRAFT = "draft"
@@ -27,6 +24,7 @@ class ExperimentStatus(Enum):
     PAUSED = "paused"
     ARCHIVED = "archived"
 
+
 class TestType(Enum):
     UI_VARIATION = "ui_variation"
     ALGORITHM_CHANGE = "algorithm_change"
@@ -34,6 +32,7 @@ class TestType(Enum):
     PRICING_TEST = "pricing_test"
     ONBOARDING_FLOW = "onboarding_flow"
     RECOMMENDATION_SYSTEM = "recommendation_system"
+
 
 class GamificationEventType(Enum):
     ACHIEVEMENT_UNLOCKED = "achievement_unlocked"
@@ -44,6 +43,7 @@ class GamificationEventType(Enum):
     POINTS_EARNED = "points_earned"
     LEADERBOARD_UPDATE = "leaderboard_update"
 
+
 class VoiceAnalysisType(Enum):
     SENTIMENT_ANALYSIS = "sentiment_analysis"
     EMOTION_DETECTION = "emotion_detection"
@@ -53,60 +53,69 @@ class VoiceAnalysisType(Enum):
     ENGAGEMENT_LEVEL = "engagement_level"
     CONFIDENCE_SCORING = "confidence_scoring"
 
+
 @dataclass
 class ExperimentConfig:
     """Configuration for A/B testing experiments"""
+
     experiment_id: str
     name: str
     description: str
     test_type: TestType
-    traffic_split: Dict[str, float]  # variant_name -> percentage (0-1)
-    target_audience: Dict[str, Any]
-    success_metrics: List[str]
+    traffic_split: dict[str, float]  # variant_name -> percentage (0-1)
+    target_audience: dict[str, Any]
+    success_metrics: list[str]
     duration_days: int
     min_sample_size: int
     confidence_level: float
-    variants: Dict[str, Any]  # variant_name -> configuration
+    variants: dict[str, Any]  # variant_name -> configuration
+
 
 @dataclass
 class ExperimentResults:
     """Results of an A/B testing experiment"""
+
     experiment_id: str
     status: ExperimentStatus
     total_participants: int
-    variant_results: Dict[str, Dict[str, Any]]
+    variant_results: dict[str, dict[str, Any]]
     statistical_significance: bool
-    winner: Optional[str]
-    confidence_intervals: Dict[str, Tuple[float, float]]
-    business_impact: Dict[str, float]
+    winner: str | None
+    confidence_intervals: dict[str, tuple[float, float]]
+    business_impact: dict[str, float]
+
 
 @dataclass
 class GamificationProfile:
     """User gamification profile and achievements"""
+
     user_id: str
     current_level: int
     total_points: int
     current_streak: int
     longest_streak: int
-    achievements: List[Dict[str, Any]]
-    badges: List[Dict[str, Any]]
-    leaderboard_rank: Optional[int]
+    achievements: list[dict[str, Any]]
+    badges: list[dict[str, Any]]
+    leaderboard_rank: int | None
     engagement_score: float
-    preferences: Dict[str, Any]
+    preferences: dict[str, Any]
+
 
 @dataclass
 class VoiceAnalysisResult:
     """Results from voice/video response analysis"""
+
     analysis_id: str
     user_id: str
     audio_duration: float
-    sentiment_score: Dict[str, float]  # positive, negative, neutral
-    emotions: Dict[str, float]  # joy, sadness, anger, fear, surprise, disgust
-    speech_metrics: Dict[str, float]
+    sentiment_score: dict[str, float]  # positive, negative, neutral
+    emotions: dict[str, float]  # joy, sadness, anger, fear, surprise, disgust
+    speech_metrics: dict[str, float]
     confidence_score: float
     engagement_level: float
-    stress_indicators: List[str]
-    recommendations: List[str]
+    stress_indicators: list[str]
+    recommendations: list[str]
+
 
 class ExperimentalFeaturesLab:
     """Advanced experimental features and innovation platform"""
@@ -115,6 +124,7 @@ class ExperimentalFeaturesLab:
         self.db = db_session
         self.running_experiments = {}
         from app.services.gamification_engine import EnhancedGamificationEngine
+
         self.gamification_engine = EnhancedGamificationEngine(db_session)
         self.voice_analyzer = VoiceAnalyzer(db_session)
         self.ab_test_engine = ABTestEngine(db_session)
@@ -131,7 +141,7 @@ class ExperimentalFeaturesLab:
                 "start_time": datetime.utcnow(),
                 "participants": {},
                 "results": {},
-                "status": ExperimentStatus.DRAFT
+                "status": ExperimentStatus.DRAFT,
             }
 
             # Store experiment
@@ -152,7 +162,7 @@ class ExperimentalFeaturesLab:
             logger.error(f"Error creating experiment {config.name}: {e}")
             raise
 
-    async def assign_user_to_variant(self, user_id: str, experiment_id: str) -> Optional[str]:
+    async def assign_user_to_variant(self, user_id: str, experiment_id: str) -> str | None:
         """Assign a user to an experiment variant"""
         try:
             experiment = self.running_experiments.get(experiment_id)
@@ -174,17 +184,21 @@ class ExperimentalFeaturesLab:
             experiment["participants"][user_id] = {
                 "variant": variant,
                 "assignment_time": datetime.utcnow(),
-                "metrics": {}
+                "metrics": {},
             }
 
-            logger.info(f"Assigned user {user_id} to variant {variant} in experiment {experiment_id}")
+            logger.info(
+                f"Assigned user {user_id} to variant {variant} in experiment {experiment_id}"
+            )
             return variant
 
         except Exception as e:
             logger.error(f"Error assigning user {user_id} to experiment {experiment_id}: {e}")
             raise
 
-    async def track_experiment_event(self, user_id: str, experiment_id: str, event_name: str, event_data: Dict[str, Any]) -> bool:
+    async def track_experiment_event(
+        self, user_id: str, experiment_id: str, event_name: str, event_data: dict[str, Any]
+    ) -> bool:
         """Track user events for experiment analysis"""
         try:
             experiment = self.running_experiments.get(experiment_id)
@@ -200,12 +214,14 @@ class ExperimentalFeaturesLab:
             if variant not in experiment["results"]:
                 experiment["results"][variant] = {"events": [], "metrics": {}}
 
-            experiment["results"][variant]["events"].append({
-                "user_id": user_id,
-                "event_name": event_name,
-                "timestamp": datetime.utcnow(),
-                "data": event_data
-            })
+            experiment["results"][variant]["events"].append(
+                {
+                    "user_id": user_id,
+                    "event_name": event_name,
+                    "timestamp": datetime.utcnow(),
+                    "data": event_data,
+                }
+            )
 
             # Update variant metrics
             await self._update_variant_metrics(experiment, variant, event_name, event_data)
@@ -249,7 +265,9 @@ class ExperimentalFeaturesLab:
             # Determine winner if statistically significant
             winner = None
             if statistical_significance:
-                winner = await self._determine_experiment_winner(variant_results, config.success_metrics)
+                winner = await self._determine_experiment_winner(
+                    variant_results, config.success_metrics
+                )
 
             # Calculate business impact
             business_impact = await self._calculate_business_impact(variant_results, config)
@@ -262,7 +280,7 @@ class ExperimentalFeaturesLab:
                 statistical_significance=statistical_significance,
                 winner=winner,
                 confidence_intervals=confidence_intervals,
-                business_impact=business_impact
+                business_impact=business_impact,
             )
 
             # Update experiment status
@@ -283,15 +301,21 @@ class ExperimentalFeaturesLab:
             logger.error(f"Error getting gamification profile for user {user_id}: {e}")
             raise
 
-    async def award_achievement(self, user_id: str, achievement_type: str, achievement_data: Dict[str, Any]) -> bool:
+    async def award_achievement(
+        self, user_id: str, achievement_type: str, achievement_data: dict[str, Any]
+    ) -> bool:
         """Award achievement or points to user"""
         try:
-            return await self.gamification_engine.award_achievement(user_id, achievement_type, achievement_data)
+            return await self.gamification_engine.award_achievement(
+                user_id, achievement_type, achievement_data
+            )
         except Exception as e:
             logger.error(f"Error awarding achievement to user {user_id}: {e}")
             raise False
 
-    async def analyze_voice_response(self, audio_data: bytes, user_id: str, analysis_types: List[VoiceAnalysisType]) -> VoiceAnalysisResult:
+    async def analyze_voice_response(
+        self, audio_data: bytes, user_id: str, analysis_types: list[VoiceAnalysisType]
+    ) -> VoiceAnalysisResult:
         """Analyze voice/video response for emotional and behavioral insights"""
         try:
             return await self.voice_analyzer.analyze_audio(audio_data, user_id, analysis_types)
@@ -299,7 +323,9 @@ class ExperimentalFeaturesLab:
             logger.error(f"Error analyzing voice response for user {user_id}: {e}")
             raise
 
-    async def get_leaderboard(self, leaderboard_type: str = "points", limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_leaderboard(
+        self, leaderboard_type: str = "points", limit: int = 50
+    ) -> list[dict[str, Any]]:
         """Get gamification leaderboard"""
         try:
             return await self.gamification_engine.get_leaderboard(leaderboard_type, limit)
@@ -307,18 +333,23 @@ class ExperimentalFeaturesLab:
             logger.error(f"Error getting {leaderboard_type} leaderboard: {e}")
             raise
 
-    async def get_experiment_dashboard(self) -> Dict[str, Any]:
+    async def get_experiment_dashboard(self) -> dict[str, Any]:
         """Get comprehensive experimental features dashboard"""
         try:
             return {
-                "active_experiments": len([e for e in self.running_experiments.values()
-                                         if e["status"] == ExperimentStatus.RUNNING]),
+                "active_experiments": len(
+                    [
+                        e
+                        for e in self.running_experiments.values()
+                        if e["status"] == ExperimentStatus.RUNNING
+                    ]
+                ),
                 "total_experiments": len(self.running_experiments),
                 "experiment_results": await self._get_experiment_summary(),
                 "gamification_stats": await self.gamification_engine.get_platform_stats(),
                 "voice_analysis_stats": await self.voice_analyzer.get_analysis_stats(),
                 "feature_adoption": await self._get_feature_adoption_metrics(),
-                "user_engagement": await self._get_engagement_metrics()
+                "user_engagement": await self._get_engagement_metrics(),
             }
         except Exception as e:
             logger.error(f"Error getting experimental features dashboard: {e}")
@@ -339,13 +370,13 @@ class ExperimentalFeaturesLab:
         if not config.success_metrics:
             raise ValueError("At least one success metric must be defined")
 
-    async def _user_meets_criteria(self, user_id: str, target_audience: Dict[str, Any]) -> bool:
+    async def _user_meets_criteria(self, user_id: str, target_audience: dict[str, Any]) -> bool:
         """Check if user meets experiment target audience criteria"""
         # This would integrate with user data and segmentation
         # For now, return True (all users eligible)
         return True
 
-    def _assign_variant(self, user_id: str, traffic_split: Dict[str, float]) -> str:
+    def _assign_variant(self, user_id: str, traffic_split: dict[str, float]) -> str:
         """Assign user to variant based on traffic split"""
         # Use consistent hashing for user assignment
         hash_input = f"{user_id}:{datetime.utcnow().date()}"
@@ -361,7 +392,9 @@ class ExperimentalFeaturesLab:
         # Fallback to first variant
         return list(traffic_split.keys())[0]
 
-    async def _calculate_variant_metrics(self, variant_name: str, variant_data: Dict[str, Any], success_metrics: List[str]) -> Dict[str, Any]:
+    async def _calculate_variant_metrics(
+        self, variant_name: str, variant_data: dict[str, Any], success_metrics: list[str]
+    ) -> dict[str, Any]:
         """Calculate performance metrics for a variant"""
         events = variant_data.get("events", [])
 
@@ -370,7 +403,7 @@ class ExperimentalFeaturesLab:
             "unique_users": len(set(event["user_id"] for event in events)),
             "conversion_rate": 0.0,
             "engagement_rate": 0.0,
-            "retention_rate": 0.0
+            "retention_rate": 0.0,
         }
 
         # Calculate success metrics
@@ -386,7 +419,9 @@ class ExperimentalFeaturesLab:
 
         return metrics
 
-    async def _perform_statistical_test(self, variant_results: Dict[str, Dict], confidence_level: float) -> bool:
+    async def _perform_statistical_test(
+        self, variant_results: dict[str, dict], confidence_level: float
+    ) -> bool:
         """Perform statistical significance test"""
         # Simplified t-test implementation
         # In production, use proper statistical libraries
@@ -405,7 +440,9 @@ class ExperimentalFeaturesLab:
 
         return difference > threshold
 
-    async def _calculate_confidence_intervals(self, variant_results: Dict[str, Dict], confidence_level: float) -> Dict[str, Tuple[float, float]]:
+    async def _calculate_confidence_intervals(
+        self, variant_results: dict[str, dict], confidence_level: float
+    ) -> dict[str, tuple[float, float]]:
         """Calculate confidence intervals for variant metrics"""
         confidence_intervals = {}
 
@@ -416,12 +453,14 @@ class ExperimentalFeaturesLab:
 
             confidence_intervals[variant_name] = (
                 max(0, conversion_rate - margin_of_error),
-                min(1, conversion_rate + margin_of_error)
+                min(1, conversion_rate + margin_of_error),
             )
 
         return confidence_intervals
 
-    async def _determine_experiment_winner(self, variant_results: Dict[str, Dict], success_metrics: List[str]) -> Optional[str]:
+    async def _determine_experiment_winner(
+        self, variant_results: dict[str, dict], success_metrics: list[str]
+    ) -> str | None:
         """Determine winning variant based on success metrics"""
         best_variant = None
         best_score = -1
@@ -439,7 +478,9 @@ class ExperimentalFeaturesLab:
 
         return best_variant
 
-    async def _calculate_business_impact(self, variant_results: Dict[str, Dict], config: ExperimentConfig) -> Dict[str, float]:
+    async def _calculate_business_impact(
+        self, variant_results: dict[str, dict], config: ExperimentConfig
+    ) -> dict[str, float]:
         """Calculate business impact metrics"""
         # Simplified business impact calculation
         baseline_conversion = 0.05  # 5% baseline conversion rate
@@ -447,12 +488,16 @@ class ExperimentalFeaturesLab:
         impact = {}
         for variant_name, metrics in variant_results.items():
             conversion_rate = metrics.get("conversion_rate", 0)
-            lift = (conversion_rate - baseline_conversion) / baseline_conversion if baseline_conversion > 0 else 0
+            lift = (
+                (conversion_rate - baseline_conversion) / baseline_conversion
+                if baseline_conversion > 0
+                else 0
+            )
 
             impact[variant_name] = {
                 "conversion_lift": lift,
                 "revenue_impact": lift * 100000,  # Assuming $100k baseline revenue
-                "user_satisfaction": lift * 0.8   # Correlated with conversion
+                "user_satisfaction": lift * 0.8,  # Correlated with conversion
             }
 
         return impact
@@ -468,12 +513,13 @@ class ExperimentalFeaturesLab:
         """Create user assignment function for experiment"""
         return lambda user_id: self._assign_variant(user_id, config.traffic_split)
 
-    async def _update_variant_metrics(self, experiment: Dict, variant: str, event_name: str, event_data: Dict) -> None:
+    async def _update_variant_metrics(
+        self, experiment: dict, variant: str, event_name: str, event_data: dict
+    ) -> None:
         """Update variant metrics when events occur"""
         # Real-time metric updates
-        pass
 
-    async def _get_experiment_summary(self) -> Dict[str, Any]:
+    async def _get_experiment_summary(self) -> dict[str, Any]:
         """Get summary of all experiments"""
         summary = {
             "total": len(self.running_experiments),
@@ -481,7 +527,7 @@ class ExperimentalFeaturesLab:
             "completed": 0,
             "draft": 0,
             "paused": 0,
-            "recent_results": []
+            "recent_results": [],
         }
 
         for exp in self.running_experiments.values():
@@ -489,22 +535,22 @@ class ExperimentalFeaturesLab:
 
         return summary
 
-    async def _get_feature_adoption_metrics(self) -> Dict[str, Any]:
+    async def _get_feature_adoption_metrics(self) -> dict[str, Any]:
         """Get feature adoption metrics"""
         return {
             "ab_testing_adoption": 0.75,
             "gamification_active_users": 0.68,
             "voice_analysis_usage": 0.42,
-            "experimental_features_opt_in": 0.83
+            "experimental_features_opt_in": 0.83,
         }
 
-    async def _get_engagement_metrics(self) -> Dict[str, Any]:
+    async def _get_engagement_metrics(self) -> dict[str, Any]:
         """Get user engagement metrics"""
         return {
             "daily_active_experimental_users": 1250,
             "experiment_participation_rate": 0.64,
             "gamification_engagement_rate": 0.78,
-            "voice_analysis_completion_rate": 0.89
+            "voice_analysis_completion_rate": 0.89,
         }
 
 
@@ -516,7 +562,7 @@ class GamificationEngine:
         self.achievement_definitions = self._load_achievement_definitions()
         self.level_progression = self._load_level_progression()
 
-    def _load_achievement_definitions(self) -> Dict[str, Dict]:
+    def _load_achievement_definitions(self) -> dict[str, dict]:
         """Load achievement definitions and rules"""
         return {
             "first_assessment": {
@@ -524,49 +570,46 @@ class GamificationEngine:
                 "description": "Complete your first psychological assessment",
                 "points": 100,
                 "badge": "🎯",
-                "category": "milestone"
+                "category": "milestone",
             },
             "week_streak": {
                 "name": "Week Warrior",
                 "description": "Maintain a 7-day activity streak",
                 "points": 500,
                 "badge": "🔥",
-                "category": "engagement"
+                "category": "engagement",
             },
             "team_leader": {
                 "name": "Team Leader",
                 "description": "Lead a team to top performance",
                 "points": 750,
                 "badge": "👑",
-                "category": "leadership"
+                "category": "leadership",
             },
             "skill_master": {
                 "name": "Skill Master",
                 "description": "Achieve mastery in 5 different skills",
                 "points": 1000,
                 "badge": "🏆",
-                "category": "achievement"
+                "category": "achievement",
             },
             "innovation_explorer": {
                 "name": "Innovation Explorer",
                 "description": "Try experimental features and provide feedback",
                 "points": 300,
                 "badge": "🚀",
-                "category": "experimental"
-            }
+                "category": "experimental",
+            },
         }
 
-    def _load_level_progression(self) -> Dict[int, Dict]:
+    def _load_level_progression(self) -> dict[int, dict]:
         """Load level progression thresholds"""
         progression = {}
         points_per_level = 500  # Starting points requirement
 
         for level in range(1, 51):  # 50 levels
-            points_required = points_per_level * (level ** 1.5)  # Exponential growth
-            rewards = {
-                "badge": f"Level {level}",
-                "unlock_features": []
-            }
+            points_required = points_per_level * (level**1.5)  # Exponential growth
+            rewards = {"badge": f"Level {level}", "unlock_features": []}
 
             # Unlock features at certain levels
             if level == 5:
@@ -578,10 +621,7 @@ class GamificationEngine:
             elif level == 30:
                 rewards["unlock_features"] = ["premium_insights"]
 
-            progression[level] = {
-                "points_required": int(points_required),
-                "rewards": rewards
-            }
+            progression[level] = {"points_required": int(points_required), "rewards": rewards}
 
         return progression
 
@@ -596,35 +636,25 @@ class GamificationEngine:
             current_streak=5,
             longest_streak=23,
             achievements=[
-                {
-                    "id": "first_assessment",
-                    "earned_date": "2024-01-15",
-                    "points": 100
-                },
-                {
-                    "id": "week_streak",
-                    "earned_date": "2024-02-01",
-                    "points": 500
-                }
+                {"id": "first_assessment", "earned_date": "2024-01-15", "points": 100},
+                {"id": "week_streak", "earned_date": "2024-02-01", "points": 500},
             ],
             badges=[
                 {
                     "id": "level_10",
                     "name": "Experienced User",
                     "badge": "⭐",
-                    "earned_date": "2024-01-30"
+                    "earned_date": "2024-01-30",
                 }
             ],
             leaderboard_rank=42,
             engagement_score=0.78,
-            preferences={
-                "notifications": True,
-                "public_profile": True,
-                "challenge_mode": True
-            }
+            preferences={"notifications": True, "public_profile": True, "challenge_mode": True},
         )
 
-    async def award_achievement(self, user_id: str, achievement_type: str, achievement_data: Dict[str, Any]) -> bool:
+    async def award_achievement(
+        self, user_id: str, achievement_type: str, achievement_data: dict[str, Any]
+    ) -> bool:
         """Award achievement to user"""
         try:
             achievement_def = self.achievement_definitions.get(achievement_type)
@@ -643,7 +673,7 @@ class GamificationEngine:
                 "id": achievement_type,
                 "earned_date": datetime.utcnow().isoformat(),
                 "points": achievement_def["points"],
-                "data": achievement_data
+                "data": achievement_data,
             }
 
             # Update user profile (in production, would save to database)
@@ -658,20 +688,52 @@ class GamificationEngine:
             logger.error(f"Error awarding achievement {achievement_type} to user {user_id}: {e}")
             return False
 
-    async def get_leaderboard(self, leaderboard_type: str = "points", limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_leaderboard(
+        self, leaderboard_type: str = "points", limit: int = 50
+    ) -> list[dict[str, Any]]:
         """Get leaderboard data"""
         # Mock leaderboard data
         mock_leaderboard = [
-            {"rank": 1, "user_id": "user_001", "display_name": "Alex Chen", "score": 15420, "level": 25},
-            {"rank": 2, "user_id": "user_002", "display_name": "Sarah Johnson", "score": 14200, "level": 23},
-            {"rank": 3, "user_id": "user_003", "display_name": "Mike Davis", "score": 13800, "level": 22},
-            {"rank": 4, "user_id": "user_004", "display_name": "Emma Wilson", "score": 12100, "level": 20},
-            {"rank": 5, "user_id": "user_005", "display_name": "James Brown", "score": 11500, "level": 19}
+            {
+                "rank": 1,
+                "user_id": "user_001",
+                "display_name": "Alex Chen",
+                "score": 15420,
+                "level": 25,
+            },
+            {
+                "rank": 2,
+                "user_id": "user_002",
+                "display_name": "Sarah Johnson",
+                "score": 14200,
+                "level": 23,
+            },
+            {
+                "rank": 3,
+                "user_id": "user_003",
+                "display_name": "Mike Davis",
+                "score": 13800,
+                "level": 22,
+            },
+            {
+                "rank": 4,
+                "user_id": "user_004",
+                "display_name": "Emma Wilson",
+                "score": 12100,
+                "level": 20,
+            },
+            {
+                "rank": 5,
+                "user_id": "user_005",
+                "display_name": "James Brown",
+                "score": 11500,
+                "level": 19,
+            },
         ]
 
         return mock_leaderboard[:limit]
 
-    async def get_platform_stats(self) -> Dict[str, Any]:
+    async def get_platform_stats(self) -> dict[str, Any]:
         """Get gamification platform statistics"""
         return {
             "total_active_players": 15420,
@@ -681,16 +743,17 @@ class GamificationEngine:
             "average_session_time": 18.5,  # minutes
             "retention_rate": 0.78,
             "most_popular_achievement": "first_assessment",
-            "highest_level_user": {"user_id": "user_001", "level": 42, "points": 28400}
+            "highest_level_user": {"user_id": "user_001", "level": 42, "points": 28400},
         }
 
-    async def _trigger_achievement_events(self, user_id: str, achievement_type: str, achievement_data: Dict) -> None:
+    async def _trigger_achievement_events(
+        self, user_id: str, achievement_type: str, achievement_data: dict
+    ) -> None:
         """Trigger events related to achievement earning"""
         # Send notifications
         # Update leaderboard
         # Check for level progression
         # Trigger related achievements
-        pass
 
 
 class VoiceAnalyzer:
@@ -700,21 +763,19 @@ class VoiceAnalyzer:
         self.db = db_session
         self.analysis_models = self._load_analysis_models()
 
-    def _load_analysis_models(self) -> Dict[str, Any]:
+    def _load_analysis_models(self) -> dict[str, Any]:
         """Load voice analysis models and configurations"""
         return {
             "sentiment_model": "distilbert-base-uncased-finetuned-sst-2-english",
             "emotion_model": "j-hartmann/emotion-english-distilroberta-base",
             "speech_rate_model": "speechbrain/tts-tacotron2-ljspeech",
             "stress_detection_model": "custom_stress_classifier_v2",
-            "confidence_thresholds": {
-                "sentiment": 0.7,
-                "emotion": 0.6,
-                "stress": 0.8
-            }
+            "confidence_thresholds": {"sentiment": 0.7, "emotion": 0.6, "stress": 0.8},
         }
 
-    async def analyze_audio(self, audio_data: bytes, user_id: str, analysis_types: List[VoiceAnalysisType]) -> VoiceAnalysisResult:
+    async def analyze_audio(
+        self, audio_data: bytes, user_id: str, analysis_types: list[VoiceAnalysisType]
+    ) -> VoiceAnalysisResult:
         """Analyze audio data for emotional and behavioral insights"""
         try:
             analysis_id = f"analysis_{user_id}_{datetime.utcnow().timestamp()}"
@@ -747,20 +808,36 @@ class VoiceAnalyzer:
                 analysis_id=analysis_id,
                 user_id=user_id,
                 audio_duration=len(audio_data) / 16000,  # Assuming 16kHz sample rate
-                sentiment_score=results.get("sentiment", {"positive": 0.5, "negative": 0.2, "neutral": 0.3}),
-                emotions=results.get("emotions", {"joy": 0.3, "sadness": 0.1, "anger": 0.1, "fear": 0.1, "surprise": 0.2, "disgust": 0.0}),
-                speech_metrics=results.get("speech_metrics", {"words_per_minute": 150, "pause_duration": 0.5}),
+                sentiment_score=results.get(
+                    "sentiment", {"positive": 0.5, "negative": 0.2, "neutral": 0.3}
+                ),
+                emotions=results.get(
+                    "emotions",
+                    {
+                        "joy": 0.3,
+                        "sadness": 0.1,
+                        "anger": 0.1,
+                        "fear": 0.1,
+                        "surprise": 0.2,
+                        "disgust": 0.0,
+                    },
+                ),
+                speech_metrics=results.get(
+                    "speech_metrics", {"words_per_minute": 150, "pause_duration": 0.5}
+                ),
                 confidence_score=results.get("confidence_score", 0.75),
                 engagement_level=results.get("engagement_level", 0.68),
-                stress_indicators=results.get("stress_indicators", ["elevated_pitch", "rapid_speech"]),
-                recommendations=recommendations
+                stress_indicators=results.get(
+                    "stress_indicators", ["elevated_pitch", "rapid_speech"]
+                ),
+                recommendations=recommendations,
             )
 
         except Exception as e:
             logger.error(f"Error analyzing audio for user {user_id}: {e}")
             raise
 
-    async def get_analysis_stats(self) -> Dict[str, Any]:
+    async def get_analysis_stats(self) -> dict[str, Any]:
         """Get voice analysis platform statistics"""
         return {
             "total_analyses": 12580,
@@ -770,20 +847,16 @@ class VoiceAnalyzer:
             "average_analysis_duration": 2.3,  # seconds
             "user_satisfaction": 0.84,
             "insights_generated": 8740,
-            "recommendations_followed": 0.63
+            "recommendations_followed": 0.63,
         }
 
     # Voice analysis helper methods (mock implementations)
-    async def _analyze_sentiment(self, audio_data: bytes) -> Dict[str, float]:
+    async def _analyze_sentiment(self, audio_data: bytes) -> dict[str, float]:
         """Analyze sentiment in audio"""
         # Mock sentiment analysis
-        return {
-            "positive": 0.65,
-            "negative": 0.15,
-            "neutral": 0.20
-        }
+        return {"positive": 0.65, "negative": 0.15, "neutral": 0.20}
 
-    async def _detect_emotions(self, audio_data: bytes) -> Dict[str, float]:
+    async def _detect_emotions(self, audio_data: bytes) -> dict[str, float]:
         """Detect emotions in voice"""
         # Mock emotion detection
         return {
@@ -792,27 +865,23 @@ class VoiceAnalyzer:
             "anger": 0.05,
             "fear": 0.12,
             "surprise": 0.18,
-            "disgust": 0.02
+            "disgust": 0.02,
         }
 
-    async def _analyze_speech_patterns(self, audio_data: bytes) -> Dict[str, float]:
+    async def _analyze_speech_patterns(self, audio_data: bytes) -> dict[str, float]:
         """Analyze speech patterns and metrics"""
         # Mock speech analysis
         return {
             "words_per_minute": 145.5,
             "pause_duration": 0.8,
             "speech_clarity": 0.82,
-            "volume_consistency": 0.75
+            "volume_consistency": 0.75,
         }
 
-    async def _detect_stress(self, audio_data: bytes) -> List[str]:
+    async def _detect_stress(self, audio_data: bytes) -> list[str]:
         """Detect stress indicators in voice"""
         # Mock stress detection
-        return [
-            "slightly_elevated_pitch",
-            "increased_speech_rate",
-            "irregular_rhythm"
-        ]
+        return ["slightly_elevated_pitch", "increased_speech_rate", "irregular_rhythm"]
 
     async def _calculate_engagement(self, audio_data: bytes) -> float:
         """Calculate engagement level from voice"""
@@ -824,7 +893,7 @@ class VoiceAnalyzer:
         # Mock confidence calculation
         return 0.78
 
-    async def _generate_voice_recommendations(self, results: Dict[str, Any]) -> List[str]:
+    async def _generate_voice_recommendations(self, results: dict[str, Any]) -> list[str]:
         """Generate recommendations based on voice analysis"""
         recommendations = []
 
@@ -852,11 +921,11 @@ class ABTestEngine:
         self.db = db_session
         self.statistical_models = self._load_statistical_models()
 
-    def _load_statistical_models(self) -> Dict[str, Any]:
+    def _load_statistical_models(self) -> dict[str, Any]:
         """Load statistical analysis models"""
         return {
             "significance_test": "two_sample_t_test",
             "confidence_level": 0.95,
             "minimum_sample_size": 1000,
-            "power_analysis": True
+            "power_analysis": True,
         }

@@ -147,7 +147,7 @@ prediction_service = PredictionService()
 data_service = PredictionDataCollectionService()
 
 
-@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/train", response_model=TrainingResponse, dependencies=[Depends(get_current_user)])
 async def train_prediction_model(
     request: TrainingRequest,
@@ -214,8 +214,8 @@ async def train_prediction_model(
     except Exception as e:
         logger.error(f"Error in model training: {str(e)}")
         return TrainingResponse(
-       
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
      success=False,
             error_message=str(e)
         )
@@ -269,7 +269,7 @@ async def make_predictions(
 
     except Exception as e:
         logger.error(f"Error in p
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 rediction: {str(e)}")
         return PredictionResponse(
             success=False,

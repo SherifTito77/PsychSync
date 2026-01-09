@@ -16,39 +16,42 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 import logging
 import time
-import asyncio
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
-from contextlib import asynccontextmanager
+from typing import Any
 
-from sqlalchemy import text, func, inspect
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from sqlalchemy.engine import Engine
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.sql import ClauseElement
 
 # Initialize performance logger
 perf_logger = logging.getLogger("app.performance.database")
 
+
 @dataclass
 class QueryMetrics:
     """Metrics for database query performance"""
+
     query: str
     execution_time: float
     rows_affected: int
-    index_used: Optional[str] = None
-    table_name: Optional[str] = None
+    index_used: str | None = None
+    table_name: str | None = None
     timestamp: float = 0.0
+
 
 @dataclass
 class IndexRecommendation:
     """Database index recommendation"""
+
     table_name: str
-    column_names: List[str]
+    column_names: list[str]
     index_type: str
     estimated_improvement: float
     reason: str
+
 
 class DatabaseOptimizer:
     """
@@ -57,10 +60,10 @@ class DatabaseOptimizer:
 
     def __init__(self, db_session_maker: async_sessionmaker):
         self.db_session_maker = db_session_maker
-        self.query_history: List[QueryMetrics] = []
+        self.query_history: list[QueryMetrics] = []
         self.max_history_size = 1000
         self.slow_query_threshold = 1.0  # seconds
-        self._index_cache: Dict[str, List[Dict]] = {}
+        self._index_cache: dict[str, list[dict]] = {}
 
     @asynccontextmanager
     async def monitored_query(self, query: ClauseElement):
@@ -87,11 +90,7 @@ class DatabaseOptimizer:
                 execution_time = time.time() - start_time
 
                 # Record metrics
-                await self._record_query_metrics(
-                    str(query),
-                    execution_time,
-                    rows_affected
-                )
+                await self._record_query_metrics(str(query), execution_time, rows_affected)
 
                 yield result
 
@@ -110,7 +109,7 @@ class DatabaseOptimizer:
                 execution_time=execution_time,
                 rows_affected=rows_affected,
                 table_name=table_name,
-                timestamp=time.time()
+                timestamp=time.time(),
             )
 
             # Add to history
@@ -118,7 +117,7 @@ class DatabaseOptimizer:
 
             # Maintain history size
             if len(self.query_history) > self.max_history_size:
-                self.query_history = self.query_history[-self.max_history_size:]
+                self.query_history = self.query_history[-self.max_history_size :]
 
             # Log slow queries
             if execution_time > self.slow_query_threshold:
@@ -129,23 +128,23 @@ class DatabaseOptimizer:
         except Exception as e:
             perf_logger.error(f"Failed to record query metrics: {e}")
 
-    def _extract_table_name(self, query: str) -> Optional[str]:
+    def _extract_table_name(self, query: str) -> str | None:
         """Extract table name from SQL query (simplified)"""
         try:
             import re
 
             # Look for FROM clause
-            from_match = re.search(r'\bFROM\s+(\w+)', query.upper())
+            from_match = re.search(r"\bFROM\s+(\w+)", query.upper())
             if from_match:
                 return from_match.group(1).lower()
 
             # Look for INSERT INTO
-            insert_match = re.search(r'\bINSERT\s+INTO\s+(\w+)', query.upper())
+            insert_match = re.search(r"\bINSERT\s+INTO\s+(\w+)", query.upper())
             if insert_match:
                 return insert_match.group(1).lower()
 
             # Look for UPDATE
-            update_match = re.search(r'\bUPDATE\s+(\w+)', query.upper())
+            update_match = re.search(r"\bUPDATE\s+(\w+)", query.upper())
             if update_match:
                 return update_match.group(1).lower()
 
@@ -154,7 +153,7 @@ class DatabaseOptimizer:
         except Exception:
             return None
 
-    async def analyze_query_performance(self, query: str) -> Dict[str, Any]:
+    async def analyze_query_performance(self, query: str) -> dict[str, Any]:
         """Analyze query execution plan and performance"""
         try:
             async with self.db_session_maker() as session:
@@ -170,14 +169,14 @@ class DatabaseOptimizer:
                     "query": query,
                     "execution_plan": [str(row[0]) for row in execution_plan],
                     "analysis": analysis,
-                    "recommendations": await self._generate_query_recommendations(query, analysis)
+                    "recommendations": await self._generate_query_recommendations(query, analysis),
                 }
 
         except Exception as e:
             perf_logger.error(f"Query performance analysis failed: {e}")
             return {"error": str(e)}
 
-    def _analyze_execution_plan(self, execution_plan: List) -> Dict[str, Any]:
+    def _analyze_execution_plan(self, execution_plan: list) -> dict[str, Any]:
         """Analyze SQL execution plan"""
         try:
             plan_text = "\n".join(str(row[0]) for row in execution_plan)
@@ -190,7 +189,7 @@ class DatabaseOptimizer:
                 "sort_operations": "Sort" in plan_text,
                 "estimated_cost": self._extract_cost(plan_text),
                 "planning_time": self._extract_planning_time(plan_text),
-                "execution_time": self._extract_execution_time(plan_text)
+                "execution_time": self._extract_execution_time(plan_text),
             }
 
             return analysis
@@ -199,40 +198,45 @@ class DatabaseOptimizer:
             perf_logger.error(f"Execution plan analysis failed: {e}")
             return {"error": str(e)}
 
-    def _extract_cost(self, plan_text: str) -> Optional[float]:
+    def _extract_cost(self, plan_text: str) -> float | None:
         """Extract cost from execution plan"""
         try:
             import re
-            cost_match = re.search(r'cost=(\d+\.\d+)\.\.(\d+\.\d+)', plan_text)
+
+            cost_match = re.search(r"cost=(\d+\.\d+)\.\.(\d+\.\d+)", plan_text)
             if cost_match:
                 return float(cost_match.group(2))  # Return total cost
             return None
         except Exception:
             return None
 
-    def _extract_planning_time(self, plan_text: str) -> Optional[float]:
+    def _extract_planning_time(self, plan_text: str) -> float | None:
         """Extract planning time from execution plan"""
         try:
             import re
-            planning_match = re.search(r'planning time: (\d+\.\d+) ms', plan_text.lower())
+
+            planning_match = re.search(r"planning time: (\d+\.\d+) ms", plan_text.lower())
             if planning_match:
                 return float(planning_match.group(1))
             return None
         except Exception:
             return None
 
-    def _extract_execution_time(self, plan_text: str) -> Optional[float]:
+    def _extract_execution_time(self, plan_text: str) -> float | None:
         """Extract execution time from execution plan"""
         try:
             import re
-            execution_match = re.search(r'execution time: (\d+\.\d+) ms', plan_text.lower())
+
+            execution_match = re.search(r"execution time: (\d+\.\d+) ms", plan_text.lower())
             if execution_match:
                 return float(execution_match.group(1))
             return None
         except Exception:
             return None
 
-    async def _generate_query_recommendations(self, query: str, analysis: Dict[str, Any]) -> List[str]:
+    async def _generate_query_recommendations(
+        self, query: str, analysis: dict[str, Any]
+    ) -> list[str]:
         """Generate optimization recommendations for a query"""
         recommendations = []
 
@@ -262,13 +266,15 @@ class DatabaseOptimizer:
             perf_logger.error(f"Failed to generate recommendations: {e}")
             return ["Unable to generate recommendations due to error"]
 
-    async def get_index_recommendations(self) -> List[IndexRecommendation]:
+    async def get_index_recommendations(self) -> list[IndexRecommendation]:
         """Generate index recommendations based on query history"""
         recommendations = []
 
         try:
             # Analyze slow queries
-            slow_queries = [q for q in self.query_history if q.execution_time > self.slow_query_threshold]
+            slow_queries = [
+                q for q in self.query_history if q.execution_time > self.slow_query_threshold
+            ]
 
             # Group queries by table
             table_queries = {}
@@ -293,7 +299,7 @@ class DatabaseOptimizer:
                             column_names=[column],
                             index_type="btree",
                             estimated_improvement=self._estimate_improvement(queries, column),
-                            reason=f"Frequent WHERE clause usage in {len(queries)} slow queries"
+                            reason=f"Frequent WHERE clause usage in {len(queries)} slow queries",
                         )
                         recommendations.append(recommendation)
 
@@ -303,18 +309,20 @@ class DatabaseOptimizer:
             perf_logger.error(f"Failed to generate index recommendations: {e}")
             return []
 
-    async def _get_table_indexes(self, table_name: str) -> List[Dict[str, Any]]:
+    async def _get_table_indexes(self, table_name: str) -> list[dict[str, Any]]:
         """Get existing indexes for a table"""
         try:
             if table_name in self._index_cache:
                 return self._index_cache[table_name]
 
             async with self.db_session_maker() as session:
-                result = await session.execute(text(f"""
+                result = await session.execute(
+                    text(f"""
                     SELECT indexname, indexdef
                     FROM pg_indexes
                     WHERE tablename = '{table_name}'
-                """))
+                """)
+                )
 
                 indexes = [{"name": row[0], "definition": row[1]} for row in result.fetchall()]
                 self._index_cache[table_name] = indexes
@@ -325,7 +333,7 @@ class DatabaseOptimizer:
             perf_logger.error(f"Failed to get indexes for {table_name}: {e}")
             return []
 
-    def _analyze_where_columns(self, queries: List[QueryMetrics]) -> List[str]:
+    def _analyze_where_columns(self, queries: list[QueryMetrics]) -> list[str]:
         """Analyze WHERE clauses to identify frequently used columns"""
         try:
             import re
@@ -334,13 +342,13 @@ class DatabaseOptimizer:
 
             for query in queries:
                 # Find WHERE clause patterns
-                where_matches = re.findall(r'WHERE\s+([\w\s=><!]+)', query.query, re.IGNORECASE)
+                where_matches = re.findall(r"WHERE\s+([\w\s=><!]+)", query.query, re.IGNORECASE)
 
                 for match in where_matches:
                     # Extract column names (simplified)
-                    columns = re.findall(r'(\w+)\s*[=><!]', match)
+                    columns = re.findall(r"(\w+)\s*[=><!]", match)
                     for column in columns:
-                        if column.lower() not in ['and', 'or', 'not']:
+                        if column.lower() not in ["and", "or", "not"]:
                             column_counts[column.lower()] = column_counts.get(column.lower(), 0) + 1
 
             # Return columns used in multiple queries
@@ -350,7 +358,7 @@ class DatabaseOptimizer:
             perf_logger.error(f"Failed to analyze WHERE clauses: {e}")
             return []
 
-    def _has_index(self, indexes: List[Dict[str, Any]], column: str) -> bool:
+    def _has_index(self, indexes: list[dict[str, Any]], column: str) -> bool:
         """Check if a column already has an index"""
         try:
             for index in indexes:
@@ -360,7 +368,7 @@ class DatabaseOptimizer:
         except Exception:
             return False
 
-    def _estimate_improvement(self, queries: List[QueryMetrics], column: str) -> float:
+    def _estimate_improvement(self, queries: list[QueryMetrics], column: str) -> float:
         """Estimate performance improvement from adding an index"""
         try:
             # Simple heuristic based on average execution time
@@ -377,7 +385,7 @@ class DatabaseOptimizer:
         except Exception:
             return 0.0
 
-    async def get_performance_summary(self) -> Dict[str, Any]:
+    async def get_performance_summary(self) -> dict[str, Any]:
         """Get overall database performance summary"""
         try:
             if not self.query_history:
@@ -388,7 +396,9 @@ class DatabaseOptimizer:
             total_time = sum(q.execution_time for q in self.query_history)
             avg_time = total_time / total_queries if total_queries > 0 else 0
 
-            slow_queries = [q for q in self.query_history if q.execution_time > self.slow_query_threshold]
+            slow_queries = [
+                q for q in self.query_history if q.execution_time > self.slow_query_threshold
+            ]
 
             # Group by table
             table_stats = {}
@@ -399,7 +409,7 @@ class DatabaseOptimizer:
                             "count": 0,
                             "total_time": 0,
                             "avg_time": 0,
-                            "slow_queries": 0
+                            "slow_queries": 0,
                         }
 
                     stats = table_stats[query.table_name]
@@ -418,14 +428,14 @@ class DatabaseOptimizer:
                 "slow_query_percentage": round((len(slow_queries) / total_queries) * 100, 2),
                 "slow_query_threshold": self.slow_query_threshold,
                 "table_statistics": table_stats,
-                "index_recommendations": await self.get_index_recommendations()
+                "index_recommendations": await self.get_index_recommendations(),
             }
 
         except Exception as e:
             perf_logger.error(f"Failed to generate performance summary: {e}")
             return {"error": str(e)}
 
-    async def optimize_table(self, table_name: str) -> Dict[str, Any]:
+    async def optimize_table(self, table_name: str) -> dict[str, Any]:
         """Optimize a specific table"""
         try:
             async with self.db_session_maker() as session:
@@ -437,17 +447,21 @@ class DatabaseOptimizer:
                 row_count = result.scalar()
 
                 # Get table size
-                result = await session.execute(text(f"""
+                result = await session.execute(
+                    text(f"""
                     SELECT pg_size_pretty(pg_total_relation_size('{table_name}'))
-                """))
+                """)
+                )
                 table_size = result.scalar()
 
                 # Check for fragmentation (simplified)
-                result = await session.execute(text(f"""
+                result = await session.execute(
+                    text(f"""
                     SELECT schemaname, tablename, attname, n_distinct, correlation
                     FROM pg_stats
                     WHERE tablename = '{table_name}'
-                """))
+                """)
+                )
                 stats = result.fetchall()
 
                 return {
@@ -455,18 +469,14 @@ class DatabaseOptimizer:
                     "row_count": row_count,
                     "table_size": table_size,
                     "column_statistics": [
-                        {
-                            "column": row[2],
-                            "distinct_values": row[3],
-                            "correlation": row[4]
-                        }
+                        {"column": row[2], "distinct_values": row[3], "correlation": row[4]}
                         for row in stats
                     ],
                     "optimization_actions": [
                         "ANALYZE completed",
                         "Statistics updated",
-                        "Consider VACUUM if high fragmentation detected"
-                    ]
+                        "Consider VACUUM if high fragmentation detected",
+                    ],
                 }
 
         except Exception as e:
@@ -483,12 +493,15 @@ class DatabaseOptimizer:
         self.slow_query_threshold = threshold_seconds
         perf_logger.info(f"Slow query threshold set to {threshold_seconds} seconds")
 
-# Global optimizer instance
-_database_optimizer: Optional[DatabaseOptimizer] = None
 
-def get_database_optimizer() -> Optional[DatabaseOptimizer]:
+# Global optimizer instance
+_database_optimizer: DatabaseOptimizer | None = None
+
+
+def get_database_optimizer() -> DatabaseOptimizer | None:
     """Get the global database optimizer instance"""
     return _database_optimizer
+
 
 def initialize_database_optimizer(db_session_maker: async_sessionmaker) -> DatabaseOptimizer:
     """Initialize the global database optimizer"""

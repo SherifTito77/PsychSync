@@ -4,26 +4,28 @@ Structured Logging System for PsychSync
 Provides consistent, searchable logs for production monitoring and debugging
 """
 
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from enum import Enum
 import json
 import logging
-import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
 import traceback
-import os
+from typing import Any
+
 
 class LogLevel(Enum):
     """Log levels for structured logging"""
+
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
 
+
 class EventType(Enum):
     """Event types for categorization"""
+
     API_CALL = "api_call"
     BUSINESS_EVENT = "business_event"
     DATABASE_OPERATION = "database_operation"
@@ -37,18 +39,21 @@ class EventType(Enum):
     WARNING_EVENT = "warning_event"
     CRITICAL_EVENT = "critical_event"
 
+
 @dataclass
 class LogContext:
     """Context information for log entries"""
-    request_id: Optional[str] = None
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    endpoint: Optional[str] = None
-    method: Optional[str] = None
-    organization_id: Optional[str] = None
-    team_id: Optional[str] = None
+
+    request_id: str | None = None
+    user_id: str | None = None
+    session_id: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
+    endpoint: str | None = None
+    method: str | None = None
+    organization_id: str | None = None
+    team_id: str | None = None
+
 
 class LogEvent:
     """Structured log event"""
@@ -59,12 +64,12 @@ class LogEvent:
         level: str,
         event_type: str,
         message: str,
-        context: Dict[str, Any],
-        operation_name: Optional[str] = None,
-        duration_ms: Optional[float] = None,
-        error_details: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        **kwargs
+        context: dict[str, Any],
+        operation_name: str | None = None,
+        duration_ms: float | None = None,
+        error_details: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        **kwargs,
     ):
         self.timestamp = timestamp
         self.level = level
@@ -81,19 +86,20 @@ class LogEvent:
             if key not in self.context:
                 self.context[key] = value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert log event to dictionary for JSON serialization"""
         return {
-            'timestamp': self.timestamp,
-            'level': self.level,
-            'event_type': self.event_type,
-            'message': self.message,
-            'context': self.context,
-            'operation_name': self.operation_name,
-            'duration_ms': self.duration_ms,
-            'error_details': self.error_details,
-            'metadata': self.metadata
+            "timestamp": self.timestamp,
+            "level": self.level,
+            "event_type": self.event_type,
+            "message": self.message,
+            "context": self.context,
+            "operation_name": self.operation_name,
+            "duration_ms": self.duration_ms,
+            "error_details": self.error_details,
+            "metadata": self.metadata,
         }
+
 
 class StructuredLogger:
     """
@@ -115,8 +121,9 @@ class StructuredLogger:
         """Clear all context information"""
         self._context = LogContext()
 
-    def _create_log_entry(self, level: LogLevel, event_type: EventType,
-                         message: str, **kwargs) -> LogEvent:
+    def _create_log_entry(
+        self, level: LogLevel, event_type: EventType, message: str, **kwargs
+    ) -> LogEvent:
         """Create a structured log entry"""
         return LogEvent(
             timestamp=datetime.utcnow().isoformat(),
@@ -124,11 +131,10 @@ class StructuredLogger:
             event_type=event_type.value,
             message=message,
             context=asdict(self._context),
-            **kwargs
+            **kwargs,
         )
 
-    def _log(self, level: LogLevel, event_type: EventType,
-             message: str, **kwargs):
+    def _log(self, level: LogLevel, event_type: EventType, message: str, **kwargs):
         """Internal logging method"""
         log_entry = self._create_log_entry(level, event_type, message, **kwargs)
         log_line = json.dumps(log_entry.to_dict(), default=str)
@@ -203,8 +209,15 @@ class StructuredLogger:
 
     # Specific logging methods for common operations
 
-    def log_api_call(self, endpoint: str, method: str, user_id: str,
-                    status_code: int, duration_ms: float, **kwargs):
+    def log_api_call(
+        self,
+        endpoint: str,
+        method: str,
+        user_id: str,
+        status_code: int,
+        duration_ms: float,
+        **kwargs,
+    ):
         """Log API call with structured data"""
         self.info(
             EventType.API_CALL,
@@ -213,23 +226,28 @@ class StructuredLogger:
             method=method,
             status_code=status_code,
             duration_ms=duration_ms,
-            **kwargs
+            **kwargs,
         )
 
-    def log_business_event(self, event_name: str, user_id: str,
-                          resource_id: str = None, **kwargs):
+    def log_business_event(self, event_name: str, user_id: str, resource_id: str = None, **kwargs):
         """Log business events with structured data"""
         self.info(
             EventType.BUSINESS_EVENT,
             f"Business event: {event_name}",
             operation_name=event_name,
             resource_id=resource_id,
-            **kwargs
+            **kwargs,
         )
 
-    def log_database_operation(self, operation: str, table: str,
-                             duration_ms: float = None, record_count: int = None,
-                             success: bool = True, **kwargs):
+    def log_database_operation(
+        self,
+        operation: str,
+        table: str,
+        duration_ms: float = None,
+        record_count: int = None,
+        success: bool = True,
+        **kwargs,
+    ):
         """Log database operations"""
         level = LogLevel.INFO if success else LogLevel.ERROR
         message = f"Database operation: {operation} on {table}"
@@ -243,12 +261,18 @@ class StructuredLogger:
             duration_ms=duration_ms,
             record_count=record_count,
             success=success,
-            **kwargs
+            **kwargs,
         )
 
-    def log_authentication_event(self, event_name: str, user_id: str = None,
-                                email: str = None, success: bool = True,
-                                ip_address: str = None, **kwargs):
+    def log_authentication_event(
+        self,
+        event_name: str,
+        user_id: str = None,
+        email: str = None,
+        success: bool = True,
+        ip_address: str = None,
+        **kwargs,
+    ):
         """Log authentication events"""
         level = LogLevel.INFO if success else LogLevel.WARNING
         message = f"Authentication: {event_name}"
@@ -262,11 +286,12 @@ class StructuredLogger:
             email=email,
             ip_address=ip_address,
             success=success,
-            **kwargs
+            **kwargs,
         )
 
-    def log_authorization_event(self, resource: str, action: str, user_id: str,
-                              success: bool = True, **kwargs):
+    def log_authorization_event(
+        self, resource: str, action: str, user_id: str, success: bool = True, **kwargs
+    ):
         """Log authorization events"""
         level = LogLevel.INFO if success else LogLevel.WARNING
         message = f"Authorization: {action} on {resource}"
@@ -279,11 +304,12 @@ class StructuredLogger:
             resource=resource,
             user_id=user_id,
             success=success,
-            **kwargs
+            **kwargs,
         )
 
-    def log_validation_error(self, field: str, value: Any, constraint: str,
-                           operation: str = None, **kwargs):
+    def log_validation_error(
+        self, field: str, value: Any, constraint: str, operation: str = None, **kwargs
+    ):
         """Log validation errors"""
         self.warning(
             EventType.VALIDATION_ERROR,
@@ -292,16 +318,15 @@ class StructuredLogger:
             field=field,
             value=str(value),
             constraint=constraint,
-            **kwargs
+            **kwargs,
         )
 
-    def log_error(self, error: Exception, operation: str = None,
-                  user_id: str = None, **kwargs):
+    def log_error(self, error: Exception, operation: str = None, user_id: str = None, **kwargs):
         """Log errors with full context"""
         error_details = {
             "error_type": type(error).__name__,
             "error_message": str(error),
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
         }
 
         self.error(
@@ -310,11 +335,12 @@ class StructuredLogger:
             operation_name=operation,
             user_id=user_id,
             error_details=error_details,
-            **kwargs
+            **kwargs,
         )
 
-    def log_performance_metric(self, metric_name: str, value: Union[float, int],
-                             unit: str = None, **kwargs):
+    def log_performance_metric(
+        self, metric_name: str, value: float | int, unit: str = None, **kwargs
+    ):
         """Log performance metrics"""
         self.info(
             EventType.PERFORMANCE_METRIC,
@@ -322,7 +348,7 @@ class StructuredLogger:
             operation_name=metric_name,
             metric_value=value,
             metric_unit=unit,
-            **kwargs
+            **kwargs,
         )
 
     def log_system_event(self, event_name: str, **kwargs):
@@ -331,24 +357,29 @@ class StructuredLogger:
             EventType.SYSTEM_EVENT,
             f"System event: {event_name}",
             operation_name=event_name,
-            **kwargs
+            **kwargs,
         )
+
 
 # Global logger factory
 def get_logger(module_name: str) -> StructuredLogger:
     """Get a structured logger for the given module"""
     return StructuredLogger(module_name)
 
+
 # Convenience function for getting logger with __name__
 def get_module_logger() -> StructuredLogger:
     """Get structured logger for current module"""
     import inspect
+
     frame = inspect.currentframe().f_back
-    module_name = frame.f_globals['__name__']
+    module_name = frame.f_globals["__name__"]
     return get_logger(module_name)
+
 
 # Enhanced log aggregation and alerting system
 # Collects error logs, analyzes patterns, and sends alerts for critical issues
+
 
 class LogAnalyzer:
     """
@@ -360,9 +391,9 @@ class LogAnalyzer:
         self.error_count = {}
         self.last_alert_time = {}
 
-    def analyze_log_entry(self, log_entry: Dict[str, Any]):
+    def analyze_log_entry(self, log_entry: dict[str, Any]):
         """Analyze a log entry and generate alerts if needed"""
-        if log_entry.get('level') == 'error':
+        if log_entry.get("level") == "error":
             self._track_error(log_entry)
 
         # Additional analysis logic here
@@ -371,10 +402,11 @@ class LogAnalyzer:
         # - Security event monitoring
         # - Resource utilization tracking
 
-    def _track_error(self, log_entry: Dict[str, Any]):
+    def _track_error(self, log_entry: dict[str, Any]):
         """Track error occurrences and alert if threshold exceeded"""
         import time
-        error_type = log_entry.get('error_details', {}).get('error_type', 'unknown')
+
+        error_type = log_entry.get("error_details", {}).get("error_type", "unknown")
         current_time = time.time()
 
         if error_type not in self.error_count:
@@ -385,7 +417,8 @@ class LogAnalyzer:
 
         # Remove old errors (older than 5 minutes)
         self.error_count[error_type] = [
-            timestamp for timestamp in self.error_count[error_type]
+            timestamp
+            for timestamp in self.error_count[error_type]
             if current_time - timestamp < 300  # 5 minutes
         ]
 
@@ -396,11 +429,14 @@ class LogAnalyzer:
     def _send_alert(self, error_type: str, count: int):
         """Send alert for high error rate"""
         import time
+
         current_time = time.time()
 
         # Prevent alert spam (max one alert per hour per error type)
-        if (error_type in self.last_alert_time and
-            current_time - self.last_alert_time[error_type] < 3600):
+        if (
+            error_type in self.last_alert_time
+            and current_time - self.last_alert_time[error_type] < 3600
+        ):
             return
 
         self.last_alert_time[error_type] = current_time
@@ -416,6 +452,7 @@ class LogAnalyzer:
         # - Error tracking services
 
         print(f"ALERT: {alert_message}")  # Replace with actual alerting system
+
 
 # Global log analyzer instance
 log_analyzer = LogAnalyzer()

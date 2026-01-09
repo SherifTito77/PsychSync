@@ -1,0 +1,238 @@
+rules:
+  # ===========================================================================
+  # AI-Assistant Security Rules
+  # ===========================================================================
+  # These rules detect common security vulnerabilities introduced by AI coding
+  # assistants when generating code without proper security considerations.
+  # ===========================================================================
+
+  - id: ai-hardcoded-password
+    languages: [python]
+    message: "AI assistant hardcoded password - use environment variables or secrets manager"
+    severity: ERROR
+    pattern-either:
+      - pattern: password = "..."
+      - pattern: api_key = "..."
+      - pattern: secret = "..."
+      - pattern: token = "..."
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A07:2021 - Cryptographic Failures"
+      cwe: "CWE-798"
+
+  - id: ai-shell-true
+    languages: [python]
+    message: "AI assistant used shell=True in subprocess - command injection risk"
+    severity: ERROR
+    pattern: subprocess.$(run, call, Popen)(..., shell=True, ...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-78"
+      remediation: "Use list arguments without shell=True"
+
+  - id: ai-sql-injection-text
+    languages: [python]
+    message: "AI assistant used text() with f-string - SQL injection risk"
+    severity: ERROR
+    pattern: text(f"SELECT ... {VAR}")
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-89"
+      remediation: "Use parameterized queries with bindparams()"
+
+  - id: ai-unsafe-pickle
+    languages: [python]
+    message: "AI assistant used pickle.loads() - unsafe deserialization risk"
+    severity: ERROR
+    pattern: pickle.loads(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A08:2021 - Software and Data Integrity Failures"
+      cwe: "CWE-502"
+      remediation: "Use json.loads() or safe serialization formats"
+
+  - id: ai-dangerous-eval
+    languages: [python]
+    message: "AI assistant used eval() - code injection risk"
+    severity: ERROR
+    pattern: eval(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-95"
+      remediation: "Use ast.literal_eval() or explicit parsing"
+
+  - id: ai-markdown-injection
+    languages: [python]
+    message: "AI assistant rendered unsanitized markdown - XSS risk"
+    severity: WARNING
+    pattern: markdown.markdown($USER_INPUT)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-79"
+      remediation: "Sanitize markdown or use allowlist"
+
+  - id: ai-exec-compilation
+    languages: [python]
+    message: "AI assistant used exec() - code execution risk"
+    severity: ERROR
+    pattern: exec(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-78"
+      remediation: "Avoid exec() or use with extreme caution"
+
+  - id: ai-weak-cryptography
+    languages: [python]
+    message: "AI assistant used weak cryptography (MD5, SHA1)"
+    severity: WARNING
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A02:2021 - Cryptographic Failures"
+      cwe: "CWE-327"
+      remediation: "Use SHA-256 or better (hashlib.sha256)"
+
+  - id: ai-random-for-secrets
+    languages: [python]
+    message: "AI assistant used random.random() for secrets - use secrets module"
+    severity: ERROR
+    pattern: random.random(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A02:2021 - Cryptographic Failures"
+      cwe: "CWE-338"
+      remediation: "Use secrets.token_urlsafe() or secrets.choice()"
+
+  - id: ai-debug-print
+    languages: [python]
+    message: "AI assistant used print() for sensitive data - use logging"
+    severity: WARNING
+    pattern-either:
+      - pattern: print($PASSWORD)
+      - pattern: print($TOKEN)
+      - pattern: print($SECRET)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A09:2021 - Security Logging"
+      remediation: "Use structured logging (logger.info/debug)"
+
+  - id: ai-tls-verification
+    languages: [python]
+    message: "AI assistant disabled TLS verification - MITM risk"
+    severity: ERROR
+    pattern: urllib.request.$(Request, urlopen)(..., verify=False)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A02:2021 - Cryptographic Failures"
+      cwe: "CWE-295"
+      remediation: "Never disable certificate verification"
+
+  - id: ai-os-system-call
+    languages: [python]
+    message: "AI assistant used os.system() - command injection risk"
+    severity: ERROR
+    pattern: os.system(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      cwe: "CWE-78"
+      remediation: "Use subprocess with list arguments"
+
+  - id: ai-yaml-load
+    languages: [python]
+    message: "AI assistant used yaml.load() - unsafe YAML loading"
+    severity: WARNING
+    pattern: yaml.load(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      remediation: "Use yaml.safe_load()"
+
+  - id: ai-tempfile-race
+    languages: [python]
+    message: "AI assistant used tempfile.mktemp() - race condition risk"
+    severity: WARNING
+    pattern: tempfile.mktemp(...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-377"
+      remediation: "Use tempfile.NamedTemporaryFile with delete=True"
+
+  - id: ai-http-insecure
+    languages: [python]
+    message: "AI assistant used insecure HTTP (http://) for sensitive data"
+    severity: WARNING
+    pattern: requests.get("http://...", ...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A02:2021 - Cryptographic Failures"
+      remediation: "Use HTTPS for all communications"
+
+  - id: ai-json-input-vulnerability
+    languages: [python]
+    message: "AI assistant parsed JSON without validation - injection risk"
+    severity: WARNING
+    pattern: json.loads($USER_INPUT)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      remediation: "Validate JSON schema before parsing"
+
+  - id: ai-file-path-traversal
+    languages: [python]
+    message: "AI assistant used user input in file path - traversal risk"
+    severity: ERROR
+    pattern: open($USER_INPUT, ...)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-22"
+      remediation: "Validate and sanitize file paths"
+
+  - id: ai-base64-decode-ignore
+    languages: [python]
+    message: "AI assistant used base64.b64decode without validation"
+    severity: WARNING
+    pattern: base64.b64decode($INPUT)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A03:2021 - Injection"
+      remediation: "Add validate=True parameter"
+
+  - id: ai-hash-compare-timing
+    languages: [python]
+    message: "AI assistant used string compare for hashes - timing attack risk"
+    severity: WARNING
+    pattern: hmac.compare_digest($DIGEST, $INPUT)
+    metadata:
+      category: security
+      technology: ["ai-generated-code"]
+      owasp: "A07:2021 - Authentication Failures"
+      cwe: "CWE-208"
+      remediation: "Use hmac.compare_digest() (constant-time compare)"

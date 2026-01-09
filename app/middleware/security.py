@@ -9,35 +9,31 @@ Comprehensive security protection for FastAPI applications including:
 - IP-based blocking for suspicious activity
 """
 
-from typing import Optional, Dict, Any, List, Set
-import secrets
-import hashlib
-import hmac
-import time
-import ipaddress
-import re
-from urllib.parse import urlparse
-from datetime import datetime, timedelta
-
-from fastapi import Request, Response, HTTPException, status
-from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.responses import RedirectResponse
-
-import redis.asyncio as redis
-import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+import hmac
+import ipaddress
+import logging
+import re
+import secrets
+
+from fastapi import HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
+import redis.asyncio as redis
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 logger = logging.getLogger(__name__)
 
+
 class SecurityLevel(Enum):
     """Security severity levels for different policies."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     STRICT = "strict"
+
 
 @dataclass
 class SecurityConfig:
@@ -77,27 +73,30 @@ class SecurityConfig:
     ip_blocking_enabled: bool = True
     failed_login_threshold: int = 5
     ip_block_duration: int = 900  # 15 minutes
-    suspicious_patterns: List[str] = field(default_factory=lambda: [
-        r'<script[^>]*>.*?</script>',
-        r'javascript:',
-        r'onload\s*=',
-        r'onerror\s*=',
-        r'eval\s*\(',
-        r'document\.cookie'
-    ])
+    suspicious_patterns: list[str] = field(
+        default_factory=lambda: [
+            r"<script[^>]*>.*?</script>",
+            r"javascript:",
+            r"onload\s*=",
+            r"onerror\s*=",
+            r"eval\s*\(",
+            r"document\.cookie",
+        ]
+    )
 
     # Redis Configuration
     redis_url: str = "redis://localhost:6379/2"
+
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     """
     Comprehensive security middleware suite.
     """
 
-    def __init__(self, app, config: Optional[SecurityConfig] = None):
+    def __init__(self, app, config: SecurityConfig | None = None):
         super().__init__(app)
         self.config = config or SecurityConfig()
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
 
         # Content Security Policy templates
         self.csp_templates = {
@@ -143,20 +142,16 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 "frame-ancestors 'none'; "
                 "upgrade-insecure-requests; "
                 "form-action 'self'"
-            )
+            ),
         }
 
         # Safe HTTP methods that don't require CSRF protection
-        self.safe_methods = {'GET', 'HEAD', 'OPTIONS', 'TRACE'}
+        self.safe_methods = {"GET", "HEAD", "OPTIONS", "TRACE"}
 
         # Initialize Redis
         self._init_redis()
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """
         Main middleware dispatcher.
         """
@@ -219,7 +214,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_timeout=True
+                retry_on_timeout=True,
             )
             logger.info("Security middleware Redis connection established")
         except Exception as e:
@@ -230,17 +225,17 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         """Extract real client IP from request."""
         # Check various headers for real IP
         ip_headers = [
-            'x-forwarded-for',
-            'x-real-ip',
-            'x-client-ip',
-            'cf-connecting-ip',
-            'x-cluster-client-ip'
+            "x-forwarded-for",
+            "x-real-ip",
+            "x-client-ip",
+            "cf-connecting-ip",
+            "x-cluster-client-ip",
         ]
 
         for header in ip_headers:
             if header in request.headers:
                 # X-Forwarded-For can contain multiple IPs, take the first
-                ip = request.headers[header].split(',')[0].strip()
+                ip = request.headers[header].split(",")[0].strip()
                 try:
                     # Validate IP format
                     ipaddress.ip_address(ip)
@@ -270,9 +265,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         try:
             await self.redis_client.setex(
-                f"blocked_ip:{ip}",
-                self.config.ip_block_duration,
-                "suspicious_activity_detected"
+                f"blocked_ip:{ip}", self.config.ip_block_duration, "suspicious_activity_detected"
             )
             logger.warning(f"IP {ip} temporarily blocked due to suspicious activity")
         except Exception as e:
@@ -295,10 +288,17 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 suspicious_found = True
 
             # Check user agent for common attack tools
-            user_agent = request.headers.get('user-agent', '')
+            user_agent = request.headers.get("user-agent", "")
             attack_tools = [
-                'sqlmap', 'nikto', 'nmap', 'masscan', 'nessus',
-                'burp', 'owasp zap', 'w3af', 'acunetix'
+                "sqlmap",
+                "nikto",
+                "nmap",
+                "masscan",
+                "nessus",
+                "burp",
+                "owasp zap",
+                "w3af",
+                "acunetix",
             ]
             if any(tool.lower() in user_agent.lower() for tool in attack_tools):
                 suspicious_found = True
@@ -320,22 +320,17 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return True
         return False
 
-    async def _log_suspicious_activity(
-        self,
-        request: Request,
-        ip: str,
-        reason: str
-    ) -> None:
+    async def _log_suspicious_activity(self, request: Request, ip: str, reason: str) -> None:
         """Log suspicious activity for monitoring."""
         try:
             log_entry = {
-                'timestamp': datetime.utcnow().isoformat(),
-                'ip': ip,
-                'method': request.method,
-                'path': str(request.url.path),
-                'user_agent': request.headers.get('user-agent', ''),
-                'reason': reason,
-                'query_params': str(request.query_params)
+                "timestamp": datetime.utcnow().isoformat(),
+                "ip": ip,
+                "method": request.method,
+                "path": str(request.url.path),
+                "user_agent": request.headers.get("user-agent", ""),
+                "reason": reason,
+                "query_params": str(request.query_params),
             }
 
             # Log to security monitoring system
@@ -343,10 +338,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
             # Store in Redis for monitoring dashboard
             if self.redis_client:
-                await self.redis_client.lpush(
-                    "security_events",
-                    str(log_entry)
-                )
+                await self.redis_client.lpush("security_events", str(log_entry))
                 await self.redis_client.expire("security_events", 86400)  # 24 hours
 
         except Exception as e:
@@ -358,15 +350,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             status_code=status.HTTP_403_FORBIDDEN,
             content={
                 "detail": "Access blocked due to suspicious activity",
-                "error_code": "SECURITY_BLOCKED"
-            }
+                "error_code": "SECURITY_BLOCKED",
+            },
         )
 
-    def _apply_security_headers(
-        self,
-        request: Request,
-        response: Response
-    ) -> Response:
+    def _apply_security_headers(self, request: Request, response: Response) -> Response:
         """Apply comprehensive security headers."""
 
         # Strict Transport Security (HSTS)
@@ -380,8 +368,14 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Content Security Policy
         if self.config.csp_enabled:
-            nonce = secrets.token_urlsafe(16) if self.config.csp_level in [SecurityLevel.HIGH, SecurityLevel.STRICT] else None
-            csp_template = self.csp_templates.get(self.config.csp_level, self.csp_templates[SecurityLevel.MEDIUM])
+            nonce = (
+                secrets.token_urlsafe(16)
+                if self.config.csp_level in [SecurityLevel.HIGH, SecurityLevel.STRICT]
+                else None
+            )
+            csp_template = self.csp_templates.get(
+                self.config.csp_level, self.csp_templates[SecurityLevel.MEDIUM]
+            )
 
             if nonce:
                 csp_policy = csp_template.format(nonce=nonce)
@@ -434,13 +428,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         if self.redis_client:
             # Store token in Redis for validation
-            session_key = request.session.get('session_id', secrets.token_urlsafe(16))
+            session_key = request.session.get("session_id", secrets.token_urlsafe(16))
             await self.redis_client.setex(
-                f"csrf_token:{session_key}",
-                self.config.csrf_token_expiry,
-                token
+                f"csrf_token:{session_key}", self.config.csrf_token_expiry, token
             )
-            request.session['session_id'] = session_key
+            request.session["session_id"] = session_key
 
         return token
 
@@ -475,7 +467,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return False
 
             # Validate token exists in Redis
-            session_key = request.session.get('session_id')
+            session_key = request.session.get("session_id")
             if not session_key:
                 return False
 
@@ -488,6 +480,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"CSRF validation error: {e}")
             return False  # Fail open for security
+
 
 class FailedLoginTracker:
     """
@@ -523,21 +516,19 @@ class FailedLoginTracker:
             logger.error(f"Error clearing failed login count: {e}")
 
     async def _block_identifier_temporarily(
-        self,
-        identifier: str,
-        ip: str,
-        failed_count: int
+        self, identifier: str, ip: str, failed_count: int
     ) -> None:
         """Block identifier for progressively longer periods."""
         block_duration = min(
-            self.config.ip_block_duration * (2 ** (failed_count // self.config.failed_login_threshold)),
-            86400  # Max 24 hours
+            self.config.ip_block_duration
+            * (2 ** (failed_count // self.config.failed_login_threshold)),
+            86400,  # Max 24 hours
         )
 
         await self.redis.setex(
             f"blocked_identifier:{identifier}",
             block_duration,
-            f"failed_login_attempts:{failed_count}"
+            f"failed_login_attempts:{failed_count}",
         )
 
         logger.warning(
@@ -554,7 +545,7 @@ class FailedLoginTracker:
             return False
 
 
-def setup_security_middleware(app, config: Optional[SecurityConfig] = None):
+def setup_security_middleware(app, config: SecurityConfig | None = None):
     """
     Set up security middleware for a FastAPI application
 

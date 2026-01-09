@@ -5,34 +5,23 @@ Advanced data anonymization algorithms for privacy-compliant research data expor
 Implements k-anonymity, l-diversity, t-closeness, differential privacy, and synthetic data generation.
 """
 
-import logging
-import math
-import hashlib
-import secrets
-from typing import Dict, List, Optional, Tuple, Any, Union, Set
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-import asyncio
-from datetime import datetime, timedelta
+import logging
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy.stats import chi2_contingency, entropy
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import pairwise_distances
-from sklearn.cluster import AgglomerativeClustering
-import sqlalchemy
+from scipy.stats import entropy
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc, asc
-
-from app.db.models.data_anonymization import (
-    AnonymizationAlgorithm, DataAnonymizationJob, AnonymizationAuditLog
-)
 
 logger = logging.getLogger(__name__)
 
+
 class AnonymizationMethod(Enum):
     """Types of anonymization methods"""
+
     GENERALIZATION = "generalization"
     SUPPRESSION = "suppression"
     PERTURBATION = "perturbation"
@@ -42,48 +31,58 @@ class AnonymizationMethod(Enum):
     L_DIVERSITY = "l_diversity"
     T_CLOSENESS = "t_closeness"
 
+
 class QuasiIdentifierType(Enum):
     """Types of quasi-identifiers"""
-    DEMOGRAPHIC = "demographic"      # age, gender, location
-    TEMPORAL = "temporal"           # dates, timestamps
-    BEHAVIORAL = "behavioral"      # patterns, frequencies
+
+    DEMOGRAPHIC = "demographic"  # age, gender, location
+    TEMPORAL = "temporal"  # dates, timestamps
+    BEHAVIORAL = "behavioral"  # patterns, frequencies
     ORGANIZATIONAL = "organizational"  # department, role, tenure
-    HEALTH = "health"              # medical conditions, treatments
-    EDUCATIONAL = "educational"    # grades, test scores, qualifications
+    HEALTH = "health"  # medical conditions, treatments
+    EDUCATIONAL = "educational"  # grades, test scores, qualifications
+
 
 class RiskLevel(Enum):
     """Privacy risk levels"""
+
     VERY_LOW = "very_low"
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
     VERY_HIGH = "very_high"
 
+
 @dataclass
 class QuasiIdentifier:
     """Definition of a quasi-identifier field"""
+
     name: str
     type: QuasiIdentifierType
-    generalization_hierarchy: List[str]
+    generalization_hierarchy: list[str]
     weight: float = 1.0
     is_sensitive: bool = False
+
 
 @dataclass
 class AnonymizationResult:
     """Result of anonymization process"""
+
     anonymized_data: pd.DataFrame
-    privacy_metrics: Dict[str, float]
+    privacy_metrics: dict[str, float]
     data_utility_score: float
     algorithm_used: AnonymizationMethod
-    parameters_used: Dict[str, Any]
+    parameters_used: dict[str, Any]
     processing_time: float
     records_processed: int
     records_output: int
     information_loss: float
 
+
 @dataclass
 class PrivacyMetrics:
     """Privacy protection metrics"""
+
     k_anonymity_level: int
     l_diversity_level: float
     t_closeness_value: float
@@ -91,6 +90,7 @@ class PrivacyMetrics:
     uniqueness_risk: float
     sample_uniqueness: float
     population_uniqueness: float
+
 
 class DataAnonymizer:
     """Advanced data anonymization engine"""
@@ -107,12 +107,12 @@ class DataAnonymizer:
         self,
         data: pd.DataFrame,
         method: AnonymizationMethod,
-        quasi_identifiers: List[QuasiIdentifier],
-        sensitive_attributes: List[str],
-        parameters: Optional[Dict[str, Any]] = None,
+        quasi_identifiers: list[QuasiIdentifier],
+        sensitive_attributes: list[str],
+        parameters: dict[str, Any] | None = None,
         k_anonymity_threshold: int = 5,
         l_diversity_threshold: float = 3.0,
-        t_closeness_threshold: float = 0.2
+        t_closeness_threshold: float = 0.2,
     ) -> AnonymizationResult:
         """Main method for dataset anonymization"""
 
@@ -134,13 +134,21 @@ class DataAnonymizer:
                 )
             elif method == AnonymizationMethod.L_DIVERSITY:
                 result = await self._apply_l_diversity(
-                    data, quasi_identifiers, sensitive_attributes,
-                    l_diversity_threshold, k_anonymity_threshold, parameters
+                    data,
+                    quasi_identifiers,
+                    sensitive_attributes,
+                    l_diversity_threshold,
+                    k_anonymity_threshold,
+                    parameters,
                 )
             elif method == AnonymizationMethod.T_CLOSENESS:
                 result = await self._apply_t_closeness(
-                    data, quasi_identifiers, sensitive_attributes,
-                    t_closeness_threshold, k_anonymity_threshold, parameters
+                    data,
+                    quasi_identifiers,
+                    sensitive_attributes,
+                    t_closeness_threshold,
+                    k_anonymity_threshold,
+                    parameters,
                 )
             elif method == AnonymizationMethod.DIFFERENTIAL_PRIVACY:
                 result = await self._apply_differential_privacy(
@@ -151,13 +159,9 @@ class DataAnonymizer:
                     data, quasi_identifiers, sensitive_attributes, parameters
                 )
             elif method == AnonymizationMethod.GENERALIZATION:
-                result = await self._apply_generalization(
-                    data, quasi_identifiers, parameters
-                )
+                result = await self._apply_generalization(data, quasi_identifiers, parameters)
             elif method == AnonymizationMethod.SUPPRESSION:
-                result = await self._apply_suppression(
-                    data, quasi_identifiers, parameters
-                )
+                result = await self._apply_suppression(data, quasi_identifiers, parameters)
             elif method == AnonymizationMethod.PERTURBATION:
                 result = await self._apply_perturbation(
                     data, quasi_identifiers, sensitive_attributes, parameters
@@ -169,7 +173,9 @@ class DataAnonymizer:
             processing_time = (datetime.utcnow() - start_time).total_seconds()
 
             # Calculate privacy metrics
-            privacy_metrics = await self._calculate_privacy_metrics(result.anonymized_data, quasi_identifiers)
+            privacy_metrics = await self._calculate_privacy_metrics(
+                result.anonymized_data, quasi_identifiers
+            )
 
             # Calculate data utility score
             data_utility_score = await self._calculate_data_utility_score(
@@ -177,9 +183,7 @@ class DataAnonymizer:
             )
 
             # Calculate information loss
-            information_loss = await self._calculate_information_loss(
-                data, result.anonymized_data
-            )
+            information_loss = await self._calculate_information_loss(data, result.anonymized_data)
 
             final_result = AnonymizationResult(
                 anonymized_data=result.anonymized_data,
@@ -190,7 +194,7 @@ class DataAnonymizer:
                 processing_time=processing_time,
                 records_processed=len(data),
                 records_output=len(result.anonymized_data),
-                information_loss=information_loss
+                information_loss=information_loss,
             )
 
             self.anonymized_data = result.anonymized_data
@@ -203,9 +207,9 @@ class DataAnonymizer:
     async def _apply_k_anonymity(
         self,
         data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier],
+        quasi_identifiers: list[QuasiIdentifier],
         k_threshold: int,
-        parameters: Dict[str, Any]
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Apply k-anonymity using data generalization"""
 
@@ -215,7 +219,7 @@ class DataAnonymizer:
 
         # Iterative generalization approach
         current_k = self._calculate_current_k_anonymity(generalized_data, qi_columns)
-        max_iterations = parameters.get('max_iterations', 10)
+        max_iterations = parameters.get("max_iterations", 10)
 
         for iteration in range(max_iterations):
             if current_k >= k_threshold:
@@ -250,17 +254,17 @@ class DataAnonymizer:
             processing_time=0,
             records_processed=len(data),
             records_output=len(generalized_data),
-            information_loss=0
+            information_loss=0,
         )
 
     async def _apply_l_diversity(
         self,
         data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier],
-        sensitive_attributes: List[str],
+        quasi_identifiers: list[QuasiIdentifier],
+        sensitive_attributes: list[str],
         l_threshold: float,
         k_threshold: int,
-        parameters: Dict[str, Any]
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Apply l-diversity for sensitive attribute protection"""
 
@@ -285,17 +289,17 @@ class DataAnonymizer:
             processing_time=0,
             records_processed=len(data),
             records_output=len(l_diverse_data),
-            information_loss=0
+            information_loss=0,
         )
 
     async def _apply_t_closeness(
         self,
         data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier],
-        sensitive_attributes: List[str],
+        quasi_identifiers: list[QuasiIdentifier],
+        sensitive_attributes: list[str],
         t_threshold: float,
         k_threshold: int,
-        parameters: Dict[str, Any]
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Apply t-closeness for distribution protection"""
 
@@ -317,8 +321,11 @@ class DataAnonymizer:
         # Adjust equivalence classes to achieve t-closeness
         for sensitive_attr in sensitive_attributes:
             t_close_data = await self._ensure_t_closeness(
-                t_close_data, qi_columns, sensitive_attr,
-                original_distributions[sensitive_attr], t_threshold
+                t_close_data,
+                qi_columns,
+                sensitive_attr,
+                original_distributions[sensitive_attr],
+                t_threshold,
             )
 
         return AnonymizationResult(
@@ -330,20 +337,17 @@ class DataAnonymizer:
             processing_time=0,
             records_processed=len(data),
             records_output=len(t_close_data),
-            information_loss=0
+            information_loss=0,
         )
 
     async def _apply_differential_privacy(
-        self,
-        data: pd.DataFrame,
-        sensitive_attributes: List[str],
-        parameters: Dict[str, Any]
+        self, data: pd.DataFrame, sensitive_attributes: list[str], parameters: dict[str, Any]
     ) -> AnonymizationResult:
         """Apply differential privacy using Laplace mechanism"""
 
-        epsilon = parameters.get('epsilon', 1.0)
-        delta = parameters.get('delta', 1e-5)
-        sensitivity = parameters.get('sensitivity', 1.0)
+        epsilon = parameters.get("epsilon", 1.0)
+        delta = parameters.get("delta", 1e-5)
+        sensitivity = parameters.get("sensitivity", 1.0)
 
         dp_data = data.copy()
 
@@ -352,47 +356,43 @@ class DataAnonymizer:
 
         for attr in sensitive_attributes:
             if attr in dp_data.columns:
-                if dp_data[attr].dtype in ['int64', 'float64']:
+                if dp_data[attr].dtype in ["int64", "float64"]:
                     noise = np.random.laplace(0, scale, len(dp_data))
                     dp_data[attr] = dp_data[attr] + noise
                 else:
                     # For categorical data, apply randomized response
-                    dp_data[attr] = await self._apply_randomized_response(
-                        dp_data[attr], epsilon
-                    )
+                    dp_data[attr] = await self._apply_randomized_response(dp_data[attr], epsilon)
 
         return AnonymizationResult(
             anonymized_data=dp_data,
-            privacy_metrics={'epsilon': epsilon, 'delta': delta},
+            privacy_metrics={"epsilon": epsilon, "delta": delta},
             data_utility_score=0,
             algorithm_used=AnonymizationMethod.DIFFERENTIAL_PRIVACY,
             parameters_used=parameters,
             processing_time=0,
             records_processed=len(data),
             records_output=len(dp_data),
-            information_loss=0
+            information_loss=0,
         )
 
     async def _generate_synthetic_data(
         self,
         data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier],
-        sensitive_attributes: List[str],
-        parameters: Dict[str, Any]
+        quasi_identifiers: list[QuasiIdentifier],
+        sensitive_attributes: list[str],
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Generate synthetic data preserving statistical properties"""
 
-        sample_size = parameters.get('sample_size', len(data))
-        method = parameters.get('generation_method', 'statistical')
+        sample_size = parameters.get("sample_size", len(data))
+        method = parameters.get("generation_method", "statistical")
 
-        if method == 'statistical':
+        if method == "statistical":
             synthetic_data = await self._generate_statistical_synthetic_data(
                 data, sample_size, parameters
             )
-        elif method == 'ml_based':
-            synthetic_data = await self._generate_ml_synthetic_data(
-                data, sample_size, parameters
-            )
+        elif method == "ml_based":
+            synthetic_data = await self._generate_ml_synthetic_data(data, sample_size, parameters)
         else:
             raise ValueError(f"Unsupported generation method: {method}")
 
@@ -405,19 +405,19 @@ class DataAnonymizer:
             processing_time=0,
             records_processed=len(data),
             records_output=len(synthetic_data),
-            information_loss=0
+            information_loss=0,
         )
 
     async def _apply_generalization(
         self,
         data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier],
-        parameters: Dict[str, Any]
+        quasi_identifiers: list[QuasiIdentifier],
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Apply data generalization"""
 
         generalized_data = data.copy()
-        generalization_level = parameters.get('level', 1)
+        generalization_level = parameters.get("level", 1)
 
         for qi in quasi_identifiers:
             if qi.name in generalized_data.columns:
@@ -434,19 +434,19 @@ class DataAnonymizer:
             processing_time=0,
             records_processed=len(data),
             records_output=len(generalized_data),
-            information_loss=0
+            information_loss=0,
         )
 
     async def _apply_suppression(
         self,
         data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier],
-        parameters: Dict[str, Any]
+        quasi_identifiers: list[QuasiIdentifier],
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Apply data suppression for high-risk records"""
 
         suppressed_data = data.copy()
-        suppression_threshold = parameters.get('threshold', 0.01)  # 1% threshold
+        suppression_threshold = parameters.get("threshold", 0.01)  # 1% threshold
 
         qi_columns = [qi.name for qi in quasi_identifiers]
 
@@ -456,8 +456,12 @@ class DataAnonymizer:
 
         if not rare_records.empty:
             # Suppress rare records
-            rare_index = suppressed_data.set_index(qi_columns).index.intersection(rare_records.index)
-            suppressed_data = suppressed_data[~suppressed_data.set_index(qi_columns).index.isin(rare_index)]
+            rare_index = suppressed_data.set_index(qi_columns).index.intersection(
+                rare_records.index
+            )
+            suppressed_data = suppressed_data[
+                ~suppressed_data.set_index(qi_columns).index.isin(rare_index)
+            ]
 
         return AnonymizationResult(
             anonymized_data=suppressed_data,
@@ -468,25 +472,25 @@ class DataAnonymizer:
             processing_time=0,
             records_processed=len(data),
             records_output=len(suppressed_data),
-            information_loss=0
+            information_loss=0,
         )
 
     async def _apply_perturbation(
         self,
         data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier],
-        sensitive_attributes: List[str],
-        parameters: Dict[str, Any]
+        quasi_identifiers: list[QuasiIdentifier],
+        sensitive_attributes: list[str],
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Apply data perturbation for privacy protection"""
 
         perturbed_data = data.copy()
-        noise_level = parameters.get('noise_level', 0.1)
+        noise_level = parameters.get("noise_level", 0.1)
 
         # Add noise to numerical quasi-identifiers
         for qi in quasi_identifiers:
             if qi.name in perturbed_data.columns:
-                if perturbed_data[qi.name].dtype in ['int64', 'float64']:
+                if perturbed_data[qi.name].dtype in ["int64", "float64"]:
                     std_dev = perturbed_data[qi.name].std() * noise_level
                     noise = np.random.normal(0, std_dev, len(perturbed_data))
                     perturbed_data[qi.name] = perturbed_data[qi.name] + noise
@@ -494,7 +498,7 @@ class DataAnonymizer:
         # Apply perturbation to sensitive attributes
         for attr in sensitive_attributes:
             if attr in perturbed_data.columns:
-                if perturbed_data[attr].dtype in ['int64', 'float64']:
+                if perturbed_data[attr].dtype in ["int64", "float64"]:
                     std_dev = perturbed_data[attr].std() * noise_level
                     noise = np.random.normal(0, std_dev, len(perturbed_data))
                     perturbed_data[attr] = perturbed_data[attr] + noise
@@ -508,22 +512,20 @@ class DataAnonymizer:
             processing_time=0,
             records_processed=len(data),
             records_output=len(perturbed_data),
-            information_loss=0
+            information_loss=0,
         )
 
     # Helper methods for privacy calculations
-    def _calculate_current_k_anonymity(self, data: pd.DataFrame, qi_columns: List[str]) -> int:
+    def _calculate_current_k_anonymity(self, data: pd.DataFrame, qi_columns: list[str]) -> int:
         """Calculate current k-anonymity level"""
         if not qi_columns:
-            return float('inf')
+            return float("inf")
 
         equivalence_classes = data.groupby(qi_columns).size()
         return int(equivalence_classes.min())
 
     async def _identify_high_risk_quasi_identifier(
-        self,
-        data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier]
+        self, data: pd.DataFrame, quasi_identifiers: list[QuasiIdentifier]
     ) -> QuasiIdentifier:
         """Identify the quasi-identifier with highest re-identification risk"""
 
@@ -540,10 +542,7 @@ class DataAnonymizer:
         return next(qi for qi in quasi_identifiers if qi.name == highest_risk_qi_name)
 
     async def _generalize_quasi_identifier(
-        self,
-        data: pd.DataFrame,
-        quasi_identifier: QuasiIdentifier,
-        parameters: Dict[str, Any]
+        self, data: pd.DataFrame, quasi_identifier: QuasiIdentifier, parameters: dict[str, Any]
     ) -> pd.DataFrame:
         """Generalize a specific quasi-identifier"""
 
@@ -552,7 +551,7 @@ class DataAnonymizer:
             return data
 
         hierarchy = quasi_identifier.generalization_hierarchy
-        current_level = parameters.get('generalization_level', 0)
+        current_level = parameters.get("generalization_level", 0)
 
         if current_level >= len(hierarchy):
             return data
@@ -560,17 +559,17 @@ class DataAnonymizer:
         generalized_data = data.copy()
         target_level = min(current_level, len(hierarchy) - 1)
 
-        if data[column_name].dtype == 'object':
+        if data[column_name].dtype == "object":
             # Categorical generalization
             generalized_data[column_name] = data[column_name].map(
                 lambda x: self._generalize_categorical_value(x, hierarchy, target_level)
             )
-        elif data[column_name].dtype in ['int64', 'float64']:
+        elif data[column_name].dtype in ["int64", "float64"]:
             # Numerical generalization
             generalized_data[column_name] = data[column_name].apply(
                 lambda x: self._generalize_numerical_value(x, hierarchy, target_level)
             )
-        elif 'datetime' in str(data[column_name].dtype):
+        elif "datetime" in str(data[column_name].dtype):
             # Temporal generalization
             generalized_data[column_name] = pd.to_datetime(data[column_name]).apply(
                 lambda x: self._generalize_temporal_value(x, hierarchy, target_level)
@@ -578,58 +577,37 @@ class DataAnonymizer:
 
         return generalized_data
 
-    def _generalize_categorical_value(
-        self,
-        value: Any,
-        hierarchy: List[str],
-        level: int
-    ) -> str:
+    def _generalize_categorical_value(self, value: Any, hierarchy: list[str], level: int) -> str:
         """Generalize categorical value based on hierarchy"""
         # Simplified implementation - would use actual hierarchy mapping
         if level == 0:
             return str(value)
-        elif level == 1:
-            return 'Generalized_Category'
-        else:
-            return 'Highly_Generalized'
+        if level == 1:
+            return "Generalized_Category"
+        return "Highly_Generalized"
 
-    def _generalize_numerical_value(
-        self,
-        value: float,
-        hierarchy: List[str],
-        level: int
-    ) -> str:
+    def _generalize_numerical_value(self, value: float, hierarchy: list[str], level: int) -> str:
         """Generalize numerical value into ranges"""
         if level == 0:
             return str(value)
-        elif level == 1:
+        if level == 1:
             return f"{int(value // 10) * 10}-{int(value // 10) * 10 + 9}"
-        elif level == 2:
+        if level == 2:
             return f"{int(value // 100) * 100}-{int(value // 100) * 100 + 99}"
-        else:
-            return "Generalized_Range"
+        return "Generalized_Range"
 
-    def _generalize_temporal_value(
-        self,
-        value: datetime,
-        hierarchy: List[str],
-        level: int
-    ) -> str:
+    def _generalize_temporal_value(self, value: datetime, hierarchy: list[str], level: int) -> str:
         """Generalize temporal value"""
         if level == 0:
-            return value.strftime('%Y-%m-%d')
-        elif level == 1:
-            return value.strftime('%Y-%m')
-        elif level == 2:
-            return value.strftime('%Y')
-        else:
-            return "Decade"
+            return value.strftime("%Y-%m-%d")
+        if level == 1:
+            return value.strftime("%Y-%m")
+        if level == 2:
+            return value.strftime("%Y")
+        return "Decade"
 
     async def _apply_rare_class_suppression(
-        self,
-        data: pd.DataFrame,
-        qi_columns: List[str],
-        k_threshold: int
+        self, data: pd.DataFrame, qi_columns: list[str], k_threshold: int
     ) -> pd.DataFrame:
         """Suppress records that would violate k-anonymity after generalization"""
 
@@ -649,9 +627,9 @@ class DataAnonymizer:
     async def _ensure_l_diversity(
         self,
         data: pd.DataFrame,
-        qi_columns: List[str],
+        qi_columns: list[str],
         sensitive_attribute: str,
-        l_threshold: float
+        l_threshold: float,
     ) -> pd.DataFrame:
         """Ensure l-diversity for sensitive attribute"""
 
@@ -675,10 +653,10 @@ class DataAnonymizer:
     async def _ensure_t_closeness(
         self,
         data: pd.DataFrame,
-        qi_columns: List[str],
+        qi_columns: list[str],
         sensitive_attribute: str,
         original_distribution: pd.Series,
-        t_threshold: float
+        t_threshold: float,
     ) -> pd.DataFrame:
         """Ensure t-closeness for sensitive attribute distribution"""
 
@@ -696,17 +674,17 @@ class DataAnonymizer:
             if distance > t_threshold:
                 # Need to adjust the class to achieve t-closeness
                 t_close_data = await self._adjust_class_for_t_closeness(
-                    t_close_data, group.index.tolist(), qi_columns,
-                    sensitive_attribute, original_distribution, t_threshold
+                    t_close_data,
+                    group.index.tolist(),
+                    qi_columns,
+                    sensitive_attribute,
+                    original_distribution,
+                    t_threshold,
                 )
 
         return t_close_data
 
-    def _calculate_distribution_distance(
-        self,
-        dist1: pd.Series,
-        dist2: pd.Series
-    ) -> float:
+    def _calculate_distribution_distance(self, dist1: pd.Series, dist2: pd.Series) -> float:
         """Calculate distance between two distributions"""
         # Align distributions
         all_values = set(dist1.index) | set(dist2.index)
@@ -717,49 +695,33 @@ class DataAnonymizer:
         return 0.5 * sum(abs(a - b) for a, b in zip(aligned_dist1, aligned_dist2))
 
     # Additional helper methods (simplified implementations)
-    async def _apply_randomized_response(
-        self,
-        series: pd.Series,
-        epsilon: float
-    ) -> pd.Series:
+    async def _apply_randomized_response(self, series: pd.Series, epsilon: float) -> pd.Series:
         """Apply randomized response for categorical data"""
         # Simplified implementation
         return series
 
     async def _generate_statistical_synthetic_data(
-        self,
-        data: pd.DataFrame,
-        sample_size: int,
-        parameters: Dict[str, Any]
+        self, data: pd.DataFrame, sample_size: int, parameters: dict[str, Any]
     ) -> pd.DataFrame:
         """Generate synthetic data using statistical methods"""
         # Simplified implementation - sample with replacement
         return data.sample(n=sample_size, replace=True).reset_index(drop=True)
 
     async def _generate_ml_synthetic_data(
-        self,
-        data: pd.DataFrame,
-        sample_size: int,
-        parameters: Dict[str, Any]
+        self, data: pd.DataFrame, sample_size: int, parameters: dict[str, Any]
     ) -> pd.DataFrame:
         """Generate synthetic data using machine learning"""
         # Simplified implementation
         return data.sample(n=sample_size, replace=True).reset_index(drop=True)
 
     async def _generalize_column(
-        self,
-        data: pd.DataFrame,
-        quasi_identifier: QuasiIdentifier,
-        level: int
+        self, data: pd.DataFrame, quasi_identifier: QuasiIdentifier, level: int
     ) -> pd.DataFrame:
         """Generalize a specific column"""
         return data  # Simplified implementation
 
     async def _further_generalize_for_l_diversity(
-        self,
-        data: pd.DataFrame,
-        indices: List[int],
-        qi_columns: List[str]
+        self, data: pd.DataFrame, indices: list[int], qi_columns: list[str]
     ) -> pd.DataFrame:
         """Apply further generalization for l-diversity"""
         return data  # Simplified implementation
@@ -767,20 +729,18 @@ class DataAnonymizer:
     async def _adjust_class_for_t_closeness(
         self,
         data: pd.DataFrame,
-        indices: List[int],
-        qi_columns: List[str],
+        indices: list[int],
+        qi_columns: list[str],
         sensitive_attribute: str,
         original_distribution: pd.Series,
-        t_threshold: float
+        t_threshold: float,
     ) -> pd.DataFrame:
         """Adjust equivalence class for t-closeness"""
         return data  # Simplified implementation
 
     # Metric calculation methods
     async def _calculate_privacy_metrics(
-        self,
-        data: pd.DataFrame,
-        quasi_identifiers: List[QuasiIdentifier]
+        self, data: pd.DataFrame, quasi_identifiers: list[QuasiIdentifier]
     ) -> PrivacyMetrics:
         """Calculate comprehensive privacy metrics"""
 
@@ -810,14 +770,10 @@ class DataAnonymizer:
             re_identification_risk=re_identification_risk,
             uniqueness_risk=uniqueness_risk,
             sample_uniqueness=sample_uniqueness,
-            population_uniqueness=population_uniqueness
+            population_uniqueness=population_uniqueness,
         )
 
-    def _calculate_re_identification_risk(
-        self,
-        data: pd.DataFrame,
-        qi_columns: List[str]
-    ) -> float:
+    def _calculate_re_identification_risk(self, data: pd.DataFrame, qi_columns: list[str]) -> float:
         """Calculate re-identification risk"""
         # Simplified risk calculation
         equivalence_classes = data.groupby(qi_columns).size()
@@ -830,11 +786,7 @@ class DataAnonymizer:
         # Higher risk when some classes are very small
         return 1 - (min_class_size / max_class_size)
 
-    def _calculate_uniqueness_risk(
-        self,
-        data: pd.DataFrame,
-        qi_columns: List[str]
-    ) -> float:
+    def _calculate_uniqueness_risk(self, data: pd.DataFrame, qi_columns: list[str]) -> float:
         """Calculate uniqueness risk"""
         unique_combinations = data[qi_columns].drop_duplicates().shape[0]
         total_records = len(data)
@@ -844,7 +796,7 @@ class DataAnonymizer:
         self,
         original_data: pd.DataFrame,
         anonymized_data: pd.DataFrame,
-        method: AnonymizationMethod
+        method: AnonymizationMethod,
     ) -> float:
         """Calculate data utility score"""
 
@@ -859,23 +811,19 @@ class DataAnonymizer:
         generalization_penalty = self._calculate_generalization_penalty(
             original_data, anonymized_data
         )
-        utility_score *= (1 - generalization_penalty)
+        utility_score *= 1 - generalization_penalty
 
         return max(0, min(1, utility_score))
 
     def _calculate_generalization_penalty(
-        self,
-        original_data: pd.DataFrame,
-        anonymized_data: pd.DataFrame
+        self, original_data: pd.DataFrame, anonymized_data: pd.DataFrame
     ) -> float:
         """Calculate penalty for generalization"""
         # Simplified penalty calculation
         return 0.2  # Placeholder
 
     async def _calculate_information_loss(
-        self,
-        original_data: pd.DataFrame,
-        anonymized_data: pd.DataFrame
+        self, original_data: pd.DataFrame, anonymized_data: pd.DataFrame
     ) -> float:
         """Calculate information loss"""
 
@@ -892,7 +840,7 @@ class DataAnonymizer:
         """Calculate entropy of dataset"""
         total_entropy = 0
 
-        for column in data.select_dtypes(include=['object', 'category']):
+        for column in data.select_dtypes(include=["object", "category"]):
             value_counts = data[column].value_counts()
             probabilities = value_counts / len(data)
             column_entropy = entropy(probabilities)

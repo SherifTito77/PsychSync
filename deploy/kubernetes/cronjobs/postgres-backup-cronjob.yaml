@@ -1,0 +1,502 @@
+################################################################################
+# PostgreSQL Backup CronJob - PsychSync Production
+# Purpose: Automated database backups every 6 hours
+# Schedule: 0, 6, 12, 18 UTC (every 6 hours)
+################################################################################
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup-production
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+    environment: production
+    component: database
+spec:
+  # Run every 6 hours at 0, 6, 12, 18 UTC
+  schedule: "0 */6 * * *"
+
+  # Suspend the cronjob if needed (set to true for maintenance)
+  suspend: false
+
+  # Do not allow concurrent runs
+  concurrencyPolicy: Forbid
+
+  # Keep successful and failed job history
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+
+  # Job deadline - if job runs longer than 4 hours, terminate it
+  startingDeadlineSeconds: 14400
+
+  # Job template
+  jobTemplate:
+    metadata:
+      labels:
+        app: postgres-backup
+    spec:
+      # Backoff limit - retry failed jobs up to 1 time
+      backoffLimit: 1
+
+      # TTL for finished jobs - clean up after 24 hours
+      ttlSecondsAfterFinished: 86400
+
+      # Active deadline - job must complete within 4 hours
+      activeDeadlineSeconds: 14400
+
+      # Pod template
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          # Restart policy - never restart on failure (let job fail)
+          restartPolicy: Never
+
+          # Service account with minimal permissions
+          serviceAccountName: backup-service-account
+
+          # Node affinity - run on dedicated infrastructure nodes
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                      - postgres-backup
+                  topologyKey: kubernetes.io/hostname
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: node-role.kubernetes.io/infrastructure
+                    operator: Exists
+
+          # Tolerations to run on infrastructure nodes
+          tolerations:
+          - key: node-role.kubernetes.io/infrastructure
+            operator: Exists
+            effect: NoSchedule
+
+          # Init containers - wait for database to be ready
+          initContainers:
+          - name: wait-for-postgres
+            image: postgres:16-alpine
+            imagePullPolicy: Always
+            command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for PostgreSQL to be ready..."
+
+              until pg_isready -h ${POSTGRES_SERVICE} -p ${POSTGRES_PORT} -U ${DB_USER}; do
+                echo "PostgreSQL is not ready yet... waiting 5 seconds"
+                sleep 5
+              done
+
+              echo "PostgreSQL is ready!"
+            env:
+            - name: POSTGRES_SERVICE
+              value: "postgres-psychsync"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: psychsync-database
+                  key: DATABASE_USER
+
+          # Main backup container
+          containers:
+          - name: backup
+            image: amazon/aws-cli:latest
+            imagePullPolicy: Always
+            command:
+            - /bin/bash
+            - /scripts/backup-postgres-production.sh
+            env:
+            # Namespace
+            - name: NAMESPACE
+              value: "psychsync"
+
+            # PostgreSQL configuration
+            - name: POSTGRES_SERVICE
+              value: "postgres-psychsync"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: DATABASE_NAME
+              value: "psychsync"
+
+            # Backup configuration
+            - name: BACKUP_RETENTION_DAYS
+              value: "30"
+            - name: BACKUP_TYPE
+              value: "full"
+
+            # S3 configuration
+            - name: S3_BUCKET
+              value: "psychsync-postgres-backups"
+            - name: S3_PREFIX
+              value: "backups/production"
+            - name: S3_STORAGE_CLASS
+              value: "STANDARD_IA"
+
+            # Encryption configuration
+            - name: ENCRYPTION_KEY_ARN
+              valueFrom:
+                secretKeyRef:
+                  name: backup-secrets
+                  key: encryption-key-arn
+            - name: ENCRYPTION_CONTEXT
+              value: "psychsync-production-db-backup"
+
+            # Notification configuration
+            - name: SLACK_WEBHOOK
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: slack-webhook-url
+                  optional: true
+            - name: PAGERDUTY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notification-secrets
+                  key: pagerduty-integration-key
+                  optional: true
+
+            # AWS configuration
+            - name: AWS_REGION
+              value: "us-east-1"
+            - name: AWS_DEFAULT_REGION
+              value: "us-east-1"
+
+            # AWS credentials from IRSA (IAM Roles for Service Accounts)
+            # No AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY needed
+            - name: AWS_ROLE_ARN
+              valueFrom:
+                secretKeyRef:
+                  name: backup-secrets
+                  key: aws-role-arn
+                  optional: true
+
+            # Resource limits
+            resources:
+              requests:
+                cpu: 200m
+                memory: 256Mi
+              limits:
+                cpu: 1000m
+                memory: 1Gi
+
+            # Security context - run as non-root
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              runAsGroup: 1000
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                - ALL
+
+            # Volume mounts
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: kubeconfig
+              mountPath: /root/.kube
+              readOnly: true
+
+            # Probes
+            livenessProbe:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - "ps aux | grep -v grep | grep backup-postgres-production.sh || exit 1"
+              initialDelaySeconds: 30
+              periodSeconds: 30
+              timeoutSeconds: 5
+              failureThreshold: 3
+
+          # Volumes
+          volumes:
+          # Backup scripts - mounted from ConfigMap
+          - name: backup-scripts
+            configMap:
+              name: postgres-backup-scripts
+              defaultMode: 0555
+              items:
+              - key: backup-postgres-production.sh
+                path: backup-postgres-production.sh
+                mode: 0555
+
+          # Temporary storage
+          - name: tmp
+            emptyDir:
+              sizeLimit: 10Gi
+
+          # Kubernetes configuration for kubectl access
+          - name: kubeconfig
+            configMap:
+              name: kubeconfig
+              defaultMode: 0400
+              items:
+              - key: config
+                path: config
+                mode: 0400
+
+---
+################################################################################
+# Service Account for Backup Jobs
+################################################################################
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-service-account
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+---
+################################################################################
+# Role for Backup Operations
+################################################################################
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-role
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+rules:
+# Get secrets for database credentials and backup configuration
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+  resourceNames: ["psychsync-database", "backup-secrets", "notification-secrets"]
+
+# Exec into pods to run pg_dump
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+  resourceNames: ["postgres-psychsync-0", "postgres-psychsync-1", "postgres-psychsync-2"]
+
+# Get pods for health checks
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+  resourceNames: ["postgres-psychsync-0", "postgres-psychsync-1", "postgres-psychsync-2"]
+
+# Create and read ConfigMaps for backup scripts
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+
+# Create and read jobs for backup operations
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create"]
+---
+################################################################################
+# Role Binding for Backup Service Account
+################################################################################
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-role-binding
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup-role
+subjects:
+- kind: ServiceAccount
+  name: backup-service-account
+  namespace: psychsync
+---
+################################################################################
+# ConfigMap: Backup Scripts
+################################################################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-backup-scripts
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+data:
+  # The backup script will be mounted from this ConfigMap
+  # In production, populate this with: kubectl create configmap postgres-backup-scripts \
+  #   --from-file=backup-postgres-production.sh=./scripts/backup-postgres-production.sh
+  backup-postgres-production.sh: |
+    #!/bin/bash
+    # Backup script placeholder - should be populated from actual script file
+    echo "Error: Backup script not loaded from ConfigMap"
+    echo "Run: kubectl create configmap postgres-backup-scripts --from-file=backup-postgres-production.sh=./scripts/backup-postgres-production.sh --dry-run=client -o yaml | kubectl apply -f -"
+    exit 1
+---
+################################################################################
+# ConfigMap: Kubeconfig (for kubectl access within pod)
+################################################################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubeconfig
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+data:
+  # Minimal kubeconfig for in-cluster access
+  # The backup script will use in-cluster configuration
+  config: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+    - name: in-cluster
+      cluster:
+        server: https://kubernetes.default.svc
+        certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    contexts:
+    - name: default-context
+      context:
+        cluster: in-cluster
+        user: default-user
+    current-context: default-context
+    users:
+    - name: default-user
+      user:
+        tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+---
+################################################################################
+# Secret Template: Backup Secrets
+# NOTE: Create this secret manually with actual values
+################################################################################
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: backup-secrets
+#   namespace: psychsync
+# type: Opaque
+# data:
+#   # Base64 encoded values
+#   encryption-key-arn: BASE64_ENCODED_KMS_KEY_ARN
+#   aws-role-arn: BASE64_ENCODED_IAM_ROLE_ARN
+---
+################################################################################
+# Secret Template: Notification Secrets
+# NOTE: Create this secret manually with actual values
+################################################################################
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: notification-secrets
+#   namespace: psychsync
+# type: Opaque
+# data:
+#   # Base64 encoded values
+#   slack-webhook-url: BASE64_ENCODED_SLACK_WEBHOOK_URL
+#   pagerduty-integration-key: BASE64_ENCODED_PAGERDUTY_KEY
+---
+################################################################################
+# ServiceMonitor for Prometheus metrics (if using Prometheus Operator)
+################################################################################
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres-backup
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+spec:
+  selector:
+    matchLabels:
+      app: postgres-backup
+  endpoints:
+  - port: metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+################################################################################
+# Prometheus Rules for Backup Monitoring
+################################################################################
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: postgres-backup-alerts
+  namespace: psychsync
+  labels:
+    app: postgres-backup
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: postgres-backup
+    interval: 30s
+    rules:
+    # Alert if backup job fails
+    - alert: PostgreSQLBackupJobFailed
+      expr: |
+        kube_job_status_failed{namespace="psychsync", job_name=~"postgres-backup-production.*"} > 0
+      for: 5m
+      labels:
+        severity: critical
+        component: database
+      annotations:
+        summary: "PostgreSQL backup job failed"
+        description: "PostgreSQL backup job {{ $labels.job_name }} has failed"
+        runbook_url: "https://docs.psychsync.com/runbooks/postgres-backup-failed"
+
+    # Alert if backup hasn't run in 8 hours
+    - alert: PostgreSQLBackupJobStale
+      expr: |
+        time() - max(kube_job_status_start_time{namespace="psychsync", job_name=~"postgres-backup-production.*"}) > 28800
+      for: 10m
+      labels:
+        severity: warning
+        component: database
+      annotations:
+        summary: "PostgreSQL backup job hasn't run recently"
+        description: "PostgreSQL backup job hasn't run in over 8 hours"
+        runbook_url: "https://docs.psychsync.com/runbooks/postgres-backup-stale"
+
+    # Alert if backup job takes longer than 1 hour
+    - alert: PostgreSQLBackupJobSlow
+      expr: |
+        kube_job_status_start_time{namespace="psychsync", job_name=~"postgres-backup-production.*"}
+      for: 1h
+      labels:
+        severity: warning
+        component: database
+      annotations:
+        summary: "PostgreSQL backup job taking too long"
+        description: "PostgreSQL backup job {{ $labels.job_name }} has been running for over 1 hour"
+        runbook_url: "https://docs.psychsync.com/runbooks/postgres-backup-slow"
+
+    # Alert if backup job success rate drops below 99%
+    - alert: PostgreSQLBackupSuccessRateLow
+      expr: |
+        rate(kube_job_status_complete{namespace="psychsync", job_name=~"postgres-backup-production.*"}[24h])
+        /
+        (rate(kube_job_status_complete{namespace="psychsync", job_name=~"postgres-backup-production.*"}[24h])
+        +
+        rate(kube_job_status_failed{namespace="psychsync", job_name=~"postgres-backup-production.*"}[24h]))
+        < 0.99
+      for: 15m
+      labels:
+        severity: critical
+        component: database
+      annotations:
+        summary: "PostgreSQL backup success rate is low"
+        description: "PostgreSQL backup success rate is below 99% in the last 24 hours"
+        runbook_url: "https://docs.psychsync.com/runbooks/postgres-backup-success-rate"

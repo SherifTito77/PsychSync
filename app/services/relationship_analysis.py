@@ -13,22 +13,12 @@ Key Features:
 - Diversity assessment for optimal team composition
 """
 
-from typing import List, Dict, Any, Tuple, Optional
-import numpy as np
-import pandas as pd
-from scipy.spatial.distance import pdist, squareform
-from scipy.stats import pearsonr
-import asyncio
-import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime
+import logging
+from typing import Any
 
-from sqlalchemy.orm import Session
-from app.db.models.user import User
-from app.db.models.team import Team
-from app.db.models.team import TeamMember
-from app.services.reliability_validity_service import ReliabilityValidityService
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -54,13 +44,13 @@ class PersonalityProfile:
     """Standardized personality profile for analysis."""
     user_id: str
     name: str
-    traits: Dict[str, float] = field(default_factory=dict)
+    traits: dict[str, float] = field(default_factory=dict)
     communication_style: str = "balanced"
-    work_preferences: List[str] = field(default_factory=list)
-    skills: List[str] = field(default_factory=list)
+    work_preferences: list[str] = field(default_factory=list)
+    skills: list[str] = field(default_factory=list)
     experience_years: int = 0
     role: str = ""
-    big_five: Optional[Dict[str, float]] = None
+    big_five: dict[str, float] | None = None
 
 @dataclass
 class RelationshipAnalysis:
@@ -70,9 +60,9 @@ class RelationshipAnalysis:
     member_a_name: str
     member_b_name: str
     compatibility_score: float
-    component_scores: Dict[str, float]
-    strengths: List[str]
-    challenges: List[str]
+    component_scores: dict[str, float]
+    strengths: list[str]
+    challenges: list[str]
     collaboration_potential: str
     conflict_probability: float
     synergy_score: float
@@ -87,33 +77,33 @@ class RelationshipAnalyzer:
 
     def __init__(self):
         self.compatibility_weights = {
-            'personality': 0.35,
-            'communication_style': 0.25,
-            'work_preferences': 0.20,
-            'experience_level': 0.10,
-            'skills_overlap': 0.10
+            "personality": 0.35,
+            "communication_style": 0.25,
+            "work_preferences": 0.20,
+            "experience_level": 0.10,
+            "skills_overlap": 0.10
         }
         self.communication_compatibility_matrix = self._initialize_communication_matrix()
 
-    def _initialize_communication_matrix(self) -> Dict[str, Dict[str, float]]:
+    def _initialize_communication_matrix(self) -> dict[str, dict[str, float]]:
         """Initialize communication style compatibility matrix."""
         return {
-            ('analytical', 'analytical'): 0.85,
-            ('analytical', 'assertive'): 0.70,
-            ('analytical', 'collaborative'): 0.75,
-            ('analytical', 'supportive'): 0.80,
-            ('assertive', 'assertive'): 0.65,
-            ('assertive', 'collaborative'): 0.70,
-            ('assertive', 'supportive'): 0.55,
-            ('collaborative', 'collaborative'): 0.90,
-            ('collaborative', 'supportive'): 0.85,
-            ('supportive', 'supportive'): 0.80
+            ("analytical", "analytical"): 0.85,
+            ("analytical", "assertive"): 0.70,
+            ("analytical", "collaborative"): 0.75,
+            ("analytical", "supportive"): 0.80,
+            ("assertive", "assertive"): 0.65,
+            ("assertive", "collaborative"): 0.70,
+            ("assertive", "supportive"): 0.55,
+            ("collaborative", "collaborative"): 0.90,
+            ("collaborative", "supportive"): 0.85,
+            ("supportive", "supportive"): 0.80
         }
 
     def analyze_relationships(
         self,
-        members: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        members: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Perform comprehensive relationship analysis
 
@@ -136,9 +126,9 @@ class RelationshipAnalyzer:
                 analysis = self._analyze_pair(members[i], members[j])
                 relationships.append(analysis)
 
-                if analysis['compatibility_score'] < 0.4:
+                if analysis["compatibility_score"] < 0.4:
                     conflict_pairs.append(analysis)
-                elif analysis['compatibility_score'] > 0.8:
+                elif analysis["compatibility_score"] > 0.8:
                     synergy_pairs.append(analysis)
 
         # Calculate network metrics
@@ -152,13 +142,13 @@ class RelationshipAnalyzer:
         )
 
         return {
-            'total_relationships': len(relationships),
-            'relationships': relationships,
-            'conflict_pairs': conflict_pairs,
-            'synergy_pairs': synergy_pairs,
-            'network_metrics': network_metrics,
-            'insights': insights,
-            'recommendations': self._generate_recommendations(
+            "total_relationships": len(relationships),
+            "relationships": relationships,
+            "conflict_pairs": conflict_pairs,
+            "synergy_pairs": synergy_pairs,
+            "network_metrics": network_metrics,
+            "insights": insights,
+            "recommendations": self._generate_recommendations(
                 conflict_pairs,
                 network_metrics
             )
@@ -166,48 +156,48 @@ class RelationshipAnalyzer:
 
     def _analyze_pair(
         self,
-        member_a: Dict[str, Any],
-        member_b: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        member_a: dict[str, Any],
+        member_b: dict[str, Any]
+    ) -> dict[str, Any]:
         """Analyze relationship between two members"""
 
         # Personality compatibility
         personality_score = self._calculate_personality_compatibility(
-            member_a.get('traits', {}),
-            member_b.get('traits', {})
+            member_a.get("traits", {}),
+            member_b.get("traits", {})
         )
 
         # Communication style compatibility
         comm_score = self._calculate_communication_compatibility(
-            member_a.get('communication_style', 'analytical'),
-            member_b.get('communication_style', 'analytical')
+            member_a.get("communication_style", "analytical"),
+            member_b.get("communication_style", "analytical")
         )
 
         # Work preference alignment
         work_score = self._calculate_work_preference_alignment(
-            member_a.get('work_preferences', []),
-            member_b.get('work_preferences', [])
+            member_a.get("work_preferences", []),
+            member_b.get("work_preferences", [])
         )
 
         # Experience level compatibility
         exp_score = self._calculate_experience_compatibility(
-            member_a.get('experience_years', 0),
-            member_b.get('experience_years', 0)
+            member_a.get("experience_years", 0),
+            member_b.get("experience_years", 0)
         )
 
         # Skills overlap
         skills_score = self._calculate_skills_overlap(
-            member_a.get('skills', []),
-            member_b.get('skills', [])
+            member_a.get("skills", []),
+            member_b.get("skills", [])
         )
 
         # Weighted overall compatibility
         overall_compatibility = (
-            personality_score * self.compatibility_weights['personality'] +
-            comm_score * self.compatibility_weights['communication_style'] +
-            work_score * self.compatibility_weights['work_preferences'] +
-            exp_score * self.compatibility_weights['experience_level'] +
-            skills_score * self.compatibility_weights['skills_overlap']
+            personality_score * self.compatibility_weights["personality"] +
+            comm_score * self.compatibility_weights["communication_style"] +
+            work_score * self.compatibility_weights["work_preferences"] +
+            exp_score * self.compatibility_weights["experience_level"] +
+            skills_score * self.compatibility_weights["skills_overlap"]
         )
 
         # Identify strengths and challenges
@@ -230,21 +220,21 @@ class RelationshipAnalyzer:
             challenges.append("Limited overlap in expertise")
 
         return {
-            'member_a_id': member_a.get('id'),
-            'member_a_name': member_a.get('name', 'Unknown'),
-            'member_b_id': member_b.get('id'),
-            'member_b_name': member_b.get('name', 'Unknown'),
-            'compatibility_score': round(overall_compatibility, 3),
-            'component_scores': {
-                'personality': round(personality_score, 3),
-                'communication': round(comm_score, 3),
-                'work_preferences': round(work_score, 3),
-                'experience': round(exp_score, 3),
-                'skills': round(skills_score, 3)
+            "member_a_id": member_a.get("id"),
+            "member_a_name": member_a.get("name", "Unknown"),
+            "member_b_id": member_b.get("id"),
+            "member_b_name": member_b.get("name", "Unknown"),
+            "compatibility_score": round(overall_compatibility, 3),
+            "component_scores": {
+                "personality": round(personality_score, 3),
+                "communication": round(comm_score, 3),
+                "work_preferences": round(work_score, 3),
+                "experience": round(exp_score, 3),
+                "skills": round(skills_score, 3)
             },
-            'strengths': strengths,
-            'challenges': challenges,
-            'collaboration_potential': self._assess_collaboration_potential(
+            "strengths": strengths,
+            "challenges": challenges,
+            "collaboration_potential": self._assess_collaboration_potential(
                 overall_compatibility,
                 skills_score
             )
@@ -252,15 +242,15 @@ class RelationshipAnalyzer:
 
     def _calculate_personality_compatibility(
         self,
-        traits_a: Dict[str, float],
-        traits_b: Dict[str, float]
+        traits_a: dict[str, float],
+        traits_b: dict[str, float]
     ) -> float:
         """Calculate personality trait compatibility"""
         if not traits_a or not traits_b:
             return 0.5
 
-        dimensions = ['openness', 'conscientiousness', 'extraversion',
-                      'agreeableness', 'neuroticism']
+        dimensions = ["openness", "conscientiousness", "extraversion",
+                      "agreeableness", "neuroticism"]
 
         scores = []
         for dim in dimensions:
@@ -268,13 +258,13 @@ class RelationshipAnalyzer:
             val_b = traits_b.get(dim, 0.5)
 
             # Different dimensions have different compatibility patterns
-            if dim == 'agreeableness':
+            if dim == "agreeableness":
                 # High agreeableness in both is good
                 score = (val_a + val_b) / 2
-            elif dim == 'neuroticism':
+            elif dim == "neuroticism":
                 # Low neuroticism in both is better
                 score = 1.0 - ((val_a + val_b) / 2)
-            elif dim == 'conscientiousness':
+            elif dim == "conscientiousness":
                 # Similar levels work well
                 score = 1.0 - abs(val_a - val_b)
             else:
@@ -299,8 +289,8 @@ class RelationshipAnalyzer:
 
     def _calculate_work_preference_alignment(
         self,
-        prefs_a: List[str],
-        prefs_b: List[str]
+        prefs_a: list[str],
+        prefs_b: list[str]
     ) -> float:
         """Calculate work preference alignment"""
         if not prefs_a or not prefs_b:
@@ -330,17 +320,16 @@ class RelationshipAnalyzer:
 
         if gap <= 2:
             return 1.0  # Very compatible
-        elif gap <= 5:
+        if gap <= 5:
             return 0.8  # Good (mentoring opportunity)
-        elif gap <= 10:
+        if gap <= 10:
             return 0.6  # Moderate
-        else:
-            return 0.4  # May have communication challenges
+        return 0.4  # May have communication challenges
 
     def _calculate_skills_overlap(
         self,
-        skills_a: List[str],
-        skills_b: List[str]
+        skills_a: list[str],
+        skills_b: list[str]
     ) -> float:
         """Calculate skills overlap (for collaboration potential)"""
         if not skills_a or not skills_b:
@@ -361,10 +350,9 @@ class RelationshipAnalyzer:
         # Optimal is moderate overlap (0.3-0.5)
         if 0.3 <= overlap_ratio <= 0.5:
             return 1.0
-        elif overlap_ratio < 0.3:
+        if overlap_ratio < 0.3:
             return 0.5 + overlap_ratio  # Complementary skills
-        else:
-            return 1.5 - overlap_ratio  # Too much overlap
+        return 1.5 - overlap_ratio  # Too much overlap
 
     def _assess_collaboration_potential(
         self,
@@ -374,39 +362,38 @@ class RelationshipAnalyzer:
         """Assess overall collaboration potential"""
         if compatibility > 0.75 and skills_overlap > 0.4:
             return "Excellent collaboration potential"
-        elif compatibility > 0.6:
+        if compatibility > 0.6:
             return "Good collaboration potential"
-        elif compatibility > 0.4:
+        if compatibility > 0.4:
             return "Moderate collaboration potential with support"
-        else:
-            return "Challenging collaboration - requires structured support"
+        return "Challenging collaboration - requires structured support"
 
     def _calculate_network_metrics(
         self,
-        relationships: List[Dict[str, Any]]
-    ) -> Dict[str, float]:
+        relationships: list[dict[str, Any]]
+    ) -> dict[str, float]:
         """Calculate team network metrics"""
         if not relationships:
             return {}
 
-        compatibility_scores = [r['compatibility_score'] for r in relationships]
+        compatibility_scores = [r["compatibility_score"] for r in relationships]
 
         return {
-            'average_compatibility': np.mean(compatibility_scores),
-            'median_compatibility': np.median(compatibility_scores),
-            'min_compatibility': np.min(compatibility_scores),
-            'max_compatibility': np.max(compatibility_scores),
-            'std_compatibility': np.std(compatibility_scores),
-            'cohesion_index': np.mean([s for s in compatibility_scores if s > 0.6]),
-            'conflict_risk': len([s for s in compatibility_scores if s < 0.4]) / len(compatibility_scores)
+            "average_compatibility": np.mean(compatibility_scores),
+            "median_compatibility": np.median(compatibility_scores),
+            "min_compatibility": np.min(compatibility_scores),
+            "max_compatibility": np.max(compatibility_scores),
+            "std_compatibility": np.std(compatibility_scores),
+            "cohesion_index": np.mean([s for s in compatibility_scores if s > 0.6]),
+            "conflict_risk": len([s for s in compatibility_scores if s < 0.4]) / len(compatibility_scores)
         }
 
     def _generate_relationship_insights(
         self,
-        relationships: List[Dict],
-        conflict_pairs: List[Dict],
-        synergy_pairs: List[Dict]
-    ) -> List[str]:
+        relationships: list[dict],
+        conflict_pairs: list[dict],
+        synergy_pairs: list[dict]
+    ) -> list[str]:
         """Generate actionable insights from relationship analysis"""
         insights = []
 
@@ -425,11 +412,11 @@ class RelationshipAnalyzer:
         # Analyze communication patterns
         comm_styles = {}
         for rel in relationships:
-            for key in ['member_a_name', 'member_b_name']:
+            for key in ["member_a_name", "member_b_name"]:
                 # This is simplified - in production, track actual styles
                 pass
 
-        avg_compat = np.mean([r['compatibility_score'] for r in relationships])
+        avg_compat = np.mean([r["compatibility_score"] for r in relationships])
         if avg_compat > 0.7:
             insights.append(
                 "Team shows strong overall compatibility - focus on leveraging "
@@ -445,19 +432,19 @@ class RelationshipAnalyzer:
 
     def _generate_recommendations(
         self,
-        conflict_pairs: List[Dict],
-        network_metrics: Dict[str, float]
-    ) -> List[Dict[str, str]]:
+        conflict_pairs: list[dict],
+        network_metrics: dict[str, float]
+    ) -> list[dict[str, str]]:
         """Generate recommendations for improving team dynamics"""
         recommendations = []
 
         if conflict_pairs:
             recommendations.append({
-                'type': 'conflict_management',
-                'priority': 'high',
-                'title': 'Address Potential Conflicts',
-                'description': f"Detected {len(conflict_pairs)} pairs with low compatibility",
-                'actions': [
+                "type": "conflict_management",
+                "priority": "high",
+                "title": "Address Potential Conflicts",
+                "description": f"Detected {len(conflict_pairs)} pairs with low compatibility",
+                "actions": [
                     "Establish clear communication channels",
                     "Set explicit team norms and expectations",
                     "Implement regular team retrospectives",
@@ -465,28 +452,28 @@ class RelationshipAnalyzer:
                 ]
             })
 
-        conflict_risk = network_metrics.get('conflict_risk', 0)
+        conflict_risk = network_metrics.get("conflict_risk", 0)
         if conflict_risk > 0.3:
             recommendations.append({
-                'type': 'team_structure',
-                'priority': 'medium',
-                'title': 'Optimize Team Structure',
-                'description': "High conflict risk detected in current composition",
-                'actions': [
+                "type": "team_structure",
+                "priority": "medium",
+                "title": "Optimize Team Structure",
+                "description": "High conflict risk detected in current composition",
+                "actions": [
                     "Consider sub-team restructuring",
                     "Rotate pair programming partners",
                     "Implement buddy system for support"
                 ]
             })
 
-        avg_compat = network_metrics.get('average_compatibility', 0.5)
+        avg_compat = network_metrics.get("average_compatibility", 0.5)
         if avg_compat < 0.6:
             recommendations.append({
-                'type': 'team_building',
-                'priority': 'medium',
-                'title': 'Improve Team Cohesion',
-                'description': "Team compatibility below optimal threshold",
-                'actions': [
+                "type": "team_building",
+                "priority": "medium",
+                "title": "Improve Team Cohesion",
+                "description": "Team compatibility below optimal threshold",
+                "actions": [
                     "Schedule regular team building activities",
                     "Create opportunities for informal interaction",
                     "Implement peer recognition programs"
@@ -495,14 +482,14 @@ class RelationshipAnalyzer:
 
         return recommendations
 
-    def _empty_analysis(self) -> Dict[str, Any]:
+    def _empty_analysis(self) -> dict[str, Any]:
         """Return empty analysis structure"""
         return {
-            'total_relationships': 0,
-            'relationships': [],
-            'conflict_pairs': [],
-            'synergy_pairs': [],
-            'network_metrics': {},
-            'insights': ['Insufficient data for relationship analysis'],
-            'recommendations': []
+            "total_relationships": 0,
+            "relationships": [],
+            "conflict_pairs": [],
+            "synergy_pairs": [],
+            "network_metrics": {},
+            "insights": ["Insufficient data for relationship analysis"],
+            "recommendations": []
         }

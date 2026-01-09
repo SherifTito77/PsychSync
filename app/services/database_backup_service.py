@@ -11,35 +11,32 @@ Comprehensive Database Backup Service
 - Disaster recovery procedures
 """
 
-import os
-import subprocess
 import asyncio
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 import gzip
-import shutil
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+import os
 from pathlib import Path
-from dataclasses import dataclass, asdict
-from enum import Enum
+import shutil
 import tempfile
+from typing import Any
+
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
-from app.core.config import settings
-
-from app.core.path_utils import sanitize_path, safe_filename
 from app.core.background_jobs import get_background_worker, task
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class BackupType(Enum):
     """Backup type enumeration"""
+
     FULL = "full"
     INCREMENTAL = "incremental"
     DIFFERENTIAL = "differential"
@@ -47,6 +44,7 @@ class BackupType(Enum):
 
 class BackupStatus(Enum):
     """Backup status enumeration"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -57,6 +55,7 @@ class BackupStatus(Enum):
 
 class StorageProvider(Enum):
     """Storage provider enumeration"""
+
     LOCAL = "local"
     S3 = "s3"
     GCS = "gcs"
@@ -66,19 +65,20 @@ class StorageProvider(Enum):
 @dataclass
 class BackupConfig:
     """Backup configuration"""
+
     backup_type: BackupType
     storage_provider: StorageProvider
     storage_path: str
     compression_enabled: bool = True
     encryption_enabled: bool = True
-    encryption_key: Optional[str] = None
+    encryption_key: str | None = None
     retention_days: int = 30
     schedule_cron: str = "0 2 * * *"  # Daily at 2 AM
     verify_after_backup: bool = True
     cleanup_old_backups: bool = True
     max_concurrent_backups: int = 2
     backup_timeout_minutes: int = 60
-    notification_emails: List[str] = None
+    notification_emails: list[str] = None
 
     def __post_init__(self):
         if self.notification_emails is None:
@@ -88,23 +88,24 @@ class BackupConfig:
 @dataclass
 class BackupMetadata:
     """Backup metadata information"""
+
     backup_id: str
     backup_type: BackupType
     status: BackupStatus
     created_at: datetime
     file_path: str
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     file_size_bytes: int = 0
     file_checksum: str = ""
     compression_ratio: float = 0.0
     tables_count: int = 0
     rows_count: int = 0
-    error_message: Optional[str] = None
+    error_message: str | None = None
     storage_provider: StorageProvider = StorageProvider.LOCAL
     storage_path: str = ""
-    parent_backup_id: Optional[str] = None  # For incremental backups
+    parent_backup_id: str | None = None  # For incremental backups
     verification_status: str = ""
-    restoration_test_date: Optional[datetime] = None
+    restoration_test_date: datetime | None = None
 
 
 class DatabaseBackupService:
@@ -114,7 +115,7 @@ class DatabaseBackupService:
         self.config = config
         self.backup_storage_path = Path(config.storage_path)
         self.backup_storage_path.mkdir(parents=True, exist_ok=True)
-        self.active_backups: Dict[str, BackupMetadata] = {}
+        self.active_backups: dict[str, BackupMetadata] = {}
         self.background_worker = get_background_worker()
 
     async def create_backup(self, backup_type: BackupType = None) -> BackupMetadata:
@@ -141,7 +142,7 @@ class DatabaseBackupService:
             created_at=timestamp,
             file_path=self._get_backup_file_path(backup_id, backup_type),
             storage_provider=self.config.storage_provider,
-            storage_path=self.config.storage_path
+            storage_path=self.config.storage_path,
         )
 
         self.active_backups[backup_id] = backup_metadata
@@ -156,7 +157,7 @@ class DatabaseBackupService:
                 "execute_database_backup",
                 backup_id=backup_id,
                 backup_type=backup_type.value,
-                config=asdict(self.config)
+                config=asdict(self.config),
             )
 
             logger.info(f"Backup task enqueued: {task_id} for backup {backup_id}")
@@ -190,8 +191,7 @@ class DatabaseBackupService:
         try:
             # Create temporary file for backup
             temp_file = tempfile.NamedTemporaryFile(
-                suffix=f".{backup_type.value}.sql",
-                delete=False
+                suffix=f".{backup_type.value}.sql", delete=False
             )
             temp_path = temp_file.name
             temp_file.close()
@@ -212,7 +212,9 @@ class DatabaseBackupService:
 
                 # Update compression ratio
                 compressed_size = os.path.getsize(temp_path)
-                backup_metadata.compression_ratio = (original_size - compressed_size) / original_size
+                backup_metadata.compression_ratio = (
+                    original_size - compressed_size
+                ) / original_size
                 backup_metadata.file_size_bytes = compressed_size
 
             # Encrypt if enabled
@@ -231,7 +233,10 @@ class DatabaseBackupService:
             shutil.move(temp_path, final_path)
 
             # Get database statistics
-            backup_metadata.tables_count, backup_metadata.rows_count = await self._get_database_stats()
+            (
+                backup_metadata.tables_count,
+                backup_metadata.rows_count,
+            ) = await self._get_database_stats()
 
             # Update metadata
             backup_metadata.status = BackupStatus.COMPLETED
@@ -253,7 +258,7 @@ class DatabaseBackupService:
             return backup_metadata
 
         except Exception as e:
-            logger.error(f"Backup {backup_id} failed: {str(e)}")
+            logger.error(f"Backup {backup_id} failed: {e!s}")
             backup_metadata.status = BackupStatus.FAILED
             backup_metadata.error_message = str(e)
             backup_metadata.completed_at = datetime.utcnow()
@@ -269,7 +274,7 @@ class DatabaseBackupService:
             # Remove from active backups
             self.active_backups.pop(backup_id, None)
 
-    async def restore_backup(self, backup_id: str, target_database: Optional[str] = None) -> bool:
+    async def restore_backup(self, backup_id: str, target_database: str | None = None) -> bool:
         """
         Restore database from backup
 
@@ -284,7 +289,10 @@ class DatabaseBackupService:
         if not backup_metadata:
             raise ValueError(f"Backup {backup_id} not found")
 
-        if backup_metadata.status != BackupStatus.COMPLETED and backup_metadata.status != BackupStatus.VERIFIED:
+        if (
+            backup_metadata.status != BackupStatus.COMPLETED
+            and backup_metadata.status != BackupStatus.VERIFIED
+        ):
             raise ValueError(f"Backup {backup_id} is not in a restorable state")
 
         temp_file = None
@@ -300,7 +308,10 @@ class DatabaseBackupService:
                 temp_path = backup_metadata.file_path
 
             # Decrypt if encrypted
-            if self.config.encryption_enabled and backup_metadata.storage_provider != StorageProvider.LOCAL:
+            if (
+                self.config.encryption_enabled
+                and backup_metadata.storage_provider != StorageProvider.LOCAL
+            ):
                 decrypted_path = temp_path.replace(".enc", "")
                 await self._decrypt_file(temp_path, decrypted_path)
                 temp_path = decrypted_path
@@ -323,7 +334,7 @@ class DatabaseBackupService:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to restore backup {backup_id}: {str(e)}")
+            logger.error(f"Failed to restore backup {backup_id}: {e!s}")
             raise
 
         finally:
@@ -332,9 +343,12 @@ class DatabaseBackupService:
                 if os.path.exists(temp_path):
                     os.unlink(temp_path)
 
-    async def list_backups(self, backup_type: Optional[BackupType] = None,
-                          status: Optional[BackupStatus] = None,
-                          limit: int = 50) -> List[BackupMetadata]:
+    async def list_backups(
+        self,
+        backup_type: BackupType | None = None,
+        status: BackupStatus | None = None,
+        limit: int = 50,
+    ) -> list[BackupMetadata]:
         """
         List available backups
 
@@ -354,7 +368,7 @@ class DatabaseBackupService:
 
         for metadata_file in metadata_dir.glob("*.json"):
             try:
-                with open(metadata_file, 'r') as f:
+                with open(metadata_file) as f:
                     data = json.load(f)
                     backup = BackupMetadata(**data)
 
@@ -367,7 +381,7 @@ class DatabaseBackupService:
                 backups.append(backup)
 
             except Exception as e:
-                logger.warning(f"Failed to load backup metadata from {metadata_file}: {str(e)}")
+                logger.warning(f"Failed to load backup metadata from {metadata_file}: {e!s}")
                 continue
 
         # Sort by creation date (newest first) and limit
@@ -406,7 +420,7 @@ class DatabaseBackupService:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to delete backup {backup_id}: {str(e)}")
+            logger.error(f"Failed to delete backup {backup_id}: {e!s}")
             return False
 
     async def cleanup_old_backups(self) -> int:
@@ -459,10 +473,10 @@ class DatabaseBackupService:
             return await self._test_restore(backup_id)
 
         except Exception as e:
-            logger.error(f"Backup verification failed for {backup_id}: {str(e)}")
+            logger.error(f"Backup verification failed for {backup_id}: {e!s}")
             return False
 
-    async def get_backup_statistics(self) -> Dict[str, Any]:
+    async def get_backup_statistics(self) -> dict[str, Any]:
         """
         Get backup statistics and metrics
 
@@ -480,7 +494,7 @@ class DatabaseBackupService:
             "oldest_backup": None,
             "newest_backup": None,
             "backup_types": {},
-            "storage_providers": {}
+            "storage_providers": {},
         }
 
         if backups:
@@ -493,7 +507,9 @@ class DatabaseBackupService:
                 stats["backup_types"][backup_type] = stats["backup_types"].get(backup_type, 0) + 1
 
                 storage_provider = backup.storage_provider.value
-                stats["storage_providers"][storage_provider] = stats["storage_providers"].get(storage_provider, 0) + 1
+                stats["storage_providers"][storage_provider] = (
+                    stats["storage_providers"].get(storage_provider, 0) + 1
+                )
 
         return stats
 
@@ -522,41 +538,25 @@ class DatabaseBackupService:
         # Parse database URL
         if db_url.startswith("postgresql://"):
             # PostgreSQL
-            cmd = [
-                "pg_dump",
-                "--format=custom",
-                "--no-owner",
-                "--no-privileges",
-                "--verbose"
-            ]
+            cmd = ["pg_dump", "--format=custom", "--no-owner", "--no-privileges", "--verbose"]
 
             if backup_type == BackupType.INCREMENTAL:
                 # For incremental backups, we'd need to implement WAL archiving
                 # For now, treat as differential
                 cmd.append("--exclude-table-data=*_audit*")
 
-            cmd.extend([
-                "--file=" + output_path,
-                db_url
-            ])
+            cmd.extend(["--file=" + output_path, db_url])
 
         elif db_url.startswith("sqlite://"):
             # SQLite
             db_path = db_url.replace("sqlite:///", "")
-            cmd = [
-                "sqlite3",
-                db_path,
-                f".output {output_path}",
-                ".dump"
-            ]
+            cmd = ["sqlite3", db_path, f".output {output_path}", ".dump"]
         else:
             raise ValueError(f"Unsupported database type: {db_url}")
 
         # Execute dump command
         process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
 
         stdout, stderr = await process.communicate()
@@ -567,15 +567,13 @@ class DatabaseBackupService:
 
     async def _compress_file(self, input_path: str, output_path: str) -> None:
         """Compress file using gzip"""
-        with open(input_path, 'rb') as f_in:
-            with gzip.open(output_path, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        with open(input_path, "rb") as f_in, gzip.open(output_path, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
 
     async def _decompress_file(self, input_path: str, output_path: str) -> None:
         """Decompress gzip file"""
-        with gzip.open(input_path, 'rb') as f_in:
-            with open(output_path, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        with gzip.open(input_path, "rb") as f_in, open(output_path, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
 
     async def _encrypt_file(self, input_path: str, output_path: str) -> None:
         """Encrypt file using AES encryption"""
@@ -589,12 +587,12 @@ class DatabaseBackupService:
         key = self.config.encryption_key.encode()
         fernet = Fernet(key)
 
-        with open(input_path, 'rb') as f:
+        with open(input_path, "rb") as f:
             data = f.read()
 
         encrypted_data = fernet.encrypt(data)
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(encrypted_data)
 
     async def _decrypt_file(self, input_path: str, output_path: str) -> None:
@@ -607,12 +605,12 @@ class DatabaseBackupService:
         key = self.config.encryption_key.encode()
         fernet = Fernet(key)
 
-        with open(input_path, 'rb') as f:
+        with open(input_path, "rb") as f:
             encrypted_data = f.read()
 
         decrypted_data = fernet.decrypt(encrypted_data)
 
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(decrypted_data)
 
     async def _calculate_file_checksum(self, file_path: str) -> str:
@@ -623,7 +621,7 @@ class DatabaseBackupService:
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
 
-    async def _get_database_stats(self) -> Tuple[int, int]:
+    async def _get_database_stats(self) -> tuple[int, int]:
         """Get database statistics (tables count, rows count)"""
         # This would need to be implemented based on your database
         # For now, return placeholder values
@@ -638,31 +636,31 @@ class DatabaseBackupService:
 
         # Convert datetime objects to ISO format
         data = asdict(backup)
-        data['created_at'] = backup.created_at.isoformat()
+        data["created_at"] = backup.created_at.isoformat()
         if backup.completed_at:
-            data['completed_at'] = backup.completed_at.isoformat()
+            data["completed_at"] = backup.completed_at.isoformat()
         if backup.restoration_test_date:
-            data['restoration_test_date'] = backup.restoration_test_date.isoformat()
+            data["restoration_test_date"] = backup.restoration_test_date.isoformat()
 
-        with open(metadata_file, 'w') as f:
+        with open(metadata_file, "w") as f:
             json.dump(data, f, indent=2)
 
-    async def _load_backup_metadata(self, backup_id: str) -> Optional[BackupMetadata]:
+    async def _load_backup_metadata(self, backup_id: str) -> BackupMetadata | None:
         """Load backup metadata from file"""
         metadata_file = self.backup_storage_path / "metadata" / f"{backup_id}.json"
 
         if not metadata_file.exists():
             return None
 
-        with open(metadata_file, 'r') as f:
+        with open(metadata_file) as f:
             data = json.load(f)
 
         # Convert ISO format back to datetime
-        data['created_at'] = datetime.fromisoformat(data['created_at'])
-        if data.get('completed_at'):
-            data['completed_at'] = datetime.fromisoformat(data['completed_at'])
-        if data.get('restoration_test_date'):
-            data['restoration_test_date'] = datetime.fromisoformat(data['restoration_test_date'])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        if data.get("completed_at"):
+            data["completed_at"] = datetime.fromisoformat(data["completed_at"])
+        if data.get("restoration_test_date"):
+            data["restoration_test_date"] = datetime.fromisoformat(data["restoration_test_date"])
 
         return BackupMetadata(**data)
 
@@ -688,21 +686,16 @@ class DatabaseBackupService:
     async def _upload_to_s3(self, backup_id: str, file_path: str) -> None:
         """Upload file to S3"""
         try:
-            s3_client = boto3.client('s3')
+            s3_client = boto3.client("s3")
 
-            bucket_name = os.environ.get('AWS_BACKUP_BUCKET')
+            bucket_name = os.environ.get("AWS_BACKUP_BUCKET")
             if not bucket_name:
                 raise ValueError("AWS_BACKUP_BUCKET environment variable not set")
 
             s3_key = f"backups/{backup_id}/{os.path.basename(file_path)}"
 
             s3_client.upload_file(
-                file_path,
-                bucket_name,
-                s3_key,
-                ExtraArgs={
-                    'ServerSideEncryption': 'AES256'
-                }
+                file_path, bucket_name, s3_key, ExtraArgs={"ServerSideEncryption": "AES256"}
             )
 
             logger.info(f"Backup {backup_id} uploaded to S3: {s3_key}")
@@ -711,23 +704,20 @@ class DatabaseBackupService:
             logger.error("AWS credentials not found for S3 upload")
             raise
         except ClientError as e:
-            logger.error(f"S3 upload failed for backup {backup_id}: {str(e)}")
+            logger.error(f"S3 upload failed for backup {backup_id}: {e!s}")
             raise
 
     async def _download_from_cloud_storage(self, backup_id: str, output_path: str) -> None:
         """Download backup from cloud storage"""
         # Implementation for downloading from cloud storage
-        pass
 
     async def _delete_from_cloud_storage(self, backup_id: str) -> None:
         """Delete backup from cloud storage"""
         # Implementation for deleting from cloud storage
-        pass
 
-    async def _restore_database(self, backup_path: str, target_database: Optional[str] = None) -> None:
+    async def _restore_database(self, backup_path: str, target_database: str | None = None) -> None:
         """Restore database from backup file"""
         # Implementation for database restoration
-        pass
 
     async def _test_restore(self, backup_id: str) -> bool:
         """Test backup restoration to temporary database"""
@@ -737,7 +727,9 @@ class DatabaseBackupService:
 
 # Task decorator for background backup execution
 @task("execute_database_backup")
-async def execute_database_backup_task(backup_id: str, backup_type: str, config: Dict[str, Any]) -> Dict[str, Any]:
+async def execute_database_backup_task(
+    backup_id: str, backup_type: str, config: dict[str, Any]
+) -> dict[str, Any]:
     """Background task for executing database backup"""
     backup_config = BackupConfig(**config)
     backup_service = DatabaseBackupService(backup_config)
@@ -751,19 +743,15 @@ async def execute_database_backup_task(backup_id: str, backup_type: str, config:
             "backup_id": backup_id,
             "status": result.status.value,
             "file_size": result.file_size_bytes,
-            "file_path": result.file_path
+            "file_path": result.file_path,
         }
     except Exception as e:
-        logger.error(f"Backup task failed for {backup_id}: {str(e)}")
-        return {
-            "success": False,
-            "backup_id": backup_id,
-            "error": str(e)
-        }
+        logger.error(f"Backup task failed for {backup_id}: {e!s}")
+        return {"success": False, "backup_id": backup_id, "error": str(e)}
 
 
 @task("cleanup_old_backups")
-async def cleanup_old_backups_task(config: Dict[str, Any]) -> Dict[str, Any]:
+async def cleanup_old_backups_task(config: dict[str, Any]) -> dict[str, Any]:
     """Background task for cleaning up old backups"""
     backup_config = BackupConfig(**config)
     backup_service = DatabaseBackupService(backup_config)
@@ -771,20 +759,14 @@ async def cleanup_old_backups_task(config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         deleted_count = await backup_service.cleanup_old_backups()
 
-        return {
-            "success": True,
-            "deleted_count": deleted_count
-        }
+        return {"success": True, "deleted_count": deleted_count}
     except Exception as e:
-        logger.error(f"Backup cleanup task failed: {str(e)}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(f"Backup cleanup task failed: {e!s}")
+        return {"success": False, "error": str(e)}
 
 
 # Global backup service instance
-_backup_service: Optional[DatabaseBackupService] = None
+_backup_service: DatabaseBackupService | None = None
 
 
 def get_backup_service() -> DatabaseBackupService:
@@ -796,7 +778,7 @@ def get_backup_service() -> DatabaseBackupService:
             backup_type=BackupType.FULL,
             storage_provider=StorageProvider.LOCAL,
             storage_path="backups",
-            retention_days=30
+            retention_days=30,
         )
         _backup_service = DatabaseBackupService(config)
     return _backup_service

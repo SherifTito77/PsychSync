@@ -11,75 +11,82 @@ This module provides enterprise-grade resilience patterns including:
 """
 
 import asyncio
-import time
-import logging
-import statistics
-from typing import Dict, List, Any, Optional, Callable, Union, TypeVar, Generic
+from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum, auto
 from functools import wraps
-from datetime import datetime, timedelta
-from collections import deque, defaultdict
-import asyncio
-import random
-import json
+import logging
+import statistics
+import time
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
 # Type variables for generic functions
-T = TypeVar('T')
-R = TypeVar('R')
+T = TypeVar("T")
+R = TypeVar("R")
+
 
 class ErrorType(Enum):
     """Classification of error types for appropriate handling"""
-    NETWORK = auto()           # Network connectivity issues
-    TIMEOUT = auto()           # Operation timeout
-    RATE_LIMIT = auto()        # Rate limiting exceeded
-    AUTHENTICATION = auto()    # Authentication/authorization failures
-    VALIDATION = auto()        # Input validation errors
-    BUSINESS = auto()          # Business logic errors
-    SYSTEM = auto()            # System-level errors
-    DEPENDENCY = auto()        # External dependency failures
-    UNKNOWN = auto()           # Unclassified errors
+
+    NETWORK = auto()  # Network connectivity issues
+    TIMEOUT = auto()  # Operation timeout
+    RATE_LIMIT = auto()  # Rate limiting exceeded
+    AUTHENTICATION = auto()  # Authentication/authorization failures
+    VALIDATION = auto()  # Input validation errors
+    BUSINESS = auto()  # Business logic errors
+    SYSTEM = auto()  # System-level errors
+    DEPENDENCY = auto()  # External dependency failures
+    UNKNOWN = auto()  # Unclassified errors
+
 
 class CircuitState(Enum):
     """Circuit breaker states"""
-    CLOSED = "closed"          # Normal operation
-    OPEN = "open"              # Circuit is open, calls fail fast
-    HALF_OPEN = "half_open"    # Testing if service has recovered
+
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Circuit is open, calls fail fast
+    HALF_OPEN = "half_open"  # Testing if service has recovered
+
 
 class BulkheadState(Enum):
     """Bulkhead isolation states"""
-    HEALTHY = "healthy"        # Operating normally
-    ISOLATED = "isolated"      # Isolated to prevent failure spread
+
+    HEALTHY = "healthy"  # Operating normally
+    ISOLATED = "isolated"  # Isolated to prevent failure spread
     RECOVERING = "recovering"  # In recovery process
+
 
 @dataclass
 class ErrorInfo:
     """Structured error information for analysis"""
+
     error_type: ErrorType
     error_message: str
     timestamp: datetime
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
     retry_count: int = 0
-    original_exception: Optional[Exception] = None
+    original_exception: Exception | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
-            'error_type': self.error_type.name,
-            'error_message': self.error_message,
-            'timestamp': self.timestamp.isoformat(),
-            'context': self.context,
-            'retry_count': self.retry_count,
-            'original_exception': str(self.original_exception) if self.original_exception else None
+            "error_type": self.error_type.name,
+            "error_message": self.error_message,
+            "timestamp": self.timestamp.isoformat(),
+            "context": self.context,
+            "retry_count": self.retry_count,
+            "original_exception": str(self.original_exception) if self.original_exception else None,
         }
+
 
 class ErrorClassifier:
     """Classifies errors into types for appropriate handling"""
 
     @staticmethod
-    def classify_error(error: Exception, context: Dict[str, Any] = None) -> ErrorInfo:
+    def classify_error(error: Exception, context: dict[str, Any] = None) -> ErrorInfo:
         """Classify an exception into an error type"""
         context = context or {}
 
@@ -90,7 +97,7 @@ class ErrorClassifier:
                 error_message=str(error),
                 timestamp=datetime.now(),
                 context=context,
-                original_exception=error
+                original_exception=error,
             )
 
         # Timeout errors
@@ -100,11 +107,11 @@ class ErrorClassifier:
                 error_message=str(error),
                 timestamp=datetime.now(),
                 context=context,
-                original_exception=error
+                original_exception=error,
             )
 
         # HTTP status code based classification (if available)
-        if hasattr(error, 'status_code'):
+        if hasattr(error, "status_code"):
             status_code = error.status_code
             if status_code == 429:
                 return ErrorInfo(
@@ -112,33 +119,33 @@ class ErrorClassifier:
                     error_message=str(error),
                     timestamp=datetime.now(),
                     context=context,
-                    original_exception=error
+                    original_exception=error,
                 )
-            elif status_code in (401, 403):
+            if status_code in (401, 403):
                 return ErrorInfo(
                     error_type=ErrorType.AUTHENTICATION,
                     error_message=str(error),
                     timestamp=datetime.now(),
                     context=context,
-                    original_exception=error
+                    original_exception=error,
                 )
-            elif status_code >= 500:
+            if status_code >= 500:
                 return ErrorInfo(
                     error_type=ErrorType.DEPENDENCY,
                     error_message=str(error),
                     timestamp=datetime.now(),
                     context=context,
-                    original_exception=error
+                    original_exception=error,
                 )
 
         # Database errors
-        if 'database' in str(type(error)).lower() or 'sql' in str(type(error)).lower():
+        if "database" in str(type(error)).lower() or "sql" in str(type(error)).lower():
             return ErrorInfo(
                 error_type=ErrorType.DEPENDENCY,
                 error_message=str(error),
                 timestamp=datetime.now(),
                 context=context,
-                original_exception=error
+                original_exception=error,
             )
 
         # Default classification
@@ -147,8 +154,9 @@ class ErrorClassifier:
             error_message=str(error),
             timestamp=datetime.now(),
             context=context,
-            original_exception=error
+            original_exception=error,
         )
+
 
 class CircuitBreaker:
     """Advanced circuit breaker with adaptive thresholds"""
@@ -162,7 +170,7 @@ class CircuitBreaker:
         success_threshold: int = 3,
         timeout: float = 30.0,
         half_open_max_calls: int = 5,
-        monitoring_window: int = 100
+        monitoring_window: int = 100,
     ):
         self.name = name
         self.failure_threshold = failure_threshold
@@ -177,7 +185,7 @@ class CircuitBreaker:
         self.state = CircuitState.CLOSED
         self.failure_count = 0
         self.success_count = 0
-        self.last_failure_time: Optional[datetime] = None
+        self.last_failure_time: datetime | None = None
         self.last_state_change = datetime.now()
 
         # Metrics for adaptive behavior
@@ -203,7 +211,10 @@ class CircuitBreaker:
             else:
                 raise CircuitBreakerOpenError(f"Circuit breaker {self.name} is OPEN")
 
-        if self.state == CircuitState.HALF_OPEN and self.half_open_calls >= self.half_open_max_calls:
+        if (
+            self.state == CircuitState.HALF_OPEN
+            and self.half_open_calls >= self.half_open_max_calls
+        ):
             raise CircuitBreakerOpenError(f"Circuit breaker {self.name} HALF_OPEN limit reached")
 
         try:
@@ -218,13 +229,13 @@ class CircuitBreaker:
 
         except self.expected_exception as e:
             execution_time = time.time() - start_time
-            error_info = ErrorClassifier.classify_error(e, {'circuit_breaker': self.name})
+            error_info = ErrorClassifier.classify_error(e, {"circuit_breaker": self.name})
             self._on_failure(error_info, execution_time)
             raise
 
         except Exception as e:
             execution_time = time.time() - start_time
-            error_info = ErrorClassifier.classify_error(e, {'circuit_breaker': self.name})
+            error_info = ErrorClassifier.classify_error(e, {"circuit_breaker": self.name})
             self._on_failure(error_info, execution_time)
             raise
 
@@ -264,12 +275,16 @@ class CircuitBreaker:
             # Failed in half-open, return to open
             self.state = CircuitState.OPEN
             self.success_count = 0
-            self.logger.warning(f"Circuit breaker {self.name} returned to OPEN after HALF_OPEN failure")
+            self.logger.warning(
+                f"Circuit breaker {self.name} returned to OPEN after HALF_OPEN failure"
+            )
 
         elif self.state == CircuitState.CLOSED:
             if self.failure_count >= self.failure_threshold:
                 self.state = CircuitState.OPEN
-                self.logger.warning(f"Circuit breaker {self.name} opened after {self.failure_count} failures")
+                self.logger.warning(
+                    f"Circuit breaker {self.name} opened after {self.failure_count} failures"
+                )
 
         self.last_state_change = datetime.now()
 
@@ -282,27 +297,32 @@ class CircuitBreaker:
         self.last_state_change = datetime.now()
         self.logger.info(f"Circuit breaker {self.name} reset to CLOSED")
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get circuit breaker metrics"""
         recent_calls = list(self.call_history)[-20:] if self.call_history else []
-        recent_failures = [f for f in self.failure_history if (datetime.now() - f.timestamp).seconds < 300]
+        recent_failures = [
+            f for f in self.failure_history if (datetime.now() - f.timestamp).seconds < 300
+        ]
 
         success_rate = sum(recent_calls) / len(recent_calls) if recent_calls else 1.0
         avg_response_time = statistics.mean(self.response_times) if self.response_times else 0
 
         return {
-            'name': self.name,
-            'state': self.state.value,
-            'failure_count': self.failure_count,
-            'success_count': self.success_count,
-            'success_rate': round(success_rate * 100, 2),
-            'avg_response_time': round(avg_response_time * 1000, 2),  # ms
-            'last_failure_time': self.last_failure_time.isoformat() if self.last_failure_time else None,
-            'last_state_change': self.last_state_change.isoformat(),
-            'recent_failures_count': len(recent_failures),
-            'total_calls': len(self.call_history),
-            'monitoring_window': self.monitoring_window
+            "name": self.name,
+            "state": self.state.value,
+            "failure_count": self.failure_count,
+            "success_count": self.success_count,
+            "success_rate": round(success_rate * 100, 2),
+            "avg_response_time": round(avg_response_time * 1000, 2),  # ms
+            "last_failure_time": self.last_failure_time.isoformat()
+            if self.last_failure_time
+            else None,
+            "last_state_change": self.last_state_change.isoformat(),
+            "recent_failures_count": len(recent_failures),
+            "total_calls": len(self.call_history),
+            "monitoring_window": self.monitoring_window,
         }
+
 
 class RetryPolicy:
     """Advanced retry policy with exponential backoff and jitter"""
@@ -314,8 +334,8 @@ class RetryPolicy:
         max_delay: float = 60.0,
         exponential_base: float = 2.0,
         jitter: bool = True,
-        retry_on: List[ErrorType] = None,
-        stop_on: List[ErrorType] = None
+        retry_on: list[ErrorType] = None,
+        stop_on: list[ErrorType] = None,
     ):
         self.max_attempts = max_attempts
         self.base_delay = base_delay
@@ -340,16 +360,17 @@ class RetryPolicy:
     def get_delay(self, attempt: int) -> float:
         """Calculate delay for next retry attempt"""
         # Exponential backoff
-        delay = self.base_delay * (self.exponential_base ** attempt)
+        delay = self.base_delay * (self.exponential_base**attempt)
 
         # Apply maximum delay limit
         delay = min(delay, self.max_delay)
 
         # Add jitter to prevent thundering herd
         if self.jitter:
-            delay *= (0.5 + secrets.SystemRandom().random() * 0.5)
+            delay *= 0.5 + secrets.SystemRandom().random() * 0.5
 
         return delay
+
 
 class RateLimiter:
     """Adaptive rate limiter with multiple algorithms"""
@@ -360,7 +381,7 @@ class RateLimiter:
         algorithm: str = "sliding_window",
         limit: int = 100,
         window: float = 60.0,
-        burst_limit: int = None
+        burst_limit: int = None,
     ):
         self.name = name
         self.algorithm = algorithm
@@ -383,10 +404,9 @@ class RateLimiter:
         """Acquire rate limit permit"""
         if self.algorithm == "sliding_window":
             return await self._sliding_window_acquire(tokens)
-        elif self.algorithm == "token_bucket":
+        if self.algorithm == "token_bucket":
             return await self._token_bucket_acquire(tokens)
-        else:
-            raise ValueError(f"Unknown rate limiting algorithm: {self.algorithm}")
+        raise ValueError(f"Unknown rate limiting algorithm: {self.algorithm}")
 
     async def _sliding_window_acquire(self, tokens: int = 1) -> bool:
         """Sliding window rate limiting"""
@@ -421,7 +441,7 @@ class RateLimiter:
 
         return False
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get rate limiter metrics"""
         if self.algorithm == "sliding_window":
             now = time.time()
@@ -429,22 +449,23 @@ class RateLimiter:
             utilization = len(recent_requests) / self.adaptive_limit * 100
 
             return {
-                'algorithm': self.algorithm,
-                'current_requests': len(recent_requests),
-                'limit': self.adaptive_limit,
-                'utilization_percent': round(utilization, 2),
-                'window': self.window
+                "algorithm": self.algorithm,
+                "current_requests": len(recent_requests),
+                "limit": self.adaptive_limit,
+                "utilization_percent": round(utilization, 2),
+                "window": self.window,
             }
 
-        else:  # token_bucket
-            utilization = (self.burst_limit - self.tokens) / self.burst_limit * 100
-            return {
-                'algorithm': self.algorithm,
-                'tokens_available': round(self.tokens, 2),
-                'burst_limit': self.burst_limit,
-                'utilization_percent': round(utilization, 2),
-                'refill_rate': round(self.refill_rate, 2)
-            }
+        # token_bucket
+        utilization = (self.burst_limit - self.tokens) / self.burst_limit * 100
+        return {
+            "algorithm": self.algorithm,
+            "tokens_available": round(self.tokens, 2),
+            "burst_limit": self.burst_limit,
+            "utilization_percent": round(utilization, 2),
+            "refill_rate": round(self.refill_rate, 2),
+        }
+
 
 class Bulkhead:
     """Bulkhead pattern for resource isolation"""
@@ -454,7 +475,7 @@ class Bulkhead:
         name: str,
         max_concurrent_calls: int = 10,
         max_queue_size: int = 50,
-        timeout: float = 30.0
+        timeout: float = 30.0,
     ):
         self.name = name
         self.max_concurrent_calls = max_concurrent_calls
@@ -484,7 +505,7 @@ class Bulkhead:
         # Try to queue the call
         try:
             await asyncio.wait_for(self.queue.put(None), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.rejected_calls += 1
             raise BulkheadFullError(f"Bulkhead {self.name} queue timeout")
 
@@ -495,7 +516,7 @@ class Bulkhead:
             result = await asyncio.wait_for(func(*args, **kwargs), timeout=self.timeout)
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.timeouts += 1
             raise
 
@@ -507,33 +528,36 @@ class Bulkhead:
             except asyncio.QueueEmpty:
                 pass
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get bulkhead metrics"""
-        rejection_rate = (self.rejected_calls / self.total_calls * 100) if self.total_calls > 0 else 0
+        rejection_rate = (
+            (self.rejected_calls / self.total_calls * 100) if self.total_calls > 0 else 0
+        )
         timeout_rate = (self.timeouts / self.total_calls * 100) if self.total_calls > 0 else 0
 
         return {
-            'name': self.name,
-            'state': self.state.value,
-            'concurrent_calls': self.concurrent_calls,
-            'max_concurrent_calls': self.max_concurrent_calls,
-            'queue_size': self.queue.qsize(),
-            'max_queue_size': self.max_queue_size,
-            'total_calls': self.total_calls,
-            'rejected_calls': self.rejected_calls,
-            'timeouts': self.timeouts,
-            'rejection_rate_percent': round(rejection_rate, 2),
-            'timeout_rate_percent': round(timeout_rate, 2)
+            "name": self.name,
+            "state": self.state.value,
+            "concurrent_calls": self.concurrent_calls,
+            "max_concurrent_calls": self.max_concurrent_calls,
+            "queue_size": self.queue.qsize(),
+            "max_queue_size": self.max_queue_size,
+            "total_calls": self.total_calls,
+            "rejected_calls": self.rejected_calls,
+            "timeouts": self.timeouts,
+            "rejection_rate_percent": round(rejection_rate, 2),
+            "timeout_rate_percent": round(timeout_rate, 2),
         }
+
 
 class ResilienceManager:
     """Central resilience manager coordinating all patterns"""
 
     def __init__(self):
-        self.circuit_breakers: Dict[str, CircuitBreaker] = {}
-        self.rate_limiters: Dict[str, RateLimiter] = {}
-        self.bulkheads: Dict[str, Bulkhead] = {}
-        self.retry_policies: Dict[str, RetryPolicy] = {}
+        self.circuit_breakers: dict[str, CircuitBreaker] = {}
+        self.rate_limiters: dict[str, RateLimiter] = {}
+        self.bulkheads: dict[str, Bulkhead] = {}
+        self.retry_policies: dict[str, RetryPolicy] = {}
 
     def create_circuit_breaker(self, name: str, **kwargs) -> CircuitBreaker:
         """Create and register a circuit breaker"""
@@ -559,27 +583,30 @@ class ResilienceManager:
         self.retry_policies[name] = rp
         return rp
 
-    def get_all_metrics(self) -> Dict[str, Any]:
+    def get_all_metrics(self) -> dict[str, Any]:
         """Get metrics from all resilience components"""
         return {
-            'circuit_breakers': {name: cb.get_metrics() for name, cb in self.circuit_breakers.items()},
-            'rate_limiters': {name: rl.get_metrics() for name, rl in self.rate_limiters.items()},
-            'bulkheads': {name: bh.get_metrics() for name, bh in self.bulkheads.items()},
-            'retry_policies': list(self.retry_policies.keys())
+            "circuit_breakers": {
+                name: cb.get_metrics() for name, cb in self.circuit_breakers.items()
+            },
+            "rate_limiters": {name: rl.get_metrics() for name, rl in self.rate_limiters.items()},
+            "bulkheads": {name: bh.get_metrics() for name, bh in self.bulkheads.items()},
+            "retry_policies": list(self.retry_policies.keys()),
         }
+
 
 # Custom exception classes
 class CircuitBreakerOpenError(Exception):
     """Raised when circuit breaker is open"""
-    pass
+
 
 class BulkheadFullError(Exception):
     """Raised when bulkhead is full"""
-    pass
+
 
 class RateLimitExceededError(Exception):
     """Raised when rate limit is exceeded"""
-    pass
+
 
 # Decorators for easy application of resilience patterns
 def resilient(
@@ -587,9 +614,10 @@ def resilient(
     rate_limiter: str = None,
     bulkhead: str = None,
     retry_policy: str = None,
-    timeout: float = None
+    timeout: float = None,
 ):
     """Decorator for applying resilience patterns"""
+
     def decorator(func: Callable[..., R]) -> Callable[..., R]:
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -608,38 +636,37 @@ def resilient(
 
             # Apply bulkhead
             if bh:
-                return await bh.execute(_execute_with_circuit_breaker_and_retry, func, cb, rp, *args, **kwargs)
-            else:
-                return await _execute_with_circuit_breaker_and_retry(func, cb, rp, *args, **kwargs)
+                return await bh.execute(
+                    _execute_with_circuit_breaker_and_retry, func, cb, rp, *args, **kwargs
+                )
+            return await _execute_with_circuit_breaker_and_retry(func, cb, rp, *args, **kwargs)
 
         return wrapper
+
     return decorator
+
 
 async def _execute_with_circuit_breaker_and_retry(
     func: Callable,
-    circuit_breaker: Optional[CircuitBreaker],
-    retry_policy: Optional[RetryPolicy],
+    circuit_breaker: CircuitBreaker | None,
+    retry_policy: RetryPolicy | None,
     *args,
-    **kwargs
+    **kwargs,
 ):
     """Execute function with circuit breaker and retry logic"""
     if circuit_breaker:
         if retry_policy:
-            return await _execute_with_retry(circuit_breaker.call, func, retry_policy, *args, **kwargs)
-        else:
-            return await circuit_breaker.call(func, *args, **kwargs)
-    else:
-        if retry_policy:
-            return await _execute_with_retry(func, func, retry_policy, *args, **kwargs)
-        else:
-            return await func(*args, **kwargs)
+            return await _execute_with_retry(
+                circuit_breaker.call, func, retry_policy, *args, **kwargs
+            )
+        return await circuit_breaker.call(func, *args, **kwargs)
+    if retry_policy:
+        return await _execute_with_retry(func, func, retry_policy, *args, **kwargs)
+    return await func(*args, **kwargs)
+
 
 async def _execute_with_retry(
-    func: Callable,
-    target_func: Callable,
-    retry_policy: RetryPolicy,
-    *args,
-    **kwargs
+    func: Callable, target_func: Callable, retry_policy: RetryPolicy, *args, **kwargs
 ):
     """Execute function with retry logic"""
     last_error = None
@@ -660,8 +687,10 @@ async def _execute_with_retry(
 
     raise last_error
 
+
 # Global resilience manager instance
-_resilience_manager: Optional[ResilienceManager] = None
+_resilience_manager: ResilienceManager | None = None
+
 
 def get_resilience_manager() -> ResilienceManager:
     """Get or create global resilience manager"""
@@ -670,23 +699,27 @@ def get_resilience_manager() -> ResilienceManager:
         _resilience_manager = ResilienceManager()
     return _resilience_manager
 
+
 # Convenience functions for common patterns
 def with_circuit_breaker(name: str, **kwargs):
     """Decorator for circuit breaker only"""
     return resilient(circuit_breaker=name, **kwargs)
 
+
 def with_rate_limiter(name: str, **kwargs):
     """Decorator for rate limiter only"""
     return resilient(rate_limiter=name, **kwargs)
+
 
 def with_bulkhead(name: str, **kwargs):
     """Decorator for bulkhead only"""
     return resilient(bulkhead=name, **kwargs)
 
+
 def with_retry(**kwargs):
     """Decorator for retry policy only"""
-    rp_name = kwargs.get('name', 'default')
+    rp_name = kwargs.get("name", "default")
     manager = get_resilience_manager()
     if rp_name not in manager.retry_policies:
-        manager.create_retry_policy(rp_name, **{k: v for k, v in kwargs.items() if k != 'name'})
+        manager.create_retry_policy(rp_name, **{k: v for k, v in kwargs.items() if k != "name"})
     return resilient(retry_policy=rp_name)

@@ -17,32 +17,28 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import hashlib
-import secrets
-import logging
-import asyncio
-from datetime import datetime, timedelta
-from typing import Optional, Union, Any, Dict, List, Tuple
-from dataclasses import dataclass
-from enum import Enum
-
-import jwt
-from jose import JWTError
-from passlib.context import CryptContext
-from fastapi import HTTPException, status, Depends, Request
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+import hashlib
+import logging
+import secrets
+from typing import Any
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError
+import jwt
+from passlib.context import CryptContext
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_async_db
 
 # Initialize security logger
 security_logger = logging.getLogger("app.security.core")
+
 
 # Token Types Enum
 class TokenType(Enum):
@@ -51,6 +47,7 @@ class TokenType(Enum):
     PASSWORD_RESET = "password_reset"
     EMAIL_VERIFICATION = "email_verification"
     DEVICE_TRUST = "device_trust"
+
 
 # Security Event Types
 class SecurityEventType(Enum):
@@ -62,9 +59,11 @@ class SecurityEventType(Enum):
     BRUTE_FORCE_ATTEMPT = "brute_force_attempt"
     SESSION_HIJACKING = "session_hijacking"
 
+
 @dataclass
 class TokenMetadata:
     """Token metadata for enhanced security tracking"""
+
     token_type: TokenType
     user_id: str
     issued_at: datetime
@@ -72,26 +71,29 @@ class TokenMetadata:
     ip_address: str
     user_agent: str
     device_fingerprint: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
     is_revoked: bool = False
+
 
 @dataclass
 class SecurityEvent:
     """Security event for audit logging"""
+
     event_type: SecurityEventType
-    user_id: Optional[str]
+    user_id: str | None
     ip_address: str
     user_agent: str
     timestamp: datetime
-    details: Dict[str, Any]
+    details: dict[str, Any]
     risk_score: float = 0.0
+
 
 # SIMPLIFIED PASSWORD HASHING CONTEXT - Fixed algorithm configuration
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     default="bcrypt",
     deprecated="auto",
-    bcrypt__rounds=12  # Reduced rounds for performance during testing
+    bcrypt__rounds=12,  # Reduced rounds for performance during testing
 )
 
 # OAuth2 scheme for token authentication
@@ -119,11 +121,12 @@ BRUTE_FORCE_WINDOW = 300  # 5 minutes
 # PASSWORD FUNCTIONS
 # =============================================================================
 
+
 async def verify_password(
     plain_password: str,
     hashed_password: str,
     ip_address: str = "unknown",
-    user_id: Optional[str] = None
+    user_id: str | None = None,
 ) -> bool:
     """
     ENTERPRISE-GRADE PASSWORD VERIFICATION
@@ -147,17 +150,14 @@ async def verify_password(
     if not plain_password or not hashed_password:
         security_logger.warning(
             "Password verification with empty values",
-            extra={
-                "ip_address": ip_address,
-                "user_id": user_id,
-                "event_type": "security_warning"
-            }
+            extra={"ip_address": ip_address, "user_id": user_id, "event_type": "security_warning"},
         )
         return False
 
     try:
         # Enhanced timing attack protection
         import time
+
         start_time = time.time()
 
         # Use passlib with enhanced error handling
@@ -174,8 +174,8 @@ async def verify_password(
                     "ip_address": ip_address,
                     "user_id": user_id,
                     "verification_time": verification_time,
-                    "event_type": "auth_success"
-                }
+                    "event_type": "auth_success",
+                },
             )
         else:
             security_logger.warning(
@@ -184,8 +184,8 @@ async def verify_password(
                     "ip_address": ip_address,
                     "user_id": user_id,
                     "verification_time": verification_time,
-                    "event_type": "auth_failure"
-                }
+                    "event_type": "auth_failure",
+                },
             )
 
             # Record security event for brute force detection
@@ -195,13 +195,13 @@ async def verify_password(
                 ip_address=ip_address,
                 user_agent="password_verification",
                 details={"verification_time": verification_time},
-                risk_score=0.3
+                risk_score=0.3,
             )
 
         return result
 
     except Exception as e:
-        verification_time = time.time() - start_time if 'start_time' in locals() else 0
+        verification_time = time.time() - start_time if "start_time" in locals() else 0
 
         security_logger.error(
             f"Password verification error: {type(e).__name__}",
@@ -210,8 +210,8 @@ async def verify_password(
                 "user_id": user_id,
                 "verification_time": verification_time,
                 "error_type": type(e).__name__,
-                "event_type": "security_error"
-            }
+                "event_type": "security_error",
+            },
         )
 
         # Record suspicious activity
@@ -220,11 +220,8 @@ async def verify_password(
             user_id=user_id,
             ip_address=ip_address,
             user_agent="password_verification",
-            details={
-                "error_type": type(e).__name__,
-                "verification_time": verification_time
-            },
-            risk_score=0.6
+            details={"error_type": type(e).__name__, "verification_time": verification_time},
+            risk_score=0.6,
         )
 
         # Fail securely - always return False on error
@@ -248,7 +245,9 @@ def get_password_hash(password: str) -> str:
         # Validate password before hashing
         validation_result = validate_password(password)
         if not validation_result["valid"]:
-            raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
+            raise ValueError(
+                f"Password validation failed: {', '.join(validation_result['errors'])}"
+            )
 
         # Use passlib for secure, consistent hashing
         return pwd_context.hash(password)
@@ -257,12 +256,13 @@ def get_password_hash(password: str) -> str:
         raise
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Password hashing failed: {type(e).__name__}")
-        raise RuntimeError("Password hashing failed. Please try again.")
+        raise RuntimeError("Password hashing failed. Please try again.") from e
 
 
-def validate_password(password: str) -> Dict[str, Any]:
+def validate_password(password: str) -> dict[str, Any]:
     """
     Enhanced password validation with comprehensive security requirements
 
@@ -282,29 +282,42 @@ def validate_password(password: str) -> Dict[str, Any]:
         warnings.append("Consider using a password of at least 16 characters for better security")
 
     # Check for uppercase letter
-    if getattr(settings, 'PASSWORD_REQUIRE_UPPERCASE', True) and not any(c.isupper() for c in password):
+    if getattr(settings, "PASSWORD_REQUIRE_UPPERCASE", True) and not any(
+        c.isupper() for c in password
+    ):
         errors.append("Password must contain at least one uppercase letter")
 
     # Check for lowercase letter
-    if getattr(settings, 'PASSWORD_REQUIRE_LOWERCASE', True) and not any(c.islower() for c in password):
+    if getattr(settings, "PASSWORD_REQUIRE_LOWERCASE", True) and not any(
+        c.islower() for c in password
+    ):
         errors.append("Password must contain at least one lowercase letter")
 
     # Check for digit
-    if getattr(settings, 'PASSWORD_REQUIRE_DIGITS', True) and not any(c.isdigit() for c in password):
+    if getattr(settings, "PASSWORD_REQUIRE_DIGITS", True) and not any(
+        c.isdigit() for c in password
+    ):
         errors.append("Password must contain at least one digit")
 
     # Check for special characters
-    if getattr(settings, 'PASSWORD_REQUIRE_SPECIAL_CHARS', True):
+    if getattr(settings, "PASSWORD_REQUIRE_SPECIAL_CHARS", True):
         special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?`~"
         if not any(c in special_chars for c in password):
-            errors.append(
-                f"Password must contain at least one special character: {special_chars}"
-            )
+            errors.append(f"Password must contain at least one special character: {special_chars}")
 
     # Prevent common weak patterns
     weak_patterns = [
-        'password', '123456', 'qwerty', 'admin', 'letmein', 'welcome',
-        'changeme', 'default', 'login', 'user', 'test'
+        "password",
+        "123456",
+        "qwerty",
+        "admin",
+        "letmein",
+        "welcome",
+        "changeme",
+        "default",
+        "login",
+        "user",
+        "test",
     ]
     password_lower = password.lower()
     for pattern in weak_patterns:
@@ -315,8 +328,9 @@ def validate_password(password: str) -> Dict[str, Any]:
     # Check for sequential characters
     sequential_count = 0
     for i in range(len(password) - 2):
-        if (ord(password[i]) + 1 == ord(password[i+1]) == ord(password[i+2]) - 1) or \
-           (ord(password[i]) - 1 == ord(password[i+1]) == ord(password[i+2]) + 1):
+        if (ord(password[i]) + 1 == ord(password[i + 1]) == ord(password[i + 2]) - 1) or (
+            ord(password[i]) - 1 == ord(password[i + 1]) == ord(password[i + 2]) + 1
+        ):
             sequential_count += 1
 
     if sequential_count > len(password) * 0.1:  # More than 10% sequential characters
@@ -327,7 +341,7 @@ def validate_password(password: str) -> Dict[str, Any]:
     # Check for repeated characters
     repeated_count = 0
     for i in range(len(password) - 2):
-        if password[i] == password[i+1] == password[i+2]:
+        if password[i] == password[i + 1] == password[i + 2]:
             repeated_count += 1
 
     if repeated_count > len(password) * 0.1:  # More than 10% repeated characters
@@ -337,7 +351,20 @@ def validate_password(password: str) -> Dict[str, Any]:
 
     # Check for keyboard patterns (like 'asdf', 'qwerty')
     keyboard_patterns = [
-        'qwerty', 'asdf', 'zxcv', 'qwe', 'asd', 'zxc', '123', '234', '345', '456', '567', '678', '789', '890'
+        "qwerty",
+        "asdf",
+        "zxcv",
+        "qwe",
+        "asd",
+        "zxc",
+        "123",
+        "234",
+        "345",
+        "456",
+        "567",
+        "678",
+        "789",
+        "890",
     ]
     for pattern in keyboard_patterns:
         if pattern in password_lower:
@@ -357,7 +384,7 @@ def validate_password(password: str) -> Dict[str, Any]:
         "errors": errors,
         "warnings": warnings,
         "strength_score": strength_score,
-        "strength_rating": _get_strength_rating(strength_score)
+        "strength_rating": _get_strength_rating(strength_score),
     }
 
 
@@ -405,9 +432,44 @@ def _contains_common_words(password: str) -> bool:
     Check if password contains common dictionary words
     """
     common_words = [
-        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one',
-        'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see',
-        'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'
+        "the",
+        "and",
+        "for",
+        "are",
+        "but",
+        "not",
+        "you",
+        "all",
+        "can",
+        "had",
+        "her",
+        "was",
+        "one",
+        "our",
+        "out",
+        "day",
+        "get",
+        "has",
+        "him",
+        "his",
+        "how",
+        "man",
+        "new",
+        "now",
+        "old",
+        "see",
+        "two",
+        "way",
+        "who",
+        "boy",
+        "did",
+        "its",
+        "let",
+        "put",
+        "say",
+        "she",
+        "too",
+        "use",
     ]
     password_lower = password.lower()
 
@@ -424,19 +486,18 @@ def _get_strength_rating(score: int) -> str:
     """
     if score >= 90:
         return "Very Strong"
-    elif score >= 80:
+    if score >= 80:
         return "Strong"
-    elif score >= 70:
+    if score >= 70:
         return "Good"
-    elif score >= 60:
+    if score >= 60:
         return "Fair"
-    elif score >= 40:
+    if score >= 40:
         return "Weak"
-    else:
-        return "Very Weak"
+    return "Very Weak"
 
 
-def generate_password_requirements() -> Dict[str, Any]:
+def generate_password_requirements() -> dict[str, Any]:
     """
     Generate current password requirements for UI display
     """
@@ -444,16 +505,25 @@ def generate_password_requirements() -> Dict[str, Any]:
 
     return {
         "min_length": settings.MIN_PASSWORD_LENGTH,
-        "require_uppercase": getattr(settings, 'PASSWORD_REQUIRE_UPPERCASE', True),
-        "require_lowercase": getattr(settings, 'PASSWORD_REQUIRE_LOWERCASE', True),
-        "require_digits": getattr(settings, 'PASSWORD_REQUIRE_DIGITS', True),
-        "require_special_chars": getattr(settings, 'PASSWORD_REQUIRE_SPECIAL_CHARS', True),
+        "require_uppercase": getattr(settings, "PASSWORD_REQUIRE_UPPERCASE", True),
+        "require_lowercase": getattr(settings, "PASSWORD_REQUIRE_LOWERCASE", True),
+        "require_digits": getattr(settings, "PASSWORD_REQUIRE_DIGITS", True),
+        "require_special_chars": getattr(settings, "PASSWORD_REQUIRE_SPECIAL_CHARS", True),
         "special_characters": special_chars,
         "recommended_length": 16,
         "forbidden_patterns": [
-            "password", "123456", "qwerty", "admin", "letmein", "welcome",
-            "changeme", "default", "login", "user", "test"
-        ]
+            "password",
+            "123456",
+            "qwerty",
+            "admin",
+            "letmein",
+            "welcome",
+            "changeme",
+            "default",
+            "login",
+            "user",
+            "test",
+        ],
     }
 
 
@@ -461,12 +531,13 @@ def generate_password_requirements() -> Dict[str, Any]:
 # JWT TOKEN FUNCTIONS
 # =============================================================================
 
+
 async def create_access_token(
-    subject: Union[str, Any],
-    expires_delta: Optional[timedelta] = None,
-    additional_claims: Optional[Dict[str, Any]] = None,
-    request: Optional[Request] = None,
-    user_id: Optional[str] = None
+    subject: str | Any,
+    expires_delta: timedelta | None = None,
+    additional_claims: dict[str, Any] | None = None,
+    request: Request | None = None,
+    user_id: str | None = None,
 ) -> str:
     """
     ENTERPRISE-GRADE ACCESS TOKEN CREATION
@@ -491,9 +562,7 @@ async def create_access_token(
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     # Generate secure JWT ID for token tracking
     jti = secrets.token_urlsafe(32)
@@ -505,7 +574,7 @@ async def create_access_token(
         "sub": str(subject),
         "type": TokenType.ACCESS.value,
         "jti": jti,
-        "version": "2.0"  # Token version for revocation support
+        "version": "2.0",  # Token version for revocation support
     }
 
     # Add any additional claims
@@ -520,18 +589,16 @@ async def create_access_token(
         # Create device fingerprint
         device_fingerprint = await create_device_fingerprint(ip_address, user_agent)
 
-        to_encode.update({
-            "ip": hashlib.sha256(ip_address.encode()).hexdigest()[:16],
-            "device": hashlib.sha256(device_fingerprint.encode()).hexdigest()[:16]
-        })
+        to_encode.update(
+            {
+                "ip": hashlib.sha256(ip_address.encode()).hexdigest()[:16],
+                "device": hashlib.sha256(device_fingerprint.encode()).hexdigest()[:16],
+            }
+        )
 
     try:
         # Encode JWT token
-        encoded_jwt = jwt.encode(
-            to_encode,
-            settings.jwt_secret,
-            algorithm=ALGORITHM
-        )
+        encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=ALGORITHM)
 
         # Store token metadata for enhanced security
         token_metadata = TokenMetadata(
@@ -542,7 +609,7 @@ async def create_access_token(
             ip_address=request.client.host if request and request.client else "unknown",
             user_agent=request.headers.get("User-Agent", "unknown") if request else "unknown",
             device_fingerprint=device_fingerprint if request else "unknown",
-            session_id=additional_claims.get("session_id") if additional_claims else None
+            session_id=additional_claims.get("session_id") if additional_claims else None,
         )
 
         # Cache token metadata
@@ -558,9 +625,9 @@ async def create_access_token(
                 "token_type": TokenType.ACCESS.value,
                 "jti": jti,
                 "expires_at": expire.isoformat(),
-                "additional_claims": additional_claims or {}
+                "additional_claims": additional_claims or {},
             },
-            risk_score=0.0
+            risk_score=0.0,
         )
 
         security_logger.info(
@@ -569,8 +636,8 @@ async def create_access_token(
                 "token_type": "access",
                 "jti": jti,
                 "expires_at": expire.isoformat(),
-                "event_type": "token_created"
-            }
+                "event_type": "token_created",
+            },
         )
 
         return encoded_jwt
@@ -581,54 +648,41 @@ async def create_access_token(
             extra={
                 "user_id": user_id or str(subject),
                 "error_type": type(e).__name__,
-                "event_type": "security_error"
-            }
+                "event_type": "security_error",
+            },
         )
-        raise RuntimeError("Token creation failed due to security error")
+        raise RuntimeError("Token creation failed due to security error") from e
 
 
-def create_refresh_token(
-    subject: Union[str, Any],
-    expires_delta: Optional[timedelta] = None
-) -> str:
+def create_refresh_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
     """
     Create a JWT refresh token.
-    
+
     Args:
         subject: The subject of the token (usually user email or ID)
         expires_delta: Optional custom expiration time
-        
+
     Returns:
         Encoded JWT refresh token as string
     """
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
-    
-    to_encode = {
-        "exp": expire,
-        "sub": str(subject),
-        "type": "refresh"
-    }
-    
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.jwt_secret,
-        algorithm=ALGORITHM
-    )
-    
+        expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+
+    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
+
+    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret, algorithm=ALGORITHM)
+
     return encoded_jwt
 
 
 def create_token_pair(
-    subject: Union[str, Any],
-    access_expires_delta: Optional[timedelta] = None,
-    refresh_expires_delta: Optional[timedelta] = None,
-    additional_claims: Optional[Dict[str, Any]] = None
-) -> Dict[str, str]:
+    subject: str | Any,
+    access_expires_delta: timedelta | None = None,
+    refresh_expires_delta: timedelta | None = None,
+    additional_claims: dict[str, Any] | None = None,
+) -> dict[str, str]:
     """
     Create both access and refresh tokens for secure authentication flow.
 
@@ -646,76 +700,63 @@ def create_token_pair(
         access_expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     access_token = create_access_token(
-        subject=subject,
-        expires_delta=access_expires_delta,
-        additional_claims=additional_claims
+        subject=subject, expires_delta=access_expires_delta, additional_claims=additional_claims
     )
 
     # Create refresh token with long expiration (7 days)
     if not refresh_expires_delta:
         refresh_expires_delta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    refresh_token = create_refresh_token(
-        subject=subject,
-        expires_delta=refresh_expires_delta
-    )
+    refresh_token = create_refresh_token(subject=subject, expires_delta=refresh_expires_delta)
 
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60  # seconds
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # seconds
     }
 
 
-def verify_token(token: str, token_type: str = "access") -> Optional[str]:
+def verify_token(token: str, token_type: str = "access") -> str | None:
     """
     Verify and decode a JWT token.
-    
+
     Args:
         token: JWT token string
         token_type: Expected token type ("access" or "refresh")
-        
+
     Returns:
         The subject (email) from the token, or None if invalid
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[ALGORITHM]
-        )
-        
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+
         # Verify token type
         if payload.get("type") != token_type:
             return None
-        
+
         email: str = payload.get("sub")
         if email is None:
             return None
-            
+
         return email
-        
+
     except JWTError:
         return None
 
 
-def decode_token(token: str) -> Optional[Dict[str, Any]]:
+def decode_token(token: str) -> dict[str, Any] | None:
     """
     Decode a JWT token without verification (for debugging).
-    
+
     Args:
         token: JWT token string
-        
+
     Returns:
         Decoded token payload or None if invalid
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
         return payload
     except JWTError:
         return None
@@ -724,6 +765,7 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
 # =============================================================================
 # USER AUTHENTICATION FUNCTIONS
 # =============================================================================
+
 
 async def get_current_user_from_token(token: str, db: AsyncSession):
     """
@@ -736,8 +778,9 @@ async def get_current_user_from_token(token: str, db: AsyncSession):
     Returns:
         User object if valid, None otherwise
     """
-    from app.db.models.user import User
     from sqlalchemy import select
+
+    from app.db.models.user import User
 
     user_id = verify_token(token, token_type="access")
     if not user_id:
@@ -758,11 +801,15 @@ async def get_current_user_from_token(token: str, db: AsyncSession):
 
 
 async def get_current_user_async(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_async_db)
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Async dependency to get current authenticated user.
+
+    Security Features:
+    - JWT token verification
+    - Token blacklist checking (prevents token reuse after logout)
+    - User validation
 
     Args:
         token: JWT token from OAuth2 scheme
@@ -772,16 +819,27 @@ async def get_current_user_async(
         User object
 
     Raises:
-        HTTPException: If token is invalid or user not found
+        HTTPException: If token is invalid, blacklisted, or user not found
     """
-    from app.db.models.user import User
     from sqlalchemy import select
+
+    from app.db.models.user import User
+    from app.services.auth_service import is_token_blacklisted
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # Check if token is blacklisted (revoked)
+    if await is_token_blacklisted(token):
+        logger.warning("Attempted to use blacklisted token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked. Please login again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     user_id = verify_token(token, token_type="access")
     if user_id is None:
@@ -804,33 +862,27 @@ async def get_current_user_async(
 
 # Keep the sync version for backwards compatibility
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(get_async_db)
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_async_db)
 ):
     """Alias for get_current_user_async"""
     return await get_current_user_async(token, db)
 
 
-async def get_current_active_user(
-    current_user = Depends(get_current_user)
-):
+async def get_current_active_user(current_user=Depends(get_current_user)):
     """
     Dependency to get current active user.
-    
+
     Args:
         current_user: Current user from get_current_user dependency
-        
+
     Returns:
         User object if active
-        
+
     Raises:
         HTTPException: If user is inactive
     """
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
     return current_user
 
 
@@ -838,47 +890,42 @@ async def get_current_active_user(
 # PASSWORD RESET TOKEN FUNCTIONS
 # =============================================================================
 
+
 def create_password_reset_token(email: str) -> str:
     """
     Create a password reset token.
-    
+
     Args:
         email: User's email address
-        
+
     Returns:
         Password reset token
     """
     expires_delta = timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
     return create_access_token(
-        subject=email,
-        expires_delta=expires_delta,
-        additional_claims={"type": "password_reset"}
+        subject=email, expires_delta=expires_delta, additional_claims={"type": "password_reset"}
     )
 
 
-def verify_password_reset_token(token: str) -> Optional[str]:
+def verify_password_reset_token(token: str) -> str | None:
     """
     Verify a password reset token.
-    
+
     Args:
         token: Password reset token
-        
+
     Returns:
         Email if token is valid, None otherwise
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[ALGORITHM]
-        )
-        
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+
         if payload.get("type") != "password_reset":
             return None
-            
+
         email: str = payload.get("sub")
         return email
-        
+
     except JWTError:
         return None
 
@@ -887,25 +934,24 @@ def verify_password_reset_token(token: str) -> Optional[str]:
 # EMAIL VERIFICATION TOKEN FUNCTIONS
 # =============================================================================
 
+
 def create_email_verification_token(email: str) -> str:
     """
     Create an email verification token.
-    
+
     Args:
         email: User's email address
-        
+
     Returns:
         Email verification token
     """
     expires_delta = timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
     return create_access_token(
-        subject=email,
-        expires_delta=expires_delta,
-        additional_claims={"type": "email_verification"}
+        subject=email, expires_delta=expires_delta, additional_claims={"type": "email_verification"}
     )
 
 
-def verify_email_verification_token(token: str) -> Optional[str]:
+def verify_email_verification_token(token: str) -> str | None:
     """
     Verify an email verification token.
 
@@ -916,11 +962,7 @@ def verify_email_verification_token(token: str) -> Optional[str]:
         Email if token is valid, None otherwise
     """
     try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
 
         if payload.get("type") != "email_verification":
             return None
@@ -936,6 +978,7 @@ def verify_email_verification_token(token: str) -> Optional[str]:
 # TOKEN BLACKLISTING AND INVALIDATION
 # =============================================================================
 
+
 async def invalidate_refresh_token(refresh_token: str) -> None:
     """
     Add refresh token to blacklist to prevent reuse
@@ -944,7 +987,7 @@ async def invalidate_refresh_token(refresh_token: str) -> None:
         refresh_token: Refresh token to invalidate
     """
     import hashlib
-    import asyncio
+
     from app.core.cache import cache_set
 
     # Create hash of token for storage (don't store actual token)
@@ -983,6 +1026,7 @@ def get_refresh_token_hash(refresh_token: str) -> str:
         SHA256 hash of the token
     """
     import hashlib
+
     return hashlib.sha256(refresh_token.encode()).hexdigest()
 
 
@@ -990,10 +1034,8 @@ def get_refresh_token_hash(refresh_token: str) -> str:
 # ENHANCED TOKEN VALIDATION WITH BLACKLISTING
 # =============================================================================
 
-async def verify_refresh_token_secure(
-    refresh_token: str,
-    db: AsyncSession
-) -> Optional[str]:
+
+async def verify_refresh_token_secure(refresh_token: str, db: AsyncSession) -> str | None:
     """
     Verify refresh token with blacklist check and user validation
 
@@ -1006,11 +1048,7 @@ async def verify_refresh_token_secure(
     """
     try:
         # Decode token first
-        payload = jwt.decode(
-            refresh_token,
-            settings.jwt_secret,
-            algorithms=[ALGORITHM]
-        )
+        payload = jwt.decode(refresh_token, settings.jwt_secret, algorithms=[ALGORITHM])
 
         # Verify token type
         if payload.get("type") != "refresh":
@@ -1026,12 +1064,11 @@ async def verify_refresh_token_secure(
             return None
 
         # Verify user exists and is active
-        from app.db.models.user import User
         from sqlalchemy import select
 
-        result = await db.execute(
-            select(User).where(User.id == user_id, User.is_active == True)
-        )
+        from app.db.models.user import User
+
+        result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
         user = result.scalar_one_or_none()
 
         if not user:
@@ -1044,10 +1081,7 @@ async def verify_refresh_token_secure(
     except Exception as e:
         security_logger.error(
             f"Refresh token verification error: {type(e).__name__}",
-            extra={
-                "error_type": type(e).__name__,
-                "event_type": "security_error"
-            }
+            extra={"error_type": type(e).__name__, "event_type": "security_error"},
         )
         return None
 
@@ -1056,6 +1090,7 @@ async def verify_refresh_token_secure(
 # ENHANCED SECURITY HELPER FUNCTIONS
 # =============================================================================
 
+
 async def create_device_fingerprint(ip_address: str, user_agent: str) -> str:
     """
     Create a device fingerprint for enhanced security tracking
@@ -1063,12 +1098,14 @@ async def create_device_fingerprint(ip_address: str, user_agent: str) -> str:
     fingerprint_data = f"{ip_address}:{user_agent}:{secrets.token_hex(16)}"
     return hashlib.sha256(fingerprint_data.encode()).hexdigest()
 
+
 async def cache_token_metadata(jti: str, metadata: TokenMetadata) -> None:
     """
     Cache token metadata for enhanced security tracking
     """
     try:
         from app.core.cache import cache_set
+
         metadata_dict = {
             "token_type": metadata.token_type.value,
             "user_id": metadata.user_id,
@@ -1078,27 +1115,26 @@ async def cache_token_metadata(jti: str, metadata: TokenMetadata) -> None:
             "user_agent": metadata.user_agent,
             "device_fingerprint": metadata.device_fingerprint,
             "session_id": metadata.session_id,
-            "is_revoked": metadata.is_revoked
+            "is_revoked": metadata.is_revoked,
         }
 
         # Cache for token duration plus buffer
         cache_duration = int((metadata.expires_at - metadata.issued_at).total_seconds()) + 3600
         await cache_set(
-            f"{TOKEN_METADATA_CACHE_PREFIX}:{jti}",
-            metadata_dict,
-            expire_seconds=cache_duration
+            f"{TOKEN_METADATA_CACHE_PREFIX}:{jti}", metadata_dict, expire_seconds=cache_duration
         )
 
     except Exception as e:
         security_logger.error(f"Failed to cache token metadata: {e}")
 
+
 async def record_security_event(
     event_type: SecurityEventType,
-    user_id: Optional[str],
+    user_id: str | None,
     ip_address: str,
     user_agent: str,
-    details: Dict[str, Any],
-    risk_score: float = 0.0
+    details: dict[str, Any],
+    risk_score: float = 0.0,
 ) -> None:
     """
     Record a security event for audit and monitoring
@@ -1113,7 +1149,7 @@ async def record_security_event(
             user_agent=user_agent,
             timestamp=datetime.utcnow(),
             details=details,
-            risk_score=risk_score
+            risk_score=risk_score,
         )
 
         # Store security event
@@ -1125,7 +1161,7 @@ async def record_security_event(
             "user_agent": event.user_agent,
             "timestamp": event.timestamp.isoformat(),
             "details": event.details,
-            "risk_score": event.risk_score
+            "risk_score": event.risk_score,
         }
 
         # Cache for 30 days - Fixed async call
@@ -1145,12 +1181,13 @@ async def record_security_event(
                     "ip_address": ip_address,
                     "risk_score": risk_score,
                     "event_type": "high_risk_security_event",
-                    "details": details
-                }
+                    "details": details,
+                },
             )
 
     except Exception as e:
         security_logger.error(f"Failed to record security event: {e}")
+
 
 async def blacklist_token(jti: str, reason: str = "user_logout") -> None:
     """
@@ -1162,14 +1199,12 @@ async def blacklist_token(jti: str, reason: str = "user_logout") -> None:
         blacklist_data = {
             "jti": jti,
             "blacklisted_at": datetime.utcnow().isoformat(),
-            "reason": reason
+            "reason": reason,
         }
 
         # Store in blacklist for extended period (30 days beyond token expiry)
         await cache_set(
-            f"{TOKEN_BLACKLIST_CACHE_PREFIX}:{jti}",
-            blacklist_data,
-            expire_seconds=30 * 24 * 3600
+            f"{TOKEN_BLACKLIST_CACHE_PREFIX}:{jti}", blacklist_data, expire_seconds=30 * 24 * 3600
         )
 
         # Record security event
@@ -1179,13 +1214,14 @@ async def blacklist_token(jti: str, reason: str = "user_logout") -> None:
             ip_address="system",
             user_agent="token_blacklist",
             details={"jti": jti, "reason": reason},
-            risk_score=0.0
+            risk_score=0.0,
         )
 
         security_logger.info(f"Token blacklisted: {jti} - Reason: {reason}")
 
     except Exception as e:
         security_logger.error(f"Failed to blacklist token {jti}: {e}")
+
 
 async def is_token_blacklisted(jti: str) -> bool:
     """
@@ -1203,6 +1239,7 @@ async def is_token_blacklisted(jti: str) -> bool:
         # Fail securely - assume blacklisted if check fails
         return True
 
+
 async def emergency_revoke_all_tokens(user_id: str, reason: str = "emergency_revocation") -> None:
     """
     Emergency revocation of all user tokens
@@ -1214,13 +1251,13 @@ async def emergency_revoke_all_tokens(user_id: str, reason: str = "emergency_rev
         revocation_data = {
             "user_id": user_id,
             "revoked_at": datetime.utcnow().isoformat(),
-            "reason": reason
+            "reason": reason,
         }
 
         await cache_set(
             f"{EMERGENCY_TOKEN_REVOCATION_KEY}:{user_id}",
             revocation_data,
-            expire_seconds=30 * 24 * 3600  # 30 days
+            expire_seconds=30 * 24 * 3600,  # 30 days
         )
 
         # Record critical security event
@@ -1230,20 +1267,17 @@ async def emergency_revoke_all_tokens(user_id: str, reason: str = "emergency_rev
             ip_address="system",
             user_agent="emergency_revocation",
             details={"reason": reason, "scope": "all_tokens"},
-            risk_score=1.0
+            risk_score=1.0,
         )
 
         security_logger.critical(
             f"EMERGENCY TOKEN REVOCATION for user {user_id}: {reason}",
-            extra={
-                "user_id": user_id,
-                "reason": reason,
-                "event_type": "emergency_revocation"
-            }
+            extra={"user_id": user_id, "reason": reason, "event_type": "emergency_revocation"},
         )
 
     except Exception as e:
         security_logger.error(f"Failed emergency token revocation for user {user_id}: {e}")
+
 
 async def is_emergency_revoked(user_id: str) -> bool:
     """
@@ -1265,6 +1299,7 @@ async def is_emergency_revoked(user_id: str) -> bool:
 # ============================================================================
 # ADDITIONAL SECURITY FUNCTIONS FOR COMPREHENSIVE TESTING
 # ============================================================================
+
 
 def sanitize_input(input_str: str) -> str:
     """
@@ -1344,9 +1379,10 @@ def validate_email(email: str) -> bool:
         return False
 
     # Comprehensive email validation regex
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
     import re
+
     return bool(re.match(email_pattern, email.strip()))
 
 
@@ -1393,13 +1429,13 @@ def has_role(user, role: str) -> bool:
     Returns:
         True if user has role, False otherwise
     """
-    if not user or not hasattr(user, 'role'):
+    if not user or not hasattr(user, "role"):
         return False
 
-    user_role = getattr(user, 'role', None)
+    user_role = getattr(user, "role", None)
 
     # Admin has access to everything
-    if user_role == 'admin':
+    if user_role == "admin":
         return True
 
     # Exact match
@@ -1420,8 +1456,8 @@ def is_owner(user, resource) -> bool:
     if not user or not resource:
         return False
 
-    user_id = getattr(user, 'id', None)
-    resource_user_id = getattr(resource, 'user_id', None)
+    user_id = getattr(user, "id", None)
+    resource_user_id = getattr(resource, "user_id", None)
 
     return user_id is not None and user_id == resource_user_id
 
@@ -1440,8 +1476,8 @@ def is_team_member(user, team) -> bool:
     if not user or not team:
         return False
 
-    user_id = getattr(user, 'id', None)
-    member_ids = getattr(team, 'member_ids', [])
+    user_id = getattr(user, "id", None)
+    member_ids = getattr(team, "member_ids", [])
 
     return user_id in member_ids
 
@@ -1464,7 +1500,7 @@ def create_session(user_id: int) -> dict:
         "created_at": datetime.utcnow().isoformat(),
         "ip_address": None,  # Set during request
         "user_agent": None,  # Set during request
-        "is_active": True
+        "is_active": True,
     }
 
 
@@ -1544,7 +1580,6 @@ def encrypt_data(data: str) -> str:
     # For testing, simple encoding simulation
     if not data:
         return ""
-    import base64
     return base64.b64encode(data.encode()).decode()
 
 
@@ -1562,7 +1597,6 @@ def decrypt_data(encrypted_data: str) -> str:
     # For testing, simple decoding simulation
     if not encrypted_data:
         return ""
-    import base64
     try:
         return base64.b64decode(encrypted_data.encode()).decode()
     except Exception:
@@ -1582,14 +1616,12 @@ def hash_data(data: str) -> str:
     if not data:
         return ""
     import hashlib
+
     return hashlib.sha256(data.encode()).hexdigest()
 
 
 def log_login_attempt(
-    user_id: Optional[int],
-    success: bool,
-    ip_address: str,
-    reason: Optional[str] = None
+    user_id: int | None, success: bool, ip_address: str, reason: str | None = None
 ) -> bool:
     """
     Log login attempt for security monitoring
@@ -1605,12 +1637,7 @@ def log_login_attempt(
     """
     security_logger.info(
         f"Login attempt: {'SUCCESS' if success else 'FAILED'}",
-        extra={
-            "user_id": user_id,
-            "ip_address": ip_address,
-            "reason": reason,
-            "success": success
-        }
+        extra={"user_id": user_id, "ip_address": ip_address, "reason": reason, "success": success},
     )
     return True
 

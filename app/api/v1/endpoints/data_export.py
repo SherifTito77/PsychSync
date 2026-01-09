@@ -87,7 +87,7 @@ class ExportStatisticsResponse(BaseModel):
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/data-exports", response_model=SuccessResponse[ExportResponse])
 async def create_export_request(
     export_request: ExportRequestModel,
@@ -132,7 +132,7 @@ async def create_export_request(
 
     except Exception as e:
         logger.error(f"Failed to create export request: {str(e)}"
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -179,7 +179,7 @@ async def list_user_exports(
         )
 
     except Exceptio
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 n as e:
         logger.error(f"Failed to list exports: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

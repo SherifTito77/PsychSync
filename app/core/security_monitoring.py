@@ -4,19 +4,17 @@ Comprehensive Security Monitoring and Anomaly Detection System
 Analyzes user behavior patterns, detects suspicious activities, and provides security alerts
 """
 
-import time
 import asyncio
-import hashlib
-from typing import Dict, Any, Optional, List, Tuple, Set
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
 from collections import defaultdict, deque
-import statistics
-import ipaddress
-
-from app.core.cache import cache_get, cache_set, cache_delete
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+import hashlib
 import logging
+import time
+from typing import Any
+
+from app.core.cache import cache_get, cache_set
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class AlertSeverity(Enum):
     """Security alert severity levels"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -32,6 +31,7 @@ class AlertSeverity(Enum):
 
 class AnomalyType(Enum):
     """Types of security anomalies"""
+
     IMPOSSIBLE_TRAVEL = "impossible_travel"
     UNUSUAL_LOCATION = "unusual_location"
     MULTIPLE_CONCURRENT_SESSIONS = "multiple_concurrent_sessions"
@@ -46,6 +46,7 @@ class AnomalyType(Enum):
 
 class RiskLevel(Enum):
     """User risk levels for behavior analysis"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -55,58 +56,62 @@ class RiskLevel(Enum):
 @dataclass
 class SecurityAlert:
     """Security alert data structure"""
+
     id: str
     anomaly_type: AnomalyType
     severity: AlertSeverity
-    user_id: Optional[str]
+    user_id: str | None
     description: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     timestamp: datetime = field(default_factory=datetime.utcnow)
     risk_score: float = 0.0
-    action_taken: Optional[str] = None
+    action_taken: str | None = None
     resolved: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class UserBehaviorProfile:
     """User behavior profile for anomaly detection"""
+
     user_id: str
-    typical_ip_addresses: Set[str] = field(default_factory=set)
-    typical_user_agents: Set[str] = field(default_factory=set)
-    typical_login_times: List[int] = field(default_factory=list)  # Hours of day
-    typical_session_durations: List[float] = field(default_factory=list)  # Minutes
-    typical_api_usage_patterns: Dict[str, float] = field(default_factory=dict)
+    typical_ip_addresses: set[str] = field(default_factory=set)
+    typical_user_agents: set[str] = field(default_factory=set)
+    typical_login_times: list[int] = field(default_factory=list)  # Hours of day
+    typical_session_durations: list[float] = field(default_factory=list)  # Minutes
+    typical_api_usage_patterns: dict[str, float] = field(default_factory=dict)
     risk_level: RiskLevel = RiskLevel.LOW
     last_activity: datetime = field(default_factory=datetime.utcnow)
     total_logins: int = 0
     failed_login_attempts: int = 0
     successful_logins: int = 0
-    unique_locations: Set[str] = field(default_factory=set)
+    unique_locations: set[str] = field(default_factory=set)
 
 
 @dataclass
 class GeographicLocation:
     """Geographic location data"""
-    country: Optional[str] = None
-    city: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+
+    country: str | None = None
+    city: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     ip_address: str = ""
 
 
 @dataclass
 class SecurityEvent:
     """Security event for analysis"""
-    user_id: Optional[str]
+
+    user_id: str | None
     event_type: str
     ip_address: str
     user_agent: str
     timestamp: datetime
     success: bool
-    endpoint: Optional[str] = None
-    response_time: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    endpoint: str | None = None
+    response_time: float | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class SecurityMonitoringEngine:
@@ -128,10 +133,10 @@ class SecurityMonitoringEngine:
         self.unusual_location_threshold = getattr(settings, "UNUSUAL_LOCATION_THRESHOLD", 0.8)
 
         # Storage
-        self.user_profiles: Dict[str, UserBehaviorProfile] = {}
-        self.security_events: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
-        self.active_alerts: Dict[str, SecurityAlert] = {}
-        self.alert_history: List[SecurityAlert] = []
+        self.user_profiles: dict[str, UserBehaviorProfile] = {}
+        self.security_events: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.active_alerts: dict[str, SecurityAlert] = {}
+        self.alert_history: list[SecurityAlert] = []
 
         # Cache keys
         self.PROFILE_PREFIX = "user_profile:"
@@ -146,15 +151,15 @@ class SecurityMonitoringEngine:
 
     async def record_security_event(
         self,
-        user_id: Optional[str],
+        user_id: str | None,
         event_type: str,
         ip_address: str,
         user_agent: str,
         success: bool = True,
-        endpoint: Optional[str] = None,
-        response_time: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Optional[SecurityAlert]:
+        endpoint: str | None = None,
+        response_time: float | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> SecurityAlert | None:
         """
         Record a security event and analyze for anomalies
         """
@@ -178,7 +183,7 @@ class SecurityMonitoringEngine:
                     success=success,
                     endpoint=endpoint,
                     response_time=response_time,
-                    metadata=metadata or {}
+                    metadata=metadata or {},
                 )
 
                 # Store event
@@ -201,7 +206,7 @@ class SecurityMonitoringEngine:
                 logger.error(f"Error recording security event: {e}")
                 return None
 
-    async def get_user_risk_level(self, user_id: str) -> Tuple[RiskLevel, Dict[str, Any]]:
+    async def get_user_risk_level(self, user_id: str) -> tuple[RiskLevel, dict[str, Any]]:
         """
         Get current risk level and assessment for a user
         """
@@ -252,12 +257,12 @@ class SecurityMonitoringEngine:
 
     async def get_security_alerts(
         self,
-        user_id: Optional[str] = None,
-        severity: Optional[AlertSeverity] = None,
-        anomaly_type: Optional[AnomalyType] = None,
+        user_id: str | None = None,
+        severity: AlertSeverity | None = None,
+        anomaly_type: AnomalyType | None = None,
         hours: int = 24,
-        include_resolved: bool = False
-    ) -> List[SecurityAlert]:
+        include_resolved: bool = False,
+    ) -> list[SecurityAlert]:
         """
         Get security alerts with filtering options
         """
@@ -281,7 +286,7 @@ class SecurityMonitoringEngine:
                     risk_score=alert_data.get("risk_score", 0.0),
                     action_taken=alert_data.get("action_taken"),
                     resolved=alert_data.get("resolved", False),
-                    metadata=alert_data.get("metadata", {})
+                    metadata=alert_data.get("metadata", {}),
                 )
 
                 # Apply filters
@@ -304,7 +309,7 @@ class SecurityMonitoringEngine:
             logger.error(f"Error getting security alerts: {e}")
             return []
 
-    async def resolve_alert(self, alert_id: str, resolution_note: Optional[str] = None) -> bool:
+    async def resolve_alert(self, alert_id: str, resolution_note: str | None = None) -> bool:
         """
         Mark a security alert as resolved
         """
@@ -323,10 +328,10 @@ class SecurityMonitoringEngine:
             # Remove from active alerts
             del self.active_alerts[alert_id]
 
-            logger.info(f"Security alert resolved: {alert_id}", extra={
-                "alert_id": alert_id,
-                "resolution_note": resolution_note
-            })
+            logger.info(
+                f"Security alert resolved: {alert_id}",
+                extra={"alert_id": alert_id, "resolution_note": resolution_note},
+            )
 
             return True
 
@@ -349,7 +354,7 @@ class SecurityMonitoringEngine:
                 "success": event.success,
                 "endpoint": event.endpoint,
                 "response_time": event.response_time,
-                "metadata": event.metadata
+                "metadata": event.metadata,
             }
 
             existing_events.append(event_data)
@@ -393,7 +398,7 @@ class SecurityMonitoringEngine:
         except Exception as e:
             logger.error(f"Error updating user profile: {e}")
 
-    async def _analyze_event(self, event: SecurityEvent) -> Optional[SecurityAlert]:
+    async def _analyze_event(self, event: SecurityEvent) -> SecurityAlert | None:
         """Analyze event for security anomalies"""
         alerts = []
 
@@ -429,7 +434,7 @@ class SecurityMonitoringEngine:
 
         return None
 
-    async def _detect_impossible_travel(self, event: SecurityEvent) -> Optional[SecurityAlert]:
+    async def _detect_impossible_travel(self, event: SecurityEvent) -> SecurityAlert | None:
         """Detect impossible travel between geographic locations"""
         if not event.user_id or event.success:
             return None
@@ -464,9 +469,9 @@ class SecurityMonitoringEngine:
                                 "to_ip": event.ip_address,
                                 "distance_km": distance_km,
                                 "time_diff_hours": time_diff_hours,
-                                "max_speed_kmh": self.impossible_travel_speed_kmh
+                                "max_speed_kmh": self.impossible_travel_speed_kmh,
                             },
-                            risk_score=80.0
+                            risk_score=80.0,
                         )
                         return alert
 
@@ -475,7 +480,7 @@ class SecurityMonitoringEngine:
 
         return None
 
-    async def _detect_concurrent_sessions(self, event: SecurityEvent) -> Optional[SecurityAlert]:
+    async def _detect_concurrent_sessions(self, event: SecurityEvent) -> SecurityAlert | None:
         """Detect suspicious number of concurrent sessions"""
         if not event.user_id or not event.success:
             return None
@@ -498,9 +503,9 @@ class SecurityMonitoringEngine:
                     details={
                         "unique_ips": list(unique_ips) + [event.ip_address],
                         "session_count": len(unique_ips) + 1,
-                        "threshold": self.max_concurrent_sessions
+                        "threshold": self.max_concurrent_sessions,
                     },
-                    risk_score=60.0
+                    risk_score=60.0,
                 )
                 return alert
 
@@ -509,7 +514,7 @@ class SecurityMonitoringEngine:
 
         return None
 
-    async def _detect_brute_force_pattern(self, event: SecurityEvent) -> Optional[SecurityAlert]:
+    async def _detect_brute_force_pattern(self, event: SecurityEvent) -> SecurityAlert | None:
         """Detect brute force attack patterns"""
         if event.success:
             return None
@@ -528,9 +533,9 @@ class SecurityMonitoringEngine:
                         details={
                             "failed_attempts": len(recent_failures),
                             "ip_addresses": list(set(f["ip_address"] for f in recent_failures)),
-                            "time_window_hours": 1
+                            "time_window_hours": 1,
                         },
-                        risk_score=75.0
+                        risk_score=75.0,
                     )
                     return alert
             else:
@@ -545,11 +550,13 @@ class SecurityMonitoringEngine:
                         description=f"Credential stuffing attack from IP {event.ip_address}",
                         details={
                             "failed_attempts": len(ip_failures),
-                            "target_users": list(set(f.get("user_id") for f in ip_failures if f.get("user_id"))),
+                            "target_users": list(
+                                set(f.get("user_id") for f in ip_failures if f.get("user_id"))
+                            ),
                             "ip_address": event.ip_address,
-                            "time_window_hours": 1
+                            "time_window_hours": 1,
                         },
-                        risk_score=85.0
+                        risk_score=85.0,
                     )
                     return alert
 
@@ -558,7 +565,7 @@ class SecurityMonitoringEngine:
 
         return None
 
-    async def _detect_unusual_location(self, event: SecurityEvent) -> Optional[SecurityAlert]:
+    async def _detect_unusual_location(self, event: SecurityEvent) -> SecurityAlert | None:
         """Detect login from unusual geographic location"""
         if not event.user_id or not event.success:
             return None
@@ -579,14 +586,16 @@ class SecurityMonitoringEngine:
                         anomaly_type=AnomalyType.UNUSUAL_LOCATION,
                         severity=AlertSeverity.MEDIUM,
                         user_id=event.user_id,
-                        description=f"Login from unusual location",
+                        description="Login from unusual location",
                         details={
                             "current_ip": event.ip_address,
-                            "typical_ips": list(profile.typical_ip_addresses)[:5],  # Limit for privacy
+                            "typical_ips": list(profile.typical_ip_addresses)[
+                                :5
+                            ],  # Limit for privacy
                             "similarity_score": location_similarity,
-                            "threshold": 1 - self.unusual_location_threshold
+                            "threshold": 1 - self.unusual_location_threshold,
                         },
-                        risk_score=50.0
+                        risk_score=50.0,
                     )
                     return alert
 
@@ -595,7 +604,7 @@ class SecurityMonitoringEngine:
 
         return None
 
-    async def _detect_suspicious_api_usage(self, event: SecurityEvent) -> Optional[SecurityAlert]:
+    async def _detect_suspicious_api_usage(self, event: SecurityEvent) -> SecurityAlert | None:
         """Detect suspicious API usage patterns"""
         if not event.success or not event.endpoint:
             return None
@@ -616,9 +625,9 @@ class SecurityMonitoringEngine:
                     details={
                         "endpoint": event.endpoint,
                         "request_count": len(recent_requests),
-                        "time_window_hours": 1
+                        "time_window_hours": 1,
                     },
-                    risk_score=55.0
+                    risk_score=55.0,
                 )
                 return alert
 
@@ -646,13 +655,16 @@ class SecurityMonitoringEngine:
                 await self._take_medium_risk_action(alert)
 
             # Log alert
-            logger.warning(f"Security alert generated: {alert.description}", extra={
-                "alert_id": alert.id,
-                "anomaly_type": alert.anomaly_type.value,
-                "severity": alert.severity.value,
-                "user_id": alert.user_id,
-                "risk_score": alert.risk_score
-            })
+            logger.warning(
+                f"Security alert generated: {alert.description}",
+                extra={
+                    "alert_id": alert.id,
+                    "anomaly_type": alert.anomaly_type.value,
+                    "severity": alert.severity.value,
+                    "user_id": alert.user_id,
+                    "risk_score": alert.risk_score,
+                },
+            )
 
         except Exception as e:
             logger.error(f"Error handling security alert: {e}")
@@ -662,31 +674,40 @@ class SecurityMonitoringEngine:
         if alert.user_id:
             # Could implement temporary account lock, require 2FA, etc.
             alert.action_taken = "Security team notified and enhanced monitoring enabled"
-            logger.critical(f"CRITICAL SECURITY ALERT: {alert.description}", extra={
-                "alert_id": alert.id,
-                "user_id": alert.user_id,
-                "anomaly_type": alert.anomaly_type.value
-            })
+            logger.critical(
+                f"CRITICAL SECURITY ALERT: {alert.description}",
+                extra={
+                    "alert_id": alert.id,
+                    "user_id": alert.user_id,
+                    "anomaly_type": alert.anomaly_type.value,
+                },
+            )
 
     async def _take_high_risk_action(self, alert: SecurityAlert):
         """Take automatic action for high risk alerts"""
         if alert.user_id:
             # Could implement session invalidation, email notification, etc.
             alert.action_taken = "Enhanced authentication required for next login"
-            logger.error(f"HIGH RISK SECURITY ALERT: {alert.description}", extra={
-                "alert_id": alert.id,
-                "user_id": alert.user_id,
-                "anomaly_type": alert.anomaly_type.value
-            })
+            logger.error(
+                f"HIGH RISK SECURITY ALERT: {alert.description}",
+                extra={
+                    "alert_id": alert.id,
+                    "user_id": alert.user_id,
+                    "anomaly_type": alert.anomaly_type.value,
+                },
+            )
 
     async def _take_medium_risk_action(self, alert: SecurityAlert):
         """Take automatic action for medium risk alerts"""
         alert.action_taken = "Monitoring increased and alert logged"
-        logger.warning(f"MEDIUM RISK SECURITY ALERT: {alert.description}", extra={
-            "alert_id": alert.id,
-            "user_id": alert.user_id,
-            "anomaly_type": alert.anomaly_type.value
-        })
+        logger.warning(
+            f"MEDIUM RISK SECURITY ALERT: {alert.description}",
+            extra={
+                "alert_id": alert.id,
+                "user_id": alert.user_id,
+                "anomaly_type": alert.anomaly_type.value,
+            },
+        )
 
     async def _periodic_analysis(self):
         """Background task for periodic security analysis"""
@@ -714,8 +735,7 @@ class SecurityMonitoringEngine:
 
             # Clean old alerts from history
             self.alert_history = [
-                alert for alert in self.alert_history
-                if alert.timestamp > cutoff_date
+                alert for alert in self.alert_history if alert.timestamp > cutoff_date
             ]
 
         except Exception as e:
@@ -755,7 +775,7 @@ class SecurityMonitoringEngine:
                     total_logins=profile_data.get("total_logins", 0),
                     failed_login_attempts=profile_data.get("failed_login_attempts", 0),
                     successful_logins=profile_data.get("successful_logins", 0),
-                    unique_locations=set(profile_data.get("unique_locations", []))
+                    unique_locations=set(profile_data.get("unique_locations", [])),
                 )
                 self.user_profiles[user_id] = profile
             else:
@@ -779,15 +799,17 @@ class SecurityMonitoringEngine:
                 "total_logins": profile.total_logins,
                 "failed_login_attempts": profile.failed_login_attempts,
                 "successful_logins": profile.successful_logins,
-                "unique_locations": list(profile.unique_locations)
+                "unique_locations": list(profile.unique_locations),
             }
 
-            await cache_set(cache_key, profile_data, expire_seconds=86400 * self.behavior_retention_days)
+            await cache_set(
+                cache_key, profile_data, expire_seconds=86400 * self.behavior_retention_days
+            )
 
         except Exception as e:
             logger.error(f"Error storing user profile: {e}")
 
-    async def _get_user_recent_events(self, user_id: str, hours: int = 24) -> List[Dict]:
+    async def _get_user_recent_events(self, user_id: str, hours: int = 24) -> list[dict]:
         """Get user's recent security events"""
         try:
             events_key = f"{self.EVENTS_PREFIX}{user_id}"
@@ -807,12 +829,12 @@ class SecurityMonitoringEngine:
             logger.error(f"Error getting user recent events: {e}")
             return []
 
-    async def _get_user_recent_failures(self, user_id: str, hours: int = 24) -> List[Dict]:
+    async def _get_user_recent_failures(self, user_id: str, hours: int = 24) -> list[dict]:
         """Get user's recent failed login attempts"""
         events = await self._get_user_recent_events(user_id, hours)
         return [e for e in events if not e.get("success", True)]
 
-    async def _get_ip_recent_failures(self, ip_address: str, hours: int = 24) -> List[Dict]:
+    async def _get_ip_recent_failures(self, ip_address: str, hours: int = 24) -> list[dict]:
         """Get recent failed attempts from specific IP"""
         try:
             # This would ideally query across all users for the given IP
@@ -822,10 +844,12 @@ class SecurityMonitoringEngine:
             logger.error(f"Error getting IP recent failures: {e}")
             return []
 
-    async def _get_user_recent_alerts(self, user_id: str, hours: int = 24) -> List[SecurityAlert]:
+    async def _get_user_recent_alerts(self, user_id: str, hours: int = 24) -> list[SecurityAlert]:
         """Get user's recent security alerts"""
         try:
-            alerts = await self.get_security_alerts(user_id=user_id, hours=hours, include_resolved=False)
+            alerts = await self.get_security_alerts(
+                user_id=user_id, hours=hours, include_resolved=False
+            )
             return alerts
         except Exception as e:
             logger.error(f"Error getting user recent alerts: {e}")
@@ -861,7 +885,7 @@ class SecurityMonitoringEngine:
             "risk_score": alert.risk_score,
             "action_taken": alert.action_taken,
             "resolved": alert.resolved,
-            "metadata": alert.metadata
+            "metadata": alert.metadata,
         }
 
         existing_alerts.append(alert_data)
@@ -871,7 +895,9 @@ class SecurityMonitoringEngine:
             existing_alerts = existing_alerts[-1000:]
 
         # Store with expiration
-        await cache_set(cache_key, existing_alerts, expire_seconds=86400 * self.alert_retention_days)
+        await cache_set(
+            cache_key, existing_alerts, expire_seconds=86400 * self.alert_retention_days
+        )
 
     def _calculate_distance_estimate(self, ip1: str, ip2: str) -> float:
         """
@@ -894,7 +920,7 @@ class SecurityMonitoringEngine:
         except Exception:
             return 1000.0  # Default to 1000 km on error
 
-    def _calculate_location_similarity(self, current_ip: str, typical_ips: List[str]) -> float:
+    def _calculate_location_similarity(self, current_ip: str, typical_ips: list[str]) -> float:
         """
         Calculate location similarity score between current IP and typical IPs
         """
@@ -908,9 +934,9 @@ class SecurityMonitoringEngine:
                 # In production, use actual geographic distance
                 if current_ip == typical_ip:
                     similarity = 1.0
-                elif current_ip.split('.')[:2] == typical_ip.split('.')[:2]:
+                elif current_ip.split(".")[:2] == typical_ip.split(".")[:2]:
                     similarity = 0.8  # Same first two octets
-                elif current_ip.split('.')[0] == typical_ip.split('.')[0]:
+                elif current_ip.split(".")[0] == typical_ip.split(".")[0]:
                     similarity = 0.5  # Same first octet
                 else:
                     similarity = 0.1  # Different first octet
@@ -925,11 +951,8 @@ class SecurityMonitoringEngine:
     # ========== PUBLIC API METHODS ==========
 
     async def detect_impossible_travel(
-        self,
-        user_id: str,
-        ip_address: str,
-        timestamp: Optional[datetime] = None
-    ) -> Optional[SecurityAlert]:
+        self, user_id: str, ip_address: str, timestamp: datetime | None = None
+    ) -> SecurityAlert | None:
         """
         Public API: Detect impossible travel between geographic locations
 
@@ -947,16 +970,13 @@ class SecurityMonitoringEngine:
             ip_address=ip_address,
             user_agent="",
             timestamp=timestamp or datetime.utcnow(),
-            success=True
+            success=True,
         )
         return await self._detect_impossible_travel(event)
 
     async def detect_brute_force(
-        self,
-        user_id: Optional[str],
-        ip_address: str,
-        success: bool = False
-    ) -> Optional[SecurityAlert]:
+        self, user_id: str | None, ip_address: str, success: bool = False
+    ) -> SecurityAlert | None:
         """
         Public API: Detect brute force attack patterns
 
@@ -974,15 +994,13 @@ class SecurityMonitoringEngine:
             ip_address=ip_address,
             user_agent="",
             timestamp=datetime.utcnow(),
-            success=success
+            success=success,
         )
         return await self._detect_brute_force_pattern(event)
 
     async def detect_credential_stuffing(
-        self,
-        ip_address: str,
-        attempt_count: Optional[int] = None
-    ) -> Optional[SecurityAlert]:
+        self, ip_address: str, attempt_count: int | None = None
+    ) -> SecurityAlert | None:
         """
         Public API: Detect credential stuffing attacks (IP-based, multiple users)
 
@@ -1011,19 +1029,15 @@ class SecurityMonitoringEngine:
                 details={
                     "failed_attempts": actual_count,
                     "ip_address": ip_address,
-                    "time_window_hours": 1
+                    "time_window_hours": 1,
                 },
-                risk_score=85.0
+                risk_score=85.0,
             )
             return alert
 
         return None
 
-    async def detect_unusual_location(
-        self,
-        user_id: str,
-        ip_address: str
-    ) -> Optional[SecurityAlert]:
+    async def detect_unusual_location(self, user_id: str, ip_address: str) -> SecurityAlert | None:
         """
         Public API: Detect login from unusual geographic location
 
@@ -1040,7 +1054,7 @@ class SecurityMonitoringEngine:
             ip_address=ip_address,
             user_agent="",
             timestamp=datetime.utcnow(),
-            success=True
+            success=True,
         )
         return await self._detect_unusual_location(event)
 
@@ -1049,8 +1063,8 @@ class SecurityMonitoringEngine:
         user_id: str,
         ip_address: str,
         user_agent: str,
-        behavior_changes: Optional[Dict[str, Any]] = None
-    ) -> Optional[SecurityAlert]:
+        behavior_changes: dict[str, Any] | None = None,
+    ) -> SecurityAlert | None:
         """
         Public API: Detect potential account takeover attempts
 
@@ -1075,7 +1089,10 @@ class SecurityMonitoringEngine:
         profile = await self._get_user_profile(user_id)
 
         # Check 1: Unusual location
-        if ip_address not in profile.typical_ip_addresses and len(profile.typical_ip_addresses) >= 3:
+        if (
+            ip_address not in profile.typical_ip_addresses
+            and len(profile.typical_ip_addresses) >= 3
+        ):
             risk_indicators.append("unusual_location")
             risk_score += 25
 
@@ -1106,21 +1123,17 @@ class SecurityMonitoringEngine:
                     "risk_indicators": risk_indicators,
                     "risk_score": risk_score,
                     "ip_address": ip_address,
-                    "user_agent": user_agent[:100]  # Truncate for privacy
+                    "user_agent": user_agent[:100],  # Truncate for privacy
                 },
-                risk_score=risk_score
+                risk_score=risk_score,
             )
             return alert
 
         return None
 
     async def detect_privilege_escalation(
-        self,
-        user_id: str,
-        attempted_role: str,
-        current_role: str,
-        ip_address: str
-    ) -> Optional[SecurityAlert]:
+        self, user_id: str, attempted_role: str, current_role: str, ip_address: str
+    ) -> SecurityAlert | None:
         """
         Public API: Detect privilege escalation attempts
 
@@ -1146,21 +1159,17 @@ class SecurityMonitoringEngine:
                 details={
                     "current_role": current_role,
                     "attempted_role": attempted_role,
-                    "ip_address": ip_address
+                    "ip_address": ip_address,
                 },
-                risk_score=90.0
+                risk_score=90.0,
             )
             return alert
 
         return None
 
     async def detect_data_exfiltration(
-        self,
-        user_id: str,
-        data_accessed: int,
-        endpoint: str,
-        time_window_seconds: int = 60
-    ) -> Optional[SecurityAlert]:
+        self, user_id: str, data_accessed: int, endpoint: str, time_window_seconds: int = 60
+    ) -> SecurityAlert | None:
         """
         Public API: Detect potential data exfiltration
 
@@ -1184,7 +1193,8 @@ class SecurityMonitoringEngine:
         # Count accesses to this endpoint in time window
         cutoff_time = datetime.utcnow() - timedelta(seconds=time_window_seconds)
         recent_accesses = [
-            e for e in recent_events
+            e
+            for e in recent_events
             if e.get("endpoint") == endpoint
             and datetime.fromisoformat(e["timestamp"]) >= cutoff_time
         ]
@@ -1221,9 +1231,9 @@ class SecurityMonitoringEngine:
                     "risk_score": risk_score,
                     "endpoint": endpoint,
                     "data_accessed": data_accessed,
-                    "request_count": len(recent_accesses)
+                    "request_count": len(recent_accesses),
                 },
-                risk_score=risk_score
+                risk_score=risk_score,
             )
             return alert
 

@@ -18,13 +18,12 @@ Author: Security Team
 Version: 1.0
 """
 
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from enum import Enum
 import json
 import logging
-from typing import Any, Dict, Optional, List
-from datetime import datetime, timedelta
-from enum import Enum
-from dataclasses import dataclass, asdict
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
 
 from app.db.models.user import User
 
@@ -33,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 class AuditEventType(Enum):
     """Types of audit events"""
+
     # Authentication events
     AUTH_LOGIN_SUCCESS = "auth.login.success"
     AUTH_LOGIN_FAILED = "auth.login.failed"
@@ -80,6 +80,7 @@ class AuditEventType(Enum):
 
 class AuditSeverity(Enum):
     """Severity levels for audit events"""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -90,20 +91,21 @@ class AuditSeverity(Enum):
 @dataclass
 class AuditEvent:
     """Audit event record"""
+
     event_type: AuditEventType
     severity: AuditSeverity
     timestamp: datetime
-    user_id: Optional[str]
-    organization_id: Optional[str]
-    ip_address: Optional[str]
-    user_agent: Optional[str]
-    resource_type: Optional[str]
-    resource_id: Optional[str]
+    user_id: str | None
+    organization_id: str | None
+    ip_address: str | None
+    user_agent: str | None
+    resource_type: str | None
+    resource_id: str | None
     action: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     success: bool
-    session_id: Optional[str] = None
-    location: Optional[str] = None
+    session_id: str | None = None
+    location: str | None = None
 
 
 class AuditLogger:
@@ -115,7 +117,7 @@ class AuditLogger:
 
     def __init__(self):
         """Initialize audit logger"""
-        self.audit_log: List[AuditEvent] = []
+        self.audit_log: list[AuditEvent] = []
         selfRetention_days = 90  # Default retention period
 
         # Set up structured logging
@@ -125,23 +127,22 @@ class AuditLogger:
         """Configure structured audit logger"""
         # Create audit logger handler
         # In production, would write to database or SIEM system
-        pass
 
     def log_event(
         self,
         event_type: AuditEventType,
-        user_id: Optional[str] = None,
-        organization_id: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
+        user_id: str | None = None,
+        organization_id: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
         action: str = "",
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
         severity: AuditSeverity = AuditSeverity.INFO,
         success: bool = True,
-        session_id: Optional[str] = None,
-        location: Optional[str] = None
+        session_id: str | None = None,
+        location: str | None = None,
     ) -> None:
         """
         Log an audit event
@@ -175,7 +176,7 @@ class AuditLogger:
             details=details or {},
             success=success,
             session_id=session_id,
-            location=location
+            location=location,
         )
 
         # Store in memory (in production, would write to database)
@@ -187,21 +188,17 @@ class AuditLogger:
 
         # Log to standard logger
         log_level = self._get_log_level(severity)
-        logger.log(
-            log_level,
-            f"[{event_type.value}] {action}",
-            extra=asdict(event)
-        )
+        logger.log(log_level, f"[{event_type.value}] {action}", extra=asdict(event))
 
     def log_authentication_event(
         self,
         event_type: AuditEventType,
-        user: Optional[User] = None,
-        email: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        user: User | None = None,
+        email: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
         success: bool = True,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None,
     ) -> None:
         """
         Log authentication event
@@ -231,7 +228,7 @@ class AuditLogger:
             action=f"Authentication: {event_type.value}",
             details=details or {"email": email},
             severity=severity,
-            success=success
+            success=success,
         )
 
     def log_authorization_event(
@@ -240,11 +237,11 @@ class AuditLogger:
         resource_type: str,
         resource_id: str,
         action: str,
-        permissions: List[str],
+        permissions: list[str],
         granted: bool,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        denial_reason: Optional[str] = None
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        denial_reason: str | None = None,
     ) -> None:
         """
         Log authorization decision
@@ -261,16 +258,12 @@ class AuditLogger:
             denial_reason: Reason for denial (if denied)
         """
         event_type = (
-            AuditEventType.AUTHZ_ACCESS_GRANTED if granted
-            else AuditEventType.AUTHZ_ACCESS_DENIED
+            AuditEventType.AUTHZ_ACCESS_GRANTED if granted else AuditEventType.AUTHZ_ACCESS_DENIED
         )
 
         severity = AuditSeverity.MEDIUM if not granted else AuditSeverity.LOW
 
-        details = {
-            "permissions_checked": permissions,
-            "action": action
-        }
+        details = {"permissions_checked": permissions, "action": action}
 
         if not granted and denial_reason:
             details["denial_reason"] = denial_reason
@@ -286,7 +279,7 @@ class AuditLogger:
             action=f"Authorization: {action}",
             details=details,
             severity=severity,
-            success=granted
+            success=granted,
         )
 
     def log_data_access(
@@ -295,10 +288,10 @@ class AuditLogger:
         resource_type: str,
         resource_id: str,
         action: str,
-        fields_accessed: List[str],
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        is_encrypted: bool = False
+        fields_accessed: list[str],
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        is_encrypted: bool = False,
     ) -> None:
         """
         Log data access event
@@ -315,11 +308,7 @@ class AuditLogger:
         """
         event_type = AuditEventType.DATA_ACCESSED
 
-        details = {
-            "fields_accessed": fields_accessed,
-            "action": action,
-            "encrypted": is_encrypted
-        }
+        details = {"fields_accessed": fields_accessed, "action": action, "encrypted": is_encrypted}
 
         severity = AuditSeverity.LOW
         if is_encrypted:
@@ -336,18 +325,18 @@ class AuditLogger:
             action=f"Data access: {action}",
             details=details,
             severity=severity,
-            success=True
+            success=True,
         )
 
     def log_cross_tenant_access(
         self,
         user: User,
         target_org_id: str,
-        target_team_id: Optional[str],
+        target_team_id: str | None,
         resource_type: str,
         resource_id: str,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> None:
         """
         Log cross-tenant access attempt
@@ -364,7 +353,7 @@ class AuditLogger:
         details = {
             "user_org_id": str(user.organization_id) if user.organization_id else None,
             "target_org_id": target_org_id,
-            "target_team_id": target_team_id
+            "target_team_id": target_team_id,
         }
 
         self.log_event(
@@ -378,18 +367,18 @@ class AuditLogger:
             action="Cross-tenant access",
             details=details,
             severity=AuditSeverity.HIGH,
-            success=False
+            success=False,
         )
 
     def log_security_incident(
         self,
         incident_type: str,
         severity: AuditSeverity,
-        user_id: Optional[str],
+        user_id: str | None,
         description: str,
-        affected_resources: List[Dict[str, str]],
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
+        affected_resources: list[dict[str, str]],
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> None:
         """
         Log security incident
@@ -406,7 +395,7 @@ class AuditLogger:
         details = {
             "incident_type": incident_type,
             "description": description,
-            "affected_resources": affected_resources
+            "affected_resources": affected_resources,
         }
 
         self.log_event(
@@ -417,18 +406,18 @@ class AuditLogger:
             action=f"Security incident: {incident_type}",
             details=details,
             severity=severity,
-            success=False
+            success=False,
         )
 
     def query_audit_log(
         self,
-        user_id: Optional[str] = None,
-        organization_id: Optional[str] = None,
-        event_type: Optional[AuditEventType] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        limit: int = 100
-    ) -> List[AuditEvent]:
+        user_id: str | None = None,
+        organization_id: str | None = None,
+        event_type: AuditEventType | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 100,
+    ) -> list[AuditEvent]:
         """
         Query audit log with filters
 
@@ -465,11 +454,7 @@ class AuditLogger:
 
         return results
 
-    def get_security_summary(
-        self,
-        start_time: datetime,
-        end_time: datetime
-    ) -> Dict[str, Any]:
+    def get_security_summary(self, start_time: datetime, end_time: datetime) -> dict[str, Any]:
         """
         Generate security summary for a time period
 
@@ -480,10 +465,7 @@ class AuditLogger:
         Returns:
             Dictionary with security metrics
         """
-        events_in_period = [
-            e for e in self.audit_log
-            if start_time <= e.timestamp <= end_time
-        ]
+        events_in_period = [e for e in self.audit_log if start_time <= e.timestamp <= end_time]
 
         # Count by event type
         event_counts = {}
@@ -509,7 +491,7 @@ class AuditLogger:
             "failed_logins": failed_logins,
             "cross_tenant_attempts": cross_tenant_attempts,
             "access_denials": access_denials,
-            "event_breakdown": event_counts
+            "event_breakdown": event_counts,
         }
 
     def _get_log_level(self, severity: AuditSeverity) -> int:
@@ -519,15 +501,12 @@ class AuditLogger:
             AuditSeverity.LOW: logging.INFO,
             AuditSeverity.MEDIUM: logging.WARNING,
             AuditSeverity.HIGH: logging.ERROR,
-            AuditSeverity.CRITICAL: logging.CRITICAL
+            AuditSeverity.CRITICAL: logging.CRITICAL,
         }
         return severity_map.get(severity, logging.INFO)
 
     def export_audit_log(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        format: str = "json"
+        self, start_time: datetime, end_time: datetime, format: str = "json"
     ) -> str:
         """
         Export audit log for compliance reporting
@@ -543,12 +522,12 @@ class AuditLogger:
         events = self.query_audit_log(
             start_time=start_time,
             end_time=end_time,
-            limit=100000  # Large limit for export
+            limit=100000,  # Large limit for export
         )
 
         if format == "json":
             return json.dumps([asdict(e) for e in events], indent=2)
-        elif format == "csv":
+        if format == "csv":
             # Simple CSV export
             lines = [
                 "timestamp,event_type,severity,user_id,organization_id,"
@@ -561,8 +540,7 @@ class AuditLogger:
                     f"{e.resource_type},{e.resource_id},{e.action},{e.success}"
                 )
             return "\n".join(lines)
-        else:
-            raise ValueError(f"Unsupported export format: {format}")
+        raise ValueError(f"Unsupported export format: {format}")
 
 
 # Singleton instance

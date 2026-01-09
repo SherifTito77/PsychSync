@@ -94,7 +94,7 @@ class ComparisonResponse(BaseModel):
     recommendations: List[str]
 
 
-@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/analyze", response_model=PatternAnalysisResponse, dependencies=[Depends(get_current_user)])
 async def analyze_user_patterns(
     request: PatternAnalysisRequest,
@@ -158,8 +158,8 @@ async def analyze_user_patterns(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-         
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
    detail=f"Error analyzing user patterns: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
@@ -248,8 +248,8 @@ async def detect_anomalies(
         raise
     except Exception as e:
         raise HTTPException(
-    
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error detecting anomalies: {str(e)}"
         )

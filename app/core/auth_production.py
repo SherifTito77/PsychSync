@@ -3,21 +3,21 @@ Production-ready authentication module
 Fixed authentication endpoints with Redis token blacklisting and comprehensive security
 """
 
-import jwt
-import bcrypt
-import json
-import asyncio
-import redis.asyncio as redis
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Set
-from fastapi import HTTPException, status, Request
-import secrets
 import hashlib
+import json
 import logging
 import os
+import secrets
+from typing import Any
+
+from fastapi import HTTPException, status
+import jwt
+import redis.asyncio as redis
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
 
 class RedisTokenBlacklist:
     """Redis-based token blacklist for production use"""
@@ -101,6 +101,7 @@ class RedisTokenBlacklist:
             logger.error(f"Failed to remove token from blacklist: {e}")
             return False
 
+
 class ProductionTokenValidator:
     """Production JWT token validator with Redis blacklisting"""
 
@@ -116,8 +117,12 @@ class ProductionTokenValidator:
         """Initialize Redis connection"""
         return await self.redis_blacklist.connect()
 
-    async def create_access_token(self, subject: str, expires_delta: timedelta = None,
-                               additional_claims: Dict[str, Any] = None) -> str:
+    async def create_access_token(
+        self,
+        subject: str,
+        expires_delta: timedelta = None,
+        additional_claims: dict[str, Any] = None,
+    ) -> str:
         """Create secure JWT access token with production-grade security"""
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
@@ -132,7 +137,7 @@ class ProductionTokenValidator:
             "jti": secrets.token_urlsafe(32),  # Secure JWT ID
             "version": "1.0",
             "iss": "psychsync",  # Standard JWT issuer claim
-            "aud": "psychsync-users"  # Standard JWT audience claim
+            "aud": "psychsync-users",  # Standard JWT audience claim
         }
 
         # Add additional claims
@@ -146,14 +151,14 @@ class ProductionTokenValidator:
             algorithm=self.algorithm,
             headers={
                 "kid": secrets.token_urlsafe(16),  # Key ID
-                "typ": "JWT"
-            }
+                "typ": "JWT",
+            },
         )
 
         self.success_count += 1
         return encoded_jwt
 
-    async def verify_token(self, token: str) -> Dict[str, Any]:
+    async def verify_token(self, token: str) -> dict[str, Any]:
         """Verify JWT token with comprehensive security checks"""
         self.request_count += 1
 
@@ -198,8 +203,8 @@ class ProductionTokenValidator:
                     "verify_iat": True,
                     "verify_iss": True,
                     "verify_aud": True,
-                    "leeway": 0  # No clock skew tolerance for security
-                }
+                    "leeway": 0,  # No clock skew tolerance for security
+                },
             )
 
             # Additional security validations
@@ -219,21 +224,21 @@ class ProductionTokenValidator:
             self.failure_count += 1
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid token: {str(e)}",
+                detail=f"Invalid token: {e!s}",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except jwt.InvalidIssuerError as e:
             self.failure_count += 1
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid token issuer: {str(e)}",
+                detail=f"Invalid token issuer: {e!s}",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except jwt.InvalidAudienceError as e:
             self.failure_count += 1
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid token audience: {str(e)}",
+                detail=f"Invalid token audience: {e!s}",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         except Exception as e:
@@ -249,7 +254,7 @@ class ProductionTokenValidator:
         """Add token to blacklist with expiration"""
         return await self.redis_blacklist.add_token(token, expires_in_hours)
 
-    def _validate_token_payload(self, payload: Dict[str, Any]):
+    def _validate_token_payload(self, payload: dict[str, Any]):
         """Validate token payload for security requirements"""
         # Check required claims
         required_claims = ["sub", "exp", "iat", "jti", "type", "iss", "aud", "version"]
@@ -308,21 +313,20 @@ class ProductionTokenValidator:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get token validator statistics"""
         return {
             "total_requests": self.request_count,
             "successful_validations": self.success_count,
             "failed_validations": self.failure_count,
-            "success_rate": (
-                (self.success_count / max(self.request_count, 1)) * 100
-            ),
-            "redis_connected": self.redis_blacklist.connected
+            "success_rate": ((self.success_count / max(self.request_count, 1)) * 100),
+            "redis_connected": self.redis_blacklist.connected,
         }
 
     async def cleanup(self):
         """Cleanup resources"""
         await self.redis_blacklist.disconnect()
+
 
 class ProductionSessionManager:
     """Production session manager with Redis storage"""
@@ -353,8 +357,9 @@ class ProductionSessionManager:
             self.connected = False
             logger.info("Disconnected from Redis session manager")
 
-    async def create_session(self, user_data: Dict[str, Any],
-                              request_info: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def create_session(
+        self, user_data: dict[str, Any], request_info: dict[str, Any] = None
+    ) -> dict[str, Any]:
         """Create new session with security features"""
         if not self.connected:
             # Fallback to in-memory session (not recommended for production)
@@ -373,7 +378,7 @@ class ProductionSessionManager:
             "is_active": True,
             "ip_address": request_info.get("ip_address") if request_info else "unknown",
             "user_agent": request_info.get("user_agent", "")[:255] if request_info else "",
-            "fingerprint": self._generate_fingerprint(request_info) if request_info else {}
+            "fingerprint": self._generate_fingerprint(request_info) if request_info else {},
         }
 
         # Store session in Redis with expiration
@@ -390,14 +395,16 @@ class ProductionSessionManager:
                 "session_id": session_id,
                 "csrf_token": session_data["csrf_token"],
                 "created_at": session_data["created_at"],
-                "expires_at": (datetime.utcnow() + timedelta(hours=self.session_timeout_hours)).isoformat()
+                "expires_at": (
+                    datetime.utcnow() + timedelta(hours=self.session_timeout_hours)
+                ).isoformat(),
             }
 
         except Exception as e:
             logger.error(f"Failed to create session: {e}")
             return self._create_memory_session(user_data)
 
-    async def validate_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def validate_session(self, session_id: str) -> dict[str, Any] | None:
         """Validate session and return session data"""
         if not self.connected:
             return None
@@ -436,7 +443,7 @@ class ProductionSessionManager:
             logger.error(f"Failed to validate session {session_id}: {e}")
             return None
 
-    async def regenerate_session(self, old_session_id: str) -> Optional[str]:
+    async def regenerate_session(self, old_session_id: str) -> str | None:
         """Regenerate session ID to prevent fixation"""
         old_session = await self.validate_session(old_session_id)
         if not old_session:
@@ -446,12 +453,12 @@ class ProductionSessionManager:
         user_data = {
             "user_id": old_session["user_id"],
             "email": old_session["email"],
-            "role": old_session["role"]
+            "role": old_session["role"],
         }
 
         request_info = {
             "ip_address": old_session.get("ip_address"),
-            "user_agent": old_session.get("user_agent")
+            "user_agent": old_session.get("user_agent"),
         }
 
         new_session = await self.create_session(user_data, request_info)
@@ -494,7 +501,7 @@ class ProductionSessionManager:
         except Exception as e:
             logger.error(f"Failed to expire session {session_id}: {e}")
 
-    def _create_memory_session(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _create_memory_session(self, user_data: dict[str, Any]) -> dict[str, Any]:
         """Create in-memory session (fallback for when Redis is unavailable)"""
         session_id = secrets.token_urlsafe(32)
 
@@ -503,33 +510,35 @@ class ProductionSessionManager:
             "csrf_token": secrets.token_urlsafe(32),
             "created_at": datetime.utcnow().isoformat(),
             "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
-            "note": "In-memory session (Redis unavailable)"
+            "note": "In-memory session (Redis unavailable)",
         }
 
-    def _generate_fingerprint(self, request_info: Dict[str, Any]) -> Dict[str, str]:
+    def _generate_fingerprint(self, request_info: dict[str, Any]) -> dict[str, str]:
         """Generate device fingerprint"""
         fingerprint_data = {
             "user_agent": request_info.get("user_agent", "")[:200],
             "ip_address": request_info.get("ip_address", ""),
             "accept_language": request_info.get("accept_language", ""),
-            "accept_encoding": request_info.get("accept_encoding", "")
+            "accept_encoding": request_info.get("accept_encoding", ""),
         }
 
         fingerprint_string = "|".join([f"{k}:{v}" for k, v in fingerprint_data.items()])
         return {
             "hash": hashlib.sha256(fingerprint_string.encode()).hexdigest(),
-            "data": fingerprint_data
+            "data": fingerprint_data,
         }
+
 
 async def test_redis_connection(redis_url: str = None) -> bool:
     """Test Redis connection for production authentication"""
     try:
         import redis
+
         if redis_url:
             test_client = redis.from_url(redis_url)
         else:
             # Test with default local Redis
-            test_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            test_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
         # Ping Redis to test connection
         test_client.ping()
@@ -540,9 +549,11 @@ async def test_redis_connection(redis_url: str = None) -> bool:
         logger.error(f"Redis connection test failed: {e}")
         return False
 
+
 # Global instances
 production_validator = None
 production_session_manager = None
+
 
 async def initialize_production_auth(secret_key: str = None, redis_url: str = None):
     """Initialize production authentication system"""
@@ -571,6 +582,7 @@ async def initialize_production_auth(secret_key: str = None, redis_url: str = No
 
     logger.info("Production authentication system initialized successfully")
     return production_validator
+
 
 async def cleanup_production_auth():
     """Cleanup production authentication system"""

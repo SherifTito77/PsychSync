@@ -3,22 +3,22 @@ Advanced Memory Management Service
 Implements memory optimization patterns and resource management
 Expected improvement: 15-30% for memory usage and stability
 """
-import gc
-import weakref
-import threading
-import psutil
-import time
-from typing import Dict, Any, Optional, Callable, TypeVar, Generic
-from dataclasses import dataclass
 from collections import OrderedDict
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+import gc
 import logging
+import threading
+import time
+from typing import Any, Generic, TypeVar
+import weakref
 
-from app.core.config import settings
+import psutil
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 @dataclass
 class MemoryStats:
@@ -53,7 +53,7 @@ class MemoryAwareCache(Generic[T]):
             "memory_warnings": 0
         }
 
-    def get(self, key: str) -> Optional[T]:
+    def get(self, key: str) -> T | None:
         """Get item from cache with LRU promotion"""
         with self._lock:
             if key in self._cache:
@@ -62,9 +62,8 @@ class MemoryAwareCache(Generic[T]):
                 self._cache[key] = value
                 self._stats["hits"] += 1
                 return value
-            else:
-                self._stats["misses"] += 1
-                return None
+            self._stats["misses"] += 1
+            return None
 
     def put(self, key: str, value: T) -> None:
         """Put item in cache with automatic eviction"""
@@ -131,7 +130,7 @@ class MemoryAwareCache(Generic[T]):
         with self._lock:
             self._cache.clear()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         with self._lock:
             total_requests = self._stats["hits"] + self._stats["misses"]
@@ -154,7 +153,7 @@ class ResourcePool:
         factory: Callable[[], T],
         max_size: int = 10,
         max_idle_time: float = 300.0,  # 5 minutes
-        cleanup_func: Optional[Callable[[T], None]] = None
+        cleanup_func: Callable[[T], None] | None = None
     ):
         self.factory = factory
         self.max_size = max_size
@@ -185,15 +184,14 @@ class ResourcePool:
                     self._pool.pop(i)
                     self._stats["pool_hits"] += 1
                     return resource
-                else:
-                    # Resource expired, clean it up
-                    if self.cleanup_func:
-                        try:
-                            self.cleanup_func(resource)
-                            self._stats["cleanups"] += 1
-                        except Exception as e:
-                            logger.warning(f"Resource cleanup failed: {e}")
-                    self._pool.pop(i)
+                # Resource expired, clean it up
+                if self.cleanup_func:
+                    try:
+                        self.cleanup_func(resource)
+                        self._stats["cleanups"] += 1
+                    except Exception as e:
+                        logger.warning(f"Resource cleanup failed: {e}")
+                self._pool.pop(i)
 
             # Create new resource
             if self._created_count < self.max_size:
@@ -216,14 +214,13 @@ class ResourcePool:
 
             if len(self._pool) < self.max_size:
                 self._pool.append((resource, time.time()))
-            else:
-                # Pool full, clean up resource
-                if self.cleanup_func:
-                    try:
-                        self.cleanup_func(resource)
-                        self._stats["cleanups"] += 1
-                    except Exception as e:
-                        logger.warning(f"Resource cleanup failed: {e}")
+            # Pool full, clean up resource
+            elif self.cleanup_func:
+                try:
+                    self.cleanup_func(resource)
+                    self._stats["cleanups"] += 1
+                except Exception as e:
+                    logger.warning(f"Resource cleanup failed: {e}")
 
     def cleanup(self) -> None:
         """Clean up all resources in pool"""
@@ -238,7 +235,7 @@ class ResourcePool:
             self._pool.clear()
             self._created_count = 0
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get pool statistics"""
         with self._lock:
             return {
@@ -268,7 +265,7 @@ class MemoryManagementService:
 
         # Resource pools
         self.db_pool = None  # Will be initialized separately
-        self.thread_pools: Dict[str, ThreadPoolExecutor] = {}
+        self.thread_pools: dict[str, ThreadPoolExecutor] = {}
 
         # Memory statistics
         self._stats_history: list[MemoryStats] = []
@@ -367,12 +364,10 @@ class MemoryManagementService:
         """Clean up expired cache entries"""
         # This would be called periodically to remove old entries
         # Implementation depends on specific cache expiration policies
-        pass
 
     def _cleanup_thread_pools(self) -> None:
         """Clean up idle thread pools"""
         # Implementation for cleaning up thread pools
-        pass
 
     def get_thread_pool(self, name: str, max_workers: int = 4) -> ThreadPoolExecutor:
         """Get or create thread pool"""
@@ -400,7 +395,7 @@ class MemoryManagementService:
         # Force garbage collection
         gc.collect()
 
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get comprehensive performance metrics"""
         current_stats = self.get_memory_stats()
 
@@ -425,7 +420,7 @@ class MemoryManagementService:
             },
             "thread_pools": {
                 name: {
-                    "active_threads": pool._threads.__len__() if hasattr(pool, '_threads') else 0,
+                    "active_threads": pool._threads.__len__() if hasattr(pool, "_threads") else 0,
                     "max_workers": pool._max_workers
                 }
                 for name, pool in self.thread_pools.items()
@@ -453,11 +448,11 @@ class WeakRefManager:
     """Manage weak references to expensive objects for automatic cleanup"""
 
     def __init__(self):
-        self._refs: Dict[str, weakref.ref] = {}
-        self._callbacks: Dict[str, Callable] = {}
+        self._refs: dict[str, weakref.ref] = {}
+        self._callbacks: dict[str, Callable] = {}
         self._lock = threading.Lock()
 
-    def register(self, key: str, obj: Any, callback: Optional[Callable] = None) -> None:
+    def register(self, key: str, obj: Any, callback: Callable | None = None) -> None:
         """Register object with weak reference and cleanup callback"""
         def cleanup_callback(ref):
             with self._lock:
@@ -482,7 +477,7 @@ class WeakRefManager:
             if callback:
                 self._callbacks[key] = callback
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Get object from weak reference if still alive"""
         with self._lock:
             if key in self._refs:

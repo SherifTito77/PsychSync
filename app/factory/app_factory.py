@@ -17,12 +17,11 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import logging
-from typing import List, Optional, Callable
+from collections.abc import Callable
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.cors import configure_cors
@@ -31,22 +30,23 @@ from app.middleware.security_middleware import SecurityMiddleware
 # Initialize application factory logger
 app_factory_logger = logging.getLogger("app.factory.app")
 
+
 class ApplicationFactory:
     """
     Enterprise-grade FastAPI application factory
     """
 
     def __init__(self):
-        self.app: Optional[FastAPI] = None
-        self._middleware_stack: List[Callable] = []
-        self._routes: List[Callable] = []
+        self.app: FastAPI | None = None
+        self._middleware_stack: list[Callable] = []
+        self._routes: list[Callable] = []
 
     def create_app(
         self,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        version: Optional[str] = None,
-        debug: Optional[bool] = None
+        title: str | None = None,
+        description: str | None = None,
+        version: str | None = None,
+        debug: bool | None = None,
     ) -> FastAPI:
         """
         Create and configure FastAPI application
@@ -72,8 +72,8 @@ class ApplicationFactory:
                 "title": app_title,
                 "version": app_version,
                 "environment": settings.ENVIRONMENT,
-                "debug": app_debug
-            }
+                "debug": app_debug,
+            },
         )
 
         # Create FastAPI instance
@@ -84,7 +84,7 @@ class ApplicationFactory:
             debug=app_debug,
             docs_url=settings.API_DOCS_URL if settings.API_DOCS_ENABLED else None,
             redoc_url=settings.API_REDOC_URL if settings.API_DOCS_ENABLED else None,
-            openapi_url="/openapi.json" if settings.API_DOCS_ENABLED else None
+            openapi_url="/openapi.json" if settings.API_DOCS_ENABLED else None,
         )
 
         # Configure application
@@ -94,11 +94,12 @@ class ApplicationFactory:
         self._register_exception_handlers()
         self._configure_health_checks()
 
-        app_factory_logger.info(f"FastAPI application created successfully")
+        app_factory_logger.info("FastAPI application created successfully")
         return self.app
 
     def _configure_lifecycle(self):
         """Configure application lifecycle events"""
+
         @asynccontextmanager
         async def lifespan(app: FastAPI):
             # Startup
@@ -115,16 +116,13 @@ class ApplicationFactory:
         """Execute startup tasks"""
         try:
             # Initialize security middleware
-            if hasattr(self.app, 'security_middleware'):
+            if hasattr(self.app, "security_middleware"):
                 self.app.security_middleware.enable_emergency_mode(False)
 
             # Log application startup
             app_factory_logger.info(
                 "Application startup completed",
-                extra={
-                    "environment": settings.ENVIRONMENT,
-                    "version": settings.APP_VERSION
-                }
+                extra={"environment": settings.ENVIRONMENT, "version": settings.APP_VERSION},
             )
 
         except Exception as e:
@@ -135,12 +133,9 @@ class ApplicationFactory:
         """Execute shutdown tasks"""
         try:
             # Cleanup security middleware
-            if hasattr(self.app, 'security_middleware'):
+            if hasattr(self.app, "security_middleware"):
                 stats = self.app.security_middleware.get_security_stats()
-                app_factory_logger.info(
-                    "Security middleware stats",
-                    extra=stats
-                )
+                app_factory_logger.info("Security middleware stats", extra=stats)
 
             app_factory_logger.info("Application shutdown completed")
 
@@ -175,6 +170,7 @@ class ApplicationFactory:
         try:
             # Import and register API routes
             from app.api.v1.api import api_router
+
             self.app.include_router(api_router, prefix=settings.API_V1_STR)
 
             # Register additional routes
@@ -190,10 +186,9 @@ class ApplicationFactory:
     def _register_exception_handlers(self):
         """Register exception handlers"""
         try:
-            from fastapi import Request, HTTPException, status
-            from fastapi.responses import JSONResponse
+            from fastapi import HTTPException, Request, status
             from fastapi.exceptions import RequestValidationError
-            from starlette.exceptions import HTTPException as StarletteHTTPException
+            from fastapi.responses import JSONResponse
             from sqlalchemy.exc import SQLAlchemyError
 
             @self.app.exception_handler(RequestValidationError)
@@ -203,16 +198,16 @@ class ApplicationFactory:
                     extra={
                         "path": str(request.url),
                         "method": request.method,
-                        "errors": exc.errors()
-                    }
+                        "errors": exc.errors(),
+                    },
                 )
                 return JSONResponse(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     content={
                         "error": "Validation failed",
                         "details": exc.errors(),
-                        "type": "validation_error"
-                    }
+                        "type": "validation_error",
+                    },
                 )
 
             @self.app.exception_handler(HTTPException)
@@ -222,15 +217,11 @@ class ApplicationFactory:
                     extra={
                         "path": str(request.url),
                         "method": request.method,
-                        "status_code": exc.status_code
-                    }
+                        "status_code": exc.status_code,
+                    },
                 )
                 return JSONResponse(
-                    status_code=exc.status_code,
-                    content={
-                        "error": exc.detail,
-                        "type": "http_error"
-                    }
+                    status_code=exc.status_code, content={"error": exc.detail, "type": "http_error"}
                 )
 
             @self.app.exception_handler(SQLAlchemyError)
@@ -240,15 +231,12 @@ class ApplicationFactory:
                     extra={
                         "path": str(request.url),
                         "method": request.method,
-                        "error_type": type(exc).__name__
-                    }
+                        "error_type": type(exc).__name__,
+                    },
                 )
                 return JSONResponse(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    content={
-                        "error": "Database operation failed",
-                        "type": "database_error"
-                    }
+                    content={"error": "Database operation failed", "type": "database_error"},
                 )
 
             @self.app.exception_handler(Exception)
@@ -259,15 +247,12 @@ class ApplicationFactory:
                         "path": str(request.url),
                         "method": request.method,
                         "error_type": type(exc).__name__,
-                        "error_message": str(exc)
-                    }
+                        "error_message": str(exc),
+                    },
                 )
                 return JSONResponse(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    content={
-                        "error": "Internal server error",
-                        "type": "general_error"
-                    }
+                    content={"error": "Internal server error", "type": "general_error"},
                 )
 
             app_factory_logger.info("Exception handlers registered")
@@ -279,6 +264,7 @@ class ApplicationFactory:
     def _configure_health_checks(self):
         """Configure health check endpoints"""
         try:
+
             @self.app.get("/health")
             async def health_check():
                 """Basic health check"""
@@ -286,7 +272,7 @@ class ApplicationFactory:
                     "status": "healthy",
                     "timestamp": "2024-01-01T00:00:00Z",  # Will be dynamic
                     "version": settings.APP_VERSION,
-                    "environment": settings.ENVIRONMENT
+                    "environment": settings.ENVIRONMENT,
                 }
 
             @self.app.get("/health/detailed")
@@ -301,19 +287,21 @@ class ApplicationFactory:
                     services_status = {
                         "database": database_status,
                         "cache": "healthy",  # Would check Redis/Cache
-                        "email": "healthy"  # Would check email service
+                        "email": "healthy",  # Would check email service
                     }
 
-                    overall_status = "healthy" if all(
-                        status == "healthy" for status in services_status.values()
-                    ) else "degraded"
+                    overall_status = (
+                        "healthy"
+                        if all(status == "healthy" for status in services_status.values())
+                        else "degraded"
+                    )
 
                     return {
                         "status": overall_status,
                         "timestamp": "2024-01-01T00:00:00Z",
                         "version": settings.APP_VERSION,
                         "environment": settings.ENVIRONMENT,
-                        "services": services_status
+                        "services": services_status,
                     }
 
                 except Exception as e:
@@ -321,7 +309,7 @@ class ApplicationFactory:
                     return {
                         "status": "unhealthy",
                         "error": str(e),
-                        "timestamp": "2024-01-01T00:00:00Z"
+                        "timestamp": "2024-01-01T00:00:00Z",
                     }
 
             @self.app.get("/metrics")
@@ -336,7 +324,7 @@ class ApplicationFactory:
                     "error_count": 0,
                     "average_response_time": 0,
                     "uptime": 0,
-                    "memory_usage": 0
+                    "memory_usage": 0,
                 }
 
             app_factory_logger.info("Health checks configured")
@@ -361,14 +349,16 @@ class ApplicationFactory:
             raise RuntimeError("Application not created. Call create_app() first.")
         return self.app
 
+
 # Global application factory instance
 app_factory = ApplicationFactory()
 
+
 def create_application(
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    version: Optional[str] = None,
-    debug: Optional[bool] = None
+    title: str | None = None,
+    description: str | None = None,
+    version: str | None = None,
+    debug: bool | None = None,
 ) -> FastAPI:
     """
     Convenience function to create application

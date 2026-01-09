@@ -8,32 +8,34 @@ Supports multiple versioning strategies:
 - Custom version negotiation and deprecation policies
 """
 
-import re
-from typing import Optional, Dict, Any, List, Callable, Union
+from collections.abc import Callable
+from datetime import datetime
 from enum import Enum
-from datetime import datetime, timedelta
+import re
+from typing import Any
 
-from fastapi import Request, HTTPException, status, Response
+from fastapi import HTTPException, Request, Response, status
 from fastapi.routing import APIRoute
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 
-from app.core.config import settings
 
 class APIVersioningStrategy(Enum):
     """API versioning strategies"""
-    URL_PATH = "url_path"           # /api/v1/, /api/v2/
-    HEADER = "header"               # Accept: application/vnd.psychsync.v1+json
-    QUERY_PARAM = "query_param"     # ?version=1
-    CUSTOM_HEADER = "custom_header" # X-API-Version: 1
+
+    URL_PATH = "url_path"  # /api/v1/, /api/v2/
+    HEADER = "header"  # Accept: application/vnd.psychsync.v1+json
+    QUERY_PARAM = "query_param"  # ?version=1
+    CUSTOM_HEADER = "custom_header"  # X-API-Version: 1
+
 
 class APIVersionStatus(Enum):
     """API version status"""
+
     ACTIVE = "active"
     DEPRECATED = "deprecated"
     SUNSET = "sunset"
     BETA = "beta"
     ALPHA = "alpha"
+
 
 class APIVersion:
     """API version configuration"""
@@ -42,13 +44,13 @@ class APIVersion:
         self,
         version: str,
         status: APIVersionStatus = APIVersionStatus.ACTIVE,
-        deprecation_date: Optional[datetime] = None,
-        sunset_date: Optional[datetime] = None,
+        deprecation_date: datetime | None = None,
+        sunset_date: datetime | None = None,
         description: str = "",
-        supported_strategies: List[APIVersioningStrategy] = None,
-        custom_headers: Dict[str, str] = None,
-        migration_guide: Optional[str] = None,
-        breaking_changes: List[str] = None
+        supported_strategies: list[APIVersioningStrategy] = None,
+        custom_headers: dict[str, str] = None,
+        migration_guide: str | None = None,
+        breaking_changes: list[str] = None,
     ):
         self.version = version
         self.status = status
@@ -81,7 +83,7 @@ class APIVersion:
             return True
         return False
 
-    def get_warning_headers(self) -> Dict[str, str]:
+    def get_warning_headers(self) -> dict[str, str]:
         """Get warning headers for deprecated/sunset versions"""
         headers = {}
 
@@ -102,27 +104,29 @@ class APIVersionManager:
     """Manages API versions and version negotiation"""
 
     def __init__(self):
-        self.versions: Dict[str, APIVersion] = {}
+        self.versions: dict[str, APIVersion] = {}
         self.default_version = "1"
         self.supported_versions = ["1"]
         self.version_strategies = {
             APIVersioningStrategy.URL_PATH: self._extract_from_url,
             APIVersioningStrategy.HEADER: self._extract_from_header,
             APIVersioningStrategy.QUERY_PARAM: self._extract_from_query,
-            APIVersioningStrategy.CUSTOM_HEADER: self._extract_from_custom_header
+            APIVersioningStrategy.CUSTOM_HEADER: self._extract_from_custom_header,
         }
 
         # Initialize with default version
-        self.register_version(APIVersion(
-            version="1",
-            status=APIVersionStatus.ACTIVE,
-            description="Initial stable API version",
-            supported_strategies=[
-                APIVersioningStrategy.URL_PATH,
-                APIVersioningStrategy.HEADER,
-                APIVersioningStrategy.QUERY_PARAM
-            ]
-        ))
+        self.register_version(
+            APIVersion(
+                version="1",
+                status=APIVersionStatus.ACTIVE,
+                description="Initial stable API version",
+                supported_strategies=[
+                    APIVersioningStrategy.URL_PATH,
+                    APIVersioningStrategy.HEADER,
+                    APIVersioningStrategy.QUERY_PARAM,
+                ],
+            )
+        )
 
     def register_version(self, version: APIVersion) -> None:
         """Register a new API version"""
@@ -130,14 +134,12 @@ class APIVersionManager:
         if version.is_active() and version.version not in self.supported_versions:
             self.supported_versions.append(version.version)
 
-    def get_version(self, version: str) -> Optional[APIVersion]:
+    def get_version(self, version: str) -> APIVersion | None:
         """Get version configuration"""
         return self.versions.get(version)
 
     def negotiate_version(
-        self,
-        request: Request,
-        preferred_strategies: List[APIVersioningStrategy] = None
+        self, request: Request, preferred_strategies: list[APIVersioningStrategy] = None
     ) -> str:
         """
         Negotiate API version based on request
@@ -162,29 +164,29 @@ class APIVersionManager:
         # Fallback to default version
         return self.default_version
 
-    def _extract_from_url(self, request: Request) -> Optional[str]:
+    def _extract_from_url(self, request: Request) -> str | None:
         """Extract version from URL path (/api/v1/ -> 1)"""
         path = request.url.path
         # Match patterns like /api/v1/, /api/v2/, etc.
-        match = re.search(r'/api/v(\d+)/', path)
+        match = re.search(r"/api/v(\d+)/", path)
         if match:
             return match.group(1)
         return None
 
-    def _extract_from_header(self, request: Request) -> Optional[str]:
+    def _extract_from_header(self, request: Request) -> str | None:
         """Extract version from Accept header"""
         accept_header = request.headers.get("accept", "")
         # Look for patterns like application/vnd.psychsync.v1+json
-        match = re.search(r'application/vnd\.psychsync\.v(\d+)\+json', accept_header)
+        match = re.search(r"application/vnd\.psychsync\.v(\d+)\+json", accept_header)
         if match:
             return match.group(1)
         return None
 
-    def _extract_from_query(self, request: Request) -> Optional[str]:
+    def _extract_from_query(self, request: Request) -> str | None:
         """Extract version from query parameter"""
         return request.query_params.get("version")
 
-    def _extract_from_custom_header(self, request: Request) -> Optional[str]:
+    def _extract_from_custom_header(self, request: Request) -> str | None:
         """Extract version from X-API-Version header"""
         return request.headers.get("x-api-version")
 
@@ -203,7 +205,7 @@ class APIVersionManager:
 
         return True
 
-    def get_version_info(self, version: str) -> Dict[str, Any]:
+    def get_version_info(self, version: str) -> dict[str, Any]:
         """Get comprehensive version information"""
         version_config = self.get_version(version)
         if not version_config:
@@ -214,14 +216,18 @@ class APIVersionManager:
             "status": version_config.status.value,
             "description": version_config.description,
             "supported_strategies": [s.value for s in version_config.supported_strategies],
-            "deprecation_date": version_config.deprecation_date.isoformat() if version_config.deprecation_date else None,
-            "sunset_date": version_config.sunset_date.isoformat() if version_config.sunset_date else None,
+            "deprecation_date": version_config.deprecation_date.isoformat()
+            if version_config.deprecation_date
+            else None,
+            "sunset_date": version_config.sunset_date.isoformat()
+            if version_config.sunset_date
+            else None,
             "created_at": version_config.created_at.isoformat(),
             "breaking_changes": version_config.breaking_changes,
-            "migration_guide": version_config.migration_guide
+            "migration_guide": version_config.migration_guide,
         }
 
-    def list_versions(self, include_inactive: bool = False) -> List[Dict[str, Any]]:
+    def list_versions(self, include_inactive: bool = False) -> list[dict[str, Any]]:
         """List all versions"""
         versions = []
         for version in self.versions.values():
@@ -233,7 +239,8 @@ class APIVersionManager:
 
 
 # Global version manager
-_version_manager: Optional[APIVersionManager] = None
+_version_manager: APIVersionManager | None = None
+
 
 def get_version_manager() -> APIVersionManager:
     """Get global version manager instance"""
@@ -249,11 +256,11 @@ class VersionedAPIRoute(APIRoute):
     def __init__(
         self,
         *args,
-        version: Optional[str] = None,
+        version: str | None = None,
         version_from: APIVersioningStrategy = APIVersioningStrategy.URL_PATH,
         deprecated: bool = False,
-        deprecation_message: Optional[str] = None,
-        **kwargs
+        deprecation_message: str | None = None,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.version = version
@@ -278,7 +285,7 @@ class VersionedAPIRoute(APIRoute):
             if not version_manager.validate_version(negotiated_version):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"API version {negotiated_version} is not supported"
+                    detail=f"API version {negotiated_version} is not supported",
                 )
 
             # Get version configuration
@@ -314,9 +321,10 @@ class VersionedAPIRoute(APIRoute):
 # FastAPI dependencies
 async def get_api_version(request: Request) -> str:
     """Get negotiated API version from request"""
-    return getattr(request.state, 'api_version', '1')
+    return getattr(request.state, "api_version", "1")
 
-async def get_version_info(version: str = Depends(get_api_version)) -> Dict[str, Any]:
+
+async def get_version_info(version: str = Depends(get_api_version)) -> dict[str, Any]:
     """Get version information for current request"""
     version_manager = get_version_manager()
     return version_manager.get_version_info(version)
@@ -327,7 +335,7 @@ def api_version(
     version: str,
     strategy: APIVersioningStrategy = APIVersioningStrategy.URL_PATH,
     deprecated: bool = False,
-    deprecation_message: Optional[str] = None
+    deprecation_message: str | None = None,
 ):
     """
     Decorator for API versioning endpoints
@@ -338,6 +346,7 @@ def api_version(
         deprecated: Whether this endpoint is deprecated
         deprecation_message: Custom deprecation message
     """
+
     def decorator(func):
         # Add version metadata to function
         func._api_version = version
@@ -345,13 +354,11 @@ def api_version(
         func._deprecated = deprecated
         func._deprecation_message = deprecation_message
         return func
+
     return decorator
 
 
-def versioned_response(
-    version_mapping: Dict[str, Any],
-    default_version: Optional[str] = None
-):
+def versioned_response(version_mapping: dict[str, Any], default_version: str | None = None):
     """
     Decorator for versioned responses
 
@@ -359,6 +366,7 @@ def versioned_response(
         version_mapping: Mapping of version -> response handler/serializer
         default_version: Default version if negotiation fails
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -367,7 +375,7 @@ def versioned_response(
             if not request:
                 return await func(*args, **kwargs)
 
-            api_version = getattr(request.state, 'api_version', default_version or '1')
+            api_version = getattr(request.state, "api_version", default_version or "1")
 
             # Get appropriate response handler for version
             if api_version in version_mapping:
@@ -382,7 +390,9 @@ def versioned_response(
                 return version_mapping[default_version]
 
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -416,16 +426,18 @@ def setup_api_versions():
     manager = get_version_manager()
 
     # Register version 2 (future version example)
-    manager.register_version(APIVersion(
-        version="2",
-        status=APIVersionStatus.BETA,
-        description="Enhanced API with improved performance and new features",
-        deprecation_date=None,
-        sunset_date=None,
-        breaking_changes=[
-            "Changed response format for user profiles",
-            "Updated authentication flow",
-            "Modified pagination structure"
-        ],
-        migration_guide="https://docs.psychsync.com/api/v2/migration"
-    ))
+    manager.register_version(
+        APIVersion(
+            version="2",
+            status=APIVersionStatus.BETA,
+            description="Enhanced API with improved performance and new features",
+            deprecation_date=None,
+            sunset_date=None,
+            breaking_changes=[
+                "Changed response format for user profiles",
+                "Updated authentication flow",
+                "Modified pagination structure",
+            ],
+            migration_guide="https://docs.psychsync.com/api/v2/migration",
+        )
+    )

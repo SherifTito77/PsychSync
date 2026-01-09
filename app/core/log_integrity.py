@@ -3,13 +3,11 @@ Log Integrity Checker - Hash-based verification for log files
 Prevents log tampering by maintaining cryptographic hashes
 """
 
-import os
+from datetime import datetime
+import fcntl
 import hashlib
 import json
-import fcntl
 from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional, List
 
 
 class LogIntegrityChecker:
@@ -29,12 +27,9 @@ class LogIntegrityChecker:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def calculate_integrity(self) -> Dict[str, str]:
+    def calculate_integrity(self) -> dict[str, str]:
         """Calculate hashes for all log files"""
-        integrity_data = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "files": {}
-        }
+        integrity_data = {"timestamp": datetime.utcnow().isoformat() + "Z", "files": {}}
 
         if not self.log_dir.exists():
             return integrity_data
@@ -46,7 +41,7 @@ class LogIntegrityChecker:
                 integrity_data["files"][log_file.name] = {
                     "sha256": file_hash,
                     "size": file_size,
-                    "last_modified": datetime.fromtimestamp(log_file.stat().st_mtime).isoformat()
+                    "last_modified": datetime.fromtimestamp(log_file.stat().st_mtime).isoformat(),
                 }
             except Exception as e:
                 print(f"Warning: Could not hash {log_file.name}: {e}")
@@ -71,13 +66,13 @@ class LogIntegrityChecker:
             print(f"Error saving integrity: {e}")
             return False
 
-    def verify_integrity(self) -> Dict[str, Any]:
+    def verify_integrity(self) -> dict[str, Any]:
         """Verify current logs against saved integrity state"""
         if not self.integrity_file.exists():
             return {"status": "no_baseline", "message": "No integrity baseline found"}
 
         try:
-            with open(self.integrity_file, "r") as f:
+            with open(self.integrity_file) as f:
                 saved_integrity = json.load(f)
         except Exception as e:
             return {"status": "error", "message": f"Could not read integrity file: {e}"}
@@ -90,38 +85,40 @@ class LogIntegrityChecker:
             current_data = current_integrity.get("files", {}).get(filename)
 
             if not current_data:
-                issues.append({
-                    "file": filename,
-                    "issue": "missing",
-                    "message": f"Log file {filename} no longer exists"
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "issue": "missing",
+                        "message": f"Log file {filename} no longer exists",
+                    }
+                )
             elif current_data["sha256"] != saved_data["sha256"]:
-                issues.append({
-                    "file": filename,
-                    "issue": "tampered",
-                    "message": f"Log file {filename} has been modified"
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "issue": "tampered",
+                        "message": f"Log file {filename} has been modified",
+                    }
+                )
 
         # Check for new files
         for filename in current_integrity.get("files", {}):
             if filename not in saved_integrity.get("files", {}):
-                issues.append({
-                    "file": filename,
-                    "issue": "new",
-                    "message": f"New log file {filename} detected"
-                })
+                issues.append(
+                    {
+                        "file": filename,
+                        "issue": "new",
+                        "message": f"New log file {filename} detected",
+                    }
+                )
 
         if issues:
             return {
                 "status": "failed",
                 "issues": issues,
-                "message": f"Found {len(issues)} integrity issues"
+                "message": f"Found {len(issues)} integrity issues",
             }
-        else:
-            return {
-                "status": "passed",
-                "message": "All log files integrity verified"
-            }
+        return {"status": "passed", "message": "All log files integrity verified"}
 
     def create_baseline(self):
         """Create initial integrity baseline"""
@@ -132,7 +129,7 @@ class LogIntegrityChecker:
         if success:
             print(f"✅ Integrity baseline created at {self.integrity_file}")
         else:
-            print(f"❌ Failed to create integrity baseline")
+            print("❌ Failed to create integrity baseline")
 
         return success
 
@@ -142,19 +139,15 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Log Integrity Checker")
-    parser.add_argument("action", choices=["create", "verify", "check"],
-                       help="Action to perform")
-    parser.add_argument("--log-dir", default="logs",
-                       help="Log directory path")
-    parser.add_argument("--integrity-file", default="logs/integrity.json",
-                       help="Integrity state file path")
+    parser.add_argument("action", choices=["create", "verify", "check"], help="Action to perform")
+    parser.add_argument("--log-dir", default="logs", help="Log directory path")
+    parser.add_argument(
+        "--integrity-file", default="logs/integrity.json", help="Integrity state file path"
+    )
 
     args = parser.parse_args()
 
-    checker = LogIntegrityChecker(
-        log_dir=args.log_dir,
-        integrity_file=args.integrity_file
-    )
+    checker = LogIntegrityChecker(log_dir=args.log_dir, integrity_file=args.integrity_file)
 
     if args.action == "create":
         success = checker.create_baseline()

@@ -1,500 +1,563 @@
-# SLSA Verification Guide
-## PsychSync Supply Chain Security
+# SLSA Provenance & Artifact Verification Guide
 
-This guide explains how to verify the integrity and provenance of PsychSync build artifacts using **SLSA Level 3** attestations and **sigstore/cosign** signatures.
-
----
-
-## 📋 Table of Contents
-
-1. [Quick Start](#quick-start)
-2. [Prerequisites](#prerequisites)
-3. [Verifying Docker Images](#verifying-docker-images)
-4. [Verifying Frontend Artifacts](#verifying-frontend-artifacts)
-5. [Verifying SBOMs](#verifying-sboms)
-6. [CI/CD Workflow Overview](#cicd-workflow-overview)
-7. [Troubleshooting](#troubleshooting)
+**Repository**: `<ORG>/<REPO>` (PsychSync)
+**Workflow**: `.github/workflows/slsa-sign.yaml`
+**Status**: ✅ Active
 
 ---
 
-## 🚀 Quick Start
+## Overview
 
-### Verify a Docker Image (One Command)
+This guide explains how to verify the integrity and provenance of PsychSync container images using:
+
+1. **Cosign** - Signature verification using OIDC
+2. **SLSA Provenance** - Supply chain Levels for Software Artifacts verification
+
+All artifacts are built on ephemeral GitHub Actions runners, signed with OIDC tokens, and include comprehensive provenance metadata.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+Install the required tools:
 
 ```bash
-cosign verify \
-  ghcr.io/YOUR_ORG/psychsync/backend:latest \
-  --certificate-identity https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
-```
+# Install Cosign (signature verification)
+curl -fsSL https://sigstore.github.io/cosign/install.sh | sh -s -- -b /usr/local/bin
 
-**Expected Output:**
-```
-Verification for ghcr.io/YOUR_ORG/psychsync/backend:latest --
-The following checks were performed on each of these signatures:
-  - The cosign claims were validated
-  - Existence of the claims in the transparency log was verified offline
-  - The code-signing certificate was checked using the certificate authority
-  - The code-signing certificate was verified for the current commit
-  - The verified claims matched the expected values
+# Install SLSA Verifier (provenance verification)
+curl -L https://github.com/slsa-framework/slsa-verifier/releases/download/v2.4.0/slsa-verifier-linux-amd64 -o slsa-verifier
+chmod +x slsa-verifier
+sudo mv slsa-verifier /usr/local/bin/
 
-Certificate:
-  Identity: https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main
-  Issuer: https://token.actions.githubusercontent.com
-```
-
----
-
-## 📦 Prerequisites
-
-### Install Verification Tools
-
-```bash
-# Install cosign (signature verification)
-curl -L https://github.com/sigstore/cosign/releases/download/v2.2.4/cosign-linux-amd64 -o cosign
-chmod +x cosign
-sudo mv cosign /usr/local/bin/
-
-# Install slsa-verifier (SLSA provenance verification)
-go install github.com/slsa-framework/slsa-verifier/v2/cli/slsa-verifier@latest
-
-# Install Docker (for pulling images)
-# See: https://docs.docker.com/engine/install/
+# Install ORAS (for pulling OCI artifacts)
+curl -fsSL https://raw.githubusercontent.com/oras-project/oras/main/install.sh | bash -s -- -b /usr/local/bin
 
 # Verify installations
 cosign version
 slsa-verifier version
-docker --version
-```
-
-### Authenticate to GitHub Container Registry
-
-```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+oras version
 ```
 
 ---
 
-## 🔐 Verifying Docker Images
+## Cosign Verification
 
-### Method 1: Verify Signature Only
+### Verify Image Signature
 
-Verify that the image was signed by GitHub Actions OIDC:
+Verify that a container image was signed by the official PsychSync CI/CD pipeline:
 
 ```bash
+# Format
 cosign verify \
-  ghcr.io/YOUR_ORG/psychsync/backend:TAG \
-  --certificate-identity https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+  --certificate-identity "https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/<TAG>" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  ghcr.io/<ORG>/<REPO>:<TAG>
+
+# Example
+cosign verify \
+  --certificate-identity "https://github.com/sheriftito/psychsync/.github/workflows/slsa-sign.yaml@refs/tags/v1.0.0" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  ghcr.io/sheriftito/psychsync:v1.0.0
 ```
 
-**What this checks:**
-- ✅ Signature is valid and untampered
-- ✅ Signature was created by GitHub Actions OIDC
-- ✅ Signature is recorded in Rekor transparency log
-- ✅ Certificate identity matches expected workflow
+**Expected Output**:
+```
+Verification for ghcr.io/sheriftito/psychsync:v1.0.0 --
+The following checks were performed on each of these signatures:
+  - The cosign claims were validated
+  - The signatures were verified against the specified identity
+```
 
-### Method 2: Verify SLSA Provenance (Recommended)
+### Verify Image with Digest
 
-Verify the complete SLSA Level 3 provenance:
+For maximum security, verify by digest (SHA256) instead of tag:
 
 ```bash
-slsa-verifier verify-image \
-  ghcr.io/YOUR_ORG/psychsync/backend:TAG \
-  --source-uri github.com/YOUR_ORG/psychsync \
-  --builder-id https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0 \
-  --provenance-path https://rekor.sigstore.dev/api/v1/log/entries?logIndex=INDEX
+# Get the digest first
+docker pull ghcr.io/<ORG>/<REPO>:<TAG>
+DIGEST=$(docker inspect ghcr.io/<ORG>/<REPO>:<TAG> --format='{{.RepoDigests[0]}}')
+
+# Verify by digest
+cosign verify \
+  --certificate-identity "https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/<TAG>" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  "$DIGEST"
 ```
 
-**What this checks:**
-- ✅ All signature checks (from Method 1)
-- ✅ Source repository matches `github.com/YOUR_ORG/psychsync`
-- ✅ Builder is trusted SLSA generator
-- ✅ Build was performed on GitHub Actions
-- ✅ Git commit hash is recorded in provenance
-- ✅ All build materials and dependencies are listed
+### Verify SBOM Attestation
 
-### Method 3: Verify with Specific Commit
-
-Verify that the image was built from a specific commit:
+Verify that the attached SBOM is authentic:
 
 ```bash
-slsa-verifier verify-image \
-  ghcr.io/YOUR_ORG/psychsync/backend:TAG \
-  --source-uri github.com/YOUR_ORG/psychsync \
-  --builder-id https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0 \
-  --source-sha256 COMMIT_HASH
-```
-
-### Method 4: Verify in Production (Before Deployment)
-
-```bash
-# 1. Verify signature
-cosign verify IMAGE \
-  --certificate-identity https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
-
-# 2. Verify SLSA provenance
-slsa-verifier verify-image IMAGE \
-  --source-uri github.com/YOUR_ORG/psychsync \
-  --builder-id https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.10.0
-
-# 3. Scan for vulnerabilities
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  aquasec/trivy:latest \
-  image --severity CRITICAL,HIGH IMAGE
-
-# 4. Pull and deploy only if all checks pass
-docker pull IMAGE
-```
-
----
-
-## 📦 Verifying Frontend Artifacts
-
-### Download Artifact from Release
-
-```bash
-# Download from GitHub release
-wget https://github.com/YOUR_ORG/psychsync/releases/download/v1.0.0/frontend-build-SHA.tar.gz
-wget https://github.com/YOUR_ORG/psychsync/releases/download/v1.0.0/frontend-build-SHA.sig
-wget https://github.com/YOUR_ORG/psychsync/releases/download/v1.0.0/frontend-build-SHA.pem
-```
-
-### Verify Artifact Signature
-
-```bash
-cosign verify-blob \
-  frontend-build-SHA.tar.gz \
-  --certificate frontend-build-SHA.pem \
-  --signature frontend-build-SHA.sig \
-  --certificate-identity https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
-```
-
-**Expected Output:**
-```
-Verified OK
-```
-
-### Extract and Deploy
-
-```bash
-# Only extract if verification succeeds
-tar -xzf frontend-build-SHA.tar.gz
-
-# Deploy to CDN/web server
-rsync -avz build/ user@server:/var/www/psychsync/
-```
-
----
-
-## 📋 Verifying SBOMs
-
-### Extract SBOM from Image
-
-```bash
-# Get SBOM from image (attached via cosign)
-cosign download sbom ghcr.io/YOUR_ORG/psychsync/backend:TAG
-
-# Or get from registry API
-curl -L \
-  -H "Authorization: Bearer $GITHUB_TOKEN" \
-  "https://ghcr.io/v2/YOUR_ORG/psychsync/backend/manifests/TAG" | \
-  jq -r '.layers[] | select(.annotations["vnd.docker.reference.type"] == "attestation-manifest") | .digest'
-```
-
-### Verify SBOM Integrity
-
-```bash
-# Download SBOM
-cosign attach sbom --type cyclonedx --sbom sbom.json ghcr.io/YOUR_ORG/psychsync/backend:TAG
-
-# Verify SBOM signature
 cosign verify-attestation \
-  ghcr.io/YOUR_ORG/psychsync/backend:TAG \
-  --type cyclonedx \
-  --certificate-identity https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+  --type spdxjson \
+  --certificate-identity "https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/<TAG>" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  ghcr.io/<ORG>/<REPO>:<TAG>
 ```
 
-### Scan SBOM for Vulnerabilities
+### View Signatures
+
+View all signatures attached to an image:
 
 ```bash
-# Install grype (vulnerability scanner)
-curl -L https://github.com/anchore/grype/releases/download/v0.74.0/grype-linux-amd64 -o grype
-chmod +x grype
-sudo mv grype /usr/local/bin/
+cosign triangulate ghcr.io/<ORG>/<REPO>:<TAG>
+```
 
-# Scan SBOM
-grype sbom:sbom.json --fail-on critical
+### Download Public Key
+
+Download the Cosign public key for offline verification:
+
+```bash
+cosign public-key \
+  --certificate-identity "https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/<TAG>" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  ghcr.io/<ORG>/<REPO>:<TAG> > cosign.pub
+```
+
+Then verify using the public key:
+
+```bash
+cosign verify --key cosign.pub ghcr.io/<ORG>/<REPO>:<TAG>
 ```
 
 ---
 
-## 🔄 CI/CD Workflow Overview
+## SLSA Provenance Verification
 
-### Build and Sign Workflow
+### Verify Image Provenance
 
-**File:** `.github/workflows/slsa-build-and-sign.yml`
-
-**Triggers:**
-- Push to `main` branch
-- Release creation
-- Manual workflow dispatch
-
-**Jobs:**
-
-1. **Build and Sign Backend**
-   - Build Docker image with Buildx
-   - Push to GitHub Container Registry (GHCR)
-   - Sign with cosign using OIDC (no private key)
-   - Generate SLSA Level 3 provenance
-   - Attach SBOM to image
-
-2. **Build and Sign Frontend**
-   - Build React frontend
-   - Create tar.gz artifact
-   - Sign artifact with cosign
-   - Generate SLSA Level 3 provenance
-   - Upload to GitHub release
-
-3. **Verify All Signatures**
-   - Verify Docker image signature
-   - Verify SLSA provenance
-   - Verify frontend artifact signature
-   - Store verification results
-
-4. **Record Immutable Log**
-   - Append build event to immutable log
-   - Upload logs as artifacts (365-day retention)
-
-### Deploy and Verify Workflow
-
-**File:** `.github/workflows/slsa-deploy-verify.yml`
-
-**Triggers:**
-- After successful build workflow
-- Manual workflow dispatch (with image tag)
-
-**Jobs:**
-
-1. **Verify Before Deploy**
-   - Verify Docker image signature
-   - Verify SLSA provenance
-   - Scan for vulnerabilities (Trivy)
-   - Block deployment if any check fails
-
-2. **Deploy to Production**
-   - Deploy verified image to ECS/Kubernetes
-   - Run health checks
-   - Record deployment to immutable log
-
-3. **Rollback (Manual)**
-   - Query immutable log for previous stable image
-   - Rollback to previous version
-   - Verify health after rollback
-
----
-
-## 🔍 Transparency Log Verification
-
-All signatures and attestations are recorded in the **Rekor transparency log** for public verification.
-
-### View Signature in Rekor
+Verify the SLSA provenance attestation to ensure the image was built by GitHub Actions:
 
 ```bash
-# Get signature UUID from cosign verification output
-UUID=$(cosign verify IMAGE --output-json | jq -r '.[0].bundles[0].payload.body')
+# Format
+slsa-verifier verify-image \
+  --source-uri github.com/<ORG>/<REPO> \
+  --provenance-path "https://github.com/<ORG>/<REPO>/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+  ghcr.io/<ORG>/<REPO>:<TAG>
 
-# View in Rekor
-curl "https://rekor.sigstore.dev/api/v1/log/entries?logIndex=$UUID"
+# Example
+slsa-verifier verify-image \
+  --source-uri github.com/sheriftito/psychsync \
+  --provenance-path "https://github.com/sheriftito/psychsync/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+  ghcr.io/sheriftito/psychsync:v1.0.0
 ```
 
-### Online Verification (No Tools Required)
-
-Visit: **https://search.sigstore.dev/**
-
-Enter:
-- Image digest: `sha256:...`
-- Or artifact signature
-
-**This provides:**
-- ✅ Public proof of signature existence
-- ✅ Timestamp when signature was created
-- ✅ Certificate chain
-- ✅ Build metadata
-
----
-
-## 🛠️ Troubleshooting
-
-### Error: "no matching signatures"
-
-**Cause:** Image not signed or wrong tag
-
-**Solution:**
-```bash
-# Check available tags
-curl -L -H "Authorization: Bearer $GITHUB_TOKEN" \
-  "https://ghcr.io/v2/YOUR_ORG/psychsync/backend/tags/list"
-
-# Verify correct tag is being used
-cosign verify ghcr.io/YOUR_ORG/psychsync/backend:CORRECT_TAG
+**Expected Output**:
+```
+VERIFIED: SLSA provenance
+Source URI: github.com/sheriftito/psychsync
+Digest: sha256:abc123...
 ```
 
-### Error: "certificate identity does not match"
+### Verify with Digest
 
-**Cause:** Certificate was issued by different workflow
+Verify provenance using the image digest:
 
-**Solution:**
 ```bash
-# Check actual certificate identity
-cosign verify IMAGE --output-json | jq -r '.[0].cert.identityUrl'
-
-# Update verification command to match actual identity
+slsa-verifier verify-image \
+  --source-uri github.com/<ORG>/<REPO> \
+  --provenance-path "https://github.com/<ORG>/<REPO>/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+  ghcr.io/<ORG>/<REPO>@sha256:<DIGEST>
 ```
 
-### Error: "failed to verify: invalid signature"
+### Download and Inspect Provenance
 
-**Cause:** Image was tampered with or corrupted
+Download the provenance file for manual inspection:
 
-**Solution:**
 ```bash
-# Do NOT deploy! Investigate immediately:
-# 1. Check immutable build logs
-# 2. Compare image digests
-# 3. Review GitHub Actions logs
-# 4. Contact security team
+# Download provenance
+curl -L "https://github.com/<ORG>/<REPO>/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+  -o provenance.intoto.jsonl
+
+# View pretty-printed
+jq '.' provenance.intoto.jsonl
+
+# Extract build information
+jq '.payload' provenance.intoto.jsonl | base64 -d | jq '.'
 ```
 
-### Error: "source-uri mismatch"
+### Verify Build Parameters
 
-**Cause:** Image was built from different repository
+Verify specific build parameters from provenance:
 
-**Solution:**
 ```bash
-# Verify source repository
-slsa-verifier verify-image IMAGE \
-  --source-uri github.com/CORRECT_REPO/psychsync
+# Extract builder ID
+jq -r '.payload' provenance.intoto.jsonl | \
+  base64 -d | \
+  jq '.prediction.builder.id'
+# Expected: https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v1.10.0
 
-# Or rebuild from correct repository
-```
+# Extract build type
+jq -r '.payload' provenance.intoto.jsonl | \
+  base64 -d | \
+  jq '.prediction.buildType'
+# Expected: https://slsa.dev/provenance/v1
 
-### Vulnerabilities Found During Scan
+# Extract source repository
+jq -r '.payload' provenance.intoto.jsonl | \
+  base64 -d | \
+  jq '.common.buildConfig.uri'
+# Expected: git+https://github.com/<ORG>/<REPO>@refs/tags/<TAG>
 
-**Cause:** Image contains vulnerable dependencies
-
-**Solution:**
-```bash
-# 1. View vulnerability details
-docker run aquasec/trivy:latest image --severity CRITICAL,HIGH IMAGE
-
-# 2. Update dependencies and rebuild
-# 3. Run CI/CD workflow again
-# 4. Only deploy after vulnerabilities are fixed
+# Extract GitHub Actions workflow
+jq -r '.payload' provenance.intoto.jsonl | \
+  base64 -d | \
+  jq '.prediction.invocation.configSource.uri'
+# Expected: git+https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/<TAG>
 ```
 
 ---
 
-## 📚 Advanced Verification
+## Combined Verification Workflow
 
-### Verify Multiple Images (Batch)
+### Complete Verification Script
+
+Run all verifications in one command:
 
 ```bash
 #!/bin/bash
-# verify-all-images.sh
+set -euo pipefail
 
-IMAGES=(
-  "ghcr.io/YOUR_ORG/psychsync/backend:latest"
-  "ghcr.io/YOUR_ORG/psychsync/frontend:latest"
-  "ghcr.io/YOUR_ORG/psychsync/nginx:latest"
-)
+IMAGE="ghcr.io/<ORG>/<REPO>:<TAG>"
+WORKFLOW="https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/<TAG>"
+ISSUER="https://token.actions.githubusercontent.com"
+SOURCE_URI="github.com/<ORG>/<REPO>"
 
-for IMAGE in "${IMAGES[@]}"; do
-  echo "Verifying $IMAGE..."
+echo "🔒 Verifying PsychSync container image..."
+echo "Image: $IMAGE"
+echo ""
 
-  if cosign verify "$IMAGE" \
-    --certificate-identity https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-    --certificate-oidc-issuer https://token.actions.githubusercontent.com; then
-    echo "✅ $IMAGE verified"
-  else
-    echo "❌ $IMAGE verification FAILED"
-    exit 1
-  fi
-done
+# 1. Cosign signature verification
+echo "1️⃣  Verifying Cosign signature..."
+cosign verify \
+  --certificate-identity "$WORKFLOW" \
+  --certificate-oidc-issuer "$ISSUER" \
+  "$IMAGE"
+echo "✅ Cosign signature valid"
+echo ""
 
-echo "All images verified successfully!"
+# 2. SLSA provenance verification
+echo "2️⃣  Verifying SLSA provenance..."
+slsa-verifier verify-image \
+  --source-uri "$SOURCE_URI" \
+  --provenance-path "https://github.com/<ORG>/<REPO>/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+  "$IMAGE"
+echo "✅ SLSA provenance valid"
+echo ""
+
+# 3. SBOM verification
+echo "3️⃣  Verifying SBOM attestation..."
+cosign verify-attestation \
+  --type spdxjson \
+  --certificate-identity "$WORKFLOW" \
+  --certificate-oidc-issuer "$ISSUER" \
+  "$IMAGE"
+echo "✅ SBOM attestation valid"
+echo ""
+
+echo "🎉 All verifications passed!"
+echo "✅ Image integrity confirmed"
+echo "✅ Supply chain integrity confirmed"
 ```
 
-### Continuous Monitoring
+Save as `verify-psychsync.sh` and run:
+
+```bash
+chmod +x verify-psychsync.sh
+./verify-psychsync.sh
+```
+
+---
+
+## Pre-Deployment Verification
+
+### Before Deploying to Production
+
+Verify all artifacts before deploying:
 
 ```bash
 #!/bin/bash
-# monitor-deployments.sh
+set -e
 
-while true; do
-  # Get current deployed image
-  CURRENT_IMAGE=$(kubectl get deployment psychsync-backend -o jsonpath='{.spec.template.spec.containers[0].image}')
+TAG="${1:-latest}"
+IMAGE="ghcr.io/<ORG>/<REPO>:$TAG"
 
-  echo "Checking: $CURRENT_IMAGE"
+echo "🚀 Pre-deployment verification for: $IMAGE"
+echo ""
 
-  # Verify signature
-  if ! cosign verify "$CURRENT_IMAGE" \
-    --certificate-identity https://github.com/YOUR_ORG/psychsync/.github/workflows/slsa-build-and-sign.yml@refs/heads/main \
-    --certificate-oidc-issuer https://token.actions.githubusercontent.com 2>/dev/null; then
-    echo "⚠️  WARNING: Deployed image signature verification failed!"
-    # Send alert to monitoring system
-    curl -X POST https://hooks.slack.com/... -d "{\"text\":\"Signature verification failed for $CURRENT_IMAGE\"}"
-  fi
+# 1. Pull image
+echo "1️⃣  Pulling image..."
+docker pull "$IMAGE"
 
-  sleep 300  # Check every 5 minutes
-done
+# 2. Verify signature
+echo "2️⃣  Verifying signature..."
+cosign verify \
+  --certificate-identity "https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/$TAG" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  "$IMAGE"
+
+# 3. Verify provenance
+echo "3️⃣  Verifying provenance..."
+slsa-verifier verify-image \
+  --source-uri "github.com/<ORG>/<REPO>" \
+  --provenance-path "https://github.com/<ORG>/<REPO>/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+  "$IMAGE"
+
+# 4. Scan for vulnerabilities
+echo "4️⃣  Scanning for vulnerabilities..."
+trivy image --severity HIGH,CRITICAL "$IMAGE"
+
+# 5. Check image digest
+echo "5️⃣  Checking image digest..."
+DIGEST=$(docker inspect "$IMAGE" --format='{{.RepoDigests[0]}}')
+echo "Digest: $DIGEST"
+
+echo ""
+echo "✅ All pre-deployment checks passed!"
+echo "Ready to deploy: $IMAGE"
+```
+
+Usage:
+
+```bash
+./pre-deploy-check.sh v1.0.0
 ```
 
 ---
 
-## 🎯 Best Practices
+## Troubleshooting
 
-### Before Every Deployment
+### Error: No matching signatures
 
-1. ✅ **Verify signature** with cosign
-2. ✅ **Verify SLSA provenance** with slsa-verifier
-3. ✅ **Scan for vulnerabilities** with Trivy
-4. ✅ **Check immutable log** for build metadata
-5. ✅ **Verify health checks** before marking as successful
+**Problem**:
+```
+Error: no matching signatures:
+expected certificate identity https://github.com/<ORG>/<REPO>/...
+```
 
-### After Every Security Incident
+**Solution**:
+- Check that the tag is correct
+- Ensure the release was created and the workflow completed
+- Verify the workflow name matches: `.github/workflows/slsa-sign.yaml`
 
-1. 🔒 **Revoke compromised certificates** (if applicable)
-2. 🔍 **Audit immutable logs** for all deployments
-3. 🔄 **Rotate all secrets** and credentials
-4. 🚫 **Block unverified images** from running
-5. 📢 **Notify stakeholders** of verification failures
+### Error: Failed to verify provenance
 
-### For Compliance Audits
+**Problem**:
+```
+Error: verifying provenance for image
+```
 
-1. 📋 Export verification reports: `cosign verify --output-json > report.json`
-2. 📊 Collect SLSA provenance: `slsa-verifier verify-image --provenance-path ...`
-3. 📝 Document verification procedures in security policy
-4. ✅ Show transparency log entries for public proof
-5. 📈 Maintain verification metrics dashboard
+**Solution**:
+- Ensure the provenance file exists in the GitHub release
+- Check that the `slsa-provenance` tag exists in releases
+- Verify the SLSA verifier version: `slsa-verifier version`
+
+### Error: Certificate OIDC issuer mismatch
+
+**Problem**:
+```
+Error: verifying certificate: certificate issuer does not match expected issuer
+```
+
+**Solution**:
+- The issuer must be: `https://token.actions.githubusercontent.com`
+- This is GitHub's OIDC issuer for Actions
+
+### View Workflow Logs
+
+Check the workflow run that signed the image:
+
+```bash
+# List recent workflow runs
+gh run list --workflow=slsa-sign.yaml
+
+# View specific run
+gh run view <run-id>
+
+# View logs
+gh run view <run-id> --log
+```
 
 ---
 
-## 📞 Support
+## Advanced Usage
 
-**Documentation:**
-- SLSA: https://slsa.dev/
-- sigstore/cosign: https://docs.sigstore.dev/
-- slsa-verifier: https://github.com/slsa-framework/slsa-verifier
+### Verify Multiple Tags
 
-**Issues:**
-- GitHub Issues: https://github.com/YOUR_ORG/psychsync/issues
-- Security: security@psychsync.com
+Verify all tags for a release:
+
+```bash
+for TAG in v1.0.0 v1.0 v1 latest; do
+  echo "Verifying: $TAG"
+  cosign verify \
+    --certificate-identity "https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@refs/tags/v1.0.0" \
+    --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+    "ghcr.io/<ORG>/<REPO>:$TAG"
+done
+```
+
+### Verify Offline
+
+Download all artifacts for offline verification:
+
+```bash
+# Download image
+docker pull ghcr.io/<ORG>/<REPO>:<TAG>
+docker save ghcr.io/<ORG>/<REPO>:<TAG> -o psychsync.tar
+
+# Download signature
+cosign save ghcr.io/<ORG>/<REPO>:<TAG> > signatures.json
+
+# Download provenance
+curl -L "https://github.com/<ORG>/<REPO>/releases/download/slsa-provenance/provenance.intoto.jsonl" \
+  -o provenance.intoto.jsonl
+
+# Verify offline
+cosign verify --key cosign.pub ghcr.io/<ORG>/<REPO>:<TAG>
+```
+
+### Integrate with CI/CD
+
+Add verification to your deployment pipeline:
+
+```yaml
+# .github/workflows/deploy.yaml
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [SLSA Build & Sign]
+    types: [completed]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.1.2
+
+      - name: Verify before deploy
+        run: |
+          cosign verify \
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/slsa-sign.yaml@refs/tags/${{ github.ref_name }}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "ghcr.io/${{ github.repository }}:${{ github.ref_name }}"
+
+      - name: Deploy
+        run: |
+          # Your deployment commands here
+```
 
 ---
 
-**Last Updated:** December 26, 2025
-**SLSA Level:** 3
-**Compliance:** NIST SSDF, SOC 2, FedRAMP Ready
+## Security Best Practices
+
+### 1. Always Verify by Digest
+
+Tags are mutable (can be moved), digests are immutable:
+
+```bash
+# ❌ Avoid (tag can change)
+cosign verify ghcr.io/<ORG>/<REPO>:latest
+
+# ✅ Prefer (digest is immutable)
+cosign verify ghcr.io/<ORG>/<REPO>@sha256:abc123...
+```
+
+### 2. Pin Specific Workflow Revisions
+
+Pin to specific workflow runs for maximum security:
+
+```bash
+# Pin to specific Git SHA
+cosign verify \
+  --certificate-identity "https://github.com/<ORG>/<REPO>/.github/workflows/slsa-sign.yaml@<GIT_SHA>" \
+  ...
+```
+
+### 3. Verify in Production Pipeline
+
+Always verify in your production deployment pipeline, not just locally:
+
+```yaml
+# Kubernetes deployment example
+apiVersion: v1
+kind: Pod
+metadata:
+  name: psychsync
+spec:
+  containers:
+  - name: psychsync
+    image: ghcr.io/<ORG>/<REPO>@sha256:VERIFIED_DIGEST  # Use verified digest
+```
+
+### 4. Monitor for Signature Revocation
+
+Monitor GitHub Security for any signature revocations:
+
+```bash
+# Check for security advisories
+gh api repos/<ORG>/<REPO>/security-advisories
+```
+
+---
+
+## Compliance Mapping
+
+| Standard | Requirement | Implementation |
+|----------|-------------|----------------|
+| **NIST SSDF** | Verify provenance | SLSA provenance verification |
+| **CISA SBOM** | Verify SBOM authenticity | Cosign SBOM attestation |
+| **PCI DSS** | Verify vendor software | Signature verification before deploy |
+| **SOC 2** | Monitor supply chain | Provenance verification logs |
+| **ISO 27001** | Verify third-party software | Complete verification workflow |
+
+---
+
+## References
+
+- **Cosign Documentation**: https://sigstore.github.io/cosign/
+- **SLSA Verifier**: https://github.com/slsa-framework/slsa-verifier
+- **SLSA Levels**: https://slsa.dev/spec/v1.0/levels
+- **GitHub OIDC**: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect
+- **PsychSync Workflow**: `.github/workflows/slsa-sign.yaml`
+
+---
+
+## Support
+
+For issues or questions:
+
+1. Check the workflow logs: `.github/workflows/slsa-sign.yaml`
+2. Review this guide's troubleshooting section
+3. Open an issue in the repository
+
+**Quick Help Commands**:
+```bash
+# Check Cosign version
+cosign version
+
+# Check SLSA verifier version
+slsa-verifier version
+
+# View latest signatures
+cosign triangulate ghcr.io/<ORG>/<REPO>:latest
+
+# View workflow status
+gh run list --workflow=slsa-sign.yaml
+```
+
+---
+
+**Document Version**: 1.0.0
+**Last Updated**: 2025-12-27
+**Status**: ✅ Active
+**Repository**: `<ORG>/<REPO>`

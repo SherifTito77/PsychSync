@@ -3,30 +3,29 @@ AI-Enhanced Analytics API Endpoints
 Provides AI-powered insights, predictions, and recommendations for the analytics dashboard
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query
-
-from app.middleware.rate_limiter import check_rate_limit
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
 
-from app.api.v1.deps import get_db, get_current_active_user, get_current_user
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.deps import get_current_active_user, get_current_user, get_db
 from app.db.models.user import User
+from app.middleware.rate_limiter import check_rate_limit
 from app.services.ai_enhanced_analytics import AIEnhancedAnalyticsService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai-analytics", tags=["ai-analytics"])
 
 
-@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/dashboard", dependencies=[Depends(get_current_user)])
 async def get_ai_enhanced_dashboard(
-    organization_id: Optional[str] = Query(None, description="Organization ID filter"),
-    team_id: Optional[str] = Query(None, description="Team ID filter"),
+    organization_id: str | None = Query(None, description="Organization ID filter"),
+    team_id: str | None = Query(None, description="Team ID filter"),
     time_period_days: int = Query(30, ge=1, le=365, description="Time period in days"),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get AI-enhanced analytics dashboard with predictive insights and recommendations
@@ -46,8 +45,7 @@ async def get_ai_enhanced_dashboard(
         # Validate permissions
         if organization_id and not current_user.is_admin:
             raise HTTPException(
-                status_code=403,
-                detail="Organization-level analytics requires admin privileges"
+                status_code=403, detail="Organization-level analytics requires admin privileges"
             )
 
         # Initialize AI analytics service
@@ -55,15 +53,13 @@ async def get_ai_enhanced_dashboard(
 
         # Generate AI-enhanced dashboard
         dashboard_data = await ai_analytics.get_ai_enhanced_dashboard(
-            organization_id=organization_id,
-            team_id=team_id,
-            time_period_days=time_period_days
+            organization_id=organization_id, team_id=team_id, time_period_days=time_period_days
         )
 
         return {
             "success": True,
             "data": dashboard_data,
-            "message": "AI-enhanced analytics generated successfully"
+            "message": "AI-enhanced analytics generated successfully",
         }
 
     except HTTPException:
@@ -71,21 +67,19 @@ async def get_ai_enhanced_dashboard(
     except Exception as e:
         logger.error(f"Error generating AI-enhanced dashboard: {e}")
         raise HTTPException(
-            status_code=500,
-           
-@check_rate_limit(identifier="public", endpoint_type="public")
- detail=f"Failed to generate AI analytics: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to generate AI analytics: {e!s}"
+        ) from e
+
 
 @router.get("/insights")
 async def get_ai_insights(
-    organization_id: Optional[str] = Query(None, description="Organization ID filter"),
-    team_id: Optional[str] = Query(None, description="Team ID filter"),
-    insight_type: Optional[str] = Query(None, description="Filter by insight type"),
-    priority: Optional[str] = Query(None, description="Filter by priority level"),
+    organization_id: str | None = Query(None, description="Organization ID filter"),
+    team_id: str | None = Query(None, description="Team ID filter"),
+    insight_type: str | None = Query(None, description="Filter by insight type"),
+    priority: str | None = Query(None, description="Filter by priority level"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of insights"),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get AI-generated insights with filtering options
@@ -99,9 +93,7 @@ async def get_ai_insights(
 
         # Get full dashboard data to extract insights
         dashboard_data = await ai_analytics.get_ai_enhanced_dashboard(
-            organization_id=organization_id,
-            team_id=team_id,
-            time_period_days=30
+            organization_id=organization_id, team_id=team_id, time_period_days=30
         )
 
         insights = dashboard_data.get("ai_insights", {}).get("insights", [])
@@ -124,28 +116,26 @@ async def get_ai_insights(
                 "filters_applied": {
                     "insight_type": insight_type,
                     "priority": priority,
-                    "limit": limit
-                }
-            }
+                    "limit": limit,
+                },
+            },
         }
 
     except Exception as e:
         logger.error(f"Error getting AI insights: {e}")
-    
-@check_rate_limit(identifier="public", endpoint_type="public")
-    raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve AI insights: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve AI insights: {e!s}") from e
+
 
 @router.get("/predictions")
 async def get_predictive_metrics(
-    organization_id: Optional[str] = Query(None, description="Organization ID filter"),
-    team_id: Optional[str] = Query(None, description="Team ID filter"),
-    metric_type: Optional[str] = Query(None, description="Filter by metric type"),
-    confidence_threshold: float = Query(0.5, ge=0.0, le=1.0, description="Minimum confidence score"),
+    organization_id: str | None = Query(None, description="Organization ID filter"),
+    team_id: str | None = Query(None, description="Team ID filter"),
+    metric_type: str | None = Query(None, description="Filter by metric type"),
+    confidence_threshold: float = Query(
+        0.5, ge=0.0, le=1.0, description="Minimum confidence score"
+    ),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get AI predictive metrics with confidence scoring
@@ -157,9 +147,7 @@ async def get_predictive_metrics(
         ai_analytics = AIEnhancedAnalyticsService(db)
 
         dashboard_data = await ai_analytics.get_ai_enhanced_dashboard(
-            organization_id=organization_id,
-            team_id=team_id,
-            time_period_days=30
+            organization_id=organization_id, team_id=team_id, time_period_days=30
         )
 
         predictions = dashboard_data.get("predictive_metrics", {}).get("predictions", [])
@@ -176,24 +164,26 @@ async def get_predictive_metrics(
                 "predictions": predictions,
                 "total_predictions": len(predictions),
                 "confidence_threshold": confidence_threshold,
-                "high_confidence_count": len([p for p in predictions if p.get("confidence", 0) > 0.8])
-            }
+                "high_confidence_count": len(
+                    [p for p in predictions if p.get("confidence", 0) > 0.8]
+                ),
+            },
         }
 
     except Exception as e:
         logger.error(f"Error getting predictive metrics: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve predictive metrics: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
+            status_code=500, detail=f"Failed to retrieve predictive metrics: {e!s}"
+        ) from e
+
 
 @router.get("/risk-assessment", dependencies=[Depends(get_current_user)])
 async def get_risk_assessment(
-    organization_id: Optional[str] = Query(None, description="Organization ID filter"),
-    team_id: Optional[str] = Query(None, description="Team ID filter"),
+    organization_id: str | None = Query(None, description="Organization ID filter"),
+    team_id: str | None = Query(None, description="Team ID filter"),
     include_user_details: bool = Query(False, description="Include detailed user risk profiles"),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get AI-powered risk assessment for users and teams
@@ -204,9 +194,7 @@ async def get_risk_assessment(
         ai_analytics = AIEnhancedAnalyticsService(db)
 
         dashboard_data = await ai_analytics.get_ai_enhanced_dashboard(
-            organization_id=organization_id,
-            team_id=team_id,
-            time_period_days=30
+            organization_id=organization_id, team_id=team_id, time_period_days=30
         )
 
         risk_assessment = dashboard_data.get("risk_assessment", {})
@@ -218,23 +206,23 @@ async def get_risk_assessment(
         return {
             "success": True,
             "data": risk_assessment,
-            "message": "Risk assessment generated successfully"
+            "message": "Risk assessment generated successfully",
         }
 
     except Exception as e:
         logger.error(f"Error getting risk assessment: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate risk assessment: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to generate risk assessment: {e!s}"
+        ) from e
+
 
 @router.get("/opportunities")
 async def get_opportunities(
-    organization_id: Optional[str] = Query(None, description="Organization ID filter"),
-    team_id: Optional[str] = Query(None, description="Team ID filter"),
-    opportunity_type: Optional[str] = Query(None, description="Filter by opportunity type"),
+    organization_id: str | None = Query(None, description="Organization ID filter"),
+    team_id: str | None = Query(None, description="Team ID filter"),
+    opportunity_type: str | None = Query(None, description="Filter by opportunity type"),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get AI-identified opportunities for improvement and growth
@@ -245,9 +233,7 @@ async def get_opportunities(
         ai_analytics = AIEnhancedAnalyticsService(db)
 
         dashboard_data = await ai_analytics.get_ai_enhanced_dashboard(
-            organization_id=organization_id,
-            team_id=team_id,
-            time_period_days=30
+            organization_id=organization_id, team_id=team_id, time_period_days=30
         )
 
         opportunities = dashboard_data.get("opportunities", {})
@@ -259,22 +245,22 @@ async def get_opportunities(
         return {
             "success": True,
             "data": opportunities,
-            "message": "Opportunities identified successfully"
+            "message": "Opportunities identified successfully",
         }
 
     except Exception as e:
         logger.error(f"Error getting opportunities: {e}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to identify opportunities: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to identify opportunities: {e!s}"
+        ) from e
+
 
 @router.get("/team-health/{team_id}")
 async def get_team_health_ai_analysis(
     team_id: str,
     include_recommendations: bool = Query(True, description="Include AI-generated recommendations"),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get AI-powered team health analysis for a specific team
@@ -286,9 +272,7 @@ async def get_team_health_ai_analysis(
         ai_analytics = AIEnhancedAnalyticsService(db)
 
         dashboard_data = await ai_analytics.get_ai_enhanced_dashboard(
-            organization_id=None,
-            team_id=team_id,
-            time_period_days=30
+            organization_id=None, team_id=team_id, time_period_days=30
         )
 
         team_health = dashboard_data.get("team_health_ai", {})
@@ -301,24 +285,22 @@ async def get_team_health_ai_analysis(
             "data": {
                 "team_id": team_id,
                 "team_health": team_health,
-                "analysis_timestamp": datetime.utcnow().isoformat()
-            }
+                "analysis_timestamp": datetime.utcnow().isoformat(),
+            },
         }
 
     except Exception as e:
         logger.error(f"Error getting team health analysis: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to analyze team health: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to analyze team health: {e!s}") from e
+
 
 @router.post("/refresh", dependencies=[Depends(get_current_user)])
 async def refresh_ai_analytics(
-    organization_id: Optional[str] = Query(None, description="Organization ID filter"),
-    team_id: Optional[str] = Query(None, description="Team ID filter"),
+    organization_id: str | None = Query(None, description="Organization ID filter"),
+    team_id: str | None = Query(None, description="Team ID filter"),
     force_refresh: bool = Query(False, description="Force complete refresh of AI models"),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Trigger refresh of AI analytics and insights
@@ -329,17 +311,14 @@ async def refresh_ai_analytics(
         # Validate permissions for refresh
         if not current_user.is_admin and not current_user.is_team_lead:
             raise HTTPException(
-                status_code=403,
-                detail="Analytics refresh requires admin or team lead privileges"
+                status_code=403, detail="Analytics refresh requires admin or team lead privileges"
             )
 
         ai_analytics = AIEnhancedAnalyticsService(db)
 
         # Generate fresh analytics
         dashboard_data = await ai_analytics.get_ai_enhanced_dashboard(
-            organization_id=organization_id,
-            team_id=team_id,
-            time_period_days=30
+            organization_id=organization_id, team_id=team_id, time_period_days=30
         )
 
         return {
@@ -347,17 +326,18 @@ async def refresh_ai_analytics(
             "message": "AI analytics refreshed successfully",
             "data": {
                 "refresh_timestamp": datetime.utcnow().isoformat(),
-                "insights_generated": len(dashboard_data.get("ai_insights", {}).get("insights", [])),
-                "predictions_generated": len(dashboard_data.get("predictive_metrics", {}).get("predictions", [])),
-                "force_refresh": force_refresh
-            }
+                "insights_generated": len(
+                    dashboard_data.get("ai_insights", {}).get("insights", [])
+                ),
+                "predictions_generated": len(
+                    dashboard_data.get("predictive_metrics", {}).get("predictions", [])
+                ),
+                "force_refresh": force_refresh,
+            },
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error refreshing AI analytics: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to refresh AI analytics: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to refresh AI analytics: {e!s}") from e

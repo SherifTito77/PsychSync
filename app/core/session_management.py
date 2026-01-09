@@ -4,17 +4,16 @@ Advanced Session Management and Device Tracking for PsychSync
 Implements device fingerprinting, concurrent session limits, and session security
 """
 
-import hashlib
-import secrets
-import json
-from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
 from collections import defaultdict
-
-from app.core.cache import cache_get, cache_set, cache_delete
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+import hashlib
 import logging
+import secrets
+from typing import Any
+
+from app.core.cache import cache_get, cache_set
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -22,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class DeviceType(Enum):
     """Device classification types"""
+
     DESKTOP = "desktop"
     MOBILE = "mobile"
     TABLET = "tablet"
@@ -30,6 +30,7 @@ class DeviceType(Enum):
 
 class SessionStatus(Enum):
     """Session status states"""
+
     ACTIVE = "active"
     EXPIRED = "expired"
     REVOKED = "revoked"
@@ -39,6 +40,7 @@ class SessionStatus(Enum):
 @dataclass
 class DeviceFingerprint:
     """Device fingerprint information"""
+
     user_agent: str = ""
     ip_address: str = ""
     accept_language: str = ""
@@ -59,6 +61,7 @@ class DeviceFingerprint:
 @dataclass
 class UserSession:
     """User session information"""
+
     session_id: str
     user_id: str
     device_fingerprint: DeviceFingerprint
@@ -67,9 +70,9 @@ class UserSession:
     expires_at: datetime = field(default_factory=lambda: datetime.utcnow() + timedelta(hours=24))
     status: SessionStatus = SessionStatus.ACTIVE
     is_current_session: bool = False
-    login_location: Optional[str] = None
+    login_location: str | None = None
     access_count: int = 0
-    security_flags: List[str] = field(default_factory=list)
+    security_flags: list[str] = field(default_factory=list)
 
 
 class SessionManager:
@@ -91,13 +94,10 @@ class SessionManager:
         self.SESSION_ACTIVITY_PREFIX = "session_activity:"
 
         # Trusted devices tracking
-        self.trusted_devices: Dict[str, Dict[str, Any]] = defaultdict(dict)
+        self.trusted_devices: dict[str, dict[str, Any]] = defaultdict(dict)
 
     async def create_session(
-        self,
-        user_id: str,
-        device_fingerprint: DeviceFingerprint,
-        request_headers: Dict[str, str]
+        self, user_id: str, device_fingerprint: DeviceFingerprint, request_headers: dict[str, str]
     ) -> UserSession:
         """
         Create a new user session with device tracking
@@ -112,7 +112,7 @@ class SessionManager:
                 device_fingerprint=device_fingerprint,
                 expires_at=datetime.utcnow() + timedelta(hours=self.session_duration_hours),
                 login_location=self._extract_location(request_headers),
-                access_count=1
+                access_count=1,
             )
 
             # Check device trust
@@ -132,13 +132,16 @@ class SessionManager:
             # Record session activity
             await self._record_session_activity(session_id, "session_created", request_headers)
 
-            logger.info(f"New session created for user {user_id}", extra={
-                "session_id": session_id,
-                "device_id": device_id,
-                "device_type": device_fingerprint.device_type.value,
-                "is_trusted": device_fingerprint.is_trusted,
-                "concurrent_sessions": await self._get_active_session_count(user_id)
-            })
+            logger.info(
+                f"New session created for user {user_id}",
+                extra={
+                    "session_id": session_id,
+                    "device_id": device_id,
+                    "device_type": device_fingerprint.device_type.value,
+                    "is_trusted": device_fingerprint.is_trusted,
+                    "concurrent_sessions": await self._get_active_session_count(user_id),
+                },
+            )
 
             return session
 
@@ -147,11 +150,8 @@ class SessionManager:
             raise
 
     async def validate_session(
-        self,
-        session_id: str,
-        user_id: str,
-        current_headers: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self, session_id: str, user_id: str, current_headers: dict[str, str]
+    ) -> dict[str, Any]:
         """
         Validate a session and return session status
         """
@@ -159,41 +159,28 @@ class SessionManager:
             session = await self._get_session(session_id)
 
             if not session:
-                return {
-                    "valid": False,
-                    "reason": "session_not_found",
-                    "action": "reauthenticate"
-                }
+                return {"valid": False, "reason": "session_not_found", "action": "reauthenticate"}
 
             if session.user_id != user_id:
-                return {
-                    "valid": False,
-                    "reason": "user_mismatch",
-                    "action": "reauthenticate"
-                }
+                return {"valid": False, "reason": "user_mismatch", "action": "reauthenticate"}
 
             # Check session expiration
             if datetime.utcnow() > session.expires_at:
                 await self._revoke_session(session_id, "expired")
-                return {
-                    "valid": False,
-                    "reason": "session_expired",
-                    "action": "reauthenticate"
-                }
+                return {"valid": False, "reason": "session_expired", "action": "reauthenticate"}
 
             # Check session status
             if session.status != SessionStatus.ACTIVE:
                 return {
                     "valid": False,
                     "reason": f"session_{session.status.value}",
-                    "action": "reauthenticate"
+                    "action": "reauthenticate",
                 }
 
             # Verify device consistency
             current_fingerprint = self._create_device_fingerprint(current_headers)
             device_match = self._verify_device_match(
-                session.device_fingerprint,
-                current_fingerprint
+                session.device_fingerprint, current_fingerprint
             )
 
             if not device_match:
@@ -201,18 +188,21 @@ class SessionManager:
                 await self._store_session(session)
 
                 # Log suspicious activity
-                logger.warning(f"Suspicious device change detected for session {session_id}", extra={
-                    "user_id": user_id,
-                    "session_id": session_id,
-                    "original_device": session.device_fingerprint.user_agent[:50],
-                    "current_device": current_fingerprint.user_agent[:50]
-                })
+                logger.warning(
+                    f"Suspicious device change detected for session {session_id}",
+                    extra={
+                        "user_id": user_id,
+                        "session_id": session_id,
+                        "original_device": session.device_fingerprint.user_agent[:50],
+                        "current_device": current_fingerprint.user_agent[:50],
+                    },
+                )
 
                 return {
                     "valid": False,
                     "reason": "device_mismatch",
                     "action": "verify_identity",
-                    "requires_verification": True
+                    "requires_verification": True,
                 }
 
             # Update session activity
@@ -226,16 +216,12 @@ class SessionManager:
             return {
                 "valid": True,
                 "session": session,
-                "device_trusted": session.device_fingerprint.is_trusted
+                "device_trusted": session.device_fingerprint.is_trusted,
             }
 
         except Exception as e:
             logger.error(f"Error validating session {session_id}: {e}")
-            return {
-                "valid": False,
-                "reason": "validation_error",
-                "action": "reauthenticate"
-            }
+            return {"valid": False, "reason": "validation_error", "action": "reauthenticate"}
 
     async def revoke_session(self, session_id: str, reason: str = "user_logout"):
         """
@@ -248,10 +234,10 @@ class SessionManager:
                 session.security_flags.append(f"revoked_{reason}")
                 await self._store_session(session)
 
-                logger.info(f"Session revoked: {session_id}", extra={
-                    "user_id": session.user_id,
-                    "reason": reason
-                })
+                logger.info(
+                    f"Session revoked: {session_id}",
+                    extra={"user_id": session.user_id, "reason": reason},
+                )
 
         except Exception as e:
             logger.error(f"Error revoking session {session_id}: {e}")
@@ -269,18 +255,16 @@ class SessionManager:
                     await self.revoke_session(session.session_id, reason)
                     revoked_count += 1
 
-            logger.info(f"Revoked {revoked_count} sessions for user {user_id}", extra={
-                "reason": reason
-            })
+            logger.info(
+                f"Revoked {revoked_count} sessions for user {user_id}", extra={"reason": reason}
+            )
 
         except Exception as e:
             logger.error(f"Error revoking sessions for user {user_id}: {e}")
 
     async def get_user_sessions(
-        self,
-        user_id: str,
-        include_expired: bool = False
-    ) -> List[UserSession]:
+        self, user_id: str, include_expired: bool = False
+    ) -> list[UserSession]:
         """
         Get all sessions for a user
         """
@@ -289,7 +273,8 @@ class SessionManager:
 
             if not include_expired:
                 sessions = [
-                    s for s in sessions
+                    s
+                    for s in sessions
                     if s.status == SessionStatus.ACTIVE and s.expires_at > datetime.utcnow()
                 ]
 
@@ -299,17 +284,13 @@ class SessionManager:
             logger.error(f"Error getting sessions for user {user_id}: {e}")
             return []
 
-    async def get_active_sessions(self, user_id: str) -> List[UserSession]:
+    async def get_active_sessions(self, user_id: str) -> list[UserSession]:
         """
         Get active sessions for a user
         """
         return await self.get_user_sessions(user_id, include_expired=False)
 
-    async def trust_device(
-        self,
-        user_id: str,
-        device_fingerprint: DeviceFingerprint
-    ):
+    async def trust_device(self, user_id: str, device_fingerprint: DeviceFingerprint):
         """
         Mark a device as trusted for a user
         """
@@ -322,31 +303,31 @@ class SessionManager:
                 "fingerprint": device_fingerprint,
                 "trusted_at": datetime.utcnow().isoformat(),
                 "last_seen": datetime.utcnow().isoformat(),
-                "is_trusted": True
+                "is_trusted": True,
             }
 
             # Store trusted device with long expiration
             await cache_set(
                 f"{self.DEVICE_PREFIX}{user_id}:{device_id}",
                 device_info,
-                expire_seconds=self.device_trust_duration_days * 24 * 3600
+                expire_seconds=self.device_trust_duration_days * 24 * 3600,
             )
 
-            logger.info(f"Device trusted for user {user_id}", extra={
-                "device_id": device_id,
-                "device_type": device_fingerprint.device_type.value
-            })
+            logger.info(
+                f"Device trusted for user {user_id}",
+                extra={"device_id": device_id, "device_type": device_fingerprint.device_type.value},
+            )
 
         except Exception as e:
             logger.error(f"Error trusting device for user {user_id}: {e}")
 
-    async def get_device_fingerprint(self, headers: Dict[str, str]) -> DeviceFingerprint:
+    async def get_device_fingerprint(self, headers: dict[str, str]) -> DeviceFingerprint:
         """
         Create device fingerprint from request headers
         """
         return self._create_device_fingerprint(headers)
 
-    def _create_device_fingerprint(self, headers: Dict[str, str]) -> DeviceFingerprint:
+    def _create_device_fingerprint(self, headers: dict[str, str]) -> DeviceFingerprint:
         """
         Create device fingerprint from HTTP headers
         """
@@ -389,25 +370,17 @@ class SessionManager:
             accept_encoding=accept_encoding,
             platform=platform,
             vendor=vendor,
-            device_type=device_type
+            device_type=device_type,
         )
 
     def _generate_device_id(self, fingerprint: DeviceFingerprint) -> str:
         """
         Generate a consistent device ID from fingerprint
         """
-        fingerprint_data = (
-            f"{fingerprint.user_agent}|"
-            f"{fingerprint.platform}|"
-            f"{fingerprint.vendor}"
-        )
+        fingerprint_data = f"{fingerprint.user_agent}|{fingerprint.platform}|{fingerprint.vendor}"
         return hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
 
-    def _verify_device_match(
-        self,
-        original: DeviceFingerprint,
-        current: DeviceFingerprint
-    ) -> bool:
+    def _verify_device_match(self, original: DeviceFingerprint, current: DeviceFingerprint) -> bool:
         """
         Verify if current device matches original fingerprint
         """
@@ -430,7 +403,7 @@ class SessionManager:
 
         def normalize_ua(ua):
             # Remove version numbers and Chrome version info
-            return re.sub(r'\d+(\.\d+)*', 'X', ua.lower())
+            return re.sub(r"\d+(\.\d+)*", "X", ua.lower())
 
         normalized_original = normalize_ua(original)
         normalized_current = normalize_ua(current)
@@ -441,7 +414,7 @@ class SessionManager:
 
         return similarity / total_length > 0.9 if total_length > 0 else False
 
-    def _extract_location(self, headers: Dict[str, str]) -> Optional[str]:
+    def _extract_location(self, headers: dict[str, str]) -> str | None:
         """
         Extract location information from headers
         """
@@ -463,7 +436,7 @@ class SessionManager:
                 "ip_address": session.device_fingerprint.ip_address,
                 "platform": session.device_fingerprint.platform,
                 "device_type": session.device_fingerprint.device_type.value,
-                "is_trusted": session.device_fingerprint.is_trusted
+                "is_trusted": session.device_fingerprint.is_trusted,
             },
             "created_at": session.created_at.isoformat(),
             "last_activity": session.last_activity.isoformat(),
@@ -472,7 +445,7 @@ class SessionManager:
             "is_current_session": session.is_current_session,
             "login_location": session.login_location,
             "access_count": session.access_count,
-            "security_flags": session.security_flags
+            "security_flags": session.security_flags,
         }
 
         # Store with expiration matching session duration
@@ -482,7 +455,7 @@ class SessionManager:
         # Add to user's session list
         await self._add_to_user_sessions(session)
 
-    async def _get_session(self, session_id: str) -> Optional[UserSession]:
+    async def _get_session(self, session_id: str) -> UserSession | None:
         """Get session from cache"""
         session_key = f"{self.SESSION_PREFIX}{session_id}"
         session_data = await cache_get(session_key)
@@ -495,7 +468,7 @@ class SessionManager:
             ip_address=session_data["device_fingerprint"]["ip_address"],
             platform=session_data["device_fingerprint"]["platform"],
             device_type=DeviceType(session_data["device_fingerprint"]["device_type"]),
-            is_trusted=session_data["device_fingerprint"]["is_trusted"]
+            is_trusted=session_data["device_fingerprint"]["is_trusted"],
         )
 
         return UserSession(
@@ -509,7 +482,7 @@ class SessionManager:
             is_current_session=session_data["is_current_session"],
             login_location=session_data.get("login_location"),
             access_count=session_data["access_count"],
-            security_flags=session_data["security_flags"]
+            security_flags=session_data["security_flags"],
         )
 
     async def _add_to_user_sessions(self, session: UserSession):
@@ -526,7 +499,7 @@ class SessionManager:
 
         await cache_set(user_sessions_key, user_sessions, expire_seconds=86400 * 30)  # 30 days
 
-    async def _get_user_sessions(self, user_id: str) -> List[UserSession]:
+    async def _get_user_sessions(self, user_id: str) -> list[UserSession]:
         """Get all sessions for a user"""
         user_sessions_key = f"{self.USER_SESSIONS_PREFIX}{user_id}"
         session_ids = await cache_get(user_sessions_key) or []
@@ -554,31 +527,27 @@ class SessionManager:
 
         if len(active_sessions) >= self.max_concurrent_sessions:
             # Revoke oldest session(s)
-            sessions_to_revoke = sorted(
-                active_sessions,
-                key=lambda x: x.last_activity
-            )[:len(active_sessions) - self.max_concurrent_sessions + 1]
+            sessions_to_revoke = sorted(active_sessions, key=lambda x: x.last_activity)[
+                : len(active_sessions) - self.max_concurrent_sessions + 1
+            ]
 
             for session in sessions_to_revoke:
                 await self.revoke_session(session.session_id, "concurrent_limit")
 
-    async def _get_device_info(self, device_id: str) -> Dict[str, Any]:
+    async def _get_device_info(self, device_id: str) -> dict[str, Any]:
         """Get device information"""
         # This would be enhanced to look up from user-specific device registry
         return {"is_trusted": False}
 
     async def _record_session_activity(
-        self,
-        session_id: str,
-        activity_type: str,
-        headers: Dict[str, str]
+        self, session_id: str, activity_type: str, headers: dict[str, str]
     ):
         """Record session activity for security monitoring"""
         activity_data = {
             "activity_type": activity_type,
             "timestamp": datetime.utcnow().isoformat(),
             "ip_address": headers.get("X-Forwarded-For", headers.get("X-Real-IP", "")),
-            "user_agent": headers.get("User-Agent", "")
+            "user_agent": headers.get("User-Agent", ""),
         }
 
         activity_key = f"{self.SESSION_ACTIVITY_PREFIX}{session_id}"

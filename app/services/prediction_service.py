@@ -14,64 +14,66 @@ Key Features:
 - Model interpretability and explainability
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple, Union
-from enum import Enum
-import numpy as np
-import pandas as pd
-from sklearn.ensemble import (
-    RandomForestRegressor, RandomForestClassifier,
-    GradientBoostingRegressor, GradientBoostingClassifier,
-    AdaBoostRegressor, AdaBoostClassifier
-)
-from sklearn.linear_model import (
-    LinearRegression, LogisticRegression, Ridge, Lasso,
-    ElasticNet, SGDClassifier, SGDRegressor
-)
-from sklearn.svm import SVR, SVC
-from sklearn.neural_network import MLPRegressor, MLPClassifier
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
-from sklearn.model_selection import (
-    train_test_split, cross_val_score, GridSearchCV,
-    RandomizedSearchCV, StratifiedKFold, TimeSeriesSplit
-)
-from sklearn.metrics import (
-    mean_squared_error, mean_absolute_error, r2_score,
-    accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, classification_report, confusion_matrix,
-    mean_absolute_percentage_error, explained_variance_score
-)
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from sklearn.feature_selection import (
-    SelectKBest, SelectPercentile, RFE, RFECV,
-    f_regression, f_classif, mutual_info_regression, mutual_info_classif
-)
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer, KNNImputer
-import joblib
-import json
-import logging
-from pathlib import Path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from enum import Enum
+import logging
+from pathlib import Path
+from typing import Any
 import warnings
-warnings.filterwarnings('ignore')
+
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    GradientBoostingRegressor,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
+from sklearn.feature_selection import SelectKBest, f_classif, f_regression
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    explained_variance_score,
+    f1_score,
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_error,
+    precision_score,
+    r2_score,
+    recall_score,
+    roc_auc_score,
+)
+from sklearn.model_selection import (
+    RandomizedSearchCV,
+    StratifiedKFold,
+    cross_val_score,
+    train_test_split,
+)
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC, SVR
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+
+warnings.filterwarnings("ignore")
 
 from sqlalchemy.orm import Session
-from app.core.database import get_db
 
-from app.core.path_utils import sanitize_path, safe_filename
-from app.services.prediction_data_service import PredictionDataCollectionService
 from app.services.irt_service import IRTService
+from app.services.prediction_data_service import PredictionDataCollectionService
 
 logger = logging.getLogger(__name__)
 
+
 class PredictionType(Enum):
     """Types of predictions supported by the service."""
+
     TEAM_PERFORMANCE = "team_performance"
     USER_OUTCOME = "user_outcome"
     ASSESSMENT_COMPLETION = "assessment_completion"
@@ -81,8 +83,10 @@ class PredictionType(Enum):
     LEADERSHIP_POTENTIAL = "leadership_potential"
     TEAM_COHESION = "team_cohesion"
 
+
 class ModelType(Enum):
     """ML model types supported."""
+
     RANDOM_FOREST = "random_forest"
     GRADIENT_BOOSTING = "gradient_boosting"
     SVM = "svm"
@@ -95,30 +99,36 @@ class ModelType(Enum):
     KNN = "knn"
     ENSEMBLE = "ensemble"
 
+
 class TargetType(Enum):
     """Target variable types."""
+
     CONTINUOUS = "continuous"
     BINARY = "binary"
     MULTICLASS = "multiclass"
     REGRESSION = "regression"
     CLASSIFICATION = "classification"
 
+
 class ModelPerformance:
     """Model performance metrics."""
-    def __init__(self,
-                 mse: Optional[float] = None,
-                 mae: Optional[float] = None,
-                 rmse: Optional[float] = None,
-                 r2: Optional[float] = None,
-                 accuracy: Optional[float] = None,
-                 precision: Optional[float] = None,
-                 recall: Optional[float] = None,
-                 f1: Optional[float] = None,
-                 auc: Optional[float] = None,
-                 mape: Optional[float] = None,
-                 explained_variance: Optional[float] = None,
-                 cv_scores: Optional[List[float]] = None,
-                 feature_importance: Optional[Dict[str, float]] = None):
+
+    def __init__(
+        self,
+        mse: float | None = None,
+        mae: float | None = None,
+        rmse: float | None = None,
+        r2: float | None = None,
+        accuracy: float | None = None,
+        precision: float | None = None,
+        recall: float | None = None,
+        f1: float | None = None,
+        auc: float | None = None,
+        mape: float | None = None,
+        explained_variance: float | None = None,
+        cv_scores: list[float] | None = None,
+        feature_importance: dict[str, float] | None = None,
+    ):
         self.mse = mse
         self.mae = mae
         self.rmse = rmse
@@ -133,22 +143,26 @@ class ModelPerformance:
         self.cv_scores = cv_scores or []
         self.feature_importance = feature_importance or {}
 
+
 class PredictionModel:
     """Trained ML model with metadata."""
-    def __init__(self,
-                 model_id: str,
-                 model_type: ModelType,
-                 prediction_type: PredictionType,
-                 target_type: TargetType,
-                 model: Any,
-                 feature_names: List[str],
-                 target_name: str,
-                 performance: ModelPerformance,
-                 scaler: Optional[Any] = None,
-                 feature_selector: Optional[Any] = None,
-                 hyperparameters: Optional[Dict[str, Any]] = None,
-                 training_date: datetime = None,
-                 cross_val_score: Optional[float] = None):
+
+    def __init__(
+        self,
+        model_id: str,
+        model_type: ModelType,
+        prediction_type: PredictionType,
+        target_type: TargetType,
+        model: Any,
+        feature_names: list[str],
+        target_name: str,
+        performance: ModelPerformance,
+        scaler: Any | None = None,
+        feature_selector: Any | None = None,
+        hyperparameters: dict[str, Any] | None = None,
+        training_date: datetime = None,
+        cross_val_score: float | None = None,
+    ):
         self.model_id = model_id
         self.model_type = model_type
         self.prediction_type = prediction_type
@@ -163,17 +177,21 @@ class PredictionModel:
         self.training_date = training_date or datetime.now()
         self.cross_val_score = cross_val_score
 
+
 class PredictionResult:
     """Single prediction result with confidence."""
-    def __init__(self,
-                 prediction: Union[float, int, str],
-                 confidence: float,
-                 prediction_interval: Optional[Tuple[float, float]] = None,
-                 probabilities: Optional[Dict[str, float]] = None,
-                 feature_contributions: Optional[Dict[str, float]] = None,
-                 model_id: str = None,
-                 prediction_type: PredictionType = None,
-                 timestamp: datetime = None):
+
+    def __init__(
+        self,
+        prediction: float | int | str,
+        confidence: float,
+        prediction_interval: tuple[float, float] | None = None,
+        probabilities: dict[str, float] | None = None,
+        feature_contributions: dict[str, float] | None = None,
+        model_id: str = None,
+        prediction_type: PredictionType = None,
+        timestamp: datetime = None,
+    ):
         self.prediction = prediction
         self.confidence = confidence
         self.prediction_interval = prediction_interval
@@ -183,17 +201,22 @@ class PredictionResult:
         self.prediction_type = prediction_type
         self.timestamp = timestamp or datetime.now()
 
+
 class ModelComparisonResult:
     """Model comparison results."""
-    def __init__(self,
-                 model_performances: Dict[str, ModelPerformance],
-                 best_model_name: str,
-                 comparison_metrics: Dict[str, float],
-                 recommendation: str):
+
+    def __init__(
+        self,
+        model_performances: dict[str, ModelPerformance],
+        best_model_name: str,
+        comparison_metrics: dict[str, float],
+        recommendation: str,
+    ):
         self.model_performances = model_performances
         self.best_model_name = best_model_name
         self.comparison_metrics = comparison_metrics
         self.recommendation = recommendation
+
 
 class PredictionService:
     """
@@ -205,11 +228,11 @@ class PredictionService:
         self.irt_service = IRTService()
         self.model_save_path = Path(model_save_path)
         self.model_save_path.mkdir(exist_ok=True)
-        self.trained_models: Dict[str, PredictionModel] = {}
+        self.trained_models: dict[str, PredictionModel] = {}
         self.model_registry = self._initialize_model_registry()
         self.executor = ThreadPoolExecutor(max_workers=4)
 
-    def _initialize_model_registry(self) -> Dict[ModelType, Dict]:
+    def _initialize_model_registry(self) -> dict[ModelType, dict]:
         """Initialize model registry with configuration."""
         return {
             ModelType.RANDOM_FOREST: {
@@ -219,8 +242,8 @@ class PredictionService:
                     "n_estimators": [50, 100, 200],
                     "max_depth": [5, 10, 15, None],
                     "min_samples_split": [2, 5, 10],
-                    "min_samples_leaf": [1, 2, 4]
-                }
+                    "min_samples_leaf": [1, 2, 4],
+                },
             },
             ModelType.GRADIENT_BOOSTING: {
                 "regressor": GradientBoostingRegressor,
@@ -229,8 +252,8 @@ class PredictionService:
                     "n_estimators": [50, 100, 200],
                     "learning_rate": [0.01, 0.1, 0.2],
                     "max_depth": [3, 5, 7],
-                    "subsample": [0.8, 0.9, 1.0]
-                }
+                    "subsample": [0.8, 0.9, 1.0],
+                },
             },
             ModelType.SVM: {
                 "regressor": SVR,
@@ -238,8 +261,8 @@ class PredictionService:
                 "params": {
                     "C": [0.1, 1, 10, 100],
                     "kernel": ["rbf", "linear", "poly"],
-                    "gamma": ["scale", "auto"]
-                }
+                    "gamma": ["scale", "auto"],
+                },
             },
             ModelType.NEURAL_NETWORK: {
                 "regressor": MLPRegressor,
@@ -249,16 +272,16 @@ class PredictionService:
                     "activation": ["relu", "tanh"],
                     "alpha": [0.0001, 0.001, 0.01],
                     "learning_rate": ["constant", "adaptive"],
-                    "max_iter": [500, 1000]
-                }
+                    "max_iter": [500, 1000],
+                },
             },
             ModelType.LINEAR_REGRESSION: {
                 "regressor": LinearRegression,
                 "classifier": LogisticRegression,
                 "params": {
                     "fit_intercept": [True, False],
-                    "normalize": [False]  # Deprecated in newer versions
-                }
+                    "normalize": [False],  # Deprecated in newer versions
+                },
             },
             ModelType.DECISION_TREE: {
                 "regressor": DecisionTreeRegressor,
@@ -267,8 +290,8 @@ class PredictionService:
                     "max_depth": [3, 5, 7, 10, None],
                     "min_samples_split": [2, 5, 10],
                     "min_samples_leaf": [1, 2, 4],
-                    "criterion": ["mse", "friedman_mse", "mae"]  # For regression
-                }
+                    "criterion": ["mse", "friedman_mse", "mae"],  # For regression
+                },
             },
             ModelType.KNN: {
                 "regressor": KNeighborsRegressor,
@@ -276,20 +299,22 @@ class PredictionService:
                 "params": {
                     "n_neighbors": [3, 5, 7, 9],
                     "weights": ["uniform", "distance"],
-                    "algorithm": ["auto", "ball_tree", "kd_tree"]
-                }
-            }
+                    "algorithm": ["auto", "ball_tree", "kd_tree"],
+                },
+            },
         }
 
-    async def train_team_performance_model(self,
-                                          db: Session,
-                                          team_ids: Optional[List[int]] = None,
-                                          target_variable: str = "team_performance_score",
-                                          model_types: Optional[List[ModelType]] = None,
-                                          test_size: float = 0.2,
-                                          cv_folds: int = 5,
-                                          hyperparameter_tuning: bool = True,
-                                          feature_selection: bool = True) -> ModelComparisonResult:
+    async def train_team_performance_model(
+        self,
+        db: Session,
+        team_ids: list[int] | None = None,
+        target_variable: str = "team_performance_score",
+        model_types: list[ModelType] | None = None,
+        test_size: float = 0.2,
+        cv_folds: int = 5,
+        hyperparameter_tuning: bool = True,
+        feature_selection: bool = True,
+    ) -> ModelComparisonResult:
         """
         Train ML models to predict team performance based on assessment data.
 
@@ -313,7 +338,7 @@ class PredictionService:
                 ModelType.RANDOM_FOREST,
                 ModelType.GRADIENT_BOOSTING,
                 ModelType.LINEAR_REGRESSION,
-                ModelType.NEURAL_NETWORK
+                ModelType.NEURAL_NETWORK,
             ]
 
         # Collect training data
@@ -324,7 +349,7 @@ class PredictionService:
             include_demographics=True,
             include_response_patterns=True,
             team_ids=team_ids,
-            min_data_quality=0.7
+            min_data_quality=0.7,
         )
 
         if not data_result["success"]:
@@ -346,7 +371,11 @@ class PredictionService:
 
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=42, stratify=y if target_type == TargetType.CLASSIFICATION else None
+            X,
+            y,
+            test_size=test_size,
+            random_state=42,
+            stratify=y if target_type == TargetType.CLASSIFICATION else None,
         )
 
         model_performances = {}
@@ -364,7 +393,11 @@ class PredictionService:
 
                 # Get model class and params
                 model_config = self.model_registry[model_type]
-                model_class = model_config["regressor"] if target_type == TargetType.REGRESSION else model_config["classifier"]
+                model_class = (
+                    model_config["regressor"]
+                    if target_type == TargetType.REGRESSION
+                    else model_config["classifier"]
+                )
 
                 # Base model
                 base_model = model_class(random_state=42)
@@ -376,9 +409,11 @@ class PredictionService:
                         model_config["params"],
                         n_iter=20,
                         cv=cv_folds,
-                        scoring="neg_mean_squared_error" if target_type == TargetType.REGRESSION else "accuracy",
+                        scoring="neg_mean_squared_error"
+                        if target_type == TargetType.REGRESSION
+                        else "accuracy",
                         random_state=42,
-                        n_jobs=-1
+                        n_jobs=-1,
                     )
                     best_model = search.fit(X_train, y_train)
                     best_params = best_model.best_params_
@@ -387,10 +422,7 @@ class PredictionService:
                     best_params = {}
 
                 # Create full pipeline
-                full_pipeline = Pipeline([
-                    ("preprocessor", pipeline),
-                    ("model", best_model)
-                ])
+                full_pipeline = Pipeline([("preprocessor", pipeline), ("model", best_model)])
 
                 # Fit pipeline
                 full_pipeline.fit(X_train, y_train)
@@ -413,7 +445,9 @@ class PredictionService:
                     target_name=target_variable,
                     performance=performance,
                     hyperparameters=best_params,
-                    cross_val_score=np.mean(performance.cv_scores) if performance.cv_scores else None
+                    cross_val_score=np.mean(performance.cv_scores)
+                    if performance.cv_scores
+                    else None,
                 )
 
                 trained_models[model_type.value] = prediction_model
@@ -422,12 +456,14 @@ class PredictionService:
                 # Save model
                 await self._save_model(prediction_model)
 
-                logger.info(f"{model_type.value} model trained successfully. "
-                           f"R²: {performance.r2:.3f}" if target_type == TargetType.REGRESSION
-                           else f"Accuracy: {performance.accuracy:.3f}")
+                logger.info(
+                    f"{model_type.value} model trained successfully. R²: {performance.r2:.3f}"
+                    if target_type == TargetType.REGRESSION
+                    else f"Accuracy: {performance.accuracy:.3f}"
+                )
 
             except Exception as e:
-                logger.error(f"Error training {model_type.value} model: {str(e)}")
+                logger.error(f"Error training {model_type.value} model: {e!s}")
                 continue
 
         # Compare models and select best
@@ -437,21 +473,25 @@ class PredictionService:
 
         # Register best model in memory
         if best_model_name in trained_models:
-            self.trained_models[f"team_performance_{best_model_name}"] = trained_models[best_model_name]
+            self.trained_models[f"team_performance_{best_model_name}"] = trained_models[
+                best_model_name
+            ]
 
         return ModelComparisonResult(
             model_performances=model_performances,
             best_model_name=best_model_name,
             comparison_metrics=comparison_metrics,
-            recommendation=recommendation
+            recommendation=recommendation,
         )
 
-    async def predict_team_performance(self,
-                                     db: Session,
-                                     team_id: int,
-                                     model_id: Optional[str] = None,
-                                     include_confidence: bool = True,
-                                     include_feature_importance: bool = True) -> PredictionResult:
+    async def predict_team_performance(
+        self,
+        db: Session,
+        team_id: int,
+        model_id: str | None = None,
+        include_confidence: bool = True,
+        include_feature_importance: bool = True,
+    ) -> PredictionResult:
         """
         Predict team performance for a specific team.
 
@@ -470,8 +510,11 @@ class PredictionService:
             model = self.trained_models[model_id]
         else:
             # Find best team performance model
-            team_models = {k: v for k, v in self.trained_models.items()
-                          if v.prediction_type == PredictionType.TEAM_PERFORMANCE}
+            team_models = {
+                k: v
+                for k, v in self.trained_models.items()
+                if v.prediction_type == PredictionType.TEAM_PERFORMANCE
+            }
 
             if not team_models:
                 raise ValueError("No trained team performance models available")
@@ -496,7 +539,7 @@ class PredictionService:
         X_pred = np.array(feature_data).reshape(1, -1)
 
         # Make prediction
-        if hasattr(model.model, 'predict_proba'):
+        if hasattr(model.model, "predict_proba"):
             # Classification
             prediction = model.model.predict(X_pred)[0]
             probabilities = model.model.predict_proba(X_pred)[0]
@@ -507,7 +550,7 @@ class PredictionService:
                 confidence = 0.0
 
             prob_dict = {}
-            if hasattr(model.model, 'classes_'):
+            if hasattr(model.model, "classes_"):
                 for i, cls in enumerate(model.model.classes_):
                     prob_dict[str(cls)] = probabilities[i]
 
@@ -518,7 +561,7 @@ class PredictionService:
             prob_dict = {}
 
             # Calculate prediction interval for regression
-            if include_confidence and hasattr(model.performance, 'rmse'):
+            if include_confidence and hasattr(model.performance, "rmse"):
                 interval = 1.96 * model.performance.rmse  # 95% confidence interval
                 confidence_interval = (prediction - interval, prediction + interval)
             else:
@@ -529,26 +572,29 @@ class PredictionService:
         if include_feature_importance and model.performance.feature_importance:
             for feature_name in model.feature_names:
                 if feature_name in model.performance.feature_importance:
-                    feature_contributions[feature_name] = (
-                        model.performance.feature_importance[feature_name] *
-                        data_result["features"].get(feature_name, 0.0)
-                    )
+                    feature_contributions[feature_name] = model.performance.feature_importance[
+                        feature_name
+                    ] * data_result["features"].get(feature_name, 0.0)
 
         return PredictionResult(
             prediction=prediction,
             confidence=confidence,
-            prediction_interval=confidence_interval if model.target_type == TargetType.REGRESSION else None,
+            prediction_interval=confidence_interval
+            if model.target_type == TargetType.REGRESSION
+            else None,
             probabilities=prob_dict if model.target_type == TargetType.CLASSIFICATION else None,
             feature_contributions=feature_contributions,
             model_id=model.model_id,
-            prediction_type=PredictionType.TEAM_PERFORMANCE
+            prediction_type=PredictionType.TEAM_PERFORMANCE,
         )
 
-    async def train_user_outcome_model(self,
-                                      db: Session,
-                                      outcome_variable: str,
-                                      user_ids: Optional[List[str]] = None,
-                                      model_types: Optional[List[ModelType]] = None) -> ModelComparisonResult:
+    async def train_user_outcome_model(
+        self,
+        db: Session,
+        outcome_variable: str,
+        user_ids: list[str] | None = None,
+        model_types: list[ModelType] | None = None,
+    ) -> ModelComparisonResult:
         """
         Train models to predict individual user outcomes.
         """
@@ -562,11 +608,13 @@ class PredictionService:
 
         raise NotImplementedError("User outcome model training not yet implemented")
 
-    async def batch_predict(self,
-                           db: Session,
-                           prediction_type: PredictionType,
-                           entity_ids: List[Union[int, str]],
-                           model_id: Optional[str] = None) -> List[PredictionResult]:
+    async def batch_predict(
+        self,
+        db: Session,
+        prediction_type: PredictionType,
+        entity_ids: list[int | str],
+        model_id: str | None = None,
+    ) -> list[PredictionResult]:
         """
         Make batch predictions for multiple entities.
 
@@ -589,7 +637,11 @@ class PredictionService:
                 loop.run_in_executor(
                     self.executor,
                     self.predict_team_performance,
-                    db, entity_id, model_id, True, True
+                    db,
+                    entity_id,
+                    model_id,
+                    True,
+                    True,
                 )
                 for entity_id in entity_ids
             ]
@@ -604,10 +656,9 @@ class PredictionService:
         # Add other prediction types as needed
         raise NotImplementedError(f"Batch prediction not implemented for {prediction_type}")
 
-    async def evaluate_model_performance(self,
-                                        model_id: str,
-                                        test_data: Optional[Dict[str, Any]] = None,
-                                        cv_folds: int = 5) -> ModelPerformance:
+    async def evaluate_model_performance(
+        self, model_id: str, test_data: dict[str, Any] | None = None, cv_folds: int = 5
+    ) -> ModelPerformance:
         """
         Evaluate trained model performance.
         """
@@ -632,42 +683,40 @@ class PredictionService:
 
     def _determine_target_type(self, y: pd.Series) -> TargetType:
         """Determine if target is regression or classification."""
-        if y.dtype in ['object', 'category', 'bool']:
+        if y.dtype in ["object", "category", "bool"]:
             unique_values = y.nunique()
             if unique_values == 2:
                 return TargetType.BINARY
-            elif unique_values <= 10:
+            if unique_values <= 10:
                 return TargetType.MULTICLASS
-            else:
-                return TargetType.CLASSIFICATION
-        else:
-            return TargetType.REGRESSION
+            return TargetType.CLASSIFICATION
+        return TargetType.REGRESSION
 
-    def _create_preprocessing_pipeline(self,
-                                     X_train: pd.DataFrame,
-                                     feature_selection: bool,
-                                     target_type: TargetType) -> Any:
+    def _create_preprocessing_pipeline(
+        self, X_train: pd.DataFrame, feature_selection: bool, target_type: TargetType
+    ) -> Any:
         """Create preprocessing pipeline for features."""
 
         # Identify numeric and categorical columns
-        numeric_features = X_train.select_dtypes(include=['int64', 'float64']).columns
-        categorical_features = X_train.select_dtypes(include=['object', 'category']).columns
+        numeric_features = X_train.select_dtypes(include=["int64", "float64"]).columns
+        categorical_features = X_train.select_dtypes(include=["object", "category"]).columns
 
         # Create preprocessing steps
-        numeric_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='median')),
-            ('scaler', StandardScaler())
-        ])
+        numeric_transformer = Pipeline(
+            steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
+        )
 
-        categorical_transformer = Pipeline(steps=[
-            ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-            ('onehot', pd.get_dummies)  # Simplified
-        ])
+        categorical_transformer = Pipeline(
+            steps=[
+                ("imputer", SimpleImputer(strategy="constant", fill_value="missing")),
+                ("onehot", pd.get_dummies),  # Simplified
+            ]
+        )
 
         preprocessor = ColumnTransformer(
             transformers=[
-                ('num', numeric_transformer, numeric_features),
-                ('cat', categorical_transformer, categorical_features)
+                ("num", numeric_transformer, numeric_features),
+                ("cat", categorical_transformer, categorical_features),
             ]
         )
 
@@ -678,21 +727,20 @@ class PredictionService:
             else:
                 selector = SelectKBest(score_func=f_classif, k=20)
 
-            pipeline = Pipeline([
-                ('preprocessor', preprocessor),
-                ('feature_selection', selector)
-            ])
+            pipeline = Pipeline([("preprocessor", preprocessor), ("feature_selection", selector)])
         else:
             pipeline = preprocessor
 
         return pipeline
 
-    async def _evaluate_model(self,
-                            model: Any,
-                            X_test: np.ndarray,
-                            y_test: np.ndarray,
-                            target_type: TargetType,
-                            cv_folds: int) -> ModelPerformance:
+    async def _evaluate_model(
+        self,
+        model: Any,
+        X_test: np.ndarray,
+        y_test: np.ndarray,
+        target_type: TargetType,
+        cv_folds: int,
+    ) -> ModelPerformance:
         """Evaluate model performance."""
 
         # Make predictions
@@ -712,42 +760,40 @@ class PredictionService:
 
             # Cross-validation
             cv_scores = cross_val_score(
-                model, X_test, y_test, cv=cv_folds,
-                scoring='neg_mean_squared_error'
+                model, X_test, y_test, cv=cv_folds, scoring="neg_mean_squared_error"
             )
             performance.cv_scores = (-cv_scores).tolist()
 
         else:
             # Classification metrics
             performance.accuracy = accuracy_score(y_test, y_pred)
-            performance.precision = precision_score(y_test, y_pred, average='weighted')
-            performance.recall = recall_score(y_test, y_pred, average='weighted')
-            performance.f1 = f1_score(y_test, y_pred, average='weighted')
+            performance.precision = precision_score(y_test, y_pred, average="weighted")
+            performance.recall = recall_score(y_test, y_pred, average="weighted")
+            performance.f1 = f1_score(y_test, y_pred, average="weighted")
 
             # For binary classification
             if len(np.unique(y_test)) == 2:
-                if hasattr(model, 'predict_proba'):
+                if hasattr(model, "predict_proba"):
                     y_proba = model.predict_proba(X_test)[:, 1]
                     performance.auc = roc_auc_score(y_test, y_proba)
 
             # Cross-validation
             cv_scores = cross_val_score(
-                model, X_test, y_test, cv=StratifiedKFold(cv_folds),
-                scoring='accuracy'
+                model, X_test, y_test, cv=StratifiedKFold(cv_folds), scoring="accuracy"
             )
             performance.cv_scores = cv_scores.tolist()
 
         # Feature importance (if available)
-        if hasattr(model, 'feature_importances_'):
+        if hasattr(model, "feature_importances_"):
             # Get feature names from preprocessing pipeline
             feature_names = [f"feature_{i}" for i in range(len(model.feature_importances_))]
             performance.feature_importance = dict(zip(feature_names, model.feature_importances_))
 
         return performance
 
-    def _compare_models(self,
-                       model_performances: Dict[str, ModelPerformance],
-                       target_type: TargetType) -> Tuple[str, Dict[str, float], str]:
+    def _compare_models(
+        self, model_performances: dict[str, ModelPerformance], target_type: TargetType
+    ) -> tuple[str, dict[str, float], str]:
         """Compare models and select the best one."""
 
         comparison_metrics = {}
@@ -760,7 +806,9 @@ class PredictionService:
                     scores[name] = perf.r2
                     comparison_metrics[name] = perf.r2
 
-            best_model = max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
+            best_model = (
+                max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
+            )
 
             if scores[best_model] > 0.8:
                 recommendation = f"Excellent model: {best_model} with R² = {scores[best_model]:.3f}"
@@ -777,12 +825,18 @@ class PredictionService:
                     scores[name] = perf.accuracy
                     comparison_metrics[name] = perf.accuracy
 
-            best_model = max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
+            best_model = (
+                max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
+            )
 
             if scores[best_model] > 0.9:
-                recommendation = f"Excellent model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                recommendation = (
+                    f"Excellent model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                )
             elif scores[best_model] > 0.8:
-                recommendation = f"Good model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                recommendation = (
+                    f"Good model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                )
             else:
                 recommendation = f"Fair model: {best_model} with accuracy = {scores[best_model]:.3f}. Consider more data or feature engineering."
 
@@ -811,17 +865,17 @@ class PredictionService:
                 "f1": model.performance.f1,
                 "auc": model.performance.auc,
                 "cv_scores": model.performance.cv_scores,
-                "feature_importance": model.performance.feature_importance
+                "feature_importance": model.performance.feature_importance,
             },
             "hyperparameters": model.hyperparameters,
             "training_date": model.training_date.isoformat(),
-            "cross_val_score": model.cross_val_score
+            "cross_val_score": model.cross_val_score,
         }
 
         joblib.dump(model_data, model_path)
         logger.info(f"Model saved to {model_path}")
 
-    async def _load_model(self, model_id: str) -> Optional[PredictionModel]:
+    async def _load_model(self, model_id: str) -> PredictionModel | None:
         """Load trained model from disk."""
         model_path = self.model_save_path / f"{model_id}.joblib"
 
@@ -843,7 +897,7 @@ class PredictionService:
                 f1=model_data["performance"].get("f1"),
                 auc=model_data["performance"].get("auc"),
                 cv_scores=model_data["performance"].get("cv_scores", []),
-                feature_importance=model_data["performance"].get("feature_importance", {})
+                feature_importance=model_data["performance"].get("feature_importance", {}),
             )
 
             # Reconstruct PredictionModel
@@ -858,16 +912,16 @@ class PredictionService:
                 performance=performance,
                 hyperparameters=model_data["hyperparameters"],
                 training_date=datetime.fromisoformat(model_data["training_date"]),
-                cross_val_score=model_data["cross_val_score"]
+                cross_val_score=model_data["cross_val_score"],
             )
 
             return model
 
         except Exception as e:
-            logger.error(f"Error loading model {model_id}: {str(e)}")
+            logger.error(f"Error loading model {model_id}: {e!s}")
             return None
 
-    async def get_model_info(self, model_id: str) -> Optional[Dict[str, Any]]:
+    async def get_model_info(self, model_id: str) -> dict[str, Any] | None:
         """Get model information and metadata."""
         if model_id in self.trained_models:
             model = self.trained_models[model_id]
@@ -896,14 +950,16 @@ class PredictionService:
                 "f1": model.performance.f1,
                 "auc": model.performance.auc,
                 "cv_scores": model.performance.cv_scores,
-                "feature_importance": model.performance.feature_importance
+                "feature_importance": model.performance.feature_importance,
             },
             "hyperparameters": model.hyperparameters,
             "training_date": model.training_date.isoformat(),
-            "cross_val_score": model.cross_val_score
+            "cross_val_score": model.cross_val_score,
         }
 
-    async def list_trained_models(self, prediction_type: Optional[PredictionType] = None) -> List[Dict[str, Any]]:
+    async def list_trained_models(
+        self, prediction_type: PredictionType | None = None
+    ) -> list[dict[str, Any]]:
         """List all trained models."""
         models = []
 
@@ -915,7 +971,10 @@ class PredictionService:
             model_info = await self.get_model_info(model_id)
 
             if model_info:
-                if prediction_type is None or model_info["prediction_type"] == prediction_type.value:
+                if (
+                    prediction_type is None
+                    or model_info["prediction_type"] == prediction_type.value
+                ):
                     models.append(model_info)
 
         return models

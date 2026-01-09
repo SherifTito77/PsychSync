@@ -18,17 +18,12 @@ Usage:
     )
 """
 
-from typing import Dict, Any, Optional, List
-from datetime import datetime
-from pydantic import BaseModel
+from typing import Any
+
 from fastapi import HTTPException
+from pydantic import BaseModel
 
-from app.services.agent_tool_middleware import (
-    AgentToolMiddleware,
-    ToolAccessResult,
-    TOOL_REGISTRY
-)
-
+from app.services.agent_tool_middleware import TOOL_REGISTRY, AgentToolMiddleware
 
 # ============================================================================
 # Tool Invocation Request
@@ -40,12 +35,12 @@ class ToolInvocationRequest(BaseModel):
     user_id: str
     user_role: str
     tool_name: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
 
     # Context
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    session_id: Optional[str] = None
+    ip_address: str | None = None
+    user_agent: str | None = None
+    session_id: str | None = None
 
 
 # ============================================================================
@@ -56,11 +51,11 @@ class ToolInvocationResponse(BaseModel):
     """Response from tool invocation"""
 
     success: bool
-    result: Optional[Any] = None
-    error: Optional[str] = None
+    result: Any | None = None
+    error: str | None = None
     consent_required: bool = False
-    consent_request_id: Optional[str] = None
-    execution_time_ms: Optional[float] = None
+    consent_request_id: str | None = None
+    execution_time_ms: float | None = None
 
 
 # ============================================================================
@@ -156,7 +151,7 @@ class AgentOrchestrator:
             # Log error
             return ToolInvocationResponse(
                 success=False,
-                error=f"Tool invocation failed: {str(e)}"
+                error=f"Tool invocation failed: {e!s}"
             )
 
     async def invoke_tool_with_consent(
@@ -188,7 +183,7 @@ class AgentOrchestrator:
     async def list_available_tools(
         self,
         user_role: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         List tools available to user based on role
 
@@ -217,7 +212,7 @@ class AgentOrchestrator:
     async def get_tool_info(
         self,
         tool_name: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get information about a specific tool
 
@@ -249,7 +244,8 @@ class AgentOrchestrator:
 # FastAPI Router for Agent Tools
 # ============================================================================
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+
 from app.api.v1.deps import get_current_user
 
 router = APIRouter(prefix="/agent/tools", tags=["agent-tools"])
@@ -303,14 +299,13 @@ async def grant_tool_consent(
             success=False,
             error="Consent granted. Please retry original tool invocation."
         )
-    else:
-        return ToolInvocationResponse(
-            success=False,
-            error="Consent denied by user."
-        )
+    return ToolInvocationResponse(
+        success=False,
+        error="Consent denied by user."
+    )
 
 
-@router.get("/list", response_model=List[Dict[str, Any]])
+@router.get("/list", response_model=list[dict[str, Any]])
 async def list_available_tools(
     current_user = Depends(get_current_user)
 ):
@@ -322,7 +317,7 @@ async def list_available_tools(
     return await orchestrator.list_available_tools(current_user.role)
 
 
-@router.get("/{tool_name}", response_model=Dict[str, Any])
+@router.get("/{tool_name}", response_model=dict[str, Any])
 async def get_tool_info(
     tool_name: str,
     current_user = Depends(get_current_user)
@@ -349,6 +344,7 @@ async def get_tool_info(
 # ============================================================================
 
 from fastapi import WebSocket
+
 
 @router.websocket("/ws/consent")
 async def consent_websocket(websocket: WebSocket):

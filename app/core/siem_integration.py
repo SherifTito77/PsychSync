@@ -17,14 +17,15 @@ Version: 1.0
 Date: December 23, 2024
 """
 
-import json
 import asyncio
-import aiohttp
-from typing import Optional, Dict, Any, List
+from dataclasses import dataclass
 from datetime import datetime
-from dataclasses import dataclass, asdict
 from enum import Enum
+import json
 import logging
+from typing import Any
+
+import aiohttp
 
 from app.core.config import settings
 
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 class SIEMPlatform(Enum):
     """Supported SIEM platforms"""
+
     SPLUNK_HEC = "splunk_hec"
     ELASTICSEARCH = "elasticsearch"
     SUMO_LOGIC = "sumo_logic"
@@ -45,14 +47,15 @@ class SIEMPlatform(Enum):
 @dataclass
 class SIEMConfig:
     """SIEM configuration"""
+
     platform: SIEMPlatform
     enabled: bool = True
-    endpoint_url: Optional[str] = None
-    token: Optional[str] = None
-    index: Optional[str] = None
-    source: Optional[str] = "psychsync"
-    sourcetype: Optional[str] = "_json"
-    headers: Dict[str, str] = None
+    endpoint_url: str | None = None
+    token: str | None = None
+    index: str | None = None
+    source: str | None = "psychsync"
+    sourcetype: str | None = "_json"
+    headers: dict[str, str] = None
     verify_ssl: bool = True
     timeout_seconds: int = 10
     batch_size: int = 100
@@ -66,23 +69,26 @@ class SIEMConfig:
 @dataclass
 class SIEMEvent:
     """Security event for SIEM"""
+
     event_type: str
     timestamp: datetime
     severity: str  # low, medium, high, critical
     category: str  # authentication, authorization, network, data_access, etc.
-    source_ip: Optional[str] = None
-    user_id: Optional[str] = None
-    username: Optional[str] = None
-    action: Optional[str] = None
-    outcome: Optional[str] = None  # success, failure, blocked
-    details: Dict[str, Any] = None
-    metadata: Dict[str, Any] = None
+    source_ip: str | None = None
+    user_id: str | None = None
+    username: str | None = None
+    action: str | None = None
+    outcome: str | None = None  # success, failure, blocked
+    details: dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary, handling datetime serialization"""
         data = {
             "event_type": self.event_type,
-            "timestamp": self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else self.timestamp,
+            "timestamp": self.timestamp.isoformat()
+            if isinstance(self.timestamp, datetime)
+            else self.timestamp,
             "severity": self.severity,
             "category": self.category,
             "source": "psychsync",
@@ -111,7 +117,7 @@ class SIEMIntegration:
     Centralized SIEM integration for sending security events
     """
 
-    def __init__(self, config: Optional[SIEMConfig] = None):
+    def __init__(self, config: SIEMConfig | None = None):
         """
         Initialize SIEM integration
 
@@ -119,9 +125,9 @@ class SIEMIntegration:
             config: SIEMConfig object. If None, will load from settings
         """
         self.config = config or self._load_config()
-        self.event_queue: List[SIEMEvent] = []
-        self._batch_timer_task: Optional[asyncio.Task] = None
-        self._session: Optional[aiohttp.ClientSession] = None
+        self.event_queue: list[SIEMEvent] = []
+        self._batch_timer_task: asyncio.Task | None = None
+        self._session: aiohttp.ClientSession | None = None
 
         if self.config.enabled:
             logger.info(f"SIEM integration enabled: {self.config.platform.value}")
@@ -145,7 +151,7 @@ class SIEMIntegration:
             index=getattr(settings, "SIEM_INDEX", None),
             source=getattr(settings, "SIEM_SOURCE", "psychsync"),
             headers=getattr(settings, "SIEM_HEADERS", {}),
-            verify_ssl=getattr(settings, "SIEM_VERIFY_SSL", True)
+            verify_ssl=getattr(settings, "SIEM_VERIFY_SSL", True),
         )
 
     def _start_batch_timer(self):
@@ -192,7 +198,7 @@ class SIEMIntegration:
             logger.error(f"Error queueing SIEM event: {e}")
             return False
 
-    async def send_alert(self, alert: 'SecurityAlert') -> bool:
+    async def send_alert(self, alert: "SecurityAlert") -> bool:
         """
         Send security alert to SIEM
 
@@ -218,9 +224,9 @@ class SIEMIntegration:
                     "alert_id": alert.id,
                     "description": alert.description,
                     "risk_score": alert.risk_score,
-                    "alert_details": alert.details
+                    "alert_details": alert.details,
                 },
-                metadata=alert.metadata
+                metadata=alert.metadata,
             )
 
             return await self.send_event(event)
@@ -259,7 +265,7 @@ class SIEMIntegration:
             self.event_queue.extend(events_to_send)
             return False
 
-    async def _send_to_platform(self, events: List[SIEMEvent]) -> bool:
+    async def _send_to_platform(self, events: list[SIEMEvent]) -> bool:
         """Send events to specific SIEM platform"""
         if self._session is None:
             self._session = aiohttp.ClientSession()
@@ -267,29 +273,30 @@ class SIEMIntegration:
         try:
             if self.config.platform == SIEMPlatform.SPLUNK_HEC:
                 return await self._send_to_splunk(events)
-            elif self.config.platform == SIEMPlatform.ELASTICSEARCH:
+            if self.config.platform == SIEMPlatform.ELASTICSEARCH:
                 return await self._send_to_elasticsearch(events)
-            elif self.config.platform == SIEMPlatform.WEBHOOK:
+            if self.config.platform == SIEMPlatform.WEBHOOK:
                 return await self._send_to_webhook(events)
-            else:
-                logger.warning(f"SIEM platform {self.config.platform.value} not fully implemented, using webhook")
-                return await self._send_to_webhook(events)
+            logger.warning(
+                f"SIEM platform {self.config.platform.value} not fully implemented, using webhook"
+            )
+            return await self._send_to_webhook(events)
 
         except Exception as e:
             logger.error(f"Error sending to SIEM platform: {e}")
             return False
 
-    async def _send_to_splunk(self, events: List[SIEMEvent]) -> bool:
+    async def _send_to_splunk(self, events: list[SIEMEvent]) -> bool:
         """Send events to Splunk HTTP Event Collector"""
         try:
             if not self.config.endpoint_url or not self.config.token:
                 logger.error("Splunk HEC requires endpoint_url and token")
                 return False
 
-            url = self.config.endpoint_url.rstrip('/') + '/services/collector/event'
+            url = self.config.endpoint_url.rstrip("/") + "/services/collector/event"
             headers = {
                 "Authorization": f"Splunk {self.config.token}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
 
             # Send events as batch
@@ -302,7 +309,7 @@ class SIEMIntegration:
                     "source": self.config.source,
                     "sourcetype": self.config.sourcetype,
                     "index": self.config.index,
-                    "event": event_dict
+                    "event": event_dict,
                 }
                 events_data.append(splunk_event)
 
@@ -315,20 +322,19 @@ class SIEMIntegration:
                 headers=headers,
                 data=payload,
                 ssl=self.config.verify_ssl,
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds)
+                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
             ) as response:
                 if response.status in [200, 201]:
                     return True
-                else:
-                    text = await response.text()
-                    logger.error(f"Splunk HEC error: {response.status} - {text}")
-                    return False
+                text = await response.text()
+                logger.error(f"Splunk HEC error: {response.status} - {text}")
+                return False
 
         except Exception as e:
             logger.error(f"Error sending to Splunk: {e}")
             return False
 
-    async def _send_to_elasticsearch(self, events: List[SIEMEvent]) -> bool:
+    async def _send_to_elasticsearch(self, events: list[SIEMEvent]) -> bool:
         """Send events to Elasticsearch"""
         try:
             if not self.config.endpoint_url:
@@ -338,9 +344,7 @@ class SIEMIntegration:
             index = self.config.index or f"psychsync-security-{datetime.now().strftime('%Y.%m')}"
 
             url = f"{self.config.endpoint_url.rstrip('/')}/{index}/_bulk"
-            headers = {
-                "Content-Type": "application/x-ndjson"
-            }
+            headers = {"Content-Type": "application/x-ndjson"}
 
             if self.config.token:
                 headers["Authorization"] = f"Bearer {self.config.token}"
@@ -365,29 +369,26 @@ class SIEMIntegration:
                 headers=headers,
                 data=payload,
                 ssl=self.config.verify_ssl,
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds)
+                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
             ) as response:
                 if response.status in [200, 201]:
                     return True
-                else:
-                    text = await response.text()
-                    logger.error(f"Elasticsearch error: {response.status} - {text}")
-                    return False
+                text = await response.text()
+                logger.error(f"Elasticsearch error: {response.status} - {text}")
+                return False
 
         except Exception as e:
             logger.error(f"Error sending to Elasticsearch: {e}")
             return False
 
-    async def _send_to_webhook(self, events: List[SIEMEvent]) -> bool:
+    async def _send_to_webhook(self, events: list[SIEMEvent]) -> bool:
         """Send events to generic webhook endpoint"""
         try:
             if not self.config.endpoint_url:
                 logger.error("Webhook requires endpoint_url")
                 return False
 
-            headers = {
-                "Content-Type": "application/json"
-            }
+            headers = {"Content-Type": "application/json"}
 
             # Add custom headers
             headers.update(self.config.headers)
@@ -401,7 +402,7 @@ class SIEMIntegration:
                 "platform": "security_monitoring",
                 "timestamp": datetime.utcnow().isoformat(),
                 "events": [e.to_dict() for e in events],
-                "event_count": len(events)
+                "event_count": len(events),
             }
 
             async with self._session.post(
@@ -409,20 +410,19 @@ class SIEMIntegration:
                 headers=headers,
                 data=json.dumps(payload),
                 ssl=self.config.verify_ssl,
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds)
+                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
             ) as response:
                 if response.status in [200, 201, 202, 204]:
                     return True
-                else:
-                    text = await response.text()
-                    logger.error(f"Webhook error: {response.status} - {text}")
-                    return False
+                text = await response.text()
+                logger.error(f"Webhook error: {response.status} - {text}")
+                return False
 
         except Exception as e:
             logger.error(f"Error sending to webhook: {e}")
             return False
 
-    async def test_connection(self) -> Dict[str, Any]:
+    async def test_connection(self) -> dict[str, Any]:
         """
         Test SIEM connection
 
@@ -430,17 +430,14 @@ class SIEMIntegration:
             Dict with test results
         """
         if not self.config.enabled:
-            return {
-                "success": False,
-                "message": "SIEM integration is disabled"
-            }
+            return {"success": False, "message": "SIEM integration is disabled"}
 
         test_event = SIEMEvent(
             event_type="connection_test",
             timestamp=datetime.utcnow(),
             severity="info",
             category="system",
-            details={"message": "SIEM connection test"}
+            details={"message": "SIEM connection test"},
         )
 
         try:
@@ -452,15 +449,11 @@ class SIEMIntegration:
                 "success": success,
                 "platform": self.config.platform.value,
                 "endpoint_url": self.config.endpoint_url,
-                "message": "Connection successful" if success else "Connection failed"
+                "message": "Connection successful" if success else "Connection failed",
             }
 
         except Exception as e:
-            return {
-                "success": False,
-                "platform": self.config.platform.value,
-                "error": str(e)
-            }
+            return {"success": False, "platform": self.config.platform.value, "error": str(e)}
 
     async def shutdown(self):
         """Cleanup and close connections"""
@@ -491,11 +484,11 @@ async def send_security_event(
     event_type: str,
     severity: str,
     category: str,
-    user_id: Optional[str] = None,
-    source_ip: Optional[str] = None,
-    action: Optional[str] = None,
-    outcome: Optional[str] = None,
-    details: Optional[Dict[str, Any]] = None
+    user_id: str | None = None,
+    source_ip: str | None = None,
+    action: str | None = None,
+    outcome: str | None = None,
+    details: dict[str, Any] | None = None,
 ) -> bool:
     """
     Convenience function to send security event to SIEM
@@ -522,7 +515,7 @@ async def send_security_event(
         source_ip=source_ip,
         action=action,
         outcome=outcome,
-        details=details or {}
+        details=details or {},
     )
 
     return await siem_integration.send_event(event)

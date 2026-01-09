@@ -4,27 +4,28 @@ Sophisticated middleware for intelligent request handling and optimization
 Performance improvement: 1000% faster request processing
 """
 
-from typing import Dict, Any, Optional, List, Union, Callable, TypeVar, Generic
-from datetime import datetime, timedelta
-from enum import Enum
 import asyncio
-import json
-import hashlib
-import time
-import uuid
-from dataclasses import dataclass, field
+from collections.abc import Callable
 from contextlib import asynccontextmanager
-from fastapi import Request, Response, HTTPException, status
-from fastapi.responses import JSONResponse
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 import gzip
-import zlib
-import brotli
-from pydantic import BaseModel, validator
+import hashlib
+import json
 import logging
+import time
+from typing import Any, TypeVar
+import uuid
+import zlib
+
+import brotli
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 class CompressionType(str, Enum):
     """Supported compression algorithms"""
@@ -49,13 +50,13 @@ class RequestContext:
     user_agent: str
     method: str
     path: str
-    query_params: Dict[str, Any]
-    headers: Dict[str, str]
-    user_id: Optional[str] = None
+    query_params: dict[str, Any]
+    headers: dict[str, str]
+    user_id: str | None = None
     user_tier: str = "anonymous"
     priority: RequestPriority = RequestPriority.NORMAL
     processing_start_time: float = field(default_factory=time.time)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class ProcessingResult:
@@ -63,11 +64,11 @@ class ProcessingResult:
     success: bool
     data: Any
     status_code: int = 200
-    headers: Dict[str, str] = field(default_factory=dict)
+    headers: dict[str, str] = field(default_factory=dict)
     processing_time_ms: float = 0.0
     cache_hit: bool = False
-    compression_used: Optional[CompressionType] = None
-    warnings: List[str] = field(default_factory=list)
+    compression_used: CompressionType | None = None
+    warnings: list[str] = field(default_factory=list)
 
 class RequestProcessor:
     """
@@ -85,7 +86,7 @@ class RequestProcessor:
 
     def __init__(self):
         """Initialize request processor"""
-        self.active_requests: Dict[str, RequestContext] = {}
+        self.active_requests: dict[str, RequestContext] = {}
         self.request_queue = asyncio.Queue(maxsize=1000)
         self.priority_queues = {
             priority: asyncio.Queue() for priority in RequestPriority
@@ -130,8 +131,8 @@ class RequestProcessor:
         query_params = dict(request.query_params)
 
         # Determine user tier and priority
-        user_id = getattr(request.state, 'user_id', None)
-        user_tier = getattr(request.state, 'user_tier', 'anonymous')
+        user_id = getattr(request.state, "user_id", None)
+        user_tier = getattr(request.state, "user_tier", "anonymous")
         priority = self._determine_request_priority(request, user_tier)
 
         context = RequestContext(
@@ -260,8 +261,8 @@ class RequestProcessor:
 
     async def compress_response(
         self,
-        data: Union[str, bytes, Dict[str, Any]],
-        compression_types: List[CompressionType] = None
+        data: str | bytes | dict[str, Any],
+        compression_types: list[CompressionType] = None
     ) -> tuple[bytes, CompressionType]:
         """
         Compress response data using the best available algorithm
@@ -278,20 +279,20 @@ class RequestProcessor:
 
         # Convert to bytes if needed
         if isinstance(data, (dict, list)):
-            data_str = json.dumps(data, separators=(',', ':'))
+            data_str = json.dumps(data, separators=(",", ":"))
         elif isinstance(data, str):
             data_str = data
         else:
             data_bytes = data
-            data_str = data_bytes.decode('utf-8', errors='ignore')
+            data_str = data_bytes.decode("utf-8", errors="ignore")
 
-        original_size = len(data_str.encode('utf-8'))
+        original_size = len(data_str.encode("utf-8"))
 
         # Don't compress small responses
         if original_size < self.compression_threshold:
-            return data_str.encode('utf-8'), CompressionType.NONE
+            return data_str.encode("utf-8"), CompressionType.NONE
 
-        best_compressed = data_str.encode('utf-8')
+        best_compressed = data_str.encode("utf-8")
         best_compression_type = CompressionType.NONE
         best_size = original_size
 
@@ -299,11 +300,11 @@ class RequestProcessor:
         for comp_type in compression_types:
             try:
                 if comp_type == CompressionType.GZIP:
-                    compressed = gzip.compress(data_str.encode('utf-8'), compresslevel=9)
+                    compressed = gzip.compress(data_str.encode("utf-8"), compresslevel=9)
                 elif comp_type == CompressionType.DEFLATE:
-                    compressed = zlib.compress(data_str.encode('utf-8'), level=9)
+                    compressed = zlib.compress(data_str.encode("utf-8"), level=9)
                 elif comp_type == CompressionType.BROTLI:
-                    compressed = brotli.compress(data_str.encode('utf-8'), quality=11)
+                    compressed = brotli.compress(data_str.encode("utf-8"), quality=11)
                 else:
                     continue
 
@@ -333,7 +334,7 @@ class RequestProcessor:
         data: Any,
         context: RequestContext,
         status_code: int = 200,
-        additional_headers: Dict[str, str] = None
+        additional_headers: dict[str, str] = None
     ) -> JSONResponse:
         """
         Create optimized JSON response with compression and caching
@@ -398,7 +399,7 @@ class RequestProcessor:
         context: RequestContext,
         cache_key: str,
         ttl_seconds: int = 30
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """
         Prevent duplicate requests by checking cache
 
@@ -412,6 +413,7 @@ class RequestProcessor:
         """
         try:
             import redis.asyncio as redis
+
             from app.core.config import settings
 
             # Connect to Redis
@@ -473,6 +475,7 @@ class RequestProcessor:
         """
         try:
             import redis.asyncio as redis
+
             from app.core.config import settings
 
             redis_client = redis.from_url(
@@ -526,9 +529,9 @@ class RequestProcessor:
 
     async def batch_process_requests(
         self,
-        contexts: List[RequestContext],
+        contexts: list[RequestContext],
         processor_func: Callable
-    ) -> List[ProcessingResult]:
+    ) -> list[ProcessingResult]:
         """
         Process multiple requests in batch for efficiency
 
@@ -599,7 +602,7 @@ class RequestProcessor:
             # Fallback to individual processing
             return await self.batch_process_requests(contexts, processor_func)
 
-    def get_processing_stats(self) -> Dict[str, Any]:
+    def get_processing_stats(self) -> dict[str, Any]:
         """
         Get current processing statistics
 
@@ -665,7 +668,7 @@ def process_request(priority: RequestPriority = None):
                 result = await func(request, *args, **kwargs)
 
                 # Create optimized response
-                context = getattr(request.state, 'context', None)
+                context = getattr(request.state, "context", None)
                 if context and isinstance(result, (dict, list)):
                     return request_processor.create_optimized_response(
                         data=result,
@@ -685,7 +688,7 @@ def deduplicate_request(ttl_seconds: int = 30):
     """
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
-            context = getattr(request.state, 'context')
+            context = request.state.context
             if not context:
                 # Fallback to normal processing
                 return await func(request, *args, **kwargs)

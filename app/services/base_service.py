@@ -5,23 +5,25 @@ Provides abstract base class with common operations and standardized patterns
 """
 
 from abc import ABC, abstractmethod
-from typing import TypeVar, Type, Dict, Any, Optional, List, Union, Generic
-from uuid import UUID
+import builtins
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, desc, asc
-from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy.exc import IntegrityError
+from typing import Any, Generic, TypeVar
+from uuid import UUID
+
 from pydantic import BaseModel
+from sqlalchemy import and_, asc, desc, func, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.core.error_handling import handle_database_errors, ValidationException
-from app.core.structured_logging import get_logger, EventType
+from app.core.cache_strategy import CacheStrategy, cache_invalidation_manager
 from app.core.database_transactions import transaction_manager
-from app.core.cache_strategy import cached, CacheStrategy, cache_invalidation_manager
+from app.core.error_handling import ValidationException, handle_database_errors
+from app.core.structured_logging import EventType, get_logger
 
-T = TypeVar('T')  # Model type
-C = TypeVar('C', bound=BaseModel)  # Create schema type
-U = TypeVar('U', bound=BaseModel)  # Update schema type
+T = TypeVar("T")  # Model type
+C = TypeVar("C", bound=BaseModel)  # Create schema type
+U = TypeVar("U", bound=BaseModel)  # Update schema type
 
 class BaseService(Generic[T, C, U], ABC):
     """
@@ -34,40 +36,35 @@ class BaseService(Generic[T, C, U], ABC):
 
     @property
     @abstractmethod
-    def model(self) -> Type[T]:
+    def model(self) -> type[T]:
         """Return the SQLAlchemy model class"""
-        pass
 
     @property
     @abstractmethod
     def cache_strategy(self) -> CacheStrategy:
         """Return the caching strategy for this service"""
-        pass
 
     @abstractmethod
     def get_cache_key(self, operation: str, **kwargs) -> str:
         """Generate cache key for operations"""
-        pass
 
     @abstractmethod
     def validate_create_data(self, data: C) -> None:
         """Validate data before creation"""
-        pass
 
     @abstractmethod
     def validate_update_data(self, data: U, existing: T) -> None:
         """Validate data before update"""
-        pass
 
     # CRUD Operations with Standard Patterns
 
     async def get_by_id(
         self,
         db: AsyncSession,
-        id: Union[str, UUID],
+        id: str | UUID,
         include_relations: bool = False,
-        relations: List[str] = None
-    ) -> Optional[T]:
+        relations: list[str] = None
+    ) -> T | None:
         """
         Get entity by ID with optional eager loading
         """
@@ -105,10 +102,10 @@ class BaseService(Generic[T, C, U], ABC):
         limit: int = 100,
         sort_by: str = "created_at",
         sort_desc: bool = True,
-        filters: Dict[str, Any] = None,
+        filters: dict[str, Any] = None,
         include_relations: bool = False,
-        relations: List[str] = None
-    ) -> List[T]:
+        relations: list[str] = None
+    ) -> list[T]:
         """
         List entities with pagination, sorting, and filtering
         """
@@ -122,7 +119,7 @@ class BaseService(Generic[T, C, U], ABC):
                     if hasattr(self.model, field):
                         if isinstance(value, list):
                             filter_conditions.append(getattr(self.model, field).in_(value))
-                        elif isinstance(value, str) and '%' in value:
+                        elif isinstance(value, str) and "%" in value:
                             filter_conditions.append(getattr(self.model, field).ilike(f"%{value}%"))
                         else:
                             filter_conditions.append(getattr(self.model, field) == value)
@@ -164,7 +161,7 @@ class BaseService(Generic[T, C, U], ABC):
             raise
 
     @handle_database_errors(f"{__name__}_count")
-    async def count(self, db: AsyncSession, filters: Dict[str, Any] = None) -> int:
+    async def count(self, db: AsyncSession, filters: dict[str, Any] = None) -> int:
         """
         Count entities with optional filtering
         """
@@ -178,7 +175,7 @@ class BaseService(Generic[T, C, U], ABC):
                     if hasattr(self.model, field):
                         if isinstance(value, list):
                             filter_conditions.append(getattr(self.model, field).in_(value))
-                        elif isinstance(value, str) and '%' in value:
+                        elif isinstance(value, str) and "%" in value:
                             filter_conditions.append(getattr(self.model, field).ilike(f"%{value}%"))
                         else:
                             filter_conditions.append(getattr(self.model, field) == value)
@@ -218,10 +215,10 @@ class BaseService(Generic[T, C, U], ABC):
             entity_data.update(kwargs)
 
             # Add timestamps if model supports them
-            if hasattr(self.model, 'created_at'):
-                entity_data['created_at'] = datetime.utcnow()
-            if hasattr(self.model, 'updated_at'):
-                entity_data['updated_at'] = datetime.utcnow()
+            if hasattr(self.model, "created_at"):
+                entity_data["created_at"] = datetime.utcnow()
+            if hasattr(self.model, "updated_at"):
+                entity_data["updated_at"] = datetime.utcnow()
 
             # Create entity
             entity = self.model(**entity_data)
@@ -231,7 +228,7 @@ class BaseService(Generic[T, C, U], ABC):
             # Log business event
             self.logger.log_business_event(
                 event_name=f"{self.model.__name__.lower()}_created",
-                user_id=str(getattr(entity_data, 'created_by_id', 'system')),
+                user_id=str(getattr(entity_data, "created_by_id", "system")),
                 resource_id=str(entity.id),
                 entity_type=self.model.__name__
             )
@@ -251,7 +248,7 @@ class BaseService(Generic[T, C, U], ABC):
 
         except IntegrityError as e:
             raise ValidationException(
-                f"Integrity error: {str(e)}",
+                f"Integrity error: {e!s}",
                 field="integrity"
             )
         except Exception as e:
@@ -263,10 +260,10 @@ class BaseService(Generic[T, C, U], ABC):
     async def update(
         self,
         db: AsyncSession,
-        id: Union[str, UUID],
+        id: str | UUID,
         data: U,
         **kwargs
-    ) -> Optional[T]:
+    ) -> T | None:
         """
         Update entity by ID with validation and cache invalidation
         """
@@ -291,7 +288,7 @@ class BaseService(Generic[T, C, U], ABC):
                     setattr(entity, field, value)
 
             # Update timestamp if model supports it
-            if hasattr(entity, 'updated_at'):
+            if hasattr(entity, "updated_at"):
                 entity.updated_at = datetime.utcnow()
 
             await db.flush()
@@ -299,7 +296,7 @@ class BaseService(Generic[T, C, U], ABC):
             # Log business event
             self.logger.log_business_event(
                 event_name=f"{self.model.__name__.lower()}_updated",
-                user_id=str(getattr(update_data, 'updated_by_id', 'system')),
+                user_id=str(getattr(update_data, "updated_by_id", "system")),
                 resource_id=str(entity.id),
                 entity_type=self.model.__name__
             )
@@ -328,8 +325,8 @@ class BaseService(Generic[T, C, U], ABC):
     async def delete(
         self,
         db: AsyncSession,
-        id: Union[str, UUID],
-        deleted_by_id: Union[str, UUID] = None
+        id: str | UUID,
+        deleted_by_id: str | UUID = None
     ) -> bool:
         """
         Delete entity by ID with cache invalidation
@@ -343,7 +340,7 @@ class BaseService(Generic[T, C, U], ABC):
             # Store info for logging
             entity_info = {
                 "id": str(entity.id),
-                "name": getattr(entity, 'name', None)
+                "name": getattr(entity, "name", None)
             }
 
             # Delete entity
@@ -353,7 +350,7 @@ class BaseService(Generic[T, C, U], ABC):
             # Log business event
             self.logger.log_business_event(
                 event_name=f"{self.model.__name__.lower()}_deleted",
-                user_id=str(deleted_by_id) if deleted_by_id else 'system',
+                user_id=str(deleted_by_id) if deleted_by_id else "system",
                 resource_id=str(entity.id),
                 entity_type=self.model.__name__
             )
@@ -365,7 +362,7 @@ class BaseService(Generic[T, C, U], ABC):
                 EventType.DATABASE_OPERATION,
                 f"Deleted {self.model.__name__}: {entity_info['name'] or entity_info['id']}",
                 operation_name="delete",
-                entity_id=entity_info['id'],
+                entity_id=entity_info["id"],
                 entity_type=self.model.__name__
             )
 
@@ -380,9 +377,9 @@ class BaseService(Generic[T, C, U], ABC):
     async def bulk_create(
         self,
         db: AsyncSession,
-        data_list: List[C],
+        data_list: builtins.list[C],
         **kwargs
-    ) -> List[T]:
+    ) -> builtins.list[T]:
         """
         Create multiple entities efficiently
         """
@@ -398,10 +395,10 @@ class BaseService(Generic[T, C, U], ABC):
                 entity_data.update(kwargs)
 
                 # Add timestamps
-                if hasattr(self.model, 'created_at'):
-                    entity_data['created_at'] = datetime.utcnow()
-                if hasattr(self.model, 'updated_at'):
-                    entity_data['updated_at'] = datetime.utcnow()
+                if hasattr(self.model, "created_at"):
+                    entity_data["created_at"] = datetime.utcnow()
+                if hasattr(self.model, "updated_at"):
+                    entity_data["updated_at"] = datetime.utcnow()
 
                 # Create entity
                 entity = self.model(**entity_data)
@@ -413,7 +410,7 @@ class BaseService(Generic[T, C, U], ABC):
             # Log business event
             self.logger.log_business_event(
                 event_name=f"{self.model.__name__.lower()}_bulk_created",
-                user_id=str(getattr(kwargs, 'created_by_id', 'system')),
+                user_id=str(getattr(kwargs, "created_by_id", "system")),
                 resource_id=f"bulk_{len(entities)}",
                 entity_type=self.model.__name__,
                 entity_count=len(entities)
@@ -439,7 +436,7 @@ class BaseService(Generic[T, C, U], ABC):
 
     # Utility Methods
 
-    async def _invalidate_related_caches(self, entity: Union[T, List[T]], operation: str):
+    async def _invalidate_related_caches(self, entity: T | builtins.list[T], operation: str):
         """
         Invalidate caches related to this entity
         """
@@ -460,11 +457,11 @@ class BaseService(Generic[T, C, U], ABC):
         entity_id = str(entity.id)
 
         # Use cache invalidation manager based on entity type
-        if 'user' in self.model.__name__.lower():
+        if "user" in self.model.__name__.lower():
             await cache_invalidation_manager.invalidate_user_caches(entity_id)
-        elif 'team' in self.model.__name__.lower():
+        elif "team" in self.model.__name__.lower():
             await cache_invalidation_manager.invalidate_team_caches(entity_id)
-        elif 'assessment' in self.model.__name__.lower():
+        elif "assessment" in self.model.__name__.lower():
             await cache_invalidation_manager.invalidate_assessment_caches(entity_id)
         else:
             # Generic invalidation
@@ -474,7 +471,7 @@ class BaseService(Generic[T, C, U], ABC):
                 operation
             )
 
-    def validate_id(self, id: Union[str, UUID]) -> str:
+    def validate_id(self, id: str | UUID) -> str:
         """Validate and standardize ID"""
         if isinstance(id, str):
             try:
@@ -487,7 +484,7 @@ class BaseService(Generic[T, C, U], ABC):
         else:
             raise ValidationException("ID must be string or UUID", field="id")
 
-    async def exists(self, db: AsyncSession, id: Union[str, UUID]) -> bool:
+    async def exists(self, db: AsyncSession, id: str | UUID) -> bool:
         """Check if entity exists"""
         try:
             result = await db.execute(
@@ -497,7 +494,7 @@ class BaseService(Generic[T, C, U], ABC):
         except Exception:
             return False
 
-    async def get_or_404(self, db: AsyncSession, id: Union[str, UUID]) -> T:
+    async def get_or_404(self, db: AsyncSession, id: str | UUID) -> T:
         """Get entity or raise 404"""
         entity = await self.get_by_id(db, id)
         if not entity:
@@ -516,7 +513,7 @@ class BaseService(Generic[T, C, U], ABC):
         Fluent query builder for complex database queries
         """
 
-        def __init__(self, db: AsyncSession, model: Type[T]):
+        def __init__(self, db: AsyncSession, model: type[T]):
             self.db = db
             self.model = model
             self.query = select(model)
@@ -561,12 +558,12 @@ class BaseService(Generic[T, C, U], ABC):
             self.query = self.query.offset(offset)
             return self
 
-        async def execute(self) -> List[T]:
+        async def execute(self) -> list[T]:
             """Execute query and return results"""
             result = await self.db.execute(self.query)
             return result.scalars().all()
 
-        async def first(self) -> Optional[T]:
+        async def first(self) -> T | None:
             """Execute query and return first result"""
             self.query = self.query.limit(1)
             result = await self.db.execute(self.query)

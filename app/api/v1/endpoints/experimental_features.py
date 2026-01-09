@@ -104,7 +104,7 @@ class LeaderboardResponse(BaseModel):
 
 # API Endpoints
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/experiments", response_model=str)
 async def create_experiment(
     config: ExperimentConfigRequest,
@@ -142,8 +142,8 @@ async def create_experiment(
 
         return experiment_id
 
-    except Exception as 
-@check_rate_limit(identifier="public", endpoint_type="public")
+    except Exception as
+@check_rate_limit(identifier="public", limit_name="public")
 e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -212,7 +212,7 @@ async def get_experiments(
             experiments = [e for e in experiments if e.status == status]
         if test_type:
             experiments = [e for e in experiments if e.test_type == test_typ
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 e]
 
         return experiments[:limit]

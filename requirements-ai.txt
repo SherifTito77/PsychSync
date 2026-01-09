@@ -2,8 +2,8 @@
 # Install these separately when AI features are needed
 
 # Core ML/AI Libraries
-torch==2.1.0
-transformers==4.36.0
+torch>=2.6.0  # UPGRADED: CVE-2025-32434 fix (was 2.1.0)
+transformers>=4.37.0  # UPGRADED: Security fixes (was 4.36.0)
 numpy==1.24.3
 scipy==1.11.4
 scikit-learn==1.3.0

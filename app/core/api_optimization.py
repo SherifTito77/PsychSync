@@ -3,25 +3,25 @@ API Response Optimization for PsychSync
 Implements response compression, field selection, and pagination for 30-50% performance improvement
 """
 
-import json
-import gzip
-import asyncio
-from typing import Any, Dict, List, Optional, Union, Callable
 from datetime import datetime
 from functools import wraps
-
-from fastapi import Request, Response, HTTPException, Query, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
-
+import gzip
+import json
 import logging
+from typing import Any
+
+from fastapi import Query, Request, Response
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+
 class PaginationParams(BaseModel):
     """Standard pagination parameters"""
+
     page: int = Field(1, ge=1, description="Page number (starts from 1)")
     page_size: int = Field(20, ge=1, le=100, description="Items per page (max 100)")
 
@@ -35,33 +35,38 @@ class PaginationParams(BaseModel):
         """Get limit"""
         return self.page_size
 
+
 class FieldSelectionParams(BaseModel):
     """Field selection parameters"""
-    fields: Optional[str] = Field(None, description="Comma-separated list of fields to include")
-    exclude: Optional[str] = Field(None, description="Comma-separated list of fields to exclude")
 
-    def get_fields(self) -> List[str]:
+    fields: str | None = Field(None, description="Comma-separated list of fields to include")
+    exclude: str | None = Field(None, description="Comma-separated list of fields to exclude")
+
+    def get_fields(self) -> list[str]:
         """Parse fields parameter"""
         if not self.fields:
             return []
-        return [field.strip() for field in self.fields.split(',') if field.strip()]
+        return [field.strip() for field in self.fields.split(",") if field.strip()]
 
-    def get_exclude_fields(self) -> List[str]:
+    def get_exclude_fields(self) -> list[str]:
         """Parse exclude parameter"""
         if not self.exclude:
             return []
-        return [field.strip() for field in self.exclude.split(',') if field.strip()]
+        return [field.strip() for field in self.exclude.split(",") if field.strip()]
+
 
 class PaginatedResponse(BaseModel):
     """Standard paginated response format"""
-    items: List[Any]
-    pagination: Dict[str, Any]
+
+    items: list[Any]
+    pagination: dict[str, Any]
     total: int
     page: int
     page_size: int
     total_pages: int
     has_next: bool
     has_prev: bool
+
 
 class APIOptimizer:
     """
@@ -80,29 +85,23 @@ class APIOptimizer:
         self.max_page_size = 100
         self.compression_threshold = 1024  # Compress responses larger than 1KB
 
-    def create_pagination_params(
-        self,
-        page: int = 1,
-        page_size: int = 20
-    ) -> PaginationParams:
+    def create_pagination_params(self, page: int = 1, page_size: int = 20) -> PaginationParams:
         """Create pagination parameters with validation"""
         return PaginationParams(page=page, page_size=min(page_size, self.max_page_size))
 
     def create_field_selection_params(
-        self,
-        fields: Optional[str] = None,
-        exclude: Optional[str] = None
+        self, fields: str | None = None, exclude: str | None = None
     ) -> FieldSelectionParams:
         """Create field selection parameters"""
         return FieldSelectionParams(fields=fields, exclude=exclude)
 
     def serialize_with_field_selection(
         self,
-        data: Union[Dict, List[Dict]],
-        include_fields: List[str] = None,
-        exclude_fields: List[str] = None,
-        max_depth: int = 5
-    ) -> Union[Dict, List[Dict]]:
+        data: dict | list[dict],
+        include_fields: list[str] = None,
+        exclude_fields: list[str] = None,
+        max_depth: int = 5,
+    ) -> dict | list[dict]:
         """
         Serialize data with field selection
 
@@ -133,11 +132,13 @@ class APIOptimizer:
                         result[key] = value
                     elif isinstance(value, datetime):
                         result[key] = value.isoformat()
-                    elif hasattr(value, 'id'):
+                    elif hasattr(value, "id"):
                         # Handle SQLAlchemy objects
                         result[key] = str(value.id)
                     elif isinstance(value, (list, tuple)):
-                        result[key] = [_serialize_object(item, depth + 1) for item in value[:100]]  # Limit array size
+                        result[key] = [
+                            _serialize_object(item, depth + 1) for item in value[:100]
+                        ]  # Limit array size
                     elif isinstance(value, dict):
                         result[key] = _serialize_object(value, depth + 1)
                     else:
@@ -145,23 +146,23 @@ class APIOptimizer:
 
                 return result
 
-            elif isinstance(data, (list, tuple)):
+            if isinstance(data, (list, tuple)):
                 return [_serialize_object(item, depth) for item in data[:1000]]  # Limit list size
 
-            elif isinstance(data, datetime):
+            if isinstance(data, datetime):
                 return data.isoformat()
 
-            elif hasattr(data, 'id'):  # SQLAlchemy object
+            if hasattr(data, "id"):  # SQLAlchemy object
                 return {"id": str(data.id)}
 
-            else:
-                return str(data)
+            return str(data)
 
         return _serialize_object(data)
 
     def create_etag(self, data: Any) -> str:
         """Create ETag for response caching"""
         import hashlib
+
         serialized = json.dumps(data, sort_keys=True, default=str)
         return f'"{hashlib.md5(serialized.encode()).hexdigest()}"'
 
@@ -174,11 +175,8 @@ class APIOptimizer:
         return gzip.compress(data)
 
     async def paginate_query(
-        self,
-        db: AsyncSession,
-        query,
-        pagination: PaginationParams
-    ) -> tuple[List[Any], int]:
+        self, db: AsyncSession, query, pagination: PaginationParams
+    ) -> tuple[list[Any], int]:
         """
         Execute paginated query and return items with total count
 
@@ -198,11 +196,7 @@ class APIOptimizer:
         return list(items), total
 
     def create_paginated_response(
-        self,
-        items: List[Any],
-        total: int,
-        pagination: PaginationParams,
-        request: Request = None
+        self, items: list[Any], total: int, pagination: PaginationParams, request: Request = None
     ) -> PaginatedResponse:
         """Create standardized paginated response"""
         total_pages = (total + pagination.page_size - 1) // pagination.page_size
@@ -216,25 +210,25 @@ class APIOptimizer:
                 "has_next": pagination.page < total_pages,
                 "has_prev": pagination.page > 1,
                 "offset": pagination.offset,
-                "limit": pagination.limit
+                "limit": pagination.limit,
             },
             total=total,
             page=pagination.page,
             page_size=pagination.page_size,
             total_pages=total_pages,
             has_next=pagination.page < total_pages,
-            has_prev=pagination.page > 1
+            has_prev=pagination.page > 1,
         )
 
     def create_optimized_response(
         self,
         data: Any,
         status_code: int = 200,
-        headers: Optional[Dict[str, str]] = None,
-        include_fields: List[str] = None,
-        exclude_fields: List[str] = None,
+        headers: dict[str, str] | None = None,
+        include_fields: list[str] = None,
+        exclude_fields: list[str] = None,
         compress: bool = True,
-        etag: bool = True
+        etag: bool = True,
     ) -> Response:
         """
         Create optimized API response
@@ -255,7 +249,7 @@ class APIOptimizer:
             )
 
             # Convert to JSON
-            json_data = json.dumps(serialized_data, default=str, ensure_ascii=False).encode('utf-8')
+            json_data = json.dumps(serialized_data, default=str, ensure_ascii=False).encode("utf-8")
 
             # Create response headers
             response_headers = {
@@ -277,50 +271,44 @@ class APIOptimizer:
                 response_headers["content-encoding"] = "gzip"
                 response_headers["content-length"] = str(len(compressed_data))
                 return Response(
-                    content=compressed_data,
-                    status_code=status_code,
-                    headers=response_headers
+                    content=compressed_data, status_code=status_code, headers=response_headers
                 )
-            else:
-                response_headers["content-length"] = str(len(json_data))
-                return Response(
-                    content=json_data,
-                    status_code=status_code,
-                    headers=response_headers
-                )
+            response_headers["content-length"] = str(len(json_data))
+            return Response(content=json_data, status_code=status_code, headers=response_headers)
 
         except Exception as e:
             logger.error(f"Error creating optimized response: {e}")
             # Fallback to basic JSON response
-            return JSONResponse(
-                content={"error": "Internal server error"},
-                status_code=500
-            )
+            return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+
 
 # Global API optimizer instance
 api_optimizer = APIOptimizer()
 
+
 # Dependency functions for FastAPI
 def get_pagination_params(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page")
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
 ) -> PaginationParams:
     """Get pagination parameters"""
     return api_optimizer.create_pagination_params(page=page, page_size=page_size)
 
+
 def get_field_selection_params(
-    fields: Optional[str] = Query(None, description="Comma-separated list of fields to include"),
-    exclude: Optional[str] = Query(None, description="Comma-separated list of fields to exclude")
+    fields: str | None = Query(None, description="Comma-separated list of fields to include"),
+    exclude: str | None = Query(None, description="Comma-separated list of fields to exclude"),
 ) -> FieldSelectionParams:
     """Get field selection parameters"""
     return api_optimizer.create_field_selection_params(fields=fields, exclude=exclude)
 
+
 # Decorators for API optimization
 def optimize_api_response(
-    include_fields: List[str] = None,
-    exclude_fields: List[str] = None,
+    include_fields: list[str] = None,
+    exclude_fields: list[str] = None,
     compress: bool = True,
-    etag: bool = True
+    etag: bool = True,
 ):
     """
     Decorator for optimizing API responses
@@ -330,6 +318,7 @@ def optimize_api_response(
         async def get_users():
             return [{"id": 1, "name": "User1", "email": "user1@example.com"}]
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -367,24 +356,20 @@ def optimize_api_response(
                     include_fields=final_include_fields,
                     exclude_fields=final_exclude_fields,
                     compress=compress,
-                    etag=etag
+                    etag=etag,
                 )
 
             except Exception as e:
                 logger.error(f"Error in API optimization decorator: {e}")
                 # Fallback to basic response
-                return JSONResponse(
-                    content={"error": "Internal server error"},
-                    status_code=500
-                )
+                return JSONResponse(content={"error": "Internal server error"}, status_code=500)
 
         return wrapper
+
     return decorator
 
-def paginated_response(
-    default_page_size: int = 20,
-    max_page_size: int = 100
-):
+
+def paginated_response(default_page_size: int = 20, max_page_size: int = 100):
     """
     Decorator for paginated API responses
 
@@ -395,6 +380,7 @@ def paginated_response(
             # Should return (items, total) tuple
             return users, total
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -415,7 +401,7 @@ def paginated_response(
                 # Handle different return types
                 if isinstance(result, tuple) and len(result) == 2:
                     items, total = result
-                elif hasattr(result, 'items') and hasattr(result, 'total'):
+                elif hasattr(result, "items") and hasattr(result, "total"):
                     items, total = result.items, result.total
                 else:
                     # Single item, wrap in list
@@ -423,9 +409,7 @@ def paginated_response(
 
                 # Create paginated response
                 paginated_data = api_optimizer.create_paginated_response(
-                    items=items,
-                    total=total,
-                    pagination=pagination
+                    items=items, total=total, pagination=pagination
                 )
 
                 # Extract request if available
@@ -436,27 +420,21 @@ def paginated_response(
                         break
 
                 return api_optimizer.create_optimized_response(
-                    data=paginated_data.dict(),
-                    compress=True,
-                    etag=True
+                    data=paginated_data.dict(), compress=True, etag=True
                 )
 
             except Exception as e:
                 logger.error(f"Error in paginated response decorator: {e}")
-                return JSONResponse(
-                    content={"error": "Internal server error"},
-                    status_code=500
-                )
+                return JSONResponse(content={"error": "Internal server error"}, status_code=500)
 
         return wrapper
+
     return decorator
+
 
 # Utility functions
 async def create_success_response(
-    data: Any,
-    message: str = "Success",
-    status_code: int = 200,
-    **kwargs
+    data: Any, message: str = "Success", status_code: int = 200, **kwargs
 ) -> Response:
     """Create standardized success response"""
     response_data = {
@@ -464,25 +442,20 @@ async def create_success_response(
         "message": message,
         "data": data,
         "timestamp": datetime.utcnow().isoformat(),
-        **kwargs
+        **kwargs,
     }
 
-    return api_optimizer.create_optimized_response(
-        data=response_data,
-        status_code=status_code
-    )
+    return api_optimizer.create_optimized_response(data=response_data, status_code=status_code)
+
 
 async def create_error_response(
-    message: str,
-    status_code: int = 400,
-    error_code: str = None,
-    details: Dict[str, Any] = None
+    message: str, status_code: int = 400, error_code: str = None, details: dict[str, Any] = None
 ) -> Response:
     """Create standardized error response"""
     response_data = {
         "success": False,
         "message": message,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
     if error_code:
@@ -494,13 +467,15 @@ async def create_error_response(
     return api_optimizer.create_optimized_response(
         data=response_data,
         status_code=status_code,
-        compress=False  # Don't compress error responses
+        compress=False,  # Don't compress error responses
     )
+
 
 # Response time monitoring middleware
 async def add_response_time_headers(request: Request, call_next):
     """Add response time headers for monitoring"""
     import time
+
     start_time = time.time()
 
     response = await call_next(request)

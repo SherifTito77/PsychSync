@@ -3,22 +3,16 @@ Academic Research Export Service
 Provides data export functionality for academic research tools including SPSS, R, and citation generation
 """
 
-from typing import Dict, List, Any, Optional, Union, BinaryIO
+import csv
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-import json
-import csv
 import io
-import zipfile
+import json
+import logging
 from statistics import mean, median, stdev
-
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, or_
-
-from app.core.config import settings
+from typing import Any
+import zipfile
 
 logger = logging.getLogger(__name__)
 
@@ -73,15 +67,15 @@ class ExportMetadata:
     """Metadata for academic exports"""
     title: str
     description: str
-    authors: List[str]
+    authors: list[str]
     institution: str
     department: str
     study_date: datetime
     data_type: DataType
     sample_size: int
     variables_count: int
-    ethics_approval: Optional[str] = None
-    doi: Optional[str] = None
+    ethics_approval: str | None = None
+    doi: str | None = None
     version: str = "1.0"
     confidentiality_level: str = "confidential"
 
@@ -93,11 +87,11 @@ class VariableDefinition:
     label: str
     data_type: str  # numeric, string, date, etc.
     measurement_level: str  # nominal, ordinal, interval, ratio
-    values: Optional[Dict[str, str]] = None  # Value labels
-    missing_values: Optional[List[str]] = None
+    values: dict[str, str] | None = None  # Value labels
+    missing_values: list[str] | None = None
     width: int = 8
     decimals: int = 2
-    description: Optional[str] = None
+    description: str | None = None
 
 
 @dataclass
@@ -105,16 +99,16 @@ class StatisticalSummary:
     """Statistical summary of variables"""
     variable_name: str
     n: int
-    mean: Optional[float] = None
-    median: Optional[float] = None
-    std: Optional[float] = None
-    variance: Optional[float] = None
-    min: Optional[float] = None
-    max: Optional[float] = None
-    q25: Optional[float] = None
-    q75: Optional[float] = None
-    skewness: Optional[float] = None
-    kurtosis: Optional[float] = None
+    mean: float | None = None
+    median: float | None = None
+    std: float | None = None
+    variance: float | None = None
+    min: float | None = None
+    max: float | None = None
+    q25: float | None = None
+    q75: float | None = None
+    skewness: float | None = None
+    kurtosis: float | None = None
     missing_count: int = 0
 
 
@@ -123,10 +117,10 @@ class AcademicExportResult:
     """Result of academic data export"""
     format: ExportFormat
     filename: str
-    file_content: Union[str, bytes]
+    file_content: str | bytes
     metadata: ExportMetadata
-    variable_definitions: List[VariableDefinition]
-    statistical_summary: Optional[List[StatisticalSummary]] = None
+    variable_definitions: list[VariableDefinition]
+    statistical_summary: list[StatisticalSummary] | None = None
     file_size: int = 0
     created_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -134,16 +128,16 @@ class AcademicExportResult:
 @dataclass
 class Citation:
     """Academic citation"""
-    authors: List[str]
+    authors: list[str]
     title: str
     publication_year: int
     source: str
-    doi: Optional[str] = None
-    url: Optional[str] = None
-    volume: Optional[str] = None
-    issue: Optional[str] = None
-    pages: Optional[str] = None
-    publisher: Optional[str] = None
+    doi: str | None = None
+    url: str | None = None
+    volume: str | None = None
+    issue: str | None = None
+    pages: str | None = None
+    publisher: str | None = None
 
 
 @dataclass
@@ -160,8 +154,8 @@ class MethodologyDocument:
     results: str
     discussion: str
     conclusion: str
-    references: List[str]
-    appendices: List[str]
+    references: list[str]
+    appendices: list[str]
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -203,7 +197,7 @@ class AcademicExportService:
 
     async def export_to_spss(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         metadata: ExportMetadata,
         format_type: ExportFormat = ExportFormat.SPSS_SAV
     ) -> AcademicExportResult:
@@ -235,16 +229,16 @@ class AcademicExportService:
                 metadata=metadata,
                 variable_definitions=variable_definitions,
                 statistical_summary=statistical_summary,
-                file_size=len(file_content.encode('utf-8'))
+                file_size=len(file_content.encode("utf-8"))
             )
 
         except Exception as e:
-            logger.error(f"Error exporting to SPSS: {str(e)}")
+            logger.error(f"Error exporting to SPSS: {e!s}")
             raise
 
     async def export_to_r(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         metadata: ExportMetadata,
         format_type: ExportFormat = ExportFormat.R_CSV
     ) -> AcademicExportResult:
@@ -275,14 +269,14 @@ class AcademicExportService:
                 metadata=metadata,
                 variable_definitions=variable_definitions,
                 statistical_summary=statistical_summary,
-                file_size=len(file_content.encode('utf-8'))
+                file_size=len(file_content.encode("utf-8"))
             )
 
         except Exception as e:
-            logger.error(f"Error exporting to R: {str(e)}")
+            logger.error(f"Error exporting to R: {e!s}")
             raise
 
-    async def _analyze_variables_for_spss(self, data: List[Dict[str, Any]]) -> List[VariableDefinition]:
+    async def _analyze_variables_for_spss(self, data: list[dict[str, Any]]) -> list[VariableDefinition]:
         """Analyze data and create SPSS variable definitions"""
         if not data:
             return []
@@ -304,7 +298,7 @@ class AcademicExportService:
 
             definition = VariableDefinition(
                 name=self._clean_variable_name(field_name),
-                label=field_name.replace('_', ' ').title(),
+                label=field_name.replace("_", " ").title(),
                 data_type=data_type,
                 measurement_level=measurement_level,
                 values=value_labels,
@@ -317,13 +311,13 @@ class AcademicExportService:
 
         return variable_definitions
 
-    async def _analyze_variables_for_r(self, data: List[Dict[str, Any]]) -> List[VariableDefinition]:
+    async def _analyze_variables_for_r(self, data: list[dict[str, Any]]) -> list[VariableDefinition]:
         """Analyze data and create R variable definitions"""
         return await self._analyze_variables_for_spss(data)  # Similar analysis for R
 
     async def _determine_variable_characteristics(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         field_name: str
     ) -> Tuple[str, str]:
         """Determine data type and measurement level for a variable"""
@@ -337,16 +331,15 @@ class AcademicExportService:
 
         # Check if numeric
         try:
-            numeric_values = [float(v) for v in values if isinstance(v, (int, float)) or str(v).replace('.', '', 1).isdigit()]
+            numeric_values = [float(v) for v in values if isinstance(v, (int, float)) or str(v).replace(".", "", 1).isdigit()]
             if len(numeric_values) == len(values):
                 # All values are numeric
                 unique_values = set(numeric_values)
                 if len(unique_values) <= 2 and all(v in [0, 1] for v in unique_values):
                     return "numeric", "nominal"  # Binary
-                elif len(unique_values) <= 10 and all(v.is_integer() for v in unique_values):
+                if len(unique_values) <= 10 and all(v.is_integer() for v in unique_values):
                     return "numeric", "ordinal"  # Ordinal with limited values
-                else:
-                    return "numeric", "ratio"  # Continuous
+                return "numeric", "ratio"  # Continuous
         except (ValueError, TypeError):
             pass
 
@@ -355,7 +348,7 @@ class AcademicExportService:
             from datetime import datetime
             for v in values[:5]:  # Check first 5 values
                 if isinstance(v, str):
-                    datetime.fromisoformat(v.replace('Z', '+00:00'))
+                    datetime.fromisoformat(v.replace("Z", "+00:00"))
             return "date", "interval"
         except:
             pass
@@ -365,9 +358,9 @@ class AcademicExportService:
 
     async def _extract_value_labels(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         field_name: str
-    ) -> Optional[Dict[str, str]]:
+    ) -> dict[str, str] | None:
         """Extract value labels for categorical variables"""
         values = [record.get(field_name) for record in data if record.get(field_name) is not None]
         unique_values = set(str(v) for v in values)
@@ -379,7 +372,7 @@ class AcademicExportService:
 
     async def _determine_format_specs(
         self,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         field_name: str,
         data_type: str
     ) -> Tuple[int, int]:
@@ -391,10 +384,10 @@ class AcademicExportService:
 
         if data_type == "numeric":
             try:
-                numeric_values = [float(v) for v in values if isinstance(v, (int, float)) or str(v).replace('.', '', 1).isdigit()]
+                numeric_values = [float(v) for v in values if isinstance(v, (int, float)) or str(v).replace(".", "", 1).isdigit()]
                 if numeric_values:
                     max_val = max(abs(v) for v in numeric_values)
-                    decimals = max(len(str(v).split('.')[1]) if '.' in str(v) else 0 for v in numeric_values[:10])
+                    decimals = max(len(str(v).split(".")[1]) if "." in str(v) else 0 for v in numeric_values[:10])
                     width = max(len(str(int(max_val))) + decimals + 1, 8)
                     return width, min(decimals, 2)
             except:
@@ -409,22 +402,22 @@ class AcademicExportService:
     def _clean_variable_name(self, name: str) -> str:
         """Clean variable name for SPSS compatibility"""
         # Replace invalid characters and ensure it starts with a letter
-        cleaned = ''.join(c if c.isalnum() or c == '_' else '_' for c in str(name))
+        cleaned = "".join(c if c.isalnum() or c == "_" else "_" for c in str(name))
         if cleaned and cleaned[0].isdigit():
-            cleaned = 'VAR_' + cleaned
+            cleaned = "VAR_" + cleaned
         return cleaned.upper()[:64]  # SPSS limit is 64 characters
 
     async def _create_spss_syntax_file(
         self,
-        data: List[Dict[str, Any]],
-        variable_definitions: List[VariableDefinition],
+        data: list[dict[str, Any]],
+        variable_definitions: list[VariableDefinition],
         metadata: ExportMetadata
     ) -> str:
         """Create SPSS syntax file with data and variable definitions"""
         syntax_lines = []
 
         # Header comments
-        syntax_lines.append(f"* SPSS Syntax File Generated by PsychSync")
+        syntax_lines.append("* SPSS Syntax File Generated by PsychSync")
         syntax_lines.append(f"* Title: {metadata.title}")
         syntax_lines.append(f"* Authors: {', '.join(metadata.authors)}")
         syntax_lines.append(f"* Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -497,8 +490,8 @@ class AcademicExportService:
 
     async def _create_spss_portable_format(
         self,
-        data: List[Dict[str, Any]],
-        variable_definitions: List[VariableDefinition],
+        data: list[dict[str, Any]],
+        variable_definitions: list[VariableDefinition],
         metadata: ExportMetadata
     ) -> str:
         """Create SPSS portable format file"""
@@ -530,15 +523,15 @@ class AcademicExportService:
 
     async def _create_r_csv(
         self,
-        data: List[Dict[str, Any]],
-        variable_definitions: List[VariableDefinition],
+        data: list[dict[str, Any]],
+        variable_definitions: list[VariableDefinition],
         metadata: ExportMetadata
     ) -> str:
         """Create R-ready CSV file with metadata comments"""
         output = io.StringIO()
 
         # Write R script header with metadata
-        output.write(f"# R Data File Generated by PsychSync\n")
+        output.write("# R Data File Generated by PsychSync\n")
         output.write(f"# Title: {metadata.title}\n")
         output.write(f"# Authors: {', '.join(metadata.authors)}\n")
         output.write(f"# Institution: {metadata.institution}\n")
@@ -587,8 +580,8 @@ class AcademicExportService:
 
     async def _create_r_rds(
         self,
-        data: List[Dict[str, Any]],
-        variable_definitions: List[VariableDefinition],
+        data: list[dict[str, Any]],
+        variable_definitions: list[VariableDefinition],
         metadata: ExportMetadata
     ) -> str:
         """Create R RDS format file content (as JSON representation)"""
@@ -672,8 +665,8 @@ summary(df)
 
     async def _create_r_json(
         self,
-        data: List[Dict[str, Any]],
-        variable_definitions: List[VariableDefinition],
+        data: list[dict[str, Any]],
+        variable_definitions: list[VariableDefinition],
         metadata: ExportMetadata
     ) -> str:
         """Create JSON format suitable for R analysis"""
@@ -713,9 +706,9 @@ summary(df)
 
     async def _calculate_statistical_summary(
         self,
-        data: List[Dict[str, Any]],
-        variable_definitions: List[VariableDefinition]
-    ) -> List[StatisticalSummary]:
+        data: list[dict[str, Any]],
+        variable_definitions: list[VariableDefinition]
+    ) -> list[StatisticalSummary]:
         """Calculate statistical summary for numeric variables"""
         summaries = []
 
@@ -769,7 +762,7 @@ summary(df)
     async def generate_citation(
         self,
         assessment_name: str,
-        authors: List[str],
+        authors: list[str],
         publication_year: int = None,
         citation_style: CitationStyle = CitationStyle.APA
     ) -> str:
@@ -801,7 +794,7 @@ summary(df)
 
             return f"{authors} ({citation.publication_year}). {citation.title}. {citation.source}."
 
-        elif style == CitationStyle.MLA:
+        if style == CitationStyle.MLA:
             # MLA format: Author, First Name. "Title." Source, Year.
             if len(citation.authors) > 2:
                 authors = f"{citation.authors[0]}, et al."
@@ -810,7 +803,7 @@ summary(df)
 
             return f'{authors}. "{citation.title}." {citation.source}, {citation.publication_year}.'
 
-        elif style == CitationStyle.CHICAGO:
+        if style == CitationStyle.CHICAGO:
             # Chicago format: Author. Title. Source, Year.
             authors = ", ".join(citation.authors)
             if len(citation.authors) > 1:
@@ -818,22 +811,21 @@ summary(df)
 
             return f"{authors}. {citation.title}. {citation.source}, {citation.publication_year}."
 
-        elif style == CitationStyle.IEEE:
+        if style == CitationStyle.IEEE:
             # IEEE format: [1] A. Author, "Title," Source, Year.
             # Simplified - would use reference numbers in practice
             authors = citation.authors[0].split()[-1] + citation.authors[0].split()[0][0] + "."
             return f'{authors}, "{citation.title}," {citation.source}, {citation.publication_year}.'
 
-        else:
-            # Default format
-            return f"{', '.join(citation.authors)} ({citation.publication_year}). {citation.title}. {citation.source}."
+        # Default format
+        return f"{', '.join(citation.authors)} ({citation.publication_year}). {citation.title}. {citation.source}."
 
     async def create_methodology_document(
         self,
         assessment_name: str,
         description: str,
         sample_size: int,
-        methodology_details: Dict[str, Any]
+        methodology_details: dict[str, Any]
     ) -> MethodologyDocument:
         """Create comprehensive research methodology documentation"""
 
@@ -878,7 +870,7 @@ summary(df)
             appendices=appendices
         )
 
-    async def _generate_introduction(self, assessment_name: str, details: Dict[str, Any]) -> str:
+    async def _generate_introduction(self, assessment_name: str, details: dict[str, Any]) -> str:
         """Generate introduction section"""
         return f"""
 Introduction
@@ -893,9 +885,9 @@ The current study aims to demonstrate the utility of the {assessment_name} in bo
 and clinical settings, providing valuable insights into psychological assessment practices.
 """
 
-    async def _generate_methodology_section(self, details: Dict[str, Any]) -> str:
+    async def _generate_methodology_section(self, details: dict[str, Any]) -> str:
         """Generate methodology section"""
-        return f"""
+        return """
 Methodology
 
 Research Design
@@ -912,7 +904,7 @@ informed consent prior to participation, and all data was handled in accordance 
 guidelines for psychological research.
 """
 
-    async def _generate_participants_section(self, sample_size: int, details: Dict[str, Any]) -> str:
+    async def _generate_participants_section(self, sample_size: int, details: dict[str, Any]) -> str:
         """Generate participants section"""
         return f"""
 Participants
@@ -933,7 +925,7 @@ Inclusion and Exclusion Criteria
 - Exclusion: [Specify exclusion criteria]
 """
 
-    async def _generate_materials_section(self, assessment_name: str, details: Dict[str, Any]) -> str:
+    async def _generate_materials_section(self, assessment_name: str, details: dict[str, Any]) -> str:
         """Generate materials section"""
         return f"""
 Materials and Instruments
@@ -953,9 +945,9 @@ Technical Equipment
 - [Other technical equipment used]
 """
 
-    async def _generate_procedure_section(self, details: Dict[str, Any]) -> str:
+    async def _generate_procedure_section(self, details: dict[str, Any]) -> str:
         """Generate procedure section"""
-        return f"""
+        return """
 Procedure
 
 Pre-Assessment Preparation
@@ -974,9 +966,9 @@ Post-Assessment
 3. Data processing and quality assurance
 """
 
-    async def _generate_data_analysis_section(self, details: Dict[str, Any]) -> str:
+    async def _generate_data_analysis_section(self, details: dict[str, Any]) -> str:
         """Generate data analysis section"""
-        return f"""
+        return """
 Data Analysis
 
 Statistical analyses were conducted using [statistical software] with alpha set at 0.05 for
@@ -1001,9 +993,9 @@ Inferential Statistics
 [Specify statistical tests used based on research questions]
 """
 
-    async def _generate_results_section(self, details: Dict[str, Any]) -> str:
+    async def _generate_results_section(self, details: dict[str, Any]) -> str:
         """Generate results section"""
-        return f"""
+        return """
 Results
 
 Preliminary analyses revealed [summarize key findings]. The assessment demonstrated
@@ -1027,7 +1019,7 @@ Descriptive Statistics
 [Additional results based on specific analyses]
 """
 
-    async def _generate_discussion_section(self, assessment_name: str, details: Dict[str, Any]) -> str:
+    async def _generate_discussion_section(self, assessment_name: str, details: dict[str, Any]) -> str:
         """Generate discussion section"""
         return f"""
 Discussion
@@ -1053,7 +1045,7 @@ Future Directions
 Future research should focus on [future research directions]
 """
 
-    async def _generate_conclusion_section(self, assessment_name: str, details: Dict[str, Any]) -> str:
+    async def _generate_conclusion_section(self, assessment_name: str, details: dict[str, Any]) -> str:
         """Generate conclusion section"""
         return f"""
 Conclusion
@@ -1070,7 +1062,7 @@ Future validation studies in diverse populations and settings will further estab
 utility of this assessment tool across different research contexts.
 """
 
-    async def _generate_references(self, assessment_name: str) -> List[str]:
+    async def _generate_references(self, assessment_name: str) -> list[str]:
         """Generate reference list"""
         return [
             f"PsychSync Assessment Platform. (2024). {assessment_name} [Assessment instrument]. "
@@ -1090,7 +1082,7 @@ utility of this assessment tool across different research contexts.
             "McGraw-Hill."
         ]
 
-    async def _generate_appendices(self, assessment_name: str, details: Dict[str, Any]) -> List[str]:
+    async def _generate_appendices(self, assessment_name: str, details: dict[str, Any]) -> list[str]:
         """Generate appendix list"""
         return [
             f"Appendix A: {assessment_name} Complete Instrument",
@@ -1103,9 +1095,9 @@ utility of this assessment tool across different research contexts.
     async def export_complete_research_package(
         self,
         assessment_name: str,
-        data: List[Dict[str, Any]],
+        data: list[dict[str, Any]],
         metadata: ExportMetadata,
-        export_formats: List[ExportFormat] = None
+        export_formats: list[ExportFormat] = None
     ) -> str:
         """Create complete research package with multiple export formats"""
         if export_formats is None:
@@ -1116,7 +1108,7 @@ utility of this assessment tool across different research contexts.
         # Create ZIP file in memory
         zip_buffer = io.BytesIO()
 
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             # Add metadata
             metadata_json = json.dumps({
                 "title": metadata.title,
@@ -1146,7 +1138,7 @@ utility of this assessment tool across different research contexts.
                     zip_file.writestr(f"data/{export_result.filename}", export_result.file_content)
 
                 except Exception as e:
-                    logger.error(f"Error creating {format_type.value} export: {str(e)}")
+                    logger.error(f"Error creating {format_type.value} export: {e!s}")
 
             # Add methodology document
             methodology_doc = await self.create_methodology_document(

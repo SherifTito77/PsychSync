@@ -6,21 +6,20 @@ Author: Security Team
 Version: 1.0.0
 """
 
-import logging
-import json
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
-from enum import Enum
 import asyncio
 from collections import defaultdict, deque
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+import logging
+from typing import Any
 
 logger = logging.getLogger("app.security.monitoring")
 
 
 class SeverityLevel(Enum):
     """Security event severity levels"""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -31,6 +30,7 @@ class SeverityLevel(Enum):
 @dataclass
 class SecurityEvent:
     """Security event data structure"""
+
     timestamp: datetime
     event_type: str
     severity: SeverityLevel
@@ -38,10 +38,10 @@ class SecurityEvent:
     user_agent: str
     path: str
     method: str
-    details: Dict[str, Any]
+    details: dict[str, Any]
     resolved: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         data = asdict(self)
         data["timestamp"] = self.timestamp.isoformat()
@@ -61,29 +61,26 @@ class SecurityMonitor:
     - Metrics reporting
     """
 
-    def __init__(self, retention_hours: int = 24, alert_thresholds: Dict[str, int] = None):
+    def __init__(self, retention_hours: int = 24, alert_thresholds: dict[str, int] = None):
         self.retention_hours = retention_hours
         self.events: deque = deque(maxlen=10000)  # Circular buffer
-        self.event_counts: Dict[str, int] = defaultdict(int)
-        self.ip_event_counts: Dict[str, int] = defaultdict(int)
+        self.event_counts: dict[str, int] = defaultdict(int)
+        self.ip_event_counts: dict[str, int] = defaultdict(int)
         self.alert_thresholds = alert_thresholds or {
             "critical": 1,
             "high": 5,
             "medium": 20,
-            "low": 50
+            "low": 50,
         }
-        self.alert_cooldown: Dict[str, datetime] = {}
+        self.alert_cooldown: dict[str, datetime] = {}
         self.cooldown_period = timedelta(minutes=5)
 
         # Alert callbacks
-        self.alert_callbacks: List[callable] = []
+        self.alert_callbacks: list[callable] = []
 
         logger.info(
             "Security monitor initialized",
-            extra={
-                "retention_hours": retention_hours,
-                "alert_thresholds": self.alert_thresholds
-            }
+            extra={"retention_hours": retention_hours, "alert_thresholds": self.alert_thresholds},
         )
 
     def add_alert_callback(self, callback: callable) -> None:
@@ -117,8 +114,8 @@ class SecurityMonitor:
                     "severity": event.severity.value,
                     "source_ip": event.source_ip,
                     "path": event.path,
-                    "details": event.details
-                }
+                    "details": event.details,
+                },
             )
 
     async def _check_patterns(self, event: SecurityEvent) -> None:
@@ -141,8 +138,8 @@ class SecurityMonitor:
                     "threshold": threshold,
                     "actual_count": self.event_counts[event_key],
                     "event_type": event.event_type,
-                    "severity": severity
-                }
+                    "severity": severity,
+                },
             )
 
     async def _check_repeated_patterns(self, event: SecurityEvent) -> None:
@@ -154,11 +151,7 @@ class SecurityMonitor:
             await self._generate_alert(
                 "repeated_violations",
                 event,
-                {
-                    "source_ip": event.source_ip,
-                    "event_count": ip_count,
-                    "time_window": "last hour"
-                }
+                {"source_ip": event.source_ip, "event_count": ip_count, "time_window": "last hour"},
             )
 
     async def _check_distributed_patterns(self, event: SecurityEvent) -> None:
@@ -166,8 +159,7 @@ class SecurityMonitor:
         # Count unique IPs with similar events in last hour
         cutoff = datetime.utcnow() - timedelta(hours=1)
         recent_events = [
-            e for e in self.events
-            if e.timestamp > cutoff and e.event_type == event.event_type
+            e for e in self.events if e.timestamp > cutoff and e.event_type == event.event_type
         ]
         unique_ips = set(e.source_ip for e in recent_events)
 
@@ -179,15 +171,12 @@ class SecurityMonitor:
                 {
                     "event_type": event.event_type,
                     "unique_ips": len(unique_ips),
-                    "total_events": len(recent_events)
-                }
+                    "total_events": len(recent_events),
+                },
             )
 
     async def _generate_alert(
-        self,
-        alert_type: str,
-        event: SecurityEvent,
-        metadata: Dict[str, Any]
+        self, alert_type: str, event: SecurityEvent, metadata: dict[str, Any]
     ) -> None:
         """Generate security alert"""
         # Check cooldown
@@ -206,7 +195,7 @@ class SecurityMonitor:
             "alert_type": alert_type,
             "severity": event.severity.value,
             "source_event": event.to_dict(),
-            "metadata": metadata
+            "metadata": metadata,
         }
 
         # Call registered callbacks
@@ -216,18 +205,15 @@ class SecurityMonitor:
             except Exception as e:
                 logger.error(f"Alert callback failed: {e}")
 
-        logger.warning(
-            f"Security alert generated: {alert_type}",
-            extra=alert
-        )
+        logger.warning(f"Security alert generated: {alert_type}", extra=alert)
 
     def get_events(
         self,
-        event_type: Optional[str] = None,
-        severity: Optional[SeverityLevel] = None,
-        source_ip: Optional[str] = None,
-        hours_back: int = 1
-    ) -> List[SecurityEvent]:
+        event_type: str | None = None,
+        severity: SeverityLevel | None = None,
+        source_ip: str | None = None,
+        hours_back: int = 1,
+    ) -> list[SecurityEvent]:
         """
         Query events with filters
 
@@ -243,16 +229,17 @@ class SecurityMonitor:
         cutoff = datetime.utcnow() - timedelta(hours=hours_back)
 
         filtered = [
-            e for e in self.events
-            if e.timestamp > cutoff and
-            (event_type is None or e.event_type == event_type) and
-            (severity is None or e.severity == severity) and
-            (source_ip is None or e.source_ip == source_ip)
+            e
+            for e in self.events
+            if e.timestamp > cutoff
+            and (event_type is None or e.event_type == event_type)
+            and (severity is None or e.severity == severity)
+            and (source_ip is None or e.source_ip == source_ip)
         ]
 
         return filtered
 
-    def get_summary(self, hours_back: int = 24) -> Dict[str, Any]:
+    def get_summary(self, hours_back: int = 24) -> dict[str, Any]:
         """
         Get security event summary
 
@@ -289,7 +276,7 @@ class SecurityMonitor:
             "by_severity": dict(severity_counts),
             "by_type": dict(type_counts),
             "top_offender_ips": top_ips,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     def cleanup_old_events(self) -> None:
@@ -319,7 +306,7 @@ def record_security_event(
     user_agent: str,
     path: str,
     method: str,
-    details: Dict[str, Any]
+    details: dict[str, Any],
 ) -> None:
     """Record a security event"""
     event = SecurityEvent(
@@ -330,12 +317,12 @@ def record_security_event(
         user_agent=user_agent,
         path=path,
         method=method,
-        details=details
+        details=details,
     )
     security_monitor.record_event(event)
 
 
-def get_security_summary(hours_back: int = 24) -> Dict[str, Any]:
+def get_security_summary(hours_back: int = 24) -> dict[str, Any]:
     """Get security event summary"""
     return security_monitor.get_summary(hours_back)
 

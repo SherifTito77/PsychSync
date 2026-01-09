@@ -1,0 +1,511 @@
+{
+  "dashboard": {
+    "title": "PsychSync - Advanced Threat Detection Dashboard",
+    "description": "Real-time monitoring of LLM jailbreak detection, behavioral analysis, and threat response",
+    "tags": ["security", "threat-detection", "llm", "ai-security"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Overall Threat Level",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "psychsync_avg_risk_score",
+            "legendFormat": "{{ value | humanizePercentage }}"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto",
+          "text": {},
+          "title": "Average Risk Score"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.4},
+                {"color": "orange", "value": 0.6},
+                {"color": "red", "value": 0.8}
+              ]
+            },
+            "mappings": [],
+            "unit": "percentunit"
+          }
+        },
+        "description": "Overall system risk score across all threat detections"
+      },
+      {
+        "id": 2,
+        "title": "Threats by Severity",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "count(psychsync_threat_signals{severity=\"critical\"})",
+            "legendFormat": "Critical"
+          },
+          {
+            "expr": "count(psychsync_threat_signals{severity=\"high\"})",
+            "legendFormat": "High"
+          },
+          {
+            "expr": "count(psychsync_threat_signals{severity=\"medium\"})",
+            "legendFormat": "Medium"
+          },
+          {
+            "expr": "count(psychsync_threat_signals{severity=\"low\"})",
+            "legendFormat": "Low"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right"},
+          "pieType": "donut",
+          "tooltip": {"mode": "single"}
+        },
+        "description": "Distribution of threats by severity level"
+      },
+      {
+        "id": 3,
+        "title": "Total Threat Signals (Last 1h)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "count(psychsync_threat_signals)",
+            "legendFormat": "{{ value }}"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "text": {},
+          "title": "Total Threats",
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 10},
+                {"color": "orange", "value": 50},
+                {"color": "red", "value": 100}
+              ]
+            }
+          }
+        },
+        "description": "Total number of threat signals detected in the last hour"
+      },
+      {
+        "id": 4,
+        "title": "Active Sessions",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "psychsync_active_sessions",
+            "legendFormat": "{{ value }}"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "text": {},
+          "title": "Active Sessions",
+          "textMode": "auto"
+        },
+        "description": "Number of currently active monitored sessions"
+      },
+      {
+        "id": 5,
+        "title": "Jailbreak Attempts Over Time",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(psychsync_jailbreak_attempts_total[1m])",
+            "legendFormat": "Jailbreak Attempts/sec"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "bottom"},
+          "tooltip": {"mode": "multi"}
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "lineWidth": 2,
+              "fillOpacity": 10
+            },
+            "mappings": []
+          }
+        },
+        "description": "Rate of jailbreak attempts per second"
+      },
+      {
+        "id": 6,
+        "title": "Jailbreak Types",
+        "type": "barchart",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "count by (jailbreak_type) (psychsync_jailbreak_attempts_total)",
+            "legendFormat": "{{ jailbreak_type }}"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "list", "placement": "bottom"},
+          "orientation": "horizontal",
+          "tooltip": {"mode": "single"}
+        },
+        "description": "Breakdown of jailbreak attempts by type"
+      },
+      {
+        "id": 7,
+        "title": "Behavioral Anomalies",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(psychsync_behavioral_anomalies[5m])",
+            "legendFormat": "{{ category }} - {{ threat_type }}"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right"},
+          "tooltip": {"mode": "multi"}
+        },
+        "description": "Rate of behavioral anomaly detection by category"
+      },
+      {
+        "id": 8,
+        "title": "Users with High Risk Scores",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "topk(10, psychsync_user_risk_score)",
+            "legendFormat": "User: {{ user_id }} - Risk: {{ value }}",
+            "format": "table"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sort": { "col": 1, "desc": true }
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true, "__value__": true}
+            }
+          }
+        ],
+        "description": "Top 10 users with highest behavioral risk scores"
+      },
+      {
+        "id": 9,
+        "title": "Response Actions Executed",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "rate(psychsync_response_actions_executed_total[1m])",
+            "legendFormat": "{{ action }}"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right"},
+          "tooltip": {"mode": "multi"}
+        },
+        "description": "Rate of automated response actions executed"
+      },
+      {
+        "id": 10,
+        "title": "Response Success Rate",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "psychsync_response_success_rate",
+            "legendFormat": "{{ value | humanizePercentage }}"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "text": {},
+          "title": "Success Rate",
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.8},
+                {"color": "green", "value": 0.95}
+              ]
+            },
+            "mappings": [],
+            "unit": "percentunit"
+          }
+        },
+        "description": "Success rate of automated response actions"
+      },
+      {
+        "id": 11,
+        "title": "Average Response Duration",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 24},
+        "targets": [
+          {
+            "expr": "psychsync_response_duration_seconds{quantile=\"0.95\"}",
+            "legendFormat": "{{ value }}s"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "showThresholdLabels": false,
+          "text": {}
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "max": 5.0,
+            "min": 0.0,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1.0},
+                {"color": "orange", "value": 2.0},
+                {"color": "red", "value": 5.0}
+              ]
+            },
+            "unit": "s"
+          }
+        },
+        "description": "95th percentile of response action execution time"
+      },
+      {
+        "id": 12,
+        "title": "Threat Signals by Source",
+        "type": "barchart",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+        "targets": [
+          {
+            "expr": "count by (source) (psychsync_threat_signals)",
+            "legendFormat": "{{ source }}"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "list", "placement": "bottom"},
+          "orientation": "horizontal"
+        },
+        "description": "Breakdown of threat signals by detection source"
+      },
+      {
+        "id": 13,
+        "title": "Recent Critical Alerts",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+        "targets": [
+          {
+            "expr": "psychsync_alerts{severity=\"critical\"}",
+            "legendFormat": "{{ alert_id }} - {{ threat_type }}"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sort": { "col": 7, "desc": true }
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true}
+            }
+          }
+        ],
+        "description": "Most recent critical security alerts"
+      },
+      {
+        "id": 14,
+        "title": "Users Baseline Status",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40},
+        "targets": [
+          {
+            "expr": "psychsync_users_with_baselines",
+            "legendFormat": "Baselines Established"
+          },
+          {
+            "expr": "psychsync_total_users_tracked - psychsync_users_with_baselines",
+            "legendFormat": "No Baseline"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "table", "placement": "right"},
+          "pieType": "donut"
+        },
+        "description": "Users with established behavioral baselines vs those without"
+      },
+      {
+        "id": 15,
+        "title": "Detection System Health",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 40},
+        "targets": [
+          {
+            "expr": "up{job=\"psychsync-threat-detection\"}",
+            "legendFormat": "{{ value }}"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "text": {},
+          "title": "System Status",
+          "textMode": "value"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "mappings": [
+              {"options": {"0": {"color": "red", "text": "DOWN"}}, "type": "value"},
+              {"options": {"1": {"color": "green", "text": "UP"}}, "type": "value"}
+            ]
+          }
+        },
+        "description": "Health status of threat detection system"
+      },
+      {
+        "id": 16,
+        "title": "Memory Usage",
+        "type": "gauge",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 40},
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"psychsync-threat-detection\"} / 1024 / 1024 / 1024",
+            "legendFormat": "{{ value }}GB"
+          }
+        ],
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "max": 4.0,
+            "min": 0.0,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1.0},
+                {"color": "orange", "value": 2.0},
+                {"color": "red", "value": 4.0}
+              ]
+            },
+            "unit": "bytes"
+          }
+        },
+        "description": "Memory usage of threat detection system"
+      },
+      {
+        "id": 17,
+        "title": "Top Threat Categories",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 48},
+        "targets": [
+          {
+            "expr": "topk(10, count by (threat_type) (increase(psychsync_threat_signals[1h])))",
+            "legendFormat": "{{ threat_type }}: {{ value }}"
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sort": { "col": 1, "desc": true }
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true}
+            }
+          }
+        ],
+        "description": "Top 10 threat categories in the last hour"
+      },
+      {
+        "id": 18,
+        "title": "Blocked Requests (Rate)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 48},
+        "targets": [
+          {
+            "expr": "rate(psychsync_requests_blocked_total[1m])",
+            "legendFormat": "Blocked Requests/sec"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "hidden", "placement": "bottom"},
+          "tooltip": {"mode": "single"}
+        },
+        "description": "Rate of requests blocked due to threat detection"
+      }
+    ]
+  }
+}

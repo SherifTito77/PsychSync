@@ -17,7 +17,7 @@ router = APIRouter(prefix="/nlp", tags=["NLP"])
 class TextAnalysisRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=10000, description="Text to analyze")
     include_entities: bool = Field(default=True, description="Include named entity recognition")
-    
+
     @validator("text")
     def text_not_empty(cls, v):
         if not v.strip():
@@ -35,7 +35,7 @@ class TextAnalysisResponse(BaseModel):
 class TrendAnalysisRequest(BaseModel):
     texts: List[str] = Field(..., min_items=2, max_items=50)
     timestamps: List[datetime]
-    
+
     @validator("timestamps")
     def validate_timestamps(cls, v, values):
         if "texts" in values and len(v) != len(values["texts"]):
@@ -56,7 +56,7 @@ def get_nlp_service() -> NLPService:
 
 # Routes
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/analyze", response_model=TextAnalysisResponse)
 async def analyze_text(
     request: TextAnalysisRequest,
@@ -64,21 +64,21 @@ async def analyze_text(
 ):
     """
     Analyze text for sentiment, emotions, and linguistic features
-    
+
     - **text**: Text to analyze (1-10000 characters)
     - **include_entities**: Whether to include named entity recognition
     """
     try:
         result = nlp_service.analyze_text(request.text)
-        
+
         if not request.include_entities:
             result.pop("entities", None)
-        
+
         return result
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ER
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ROR,
             detail=f"Analysis failed: {str(e)}"
         )
@@ -90,7 +90,7 @@ async def analyze_trend(
 ):
     """
     Analyze sentiment trend across multiple texts
-    
+
     - **texts**: List of texts (2-50 items)
     - **timestamps**: Corresponding timestamps for each text
     """
@@ -102,7 +102,7 @@ async def analyze_trend(
     except Exception as e:
         raise HTTPException(
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trend analysis failed: {str(e)}"
         )
@@ -114,7 +114,7 @@ async def generate_wordcloud(
 ):
     """
     Generate word frequency data for wordcloud visualization
-    
+
     - **text**: Text to process
     - **max_words**: Maximum words to return (10-500)
     """
@@ -134,7 +134,7 @@ async def batch_analyze(
 ):
     """
     Batch analyze multiple texts
-    
+
     - **texts**: List of texts to analyze (1-50 items)
     """
     try:
@@ -143,7 +143,7 @@ async def batch_analyze(
             analysis = nlp_service.analyze_text(text)
             analysis["index"] = idx
             results.append(analysis)
-        
+
         return {
             "analyses": results,
             "count": len(results),
@@ -198,4 +198,3 @@ def _get_dominant_emotions(results: List[dict]) -> dict:
         emotion = result["emotions"]["dominant_emotion"]
         emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
     return emotion_counts
-

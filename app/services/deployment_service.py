@@ -3,25 +3,15 @@ Deployment and Launch Execution Service
 Handles production deployment, health checks, monitoring, and rollback procedures
 """
 
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime, timedelta
+import asyncio
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from enum import Enum
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-import json
+from typing import Any
 import uuid
-import asyncio
-import subprocess
-import os
-import sys
+
 import yaml
-from dataclasses import asdict
-
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, or_, text
-
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +74,8 @@ class DeploymentConfig:
     memory_limit: str = "1Gi"
     cpu_request: str = "500m"
     memory_request: str = "512Mi"
-    environment_variables: Dict[str, str] = field(default_factory=dict)
-    secrets: Dict[str, str] = field(default_factory=dict)
+    environment_variables: dict[str, str] = field(default_factory=dict)
+    secrets: dict[str, str] = field(default_factory=dict)
     health_check_endpoint: str = "/health"
     readiness_check_endpoint: str = "/ready"
     rollout_strategy: str = "RollingUpdate"  # RollingUpdate, Recreate
@@ -116,8 +106,8 @@ class HealthCheckResult:
     check_name: str
     status: HealthCheckStatus
     response_time: float
-    status_code: Optional[int] = None
-    error_message: Optional[str] = None
+    status_code: int | None = None
+    error_message: str | None = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -125,14 +115,14 @@ class HealthCheckResult:
 class SystemHealth:
     """Overall system health status"""
     overall_status: HealthCheckStatus
-    component_status: Dict[str, ComponentStatus]
-    health_checks: List[HealthCheckResult]
+    component_status: dict[str, ComponentStatus]
+    health_checks: list[HealthCheckResult]
     uptime_percentage: float
     last_check: datetime
     active_users: int = 0
     error_rate: float = 0.0
     response_time_p95: float = 0.0
-    resource_usage: Dict[str, float] = field(default_factory=dict)
+    resource_usage: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -142,15 +132,15 @@ class Deployment:
     config: DeploymentConfig
     status: DeploymentStatus
     started_at: datetime
-    completed_at: Optional[datetime] = None
-    duration: Optional[float] = None
+    completed_at: datetime | None = None
+    duration: float | None = None
     success: bool = False
-    error_message: Optional[str] = None
-    rollback_id: Optional[str] = None
-    deployment_logs: List[str] = field(default_factory=list)
-    pre_deployment_checks: List[HealthCheckResult] = field(default_factory=list)
-    post_deployment_checks: List[HealthCheckResult] = field(default_factory=list)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    error_message: str | None = None
+    rollback_id: str | None = None
+    deployment_logs: list[str] = field(default_factory=list)
+    pre_deployment_checks: list[HealthCheckResult] = field(default_factory=list)
+    post_deployment_checks: list[HealthCheckResult] = field(default_factory=list)
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -160,9 +150,9 @@ class RollbackPlan:
     deployment_id: str
     target_version: str
     strategy: RollbackStrategy
-    trigger_conditions: List[str]
-    rollback_steps: List[str]
-    verification_steps: List[str]
+    trigger_conditions: list[str]
+    rollback_steps: list[str]
+    verification_steps: list[str]
     rollback_timeout: int = 600  # seconds
     notify_stakeholders: bool = True
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -175,7 +165,7 @@ class PerformanceMetrics:
     cpu_usage: float
     memory_usage: float
     disk_usage: float
-    network_io: Dict[str, float]
+    network_io: dict[str, float]
     active_connections: int
     requests_per_second: float
     average_response_time: float
@@ -188,10 +178,10 @@ class DeploymentService:
     """Comprehensive deployment and launch execution service"""
 
     def __init__(self):
-        self.deployments: Dict[str, Deployment] = {}
-        self.health_checks: List[HealthCheck] = []
-        self.current_deployment: Optional[Deployment] = None
-        self.rollback_plans: Dict[str, RollbackPlan] = {}
+        self.deployments: dict[str, Deployment] = {}
+        self.health_checks: list[HealthCheck] = []
+        self.current_deployment: Deployment | None = None
+        self.rollback_plans: dict[str, RollbackPlan] = {}
 
         # Initialize default health checks
         self._initialize_default_health_checks()
@@ -338,9 +328,9 @@ class DeploymentService:
             deployment.duration = (deployment.completed_at - deployment.started_at).total_seconds()
             deployment.success = False
             deployment.error_message = str(e)
-            deployment.deployment_logs.append(f"Deployment failed: {str(e)}")
+            deployment.deployment_logs.append(f"Deployment failed: {e!s}")
 
-            logger.error(f"Deployment {deployment_id} failed: {str(e)}")
+            logger.error(f"Deployment {deployment_id} failed: {e!s}")
 
             # Trigger rollback if enabled and in production
             if config.rollback_enabled and config.environment == DeploymentEnvironment.PRODUCTION:
@@ -393,7 +383,6 @@ class DeploymentService:
         # Verify firewall rules
         # Check authentication and authorization settings
         # Validate environment variables for sensitive data
-        pass
 
     async def _execute_deployment(self, deployment: Deployment):
         """Execute the actual deployment"""
@@ -411,7 +400,7 @@ class DeploymentService:
 
         deployment.deployment_logs.append(f"Deployment executed successfully: {config.version}")
 
-    async def _generate_kubernetes_manifests(self, config: DeploymentConfig) -> List[Dict[str, Any]]:
+    async def _generate_kubernetes_manifests(self, config: DeploymentConfig) -> list[dict[str, Any]]:
         """Generate Kubernetes manifests for deployment"""
         manifests = []
 
@@ -550,7 +539,7 @@ class DeploymentService:
 
         return manifests
 
-    async def _apply_kubernetes_manifests(self, manifests: List[Dict[str, Any]], deployment: Deployment):
+    async def _apply_kubernetes_manifests(self, manifests: list[dict[str, Any]], deployment: Deployment):
         """Apply Kubernetes manifests"""
         for manifest in manifests:
             # Convert to YAML and apply using kubectl
@@ -641,7 +630,7 @@ class DeploymentService:
             await self.execute_rollback(rollback_plan.id)
             failed_deployment.rollback_id = rollback_plan.id
         except Exception as e:
-            deployment.deployment_logs.append(f"Rollback failed: {str(e)}")
+            deployment.deployment_logs.append(f"Rollback failed: {e!s}")
 
     async def create_rollback_plan(
         self,
@@ -727,8 +716,8 @@ class DeploymentService:
             return True
 
         except Exception as e:
-            deployment.deployment_logs.append(f"Rollback failed: {str(e)}")
-            logger.error(f"Rollback {rollback_id} failed: {str(e)}")
+            deployment.deployment_logs.append(f"Rollback failed: {e!s}")
+            logger.error(f"Rollback {rollback_id} failed: {e!s}")
             return False
 
     async def check_system_health(self) -> SystemHealth:
@@ -800,24 +789,22 @@ class DeploymentService:
                     response_time=response_time,
                     status_code=200
                 )
-            else:
-                # Non-critical checks occasionally degrade
-                import random
-                if secrets.SystemRandom().random() < 0.1:  # 10% chance of degradation
-                    return HealthCheckResult(
-                        check_name=health_check.name,
-                        status=HealthCheckStatus.DEGRADED,
-                        response_time=response_time + random.uniform(0.5, 2.0),
-                        status_code=200,
-                        error_message="Response time above threshold"
-                    )
-                else:
-                    return HealthCheckResult(
-                        check_name=health_check.name,
-                        status=HealthCheckStatus.HEALTHY,
-                        response_time=response_time,
-                        status_code=200
-                    )
+            # Non-critical checks occasionally degrade
+            import random
+            if secrets.SystemRandom().random() < 0.1:  # 10% chance of degradation
+                return HealthCheckResult(
+                    check_name=health_check.name,
+                    status=HealthCheckStatus.DEGRADED,
+                    response_time=response_time + random.uniform(0.5, 2.0),
+                    status_code=200,
+                    error_message="Response time above threshold"
+                )
+            return HealthCheckResult(
+                check_name=health_check.name,
+                status=HealthCheckStatus.HEALTHY,
+                response_time=response_time,
+                status_code=200
+            )
 
         except Exception as e:
             response_time = (datetime.utcnow() - start_time).total_seconds()
@@ -850,7 +837,7 @@ class DeploymentService:
             database_connections=secrets.randbelow(15) + 5
         )
 
-    async def get_deployment_history(self, limit: int = 10) -> List[Deployment]:
+    async def get_deployment_history(self, limit: int = 10) -> list[Deployment]:
         """Get deployment history"""
         all_deployments = list(self.deployments.values())
 
@@ -859,11 +846,11 @@ class DeploymentService:
 
         return all_deployments[:limit]
 
-    async def get_current_deployment_status(self) -> Optional[Deployment]:
+    async def get_current_deployment_status(self) -> Deployment | None:
         """Get current deployment status"""
         return self.current_deployment
 
-    async def monitor_deployment(self, deployment_id: str) -> Dict[str, Any]:
+    async def monitor_deployment(self, deployment_id: str) -> dict[str, Any]:
         """Monitor ongoing deployment"""
         if deployment_id not in self.deployments:
             raise ValueError(f"Deployment not found: {deployment_id}")
@@ -884,7 +871,7 @@ class DeploymentService:
             "time_elapsed": (datetime.utcnow() - deployment.started_at).total_seconds()
         }
 
-    async def generate_deployment_report(self, deployment_id: str) -> Dict[str, Any]:
+    async def generate_deployment_report(self, deployment_id: str) -> dict[str, Any]:
         """Generate comprehensive deployment report"""
         if deployment_id not in self.deployments:
             raise ValueError(f"Deployment not found: {deployment_id}")
@@ -915,7 +902,7 @@ class DeploymentService:
             "recommendations": await self._generate_deployment_recommendations(deployment)
         }
 
-    async def _analyze_performance_impact(self, deployment: Deployment) -> Dict[str, Any]:
+    async def _analyze_performance_impact(self, deployment: Deployment) -> dict[str, Any]:
         """Analyze performance impact of deployment"""
         # This would compare pre and post deployment metrics
         return {
@@ -926,7 +913,7 @@ class DeploymentService:
             "user_experience": "positive"
         }
 
-    async def _generate_deployment_recommendations(self, deployment: Deployment) -> List[str]:
+    async def _generate_deployment_recommendations(self, deployment: Deployment) -> list[str]:
         """Generate deployment recommendations"""
         recommendations = []
 
@@ -953,7 +940,7 @@ class DeploymentService:
 
         return recommendations
 
-    async def prepare_go_live_checklist(self) -> Dict[str, Any]:
+    async def prepare_go_live_checklist(self) -> dict[str, Any]:
         """Prepare comprehensive go-live checklist"""
         return {
             "pre_deployment": [

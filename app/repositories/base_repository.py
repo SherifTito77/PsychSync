@@ -16,15 +16,15 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import logging
-from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, List, Optional, Dict, Any, Tuple
+from abc import ABC
 from datetime import datetime
+import logging
+from typing import Any, Generic, TypeVar
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update, delete, text
-from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 # Initialize repository logger
 repo_logger = logging.getLogger("app.repositories.base")
@@ -34,6 +34,7 @@ ModelType = TypeVar("ModelType")
 # Generic type for Pydantic schemas
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
+
 
 class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC):
     """
@@ -52,11 +53,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
         self.model_class = model_class
         self.logger = logging.getLogger(f"app.repositories.{model_class.__name__.lower()}")
 
-    async def get_by_id(
-        self,
-        id: Any,
-        include_deleted: bool = False
-    ) -> Optional[ModelType]:
+    async def get_by_id(self, id: Any, include_deleted: bool = False) -> ModelType | None:
         """
         Get entity by ID with optional soft-delete filtering
 
@@ -71,7 +68,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             query = select(self.model_class).where(self.model_class.id == id)
 
             # Apply soft-delete filter if model supports it
-            if hasattr(self.model_class, 'deleted_at') and not include_deleted:
+            if hasattr(self.model_class, "deleted_at") and not include_deleted:
                 query = query.where(self.model_class.deleted_at.is_(None))
 
             result = await self.db.execute(query)
@@ -85,17 +82,12 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             return entity
 
         except Exception as e:
-            self.logger.error(
-                f"Error getting {self.model_class.__name__} by ID {id}: {e}"
-            )
+            self.logger.error(f"Error getting {self.model_class.__name__} by ID {id}: {e}")
             raise
 
     async def get_by_field(
-        self,
-        field_name: str,
-        field_value: Any,
-        include_deleted: bool = False
-    ) -> Optional[ModelType]:
+        self, field_name: str, field_value: Any, include_deleted: bool = False
+    ) -> ModelType | None:
         """
         Get entity by field value
 
@@ -115,7 +107,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             query = select(self.model_class).where(field == field_value)
 
             # Apply soft-delete filter if model supports it
-            if hasattr(self.model_class, 'deleted_at') and not include_deleted:
+            if hasattr(self.model_class, "deleted_at") and not include_deleted:
                 query = query.where(self.model_class.deleted_at.is_(None))
 
             result = await self.db.execute(query)
@@ -132,8 +124,8 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
         skip: int = 0,
         limit: int = 100,
         include_deleted: bool = False,
-        order_by: Optional[str] = None
-    ) -> List[ModelType]:
+        order_by: str | None = None,
+    ) -> list[ModelType]:
         """
         Get all entities with pagination and filtering
 
@@ -150,20 +142,19 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             query = select(self.model_class)
 
             # Apply soft-delete filter if model supports it
-            if hasattr(self.model_class, 'deleted_at') and not include_deleted:
+            if hasattr(self.model_class, "deleted_at") and not include_deleted:
                 query = query.where(self.model_class.deleted_at.is_(None))
 
             # Apply ordering
             if order_by:
-                if order_by.startswith('-'):
+                if order_by.startswith("-"):
                     field_name = order_by[1:]
                     if hasattr(self.model_class, field_name):
                         field = getattr(self.model_class, field_name)
                         query = query.order_by(field.desc())
-                else:
-                    if hasattr(self.model_class, order_by):
-                        field = getattr(self.model_class, order_by)
-                        query = query.order_by(field)
+                elif hasattr(self.model_class, order_by):
+                    field = getattr(self.model_class, order_by)
+                    query = query.order_by(field)
 
             # Apply pagination
             query = query.offset(skip).limit(limit)
@@ -173,11 +164,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
 
             self.logger.debug(
                 f"Retrieved {len(entities)} {self.model_class.__name__} records",
-                extra={
-                    "skip": skip,
-                    "limit": limit,
-                    "total": len(entities)
-                }
+                extra={"skip": skip, "limit": limit, "total": len(entities)},
             )
 
             return entities
@@ -187,9 +174,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             raise
 
     async def count(
-        self,
-        include_deleted: bool = False,
-        filters: Optional[Dict[str, Any]] = None
+        self, include_deleted: bool = False, filters: dict[str, Any] | None = None
     ) -> int:
         """
         Count entities with optional filtering
@@ -205,7 +190,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             query = select(func.count(self.model_class.id))
 
             # Apply soft-delete filter if model supports it
-            if hasattr(self.model_class, 'deleted_at') and not include_deleted:
+            if hasattr(self.model_class, "deleted_at") and not include_deleted:
                 query = query.where(self.model_class.deleted_at.is_(None))
 
             # Apply additional filters
@@ -220,7 +205,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
 
             self.logger.debug(
                 f"Counted {count} {self.model_class.__name__} records",
-                extra={"filters": filters, "include_deleted": include_deleted}
+                extra={"filters": filters, "include_deleted": include_deleted},
             )
 
             return count
@@ -230,9 +215,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             raise
 
     async def create(
-        self,
-        create_data: CreateSchemaType,
-        created_by: Optional[Any] = None
+        self, create_data: CreateSchemaType, created_by: Any | None = None
     ) -> ModelType:
         """
         Create new entity with audit fields
@@ -249,12 +232,12 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             entity_data = create_data.dict(exclude_unset=True)
 
             # Add audit fields if model supports them
-            if hasattr(self.model_class, 'created_at'):
-                entity_data['created_at'] = datetime.utcnow()
-            if hasattr(self.model_class, 'updated_at'):
-                entity_data['updated_at'] = datetime.utcnow()
-            if hasattr(self.model_class, 'created_by') and created_by:
-                entity_data['created_by'] = created_by
+            if hasattr(self.model_class, "created_at"):
+                entity_data["created_at"] = datetime.utcnow()
+            if hasattr(self.model_class, "updated_at"):
+                entity_data["updated_at"] = datetime.utcnow()
+            if hasattr(self.model_class, "created_by") and created_by:
+                entity_data["created_by"] = created_by
 
             # Create entity instance
             entity = self.model_class(**entity_data)
@@ -265,10 +248,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
 
             self.logger.info(
                 f"Created {self.model_class.__name__} with ID {entity.id}",
-                extra={
-                    "entity_id": entity.id,
-                    "created_by": created_by
-                }
+                extra={"entity_id": entity.id, "created_by": created_by},
             )
 
             return entity
@@ -279,11 +259,8 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             raise
 
     async def update(
-        self,
-        id: Any,
-        update_data: UpdateSchemaType,
-        updated_by: Optional[Any] = None
-    ) -> Optional[ModelType]:
+        self, id: Any, update_data: UpdateSchemaType, updated_by: Any | None = None
+    ) -> ModelType | None:
         """
         Update entity with audit fields
 
@@ -306,10 +283,10 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             entity_update_data = update_data.dict(exclude_unset=True)
 
             # Add audit fields if model supports them
-            if hasattr(self.model_class, 'updated_at'):
-                entity_update_data['updated_at'] = datetime.utcnow()
-            if hasattr(self.model_class, 'updated_by') and updated_by:
-                entity_update_data['updated_by'] = updated_by
+            if hasattr(self.model_class, "updated_at"):
+                entity_update_data["updated_at"] = datetime.utcnow()
+            if hasattr(self.model_class, "updated_by") and updated_by:
+                entity_update_data["updated_by"] = updated_by
 
             # Update entity
             for field, value in entity_update_data.items():
@@ -324,8 +301,8 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
                 extra={
                     "entity_id": id,
                     "updated_by": updated_by,
-                    "updated_fields": list(entity_update_data.keys())
-                }
+                    "updated_fields": list(entity_update_data.keys()),
+                },
             )
 
             return entity
@@ -336,10 +313,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             raise
 
     async def delete(
-        self,
-        id: Any,
-        deleted_by: Optional[Any] = None,
-        hard_delete: bool = False
+        self, id: Any, deleted_by: Any | None = None, hard_delete: bool = False
     ) -> bool:
         """
         Delete entity (soft delete by default)
@@ -364,24 +338,23 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
                 await self.db.delete(entity)
                 self.logger.info(
                     f"Hard deleted {self.model_class.__name__} with ID {id}",
-                    extra={"entity_id": id, "deleted_by": deleted_by}
+                    extra={"entity_id": id, "deleted_by": deleted_by},
+                )
+            # Perform soft delete if model supports it
+            elif hasattr(entity, "deleted_at"):
+                entity.deleted_at = datetime.utcnow()
+                if hasattr(entity, "deleted_by") and deleted_by:
+                    entity.deleted_by = deleted_by
+                self.logger.info(
+                    f"Soft deleted {self.model_class.__name__} with ID {id}",
+                    extra={"entity_id": id, "deleted_by": deleted_by},
                 )
             else:
-                # Perform soft delete if model supports it
-                if hasattr(entity, 'deleted_at'):
-                    entity.deleted_at = datetime.utcnow()
-                    if hasattr(entity, 'deleted_by') and deleted_by:
-                        entity.deleted_by = deleted_by
-                    self.logger.info(
-                        f"Soft deleted {self.model_class.__name__} with ID {id}",
-                        extra={"entity_id": id, "deleted_by": deleted_by}
-                    )
-                else:
-                    # Model doesn't support soft delete, fall back to hard delete
-                    await self.db.delete(entity)
-                    self.logger.warning(
-                        f"Model {self.model_class.__name__} doesn't support soft delete, using hard delete"
-                    )
+                # Model doesn't support soft delete, fall back to hard delete
+                await self.db.delete(entity)
+                self.logger.warning(
+                    f"Model {self.model_class.__name__} doesn't support soft delete, using hard delete"
+                )
 
             await self.db.flush()
             return True
@@ -391,11 +364,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             await self.db.rollback()
             raise
 
-    async def exists(
-        self,
-        id: Any,
-        include_deleted: bool = False
-    ) -> bool:
+    async def exists(self, id: Any, include_deleted: bool = False) -> bool:
         """
         Check if entity exists
 
@@ -410,7 +379,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             query = select(func.count(self.model_class.id)).where(self.model_class.id == id)
 
             # Apply soft-delete filter if model supports it
-            if hasattr(self.model_class, 'deleted_at') and not include_deleted:
+            if hasattr(self.model_class, "deleted_at") and not include_deleted:
                 query = query.where(self.model_class.deleted_at.is_(None))
 
             result = await self.db.execute(query)
@@ -422,10 +391,8 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             raise
 
     async def bulk_create(
-        self,
-        create_data_list: List[CreateSchemaType],
-        created_by: Optional[Any] = None
-    ) -> List[ModelType]:
+        self, create_data_list: list[CreateSchemaType], created_by: Any | None = None
+    ) -> list[ModelType]:
         """
         Create multiple entities efficiently
 
@@ -445,12 +412,12 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
                 entity_data = create_data.dict(exclude_unset=True)
 
                 # Add audit fields if model supports them
-                if hasattr(self.model_class, 'created_at'):
-                    entity_data['created_at'] = current_time
-                if hasattr(self.model_class, 'updated_at'):
-                    entity_data['updated_at'] = current_time
-                if hasattr(self.model_class, 'created_by') and created_by:
-                    entity_data['created_by'] = created_by
+                if hasattr(self.model_class, "created_at"):
+                    entity_data["created_at"] = current_time
+                if hasattr(self.model_class, "updated_at"):
+                    entity_data["updated_at"] = current_time
+                if hasattr(self.model_class, "created_by") and created_by:
+                    entity_data["created_by"] = created_by
 
                 # Create entity instance
                 entity = self.model_class(**entity_data)
@@ -462,10 +429,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
 
             self.logger.info(
                 f"Bulk created {len(entities)} {self.model_class.__name__} records",
-                extra={
-                    "count": len(entities),
-                    "created_by": created_by
-                }
+                extra={"count": len(entities), "created_by": created_by},
             )
 
             return entities
@@ -475,11 +439,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             await self.db.rollback()
             raise
 
-    async def apply_filters(
-        self,
-        query,
-        filters: Dict[str, Any]
-    ):
+    async def apply_filters(self, query, filters: dict[str, Any]):
         """
         Apply filters to a query
 
@@ -500,23 +460,23 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
                     query = query.where(field.in_(field_value))
                 elif isinstance(field_value, dict):
                     # Handle complex filters
-                    if 'operator' in field_value:
-                        operator = field_value['operator']
-                        value = field_value['value']
+                    if "operator" in field_value:
+                        operator = field_value["operator"]
+                        value = field_value["value"]
 
-                        if operator == '!=':
+                        if operator == "!=":
                             query = query.where(field != value)
-                        elif operator == '>':
+                        elif operator == ">":
                             query = query.where(field > value)
-                        elif operator == '<':
+                        elif operator == "<":
                             query = query.where(field < value)
-                        elif operator == '>=':
+                        elif operator == ">=":
                             query = query.where(field >= value)
-                        elif operator == '<=':
+                        elif operator == "<=":
                             query = query.where(field <= value)
-                        elif operator == 'like':
+                        elif operator == "like":
                             query = query.where(field.like(f"%{value}%"))
-                        elif operator == 'ilike':
+                        elif operator == "ilike":
                             query = query.where(field.ilike(f"%{value}%"))
                         # Add more operators as needed
                 else:
@@ -526,11 +486,8 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
         return query
 
     async def get_with_relations(
-        self,
-        id: Any,
-        relations: List[str],
-        include_deleted: bool = False
-    ) -> Optional[ModelType]:
+        self, id: Any, relations: list[str], include_deleted: bool = False
+    ) -> ModelType | None:
         """
         Get entity with related objects loaded
 
@@ -544,12 +501,16 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
         """
         try:
             # Build select query with relations
-            query = select(self.model_class).options(
-                *[selectinload(getattr(self.model_class, relation)) for relation in relations]
-            ).where(self.model_class.id == id)
+            query = (
+                select(self.model_class)
+                .options(
+                    *[selectinload(getattr(self.model_class, relation)) for relation in relations]
+                )
+                .where(self.model_class.id == id)
+            )
 
             # Apply soft-delete filter if model supports it
-            if hasattr(self.model_class, 'deleted_at') and not include_deleted:
+            if hasattr(self.model_class, "deleted_at") and not include_deleted:
                 query = query.where(self.model_class.deleted_at.is_(None))
 
             result = await self.db.execute(query)
@@ -558,7 +519,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             if entity:
                 self.logger.debug(
                     f"Entity with relations loaded: {self.model_class.__name__} {id}",
-                    extra={"relations": relations}
+                    extra={"relations": relations},
                 )
 
             return entity

@@ -11,42 +11,33 @@ Comprehensive User Data Export Service
 - Bulk export capabilities
 """
 
-import os
-import asyncio
-import logging
+import csv
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union, BinaryIO
-from dataclasses import dataclass, asdict
 from enum import Enum
+import json
+import logging
+import os
 from pathlib import Path
 import tempfile
-import json
-import csv
+from typing import Any, BinaryIO
 import xml.etree.ElementTree as ET
-from io import StringIO, BytesIO
-import zipfile
-import hashlib
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
-
-from app.core.path_utils import sanitize_path, safe_filename
 from app.core.background_jobs import get_background_worker, task
+from app.db.models.assessment import Assessment
+from app.db.models.team import TeamMember
 from app.db.models.user import User
-from app.db.models.assessment import Assessment, AssessmentResponse
-from app.db.models.team import Team, TeamMember
-from app.db.models.organization import Organization
-from app.schemas.user import UserResponse
-from app.schemas.assessment import AssessmentResponse
 
 logger = logging.getLogger(__name__)
 
 
 class ExportFormat(Enum):
     """Supported export formats"""
+
     JSON = "json"
     CSV = "csv"
     XML = "xml"
@@ -56,6 +47,7 @@ class ExportFormat(Enum):
 
 class ExportStatus(Enum):
     """Export job status"""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -66,6 +58,7 @@ class ExportStatus(Enum):
 
 class ExportScope(Enum):
     """Data export scope options"""
+
     PROFILE = "profile"  # Basic user profile
     ASSESSMENTS = "assessments"  # Assessment data
     TEAM_DATA = "team_data"  # Team memberships and roles
@@ -78,23 +71,24 @@ class ExportScope(Enum):
 @dataclass
 class ExportRequest:
     """Export request configuration"""
+
     export_id: str
     user_id: str
     format: ExportFormat
     scope: ExportScope
-    filters: Dict[str, Any] = None
+    filters: dict[str, Any] = None
     include_anonymized_data: bool = False
     include_deleted_data: bool = False
-    date_range_start: Optional[datetime] = None
-    date_range_end: Optional[datetime] = None
+    date_range_start: datetime | None = None
+    date_range_end: datetime | None = None
     requested_at: datetime = None
     expires_at: datetime = None
     status: ExportStatus = ExportStatus.PENDING
-    file_path: Optional[str] = None
+    file_path: str | None = None
     file_size: int = 0
     download_count: int = 0
     max_downloads: int = 3
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     def __post_init__(self):
         if self.requested_at is None:
@@ -108,6 +102,7 @@ class ExportRequest:
 @dataclass
 class ExportProgress:
     """Export job progress tracking"""
+
     export_id: str
     total_records: int = 0
     processed_records: int = 0
@@ -124,15 +119,15 @@ class DataExportService:
         self.export_dir = Path(export_dir)
         self.export_dir.mkdir(parents=True, exist_ok=True)
         self.background_worker = get_background_worker()
-        self.active_exports: Dict[str, ExportRequest] = {}
+        self.active_exports: dict[str, ExportRequest] = {}
 
     async def create_export_request(
         self,
         user_id: str,
         format: ExportFormat,
         scope: ExportScope,
-        filters: Optional[Dict[str, Any]] = None,
-        **kwargs
+        filters: dict[str, Any] | None = None,
+        **kwargs,
     ) -> ExportRequest:
         """
         Create a new data export request
@@ -155,7 +150,7 @@ class DataExportService:
             format=format,
             scope=scope,
             filters=filters or {},
-            **kwargs
+            **kwargs,
         )
 
         # Store export request
@@ -170,17 +165,13 @@ class DataExportService:
             format=format.value,
             scope=scope.value,
             filters=filters,
-            **kwargs
+            **kwargs,
         )
 
         logger.info(f"Export request created: {export_id} for user {user_id}")
         return export_request
 
-    async def execute_export(
-        self,
-        export_id: str,
-        db: AsyncSession
-    ) -> ExportRequest:
+    async def execute_export(self, export_id: str, db: AsyncSession) -> ExportRequest:
         """
         Execute the actual data export
 
@@ -202,17 +193,13 @@ class DataExportService:
 
             # Create temporary file
             with tempfile.NamedTemporaryFile(
-                suffix=f".{export_request.format.value}",
-                delete=False
+                suffix=f".{export_request.format.value}", delete=False
             ) as temp_file:
                 temp_path = temp_file.name
 
             # Gather data based on scope
             export_data = await self._gather_export_data(
-                db,
-                export_request.user_id,
-                export_request.scope,
-                export_request.filters
+                db, export_request.user_id, export_request.scope, export_request.filters
             )
 
             # Export data in requested format
@@ -232,6 +219,7 @@ class DataExportService:
             final_path.parent.mkdir(parents=True, exist_ok=True)
 
             import shutil
+
             shutil.move(temp_path, final_path)
 
             # Update export request
@@ -244,26 +232,22 @@ class DataExportService:
             return export_request
 
         except Exception as e:
-            logger.error(f"Export failed for {export_id}: {str(e)}")
+            logger.error(f"Export failed for {export_id}: {e!s}")
             export_request.status = ExportStatus.FAILED
             export_request.error_message = str(e)
             await self._save_export_metadata(export_request)
             raise
 
-    async def get_export_status(self, export_id: str) -> Optional[ExportRequest]:
+    async def get_export_status(self, export_id: str) -> ExportRequest | None:
         """Get export request status"""
         return self.active_exports.get(export_id)
 
     async def get_user_exports(
-        self,
-        user_id: str,
-        status: Optional[ExportStatus] = None,
-        limit: int = 50
-    ) -> List[ExportRequest]:
+        self, user_id: str, status: ExportStatus | None = None, limit: int = 50
+    ) -> list[ExportRequest]:
         """Get user's export history"""
         user_exports = [
-            export for export in self.active_exports.values()
-            if export.user_id == user_id
+            export for export in self.active_exports.values() if export.user_id == user_id
         ]
 
         if status:
@@ -273,7 +257,7 @@ class DataExportService:
         user_exports.sort(key=lambda x: x.requested_at, reverse=True)
         return user_exports[:limit]
 
-    async def download_export(self, export_id: str) -> Optional[BinaryIO]:
+    async def download_export(self, export_id: str) -> BinaryIO | None:
         """Get export file for download"""
         export_request = await self.get_export_status(export_id)
         if not export_request:
@@ -299,7 +283,7 @@ class DataExportService:
 
         # Return file
         if os.path.exists(export_request.file_path):
-            return open(export_request.file_path, 'rb')
+            return open(export_request.file_path, "rb")
 
         return None
 
@@ -322,19 +306,15 @@ class DataExportService:
         return cleaned_count
 
     async def _gather_export_data(
-        self,
-        db: AsyncSession,
-        user_id: str,
-        scope: ExportScope,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, db: AsyncSession, user_id: str, scope: ExportScope, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Gather data based on export scope"""
         export_data = {
             "export_info": {
                 "user_id": user_id,
                 "export_date": datetime.utcnow().isoformat(),
                 "scope": scope.value,
-                "filters": filters
+                "filters": filters,
             }
         }
 
@@ -355,11 +335,9 @@ class DataExportService:
 
         return export_data
 
-    async def _get_user_profile(self, db: AsyncSession, user_id: str) -> Dict[str, Any]:
+    async def _get_user_profile(self, db: AsyncSession, user_id: str) -> dict[str, Any]:
         """Get user profile data"""
-        result = await db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
 
         if not user:
@@ -376,16 +354,22 @@ class DataExportService:
             "role": user.role.value if user.role else None,
             "is_active": user.is_active,
             "is_verified": user.is_verified,
-            "email_verified_at": user.email_verified_at.isoformat() if user.email_verified_at else None,
+            "email_verified_at": user.email_verified_at.isoformat()
+            if user.email_verified_at
+            else None,
             "created_at": user.created_at.isoformat() if user.created_at else None,
-            "updated_at": user.updated_at.isoformat() if user.updated_at else None
+            "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
 
-    async def _get_user_assessments(self, db: AsyncSession, user_id: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _get_user_assessments(
+        self, db: AsyncSession, user_id: str, filters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Get user assessment data"""
-        query = select(Assessment).options(
-            selectinload(Assessment.responses)
-        ).where(Assessment.created_by_id == user_id)
+        query = (
+            select(Assessment)
+            .options(selectinload(Assessment.responses))
+            .where(Assessment.created_by_id == user_id)
+        )
 
         # Apply filters
         if filters.get("date_start"):
@@ -412,7 +396,7 @@ class DataExportService:
                 "instructions": assessment.instructions,
                 "created_at": assessment.created_at.isoformat() if assessment.created_at else None,
                 "updated_at": assessment.updated_at.isoformat() if assessment.updated_at else None,
-                "responses": []
+                "responses": [],
             }
 
             # Add assessment responses
@@ -420,8 +404,10 @@ class DataExportService:
                 response_data = {
                     "id": str(response.id),
                     "score": response.score,
-                    "completed_at": response.completed_at.isoformat() if response.completed_at else None,
-                    "response_data": response.response_data
+                    "completed_at": response.completed_at.isoformat()
+                    if response.completed_at
+                    else None,
+                    "response_data": response.response_data,
                 }
                 assessment_data["responses"].append(response_data)
 
@@ -429,7 +415,7 @@ class DataExportService:
 
         return export_data
 
-    async def _get_user_team_data(self, db: AsyncSession, user_id: str) -> List[Dict[str, Any]]:
+    async def _get_user_team_data(self, db: AsyncSession, user_id: str) -> list[dict[str, Any]]:
         """Get user team membership data"""
         result = await db.execute(
             select(TeamMember)
@@ -445,13 +431,15 @@ class DataExportService:
                 "team_name": membership.team.name if membership.team else None,
                 "role": membership.role.value if membership.role else None,
                 "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
-                "is_active": membership.is_active
+                "is_active": membership.is_active,
             }
             export_data.append(team_data)
 
         return export_data
 
-    async def _get_user_activity(self, db: AsyncSession, user_id: str, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _get_user_activity(
+        self, db: AsyncSession, user_id: str, filters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Get user activity log"""
         # This would need to be implemented based on your activity logging system
         # For now, return placeholder data
@@ -460,11 +448,11 @@ class DataExportService:
                 "action": "login",
                 "timestamp": datetime.utcnow().isoformat(),
                 "ip_address": "127.0.0.1",
-                "user_agent": "Sample User Agent"
+                "user_agent": "Sample User Agent",
             }
         ]
 
-    async def _get_user_settings(self, db: AsyncSession, user_id: str) -> Dict[str, Any]:
+    async def _get_user_settings(self, db: AsyncSession, user_id: str) -> dict[str, Any]:
         """Get user settings and preferences"""
         # This would need to be implemented based on your user settings system
         # For now, return placeholder data
@@ -472,19 +460,15 @@ class DataExportService:
             "theme": "light",
             "language": "en",
             "notifications_enabled": True,
-            "email_preferences": {
-                "marketing": False,
-                "security": True,
-                "updates": True
-            }
+            "email_preferences": {"marketing": False, "security": True, "updates": True},
         }
 
-    async def _export_json(self, data: Dict[str, Any], file_path: str):
+    async def _export_json(self, data: dict[str, Any], file_path: str):
         """Export data as JSON"""
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False, default=str)
 
-    async def _export_csv(self, data: Dict[str, Any], file_path: str):
+    async def _export_csv(self, data: dict[str, Any], file_path: str):
         """Export data as CSV"""
         # For CSV, we'll flatten the data structure
         csv_data = []
@@ -501,7 +485,7 @@ class DataExportService:
 
         # Write to CSV
         if csv_data:
-            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
                 if csv_data:
                     fieldnames = set()
                     for item in csv_data:
@@ -511,7 +495,7 @@ class DataExportService:
                     writer.writeheader()
                     writer.writerows(csv_data)
 
-    async def _export_xml(self, data: Dict[str, Any], file_path: str):
+    async def _export_xml(self, data: dict[str, Any], file_path: str):
         """Export data as XML"""
         root = ET.Element("user_data_export")
 
@@ -520,7 +504,7 @@ class DataExportService:
             self._dict_to_xml(value, element)
 
         tree = ET.ElementTree(root)
-        tree.write(file_path, encoding='utf-8', xml_declaration=True)
+        tree.write(file_path, encoding="utf-8", xml_declaration=True)
 
     def _dict_to_xml(self, data: Any, parent: ET.Element):
         """Convert dictionary to XML elements"""
@@ -535,13 +519,13 @@ class DataExportService:
         else:
             parent.text = str(data)
 
-    async def _export_pdf(self, data: Dict[str, Any], file_path: str):
+    async def _export_pdf(self, data: dict[str, Any], file_path: str):
         """Export data as PDF"""
         # This would require a PDF library like reportlab or weasyprint
         # For now, create a simple text-based PDF placeholder
         try:
-            from reportlab.pdfgen import canvas
             from reportlab.lib.pagesizes import letter
+            from reportlab.pdfgen import canvas
 
             c = canvas.Canvas(file_path, pagesize=letter)
             text_object = c.beginText(40, 750)
@@ -549,7 +533,7 @@ class DataExportService:
 
             # Convert data to text
             text_content = json.dumps(data, indent=2, default=str)
-            lines = text_content.split('\n')
+            lines = text_content.split("\n")
 
             for line in lines[:100]:  # Limit lines for demo
                 if len(line) > 80:
@@ -572,16 +556,16 @@ class DataExportService:
 
         except ImportError:
             # Fallback: save as text file with .pdf extension
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, default=str)
 
-    async def _export_excel(self, data: Dict[str, Any], file_path: str):
+    async def _export_excel(self, data: dict[str, Any], file_path: str):
         """Export data as Excel spreadsheet"""
         try:
             import pandas as pd
 
             # Create a workbook with multiple sheets
-            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+            with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
                 for key, value in data.items():
                     if key == "export_info":
                         continue  # Skip metadata
@@ -617,23 +601,18 @@ class DataExportService:
 
         # Convert to dict and handle datetime serialization
         data = asdict(export_request)
-        data['requested_at'] = export_request.requested_at.isoformat()
-        data['expires_at'] = export_request.expires_at.isoformat()
+        data["requested_at"] = export_request.requested_at.isoformat()
+        data["expires_at"] = export_request.expires_at.isoformat()
 
-        with open(metadata_file, 'w') as f:
+        with open(metadata_file, "w") as f:
             json.dump(data, f, indent=2)
 
 
 # Background task for export execution
 @task("execute_data_export")
 async def execute_data_export_task(
-    export_id: str,
-    user_id: str,
-    format: str,
-    scope: str,
-    filters: Dict[str, Any],
-    **kwargs
-) -> Dict[str, Any]:
+    export_id: str, user_id: str, format: str, scope: str, filters: dict[str, Any], **kwargs
+) -> dict[str, Any]:
     """Background task for executing data exports"""
     export_service = DataExportService()
 
@@ -645,20 +624,16 @@ async def execute_data_export_task(
             "success": True,
             "export_id": export_id,
             "status": "completed",
-            "message": "Export task completed successfully"
+            "message": "Export task completed successfully",
         }
 
     except Exception as e:
-        logger.error(f"Export task failed for {export_id}: {str(e)}")
-        return {
-            "success": False,
-            "export_id": export_id,
-            "error": str(e)
-        }
+        logger.error(f"Export task failed for {export_id}: {e!s}")
+        return {"success": False, "export_id": export_id, "error": str(e)}
 
 
 # Global export service instance
-_export_service: Optional[DataExportService] = None
+_export_service: DataExportService | None = None
 
 
 def get_data_export_service() -> DataExportService:

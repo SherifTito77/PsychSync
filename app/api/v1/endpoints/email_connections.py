@@ -82,7 +82,7 @@ class EmailSyncResponse(BaseModel):
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/connect/oauth-url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
     provider: EmailProvider,
@@ -109,8 +109,8 @@ async def get_oauth_url(
         logger.error(f"Error generating OAuth URL: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
 detail="Failed to generate OAuth authorization URL"
         )
 
@@ -147,8 +147,8 @@ async def handle_oauth_callback(
     except Exception as e:
         logger.error(f"Error handling OAuth callback: {e}")
         raise HTTPException(
-        
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to complete OAuth authentication"
         )

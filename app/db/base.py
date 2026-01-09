@@ -11,7 +11,6 @@ from app.core.database import Base
 DeclarativeBase = type(Base)
 
 
-
 # # Import all models so Alembic can detect them
 # from app.db.models import (
 #     user,
@@ -34,4 +33,4 @@ DeclarativeBase = type(Base)
 #     prediction,
 #     user_story,
 #     sprint,
-# )  # noqa
+# )

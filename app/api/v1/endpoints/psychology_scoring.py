@@ -66,7 +66,7 @@ class TeamPsychologyResponse(BaseModel):
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/assessment/{assessment_id}/score", response_model=PsychologicalScoreResponse, dependencies=[Depends(get_current_user)])
 async def get_assessment_psychological_score(
     assessment_id: str,
@@ -104,7 +104,7 @@ async def get_assessment_psychological_score(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 =f"Error calculating psychological score: {str(e, dependencies=[Depends(get_current_user)])}"
         )
 
@@ -138,7 +138,7 @@ async def get_psychometric_profile(
     except Exception as e:
         raise HTTPException(
             statu
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 s_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating psychometric profile: {str(e, dependencies=[Depends(get_current_user)])}"
         )

@@ -1,0 +1,322 @@
+rules:
+  # ===========================================================================
+  # A01: Broken Access Control
+  # ===========================================================================
+
+  - id: hardcoded-admin-credentials
+    patterns:
+      - pattern: |
+          create_secure_token_for_user("admin", ...)
+    message: Hardcoded admin credentials detected - use database lookup instead
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A01:2021 - Broken Access Control"
+      category: security
+      technology:
+        - fastapi
+        - python
+
+  - id: missing-role-validation
+    patterns:
+      - pattern: |
+          if user.role != "admin":
+              ...
+    message: Role check without enum validation - use Role enum or validate against whitelist
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A01:2021 - Broken Access Control"
+      category: security
+
+  - id:idor-user-access
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @router.get("/$USER/{user_id}")
+              ...
+              def $FUNC(..., user_id: int, current_user: User = Depends(get_current_active_user)):
+                  if user_id != current_user.id or current_user.role == "admin":
+                      ...
+    message: IDOR vulnerability - missing authorization check for user access
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A01:2021 - Broken Access Control"
+      category: security
+
+  # ===========================================================================
+  # A03: Injection
+  # ===========================================================================
+
+  - id: sql-injection-f-string
+    patterns:
+      - pattern-either:
+          - pattern: |
+              f"SELECT * FROM $TABLE WHERE { $VAR }"
+          - pattern: |
+              f"SELECT ... { $VAR }"
+    message: SQL injection via f-string - use parameterized queries
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+      cwe: "CWE-89"
+
+  - id: sql-injection-text
+    patterns:
+      - pattern: |
+          text("$SQL")
+    message: Raw SQL with text() - ensure parameters are properly bound
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+
+  - id: xss-string-concatenation-json
+    patterns:
+      - pattern: |
+          Response(content='{' ... $VAR ... '}' ... )
+    message: XSS vulnerability via string concatenation - use json.dumps()
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+      cwe: "CWE-79"
+
+  - id: command-injection-shell-true
+    patterns:
+      - pattern: os.system(...)
+    message: Command injection risk - use subprocess with sanitized args
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A03:2021 - Injection"
+      category: security
+      cwe: "CWE-78"
+
+  # ===========================================================================
+  # A05: Security Misconfiguration
+  # ===========================================================================
+
+  - id: print-statement-security-sensitive
+    patterns:
+      - pattern-either:
+          - pattern: print($PASSWORD)
+          - pattern: print($TOKEN)
+          - pattern: print($SECRET)
+    message: Security-sensitive data in print() - use proper logging
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: security
+
+  - id: stack-trace-exposure
+    patterns:
+      - pattern: |
+          raise HTTPException(
+              status_code=...,
+              detail=str($EXCEPTION)
+          )
+    message: Potential stack trace exposure - sanitize error details
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: security
+
+  - id: debug-mode-enabled
+    patterns:
+      - pattern: DEBUG = True
+    message: Debug mode enabled - ensure it's disabled in production
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: security
+
+  # ===========================================================================
+  # A07: Authentication Failures
+  # ===========================================================================
+
+  - id: hardcoded-password
+    patterns:
+      - pattern: password = "..."
+    message: Hardcoded password detected - use environment variables
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      category: security
+      cwe: "CWE-798"
+
+  - id: weak-password-requirements
+    patterns:
+      - pattern: |
+          def $FUNC(password: str):
+              if len(password) < 6:
+                  ...
+    message: Weak password requirements - require at least 8 chars with complexity
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      category: security
+
+  - id: password-in-url
+    patterns:
+      - pattern: password=Query(...)
+    message: Password in URL parameter - use POST body instead
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      category: security
+
+  # ===========================================================================
+  # A09: Security Logging Failures
+  # ===========================================================================
+
+  - id: missing-authentication-logging
+    patterns:
+      - pattern: |
+          @router.post("/token")
+          async def login(...):
+              ...
+              # Missing audit logging
+    message: Authentication endpoint missing audit logging
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      category: security
+
+  - id: sensitive-operation-no-logging
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @router.post("/change-password")
+              ...
+              # No logging
+          - pattern: |
+              @router.delete("/users/$ID")
+              ...
+              # No logging
+    message: Sensitive operation without audit logging
+    severity: WARNING
+    languages: [python]
+    metadata:
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      category: security
+
+  # ===========================================================================
+  # A10: Server-Side Request Forgery
+  # ===========================================================================
+
+  - id: ssrf-user-controlled-url
+    patterns:
+      - pattern: |
+          requests.get($USER_URL)
+    message: SSRF vulnerability - validate and restrict URLs
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A10:2021 - Server-Side Request Forgery"
+      category: security
+      cwe: "CWE-918"
+
+  - id: ssrf-httpx-client
+    patterns:
+      - pattern: |
+          httpx.get($USER_URL)
+    message: SSRF vulnerability - validate and restrict URLs
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A10:2021 - Server-Side Request Forgery"
+      category: security
+
+  # ===========================================================================
+  # Additional Security Checks
+  # ===========================================================================
+
+  - id: todo-audit-logging
+    patterns:
+      - pattern: |
+          # TODO(human): Add audit logging
+    message: TODO: Audit logging not implemented - security risk
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      technology: ["fastapi", "python"]
+
+  - id: cache-without-access-control
+    patterns:
+      - pattern: |
+          @cache_response(...)
+          @router.get("/$PATH")
+          ...
+          def $FUNC(...):
+              # Missing access control check
+    message: Cached endpoint without explicit access control - may leak data
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      technology: ["fastapi", "python"]
+
+  - id: missing-rate-limit
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @router.post("/auth/token")
+              ...
+              # Missing rate limiting
+          - pattern: |
+              @router.post("/register")
+              ...
+              # Missing rate limiting
+    message: Authentication endpoint missing rate limiting - vulnerable to brute force
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      technology: ["fastapi", "python"]
+
+  - id: unsafe-deserialization
+    patterns:
+      - pattern-either:
+          - pattern: pickle.load(...)
+          - pattern: pickle.loads(...)
+    message: Unsafe deserialization - use JSON or safe alternatives
+    severity: ERROR
+    languages: [python]
+    metadata:
+      owasp: "A08:2021 - Software and Data Integrity Failures"
+      category: security
+      cwe: "CWE-502"
+
+  - id: hashlib-md5
+    patterns:
+      - pattern: hashlib.md5(...)
+    message: MD5 is cryptographically broken - use SHA-256 or better
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      cwe: "CWE-327"
+
+  - id: hashlib-sha1
+    patterns:
+      - pattern: hashlib.sha1(...)
+    message: SHA-1 is deprecated - use SHA-256 or better
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      cwe: "CWE-327"

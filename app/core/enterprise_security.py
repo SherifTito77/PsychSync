@@ -3,55 +3,61 @@ Enterprise Security Compliance Implementation
 Addresses SOC 2 Type II, ISO 27001, GDPR, HIPAA, and FedRAMP requirements
 """
 
-import os
-import logging
-import hashlib
-import secrets
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any
+import base64
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
 import json
-import audit_logging
+import logging
+import os
+import secrets
+from typing import Any
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import base64
-from sqlalchemy import Column, String, DateTime, Text, Boolean
+from sqlalchemy import Column, DateTime, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
+
 class ComplianceStandard(Enum):
     """Enterprise compliance standards"""
+
     SOC_2_TYPE_II = "soc2_type2"
     ISO_27001 = "iso_27001"
     GDPR = "gdpr"
     HIPAA = "hipaa"
     FEDRAMP = "fedramp"
 
+
 class DataClassification(Enum):
     """Data sensitivity classification"""
+
     PUBLIC = "public"
     INTERNAL = "internal"
     CONFIDENTIAL = "confidential"
     RESTRICTED = "restricted"
 
+
 @dataclass
 class SecurityEvent:
     """Security event for monitoring and compliance"""
+
     event_id: str
     timestamp: datetime
     event_type: str
     severity: str
-    user_id: Optional[str]
+    user_id: str | None
     ip_address: str
     user_agent: str
     resource_accessed: str
     action: str
     outcome: str
-    compliance_standards: List[ComplianceStandard]
-    metadata: Dict[str, Any]
+    compliance_standards: list[ComplianceStandard]
+    metadata: dict[str, Any]
+
 
 class EnterpriseSecurityManager:
     """Enterprise security compliance manager"""
@@ -70,7 +76,7 @@ class EnterpriseSecurityManager:
             key_file = os.getenv("ENCRYPTION_KEY_FILE", "/secure/encryption.key")
 
             if os.path.exists(key_file):
-                with open(key_file, 'rb') as f:
+                with open(key_file, "rb") as f:
                     key_data = f.read()
             else:
                 # Generate new encryption key
@@ -86,9 +92,9 @@ class EnterpriseSecurityManager:
 
                 # Save key securely
                 os.makedirs(os.path.dirname(key_file), exist_ok=True)
-                with open(key_file, 'wb') as f:
+                with open(key_file, "wb") as f:
                     f.write(key)
-                with open(key_file + '.salt', 'wb') as f:
+                with open(key_file + ".salt", "wb") as f:
                     f.write(salt)
 
                 key_data = key
@@ -96,11 +102,11 @@ class EnterpriseSecurityManager:
             return key_data
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize encryption: {str(e)}")
+            self.logger.error(f"Failed to initialize encryption: {e!s}")
             # Generate temporary key for development
             return Fernet.generate_key()
 
-    def _load_compliance_configs(self) -> Dict[ComplianceStandard, Dict]:
+    def _load_compliance_configs(self) -> dict[ComplianceStandard, dict]:
         """Load compliance requirements for each standard"""
         return {
             ComplianceStandard.SOC_2_TYPE_II: {
@@ -109,36 +115,36 @@ class EnterpriseSecurityManager:
                 "multi_factor_auth": True,
                 "access_logging": True,
                 "vulnerability_scanning": True,
-                "incident_response_plan": True
+                "incident_response_plan": True,
             },
             ComplianceStandard.ISO_27001: {
                 "risk_assessment_frequency": 90,
                 "security_training_required": True,
                 "business_continuity_plan": True,
                 "access_reviews": True,
-                "asset_inventory": True
+                "asset_inventory": True,
             },
             ComplianceStandard.GDPR: {
                 "data_retention_limits": True,
                 "right_to_erasure": True,
                 "data_portability": True,
                 "consent_management": True,
-                "breach_notification_72h": True
+                "breach_notification_72h": True,
             },
             ComplianceStandard.HIPAA: {
                 "phi_protection": True,
                 "audit_trail_required": True,
                 "business_associate_agreements": True,
                 "security_rule_compliance": True,
-                "privacy_rule_compliance": True
+                "privacy_rule_compliance": True,
             },
             ComplianceStandard.FEDRAMP: {
                 "continuous_monitoring": True,
                 "security_authorization": True,
                 "incident_reporting": True,
                 "system_inventory": True,
-                "security_controls": True
-            }
+                "security_controls": True,
+            },
         }
 
     def encrypt_sensitive_data(self, data: str, classification: DataClassification) -> str:
@@ -149,7 +155,9 @@ class EnterpriseSecurityManager:
             return base64.b64encode(encrypted_data).decode()
         return data
 
-    def decrypt_sensitive_data(self, encrypted_data: str, classification: DataClassification) -> str:
+    def decrypt_sensitive_data(
+        self, encrypted_data: str, classification: DataClassification
+    ) -> str:
         """Decrypt sensitive data based on classification"""
         if classification in [DataClassification.CONFIDENTIAL, DataClassification.RESTRICTED]:
             try:
@@ -158,7 +166,7 @@ class EnterpriseSecurityManager:
                 decrypted_data = fernet.decrypt(decoded_data)
                 return decrypted_data.decode()
             except Exception as e:
-                self.logger.error(f"Decryption failed: {str(e)}")
+                self.logger.error(f"Decryption failed: {e!s}")
                 raise ValueError("Decryption failed")
         return encrypted_data
 
@@ -166,17 +174,31 @@ class EnterpriseSecurityManager:
         """Classify data sensitivity level"""
         sensitive_patterns = {
             DataClassification.RESTRICTED: [
-                'ssn', 'social_security', 'credit_card', 'bank_account',
-                'medical_record', 'phi', 'hipaa', 'password_hash', 'api_key'
+                "ssn",
+                "social_security",
+                "credit_card",
+                "bank_account",
+                "medical_record",
+                "phi",
+                "hipaa",
+                "password_hash",
+                "api_key",
             ],
             DataClassification.CONFIDENTIAL: [
-                'assessment_results', 'personality_profile', 'team_analytics',
-                'user_private', 'confidential', 'proprietary'
+                "assessment_results",
+                "personality_profile",
+                "team_analytics",
+                "user_private",
+                "confidential",
+                "proprietary",
             ],
             DataClassification.INTERNAL: [
-                'internal_notes', 'admin_data', 'system_config',
-                'user_roles', 'permissions'
-            ]
+                "internal_notes",
+                "admin_data",
+                "system_config",
+                "user_roles",
+                "permissions",
+            ],
         }
 
         data_str = str(data_type).lower() + str(content).lower()
@@ -203,7 +225,7 @@ class EnterpriseSecurityManager:
                 action=event.action,
                 outcome=event.outcome,
                 compliance_standards=json.dumps([std.value for std in event.compliance_standards]),
-                metadata=json.dumps(event.metadata)
+                metadata=json.dumps(event.metadata),
             )
 
             self.db.add(audit_log)
@@ -214,11 +236,13 @@ class EnterpriseSecurityManager:
             self.redis.setex(
                 event_key,
                 timedelta(days=30),
-                json.dumps({
-                    "event_type": event.event_type,
-                    "severity": event.severity,
-                    "timestamp": event.timestamp.isoformat()
-                })
+                json.dumps(
+                    {
+                        "event_type": event.event_type,
+                        "severity": event.severity,
+                        "timestamp": event.timestamp.isoformat(),
+                    }
+                ),
             )
 
             # Check for critical events and trigger alerts
@@ -226,7 +250,7 @@ class EnterpriseSecurityManager:
                 self._trigger_security_alert(event)
 
         except Exception as e:
-            self.logger.error(f"Failed to log security event: {str(e)}")
+            self.logger.error(f"Failed to log security event: {e!s}")
 
     def _trigger_security_alert(self, event: SecurityEvent):
         """Trigger security alert for critical events"""
@@ -252,8 +276,8 @@ class EnterpriseSecurityManager:
                 "investigate_source_of_events",
                 "review_access logs",
                 "assess potential impact",
-                "prepare incident response"
-            ]
+                "prepare incident response",
+            ],
         }
 
         # Store incident for tracking
@@ -263,21 +287,26 @@ class EnterpriseSecurityManager:
         # Notify security team (integration with notification system)
         self.logger.critical(f"SECURITY INCIDENT ESCALATED: {json.dumps(incident_data)}")
 
-    def perform_gdpr_data_erasure(self, user_id: str) -> Dict[str, bool]:
+    def perform_gdpr_data_erasure(self, user_id: str) -> dict[str, bool]:
         """Perform right to erasure under GDPR"""
         erasure_results = {}
 
         try:
             # Delete user data from all systems
             user_tables = [
-                'users', 'assessment_responses', 'user_sessions',
-                'audit_logs', 'team_members', 'user_preferences'
+                "users",
+                "assessment_responses",
+                "user_sessions",
+                "audit_logs",
+                "team_members",
+                "user_preferences",
             ]
 
             for table in user_tables:
                 try:
                     # Soft delete with anonymization
-                    self.db.execute(f"""
+                    self.db.execute(
+                        f"""
                         UPDATE {table}
                         SET email = 'deleted@deleted.com',
                             first_name = 'DELETED',
@@ -287,46 +316,50 @@ class EnterpriseSecurityManager:
                             deleted_at = NOW(),
                             gdpr_erasure_request_id = :request_id
                         WHERE user_id = :user_id
-                    """, {"user_id": user_id, "request_id": secrets.token_hex(8)})
+                    """,
+                        {"user_id": user_id, "request_id": secrets.token_hex(8)},
+                    )
 
                     erasure_results[table] = True
 
                 except Exception as e:
-                    self.logger.error(f"Failed to erase data from {table}: {str(e)}")
+                    self.logger.error(f"Failed to erase data from {table}: {e!s}")
                     erasure_results[table] = False
 
             self.db.commit()
 
             # Log erasure for compliance
-            self.log_security_event(SecurityEvent(
-                event_id=secrets.token_hex(16),
-                timestamp=datetime.utcnow(),
-                event_type="GDPR_DATA_ERASURE",
-                severity="HIGH",
-                user_id=user_id,
-                ip_address="system",
-                user_agent="gdpr_compliance_system",
-                resource_accessed="user_data",
-                action="data_erasure",
-                outcome="completed",
-                compliance_standards=[ComplianceStandard.GDPR],
-                metadata={"erasure_results": erasure_results}
-            ))
+            self.log_security_event(
+                SecurityEvent(
+                    event_id=secrets.token_hex(16),
+                    timestamp=datetime.utcnow(),
+                    event_type="GDPR_DATA_ERASURE",
+                    severity="HIGH",
+                    user_id=user_id,
+                    ip_address="system",
+                    user_agent="gdpr_compliance_system",
+                    resource_accessed="user_data",
+                    action="data_erasure",
+                    outcome="completed",
+                    compliance_standards=[ComplianceStandard.GDPR],
+                    metadata={"erasure_results": erasure_results},
+                )
+            )
 
             return erasure_results
 
         except Exception as e:
-            self.logger.error(f"GDPR data erasure failed: {str(e)}")
+            self.logger.error(f"GDPR data erasure failed: {e!s}")
             return {"error": str(e)}
 
-    def export_user_data_gdpr(self, user_id: str) -> Dict[str, Any]:
+    def export_user_data_gdpr(self, user_id: str) -> dict[str, Any]:
         """Export user data for GDPR data portability"""
         try:
             user_data = {
                 "export_id": secrets.token_hex(16),
                 "user_id": user_id,
                 "export_timestamp": datetime.utcnow().isoformat(),
-                "data": {}
+                "data": {},
             }
 
             # Collect user data from all tables
@@ -343,7 +376,7 @@ class EnterpriseSecurityManager:
                 "team_memberships": """
                     SELECT team_id, role, joined_at
                     FROM team_members WHERE user_id = :user_id
-                """
+                """,
             }
 
             for data_type, query in queries.items():
@@ -351,32 +384,34 @@ class EnterpriseSecurityManager:
                     result = self.db.execute(query, {"user_id": user_id})
                     user_data["data"][data_type] = [dict(row) for row in result]
                 except Exception as e:
-                    self.logger.error(f"Failed to export {data_type}: {str(e)}")
+                    self.logger.error(f"Failed to export {data_type}: {e!s}")
                     user_data["data"][data_type] = {"error": str(e)}
 
             # Log export for compliance
-            self.log_security_event(SecurityEvent(
-                event_id=secrets.token_hex(16),
-                timestamp=datetime.utcnow(),
-                event_type="GDPR_DATA_EXPORT",
-                severity="MEDIUM",
-                user_id=user_id,
-                ip_address="system",
-                user_agent="gdpr_compliance_system",
-                resource_accessed="user_data",
-                action="data_export",
-                outcome="completed",
-                compliance_standards=[ComplianceStandard.GDPR],
-                metadata={"export_id": user_data["export_id"]}
-            ))
+            self.log_security_event(
+                SecurityEvent(
+                    event_id=secrets.token_hex(16),
+                    timestamp=datetime.utcnow(),
+                    event_type="GDPR_DATA_EXPORT",
+                    severity="MEDIUM",
+                    user_id=user_id,
+                    ip_address="system",
+                    user_agent="gdpr_compliance_system",
+                    resource_accessed="user_data",
+                    action="data_export",
+                    outcome="completed",
+                    compliance_standards=[ComplianceStandard.GDPR],
+                    metadata={"export_id": user_data["export_id"]},
+                )
+            )
 
             return user_data
 
         except Exception as e:
-            self.logger.error(f"GDPR data export failed: {str(e)}")
+            self.logger.error(f"GDPR data export failed: {e!s}")
             return {"error": str(e)}
 
-    def perform_access_review(self, review_period_days: int = 90) -> Dict[str, Any]:
+    def perform_access_review(self, review_period_days: int = 90) -> dict[str, Any]:
         """Perform periodic access review for compliance"""
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=review_period_days)
@@ -403,52 +438,58 @@ class EnterpriseSecurityManager:
                 "review_period_days": review_period_days,
                 "users_requiring_review": len(users_for_review),
                 "users": users_for_review,
-                "recommendations": []
+                "recommendations": [],
             }
 
             # Generate recommendations
             for user in users_for_review:
                 if user["access_count"] == 0:
-                    review_report["recommendations"].append({
-                        "user_id": user["id"],
-                        "action": "REVOKE_ACCESS",
-                        "reason": "No system access in review period"
-                    })
+                    review_report["recommendations"].append(
+                        {
+                            "user_id": user["id"],
+                            "action": "REVOKE_ACCESS",
+                            "reason": "No system access in review period",
+                        }
+                    )
                 elif user["last_access"]:
                     days_since_access = (datetime.utcnow() - user["last_access"]).days
                     if days_since_access > review_period_days * 2:
-                        review_report["recommendations"].append({
-                            "user_id": user["id"],
-                            "action": "REVIEW_ACCESS",
-                            "reason": f"No access for {days_since_access} days"
-                        })
+                        review_report["recommendations"].append(
+                            {
+                                "user_id": user["id"],
+                                "action": "REVIEW_ACCESS",
+                                "reason": f"No access for {days_since_access} days",
+                            }
+                        )
 
             # Log access review for compliance
-            self.log_security_event(SecurityEvent(
-                event_id=secrets.token_hex(16),
-                timestamp=datetime.utcnow(),
-                event_type="ACCESS_REVIEW",
-                severity="MEDIUM",
-                user_id="system",
-                ip_address="system",
-                user_agent="compliance_system",
-                resource_accessed="user_access",
-                action="periodic_review",
-                outcome="completed",
-                compliance_standards=[
-                    ComplianceStandard.SOC_2_TYPE_II,
-                    ComplianceStandard.ISO_27001
-                ],
-                metadata=review_report
-            ))
+            self.log_security_event(
+                SecurityEvent(
+                    event_id=secrets.token_hex(16),
+                    timestamp=datetime.utcnow(),
+                    event_type="ACCESS_REVIEW",
+                    severity="MEDIUM",
+                    user_id="system",
+                    ip_address="system",
+                    user_agent="compliance_system",
+                    resource_accessed="user_access",
+                    action="periodic_review",
+                    outcome="completed",
+                    compliance_standards=[
+                        ComplianceStandard.SOC_2_TYPE_II,
+                        ComplianceStandard.ISO_27001,
+                    ],
+                    metadata=review_report,
+                )
+            )
 
             return review_report
 
         except Exception as e:
-            self.logger.error(f"Access review failed: {str(e)}")
+            self.logger.error(f"Access review failed: {e!s}")
             return {"error": str(e)}
 
-    def generate_compliance_report(self, standards: List[ComplianceStandard]) -> Dict[str, Any]:
+    def generate_compliance_report(self, standards: list[ComplianceStandard]) -> dict[str, Any]:
         """Generate compliance report for specified standards"""
         try:
             report = {
@@ -457,7 +498,7 @@ class EnterpriseSecurityManager:
                 "standards": [std.value for std in standards],
                 "compliance_status": {},
                 "metrics": {},
-                "recommendations": []
+                "recommendations": [],
             }
 
             for standard in standards:
@@ -476,10 +517,10 @@ class EnterpriseSecurityManager:
             return report
 
         except Exception as e:
-            self.logger.error(f"Compliance report generation failed: {str(e)}")
+            self.logger.error(f"Compliance report generation failed: {e!s}")
             return {"error": str(e)}
 
-    def _check_standard_compliance(self, standard: ComplianceStandard, config: Dict) -> Dict:
+    def _check_standard_compliance(self, standard: ComplianceStandard, config: dict) -> dict:
         """Check compliance status for a specific standard"""
         violations = []
 
@@ -499,10 +540,10 @@ class EnterpriseSecurityManager:
         return {
             "compliant": len(violations) == 0,
             "violations": violations,
-            "last_checked": datetime.utcnow().isoformat()
+            "last_checked": datetime.utcnow().isoformat(),
         }
 
-    def _check_encryption_compliance(self) -> List[str]:
+    def _check_encryption_compliance(self) -> list[str]:
         """Check encryption compliance requirements"""
         violations = []
 
@@ -521,11 +562,11 @@ class EnterpriseSecurityManager:
                     violations.append(f"Unencrypted data found in {table}")
 
         except Exception as e:
-            violations.append(f"Encryption check failed: {str(e)}")
+            violations.append(f"Encryption check failed: {e!s}")
 
         return violations
 
-    def _check_logging_compliance(self) -> List[str]:
+    def _check_logging_compliance(self) -> list[str]:
         """Check logging compliance requirements"""
         violations = []
 
@@ -540,11 +581,11 @@ class EnterpriseSecurityManager:
                 violations.append("No audit logs found in last 24 hours")
 
         except Exception as e:
-            violations.append(f"Logging check failed: {str(e)}")
+            violations.append(f"Logging check failed: {e!s}")
 
         return violations
 
-    def _check_mfa_compliance(self) -> List[str]:
+    def _check_mfa_compliance(self) -> list[str]:
         """Check MFA compliance requirements"""
         violations = []
 
@@ -560,11 +601,11 @@ class EnterpriseSecurityManager:
                 violations.append(f"{admin_users_without_mfa} admin users without MFA")
 
         except Exception as e:
-            violations.append(f"MFA check failed: {str(e)}")
+            violations.append(f"MFA check failed: {e!s}")
 
         return violations
 
-    def _get_compliance_metrics(self, standard: ComplianceStandard) -> Dict[str, Any]:
+    def _get_compliance_metrics(self, standard: ComplianceStandard) -> dict[str, Any]:
         """Get compliance metrics for a standard"""
         metrics = {}
 
@@ -602,14 +643,16 @@ class EnterpriseSecurityManager:
                 """).fetchone()["count"]
 
         except Exception as e:
-            self.logger.error(f"Failed to get compliance metrics: {str(e)}")
+            self.logger.error(f"Failed to get compliance metrics: {e!s}")
             metrics["error"] = str(e)
 
         return metrics
 
+
 # Database models for compliance tracking
 class AuditLog(Base):
     """Audit log model for compliance tracking"""
+
     __tablename__ = "audit_logs"
 
     id = Column(String, primary_key=True)
@@ -625,8 +668,10 @@ class AuditLog(Base):
     compliance_standards = Column(Text)  # JSON string
     metadata = Column(Text)  # JSON string
 
+
 class DataProcessingRecord(Base):
     """GDPR data processing record"""
+
     __tablename__ = "data_processing_records"
 
     id = Column(String, primary_key=True)

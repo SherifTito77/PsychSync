@@ -12,7 +12,7 @@ Version: 2.0 Enterprise Security
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 from app.domain.entities.user import User
 
@@ -36,10 +36,9 @@ class UserRepository(ABC):
         Returns:
             The saved user entity with any updates (e.g., generated ID)
         """
-        pass
 
     @abstractmethod
-    async def find_by_id(self, user_id: str) -> Optional[User]:
+    async def find_by_id(self, user_id: str) -> User | None:
         """
         Find a user by their ID
 
@@ -49,10 +48,9 @@ class UserRepository(ABC):
         Returns:
             The user entity if found, None otherwise
         """
-        pass
 
     @abstractmethod
-    async def find_by_email(self, email: str) -> Optional[User]:
+    async def find_by_email(self, email: str) -> User | None:
         """
         Find a user by their email address
 
@@ -62,15 +60,11 @@ class UserRepository(ABC):
         Returns:
             The user entity if found, None otherwise
         """
-        pass
 
     @abstractmethod
     async def find_all(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        filters: Optional[Dict[str, Any]] = None
-    ) -> List[User]:
+        self, skip: int = 0, limit: int = 100, filters: dict[str, Any] | None = None
+    ) -> list[User]:
         """
         Find all users with optional pagination and filtering
 
@@ -82,7 +76,6 @@ class UserRepository(ABC):
         Returns:
             List of user entities
         """
-        pass
 
     @abstractmethod
     async def update(self, user: User) -> User:
@@ -95,7 +88,6 @@ class UserRepository(ABC):
         Returns:
             The updated user entity
         """
-        pass
 
     @abstractmethod
     async def delete(self, user_id: str) -> bool:
@@ -108,10 +100,9 @@ class UserRepository(ABC):
         Returns:
             True if deletion was successful, False otherwise
         """
-        pass
 
     @abstractmethod
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
         """
         Count users with optional filtering
 
@@ -121,10 +112,9 @@ class UserRepository(ABC):
         Returns:
             The total count of matching users
         """
-        pass
 
     @abstractmethod
-    async def email_exists(self, email: str, exclude_user_id: Optional[str] = None) -> bool:
+    async def email_exists(self, email: str, exclude_user_id: str | None = None) -> bool:
         """
         Check if an email address already exists in the repository
 
@@ -135,7 +125,6 @@ class UserRepository(ABC):
         Returns:
             True if email exists, False otherwise
         """
-        pass
 
     @abstractmethod
     async def organization_exists(self, organization_id: str) -> bool:
@@ -148,15 +137,11 @@ class UserRepository(ABC):
         Returns:
             True if organization exists, False otherwise
         """
-        pass
 
     @abstractmethod
     async def find_by_organization(
-        self,
-        organization_id: str,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[User]:
+        self, organization_id: str, skip: int = 0, limit: int = 100
+    ) -> list[User]:
         """
         Find users by organization
 
@@ -168,7 +153,6 @@ class UserRepository(ABC):
         Returns:
             List of user entities belonging to the organization
         """
-        pass
 
     @abstractmethod
     async def update_last_login(self, user_id: str, ip_address: str, user_agent: str):
@@ -180,7 +164,6 @@ class UserRepository(ABC):
             ip_address: The IP address of the login
             user_agent: The user agent string of the login
         """
-        pass
 
     @abstractmethod
     async def increment_failed_login(self, user_id: str) -> int:
@@ -193,15 +176,11 @@ class UserRepository(ABC):
         Returns:
             The new count of failed login attempts
         """
-        pass
 
     @abstractmethod
     async def find_active_users_by_role(
-        self,
-        role: str,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[User]:
+        self, role: str, skip: int = 0, limit: int = 100
+    ) -> list[User]:
         """
         Find active users by role
 
@@ -213,10 +192,9 @@ class UserRepository(ABC):
         Returns:
             List of active users with the specified role
         """
-        pass
 
     @abstractmethod
-    async def search_users(self, search_term: str, limit: int = 20) -> List[User]:
+    async def search_users(self, search_term: str, limit: int = 20) -> list[User]:
         """
         Search users by email or full name
 
@@ -227,4 +205,3 @@ class UserRepository(ABC):
         Returns:
             List of matching user entities
         """
-        pass

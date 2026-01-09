@@ -200,7 +200,7 @@ def _convert_career_trajectory(trajectory: CareerTrajectory) -> CareerTrajectory
 
 # API Endpoints
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/individual/skill-gaps", response_model=List[SkillAssessmentResponse])
 async def get_individual_skill_gaps(
     user_id: Optional[str] = Query(None, description="User ID to analyze (defaults to current user)"),
@@ -225,8 +225,8 @@ async def get_individual_skill_gaps(
 
         return [_convert_skill_assessment(gap) for gap in skill_gaps]
 
-    except Exception as 
-@check_rate_limit(identifier="public", endpoint_type="public")
+    except Exception as
+@check_rate_limit(identifier="public", limit_name="public")
 e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -266,7 +266,7 @@ async def get_individual_skill_summary(
             low_priority_gaps=low_priority_gaps,
             average_gap_size=average_gap_size,
             total
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 _assessments=len(skill_gaps)
         )
 

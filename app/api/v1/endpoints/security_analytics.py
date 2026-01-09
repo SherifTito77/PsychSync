@@ -14,35 +14,26 @@ Version: 1.0
 Date: 2025-12-26
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
 
-from app.core.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from app.core.security import get_current_user
 from app.db.models import User
-from app.monitoring.security_analytics import (
-    security_analyzer,
-    SecurityEvent,
-    ThreatLevel
-)
-from app.monitoring.audit_logger import (
-    audit_logger,
-    AuditQuery,
-    AuditEventType,
-    AuditSeverity
-)
+from app.monitoring.audit_logger import AuditQuery, audit_logger
+from app.monitoring.security_analytics import ThreatLevel, security_analyzer
 
 router = APIRouter()
 
 
 # ==================== Security Metrics Endpoints ====================
 
+
 @router.get("/metrics/overview")
 async def get_security_metrics_overview(
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
     """
     Get real-time security metrics overview.
 
@@ -57,15 +48,20 @@ async def get_security_metrics_overview(
     metrics = security_analyzer.get_security_metrics()
 
     # Add additional context
-    metrics.update({
-        "timestamp": datetime.utcnow().isoformat(),
-        "threat_indicators_active": len([
-            e for e in security_analyzer.event_history
-            if e.timestamp > datetime.utcnow() - timedelta(hours=1)
-        ]),
-        "users_with_recent_activity": metrics.get("active_users", 0),
-        "ips_with_recent_activity": metrics.get("active_ips", 0)
-    })
+    metrics.update(
+        {
+            "timestamp": datetime.utcnow().isoformat(),
+            "threat_indicators_active": len(
+                [
+                    e
+                    for e in security_analyzer.event_history
+                    if e.timestamp > datetime.utcnow() - timedelta(hours=1)
+                ]
+            ),
+            "users_with_recent_activity": metrics.get("active_users", 0),
+            "ips_with_recent_activity": metrics.get("active_ips", 0),
+        }
+    )
 
     return metrics
 
@@ -73,9 +69,9 @@ async def get_security_metrics_overview(
 @router.get("/metrics/threats")
 async def get_active_threats(
     hours: int = Query(default=24, ge=1, le=168),
-    severity: Optional[str] = Query(default=None),
-    current_user: User = Depends(get_current_user)
-) -> List[Dict[str, Any]]:
+    severity: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+) -> list[dict[str, Any]]:
     """
     Get active threat indicators.
 
@@ -99,35 +95,34 @@ async def get_active_threats(
 
             # Filter by severity if specified
             if severity:
-                indicators = [
-                    i for i in indicators
-                    if i.severity.value == severity
-                ]
+                indicators = [i for i in indicators if i.severity.value == severity]
 
-            threats.extend([
-                {
-                    "indicator_type": ind.indicator_type,
-                    "severity": ind.severity.value,
-                    "confidence": ind.confidence,
-                    "description": ind.description,
-                    "affected_entities": ind.affected_entities,
-                    "mitigation_suggestions": ind.mitigation_suggestions,
-                    "timestamp": event.timestamp.isoformat()
-                }
-                for ind in indicators
-            ])
+            threats.extend(
+                [
+                    {
+                        "indicator_type": ind.indicator_type,
+                        "severity": ind.severity.value,
+                        "confidence": ind.confidence,
+                        "description": ind.description,
+                        "affected_entities": ind.affected_entities,
+                        "mitigation_suggestions": ind.mitigation_suggestions,
+                        "timestamp": event.timestamp.isoformat(),
+                    }
+                    for ind in indicators
+                ]
+            )
 
     return threats
 
 
 @router.get("/metrics/events")
 async def get_security_events(
-    event_type: Optional[str] = Query(default=None),
-    severity: Optional[str] = Query(default=None),
+    event_type: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
     hours: int = Query(default=24, ge=1, le=168),
     limit: int = Query(default=100, ge=1, le=1000),
-    current_user: User = Depends(get_current_user)
-) -> List[Dict[str, Any]]:
+    current_user: User = Depends(get_current_user),
+) -> list[dict[str, Any]]:
     """
     Get security events with filtering.
 
@@ -156,15 +151,17 @@ async def get_security_events(
         if severity and event.severity != severity:
             continue
 
-        events.append({
-            "event_type": event.event_type,
-            "timestamp": event.timestamp.isoformat(),
-            "user_id": event.user_id,
-            "session_id": event.session_id,
-            "ip_address": event.ip_address,
-            "severity": event.severity,
-            "details": event.details
-        })
+        events.append(
+            {
+                "event_type": event.event_type,
+                "timestamp": event.timestamp.isoformat(),
+                "user_id": event.user_id,
+                "session_id": event.session_id,
+                "ip_address": event.ip_address,
+                "severity": event.severity,
+                "details": event.details,
+            }
+        )
 
         if len(events) >= limit:
             break
@@ -179,8 +176,8 @@ async def get_security_events(
 async def get_security_timeline(
     hours: int = Query(default=24, ge=1, le=168),
     interval: str = Query(default="hour", enum=["hour", "day"]),
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
     """
     Get security events timeline for trend analysis.
 
@@ -220,24 +217,21 @@ async def get_security_timeline(
         if bucket_key in buckets:
             buckets[bucket_key] += 1
 
-    return {
-        "interval": interval,
-        "hours": hours,
-        "data": buckets
-    }
+    return {"interval": interval, "hours": hours, "data": buckets}
 
 
 # ==================== Audit Log Endpoints ====================
 
+
 @router.get("/audit/logs")
 async def get_audit_logs(
-    event_type: Optional[str] = Query(default=None),
-    severity: Optional[str] = Query(default=None),
-    user_id: Optional[int] = Query(default=None),
+    event_type: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    user_id: int | None = Query(default=None),
     hours: int = Query(default=24, ge=1, le=168),
     limit: int = Query(default=100, ge=1, le=1000),
-    current_user: User = Depends(get_current_user)
-) -> List[Dict[str, Any]]:
+    current_user: User = Depends(get_current_user),
+) -> list[dict[str, Any]]:
     """
     Query audit logs with filtering.
 
@@ -278,9 +272,8 @@ async def get_audit_logs(
 
 @router.get("/audit/summary")
 async def get_audit_summary(
-    hours: int = Query(default=24, ge=1, le=168),
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+    hours: int = Query(default=24, ge=1, le=168), current_user: User = Depends(get_current_user)
+) -> dict[str, Any]:
     """
     Get audit log summary statistics.
 
@@ -300,17 +293,17 @@ async def get_audit_summary(
         "by_type": {},
         "by_severity": {},
         "unique_users": 0,
-        "unique_ips": 0
+        "unique_ips": 0,
     }
 
 
 # ==================== Alert Endpoints ====================
 
+
 @router.get("/alerts/active")
 async def get_active_alerts(
-    hours: int = Query(default=24, ge=1, le=168),
-    current_user: User = Depends(get_current_user)
-) -> List[Dict[str, Any]]:
+    hours: int = Query(default=24, ge=1, le=168), current_user: User = Depends(get_current_user)
+) -> list[dict[str, Any]]:
     """
     Get active security alerts.
 
@@ -331,23 +324,24 @@ async def get_active_alerts(
             continue
 
         if event.severity in ["high", "critical"]:
-            alerts.append({
-                "event_type": event.event_type,
-                "severity": event.severity,
-                "timestamp": event.timestamp.isoformat(),
-                "user_id": event.user_id,
-                "ip_address": event.ip_address,
-                "details": event.details
-            })
+            alerts.append(
+                {
+                    "event_type": event.event_type,
+                    "severity": event.severity,
+                    "timestamp": event.timestamp.isoformat(),
+                    "user_id": event.user_id,
+                    "ip_address": event.ip_address,
+                    "details": event.details,
+                }
+            )
 
     return alerts
 
 
 @router.post("/alerts/{alert_id}/acknowledge")
 async def acknowledge_alert(
-    alert_id: str,
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, str]:
+    alert_id: str, current_user: User = Depends(get_current_user)
+) -> dict[str, str]:
     """
     Acknowledge a security alert.
 
@@ -364,7 +358,7 @@ async def acknowledge_alert(
         event_type="alert_acknowledged",
         severity="low",
         user_id=current_user.id,
-        details={"alert_id": alert_id}
+        details={"alert_id": alert_id},
     )
 
     return {"status": "acknowledged", "alert_id": alert_id}
@@ -372,12 +366,13 @@ async def acknowledge_alert(
 
 # ==================== User Risk Assessment ====================
 
+
 @router.get("/risk/users/{user_id}")
 async def get_user_risk_profile(
     user_id: int,
     hours: int = Query(default=24, ge=1, le=168),
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
     """
     Get risk profile for specific user.
 
@@ -395,7 +390,7 @@ async def get_user_risk_profile(
         return {
             "user_id": user_id,
             "risk_level": "unknown",
-            "message": "No security events found for user"
+            "message": "No security events found for user",
         }
 
     user_events = list(security_analyzer.user_history[user_id])
@@ -409,7 +404,9 @@ async def get_user_risk_profile(
     for event in recent_events:
         indicators = await security_analyzer.analyze_event(event)
         threat_count += len(indicators)
-        high_severity_count += sum(1 for i in indicators if i.severity in [ThreatLevel.HIGH, ThreatLevel.CRITICAL])
+        high_severity_count += sum(
+            1 for i in indicators if i.severity in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]
+        )
 
     # Calculate risk level
     if high_severity_count > 0:
@@ -428,16 +425,17 @@ async def get_user_risk_profile(
         "total_events": len(recent_events),
         "threat_indicators_detected": threat_count,
         "high_severity_threats": high_severity_count,
-        "last_activity": recent_events[-1].timestamp.isoformat() if recent_events else None
+        "last_activity": recent_events[-1].timestamp.isoformat() if recent_events else None,
     }
 
 
 # ==================== System Security Status ====================
 
+
 @router.get("/status/overview")
 async def get_system_security_status(
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
     """
     Get overall system security status.
 
@@ -472,5 +470,5 @@ async def get_system_security_status(
         "active_users": metrics["active_users"],
         "active_ips": metrics["active_ips"],
         "events_by_severity": metrics["events_by_severity"],
-        "events_by_type": metrics["events_last_hour"]
+        "events_by_type": metrics["events_last_hour"],
     }

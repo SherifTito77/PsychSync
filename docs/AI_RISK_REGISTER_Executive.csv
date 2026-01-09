@@ -1,0 +1,4 @@
+Risk ID,Category,Risk Name,Description,NIST,Owner,Likelihood,Impact,Score,Current,Required,Timeline,Budget,Status,KPI,Target,OWASP
+GOV-001,Governance,Lack of AI Governance Framework,No formal AI governance committee or policies,Govern,CISO,Medium,4,12,Basic policies exist,Establish AI governance committee,Q1 2025,50000,Open,Policy coverage %,100%,N/A
+MANA-001,Model Management,Prompt Injection Vulnerabilities,LLM vulnerable to jailbreaking,Manage,Security Lead,High,5,25,Basic sanitization,Advanced injection detection,Q1 2025,150000,In Progress,Injection blocked %,>95%,LLM01
+MANA-002,Model Management,Sensitive Information Disclosure,Model may leak PII,Manage,Security Lead,High,5,25,Basic redaction,Enhanced PII scanning,Q1 2025,100000,Open,Disclosures/month,0,LLM02

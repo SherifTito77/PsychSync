@@ -3,11 +3,12 @@ Comprehensive Security Headers Middleware
 Implements OWASP recommended security headers for FastAPI
 """
 
+from collections.abc import Callable
+import logging
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-from typing import Callable
-import logging
 
 logger = logging.getLogger(__name__)
 

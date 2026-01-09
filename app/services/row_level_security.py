@@ -20,11 +20,10 @@ Version: 1.0
 """
 
 import logging
-from typing import Optional, List, Set, Any, Dict
-from sqlalchemy import and_, or_
-from sqlalchemy.orm import Query
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
+from sqlalchemy.orm import Query
 
 from app.db.models.user import User
 
@@ -33,12 +32,10 @@ logger = logging.getLogger(__name__)
 
 class RowLevelSecurityError(Exception):
     """Base exception for RLS errors"""
-    pass
 
 
 class CrossTenantAccessError(RowLevelSecurityError):
     """Raised when cross-tenant access is attempted"""
-    pass
 
 
 class RowLevelSecurityService:
@@ -52,7 +49,7 @@ class RowLevelSecurityService:
         """Initialize RLS service"""
         self.isolation_level = "organization"  # Can be "organization", "team", or "user"
 
-    def get_accessible_org_ids(self, user: User) -> Set[str]:
+    def get_accessible_org_ids(self, user: User) -> set[str]:
         """
         Get set of organization IDs user can access
 
@@ -74,7 +71,7 @@ class RowLevelSecurityService:
 
         return org_ids
 
-    def get_accessible_team_ids(self, user: User) -> Set[str]:
+    def get_accessible_team_ids(self, user: User) -> set[str]:
         """
         Get set of team IDs user can access
 
@@ -87,23 +84,18 @@ class RowLevelSecurityService:
         team_ids = set()
 
         # Teams user is a member of
-        if hasattr(user, 'team_memberships'):
+        if hasattr(user, "team_memberships"):
             for membership in user.team_memberships:
                 team_ids.add(str(membership.team_id))
 
         # Teams user created
-        if hasattr(user, 'teams_created'):
+        if hasattr(user, "teams_created"):
             for team in user.teams_created:
                 team_ids.add(str(team.id))
 
         return team_ids
 
-    def apply_organization_filter(
-        self,
-        query: Query,
-        user: User,
-        org_column: Any
-    ) -> Query:
+    def apply_organization_filter(self, query: Query, user: User, org_column: Any) -> Query:
         """
         Apply organization-level filter to query
 
@@ -126,17 +118,12 @@ class RowLevelSecurityService:
 
         logger.debug(
             f"Applied organization filter for user {user.id}",
-            extra={"user_id": str(user.id), "org_count": len(org_ids)}
+            extra={"user_id": str(user.id), "org_count": len(org_ids)},
         )
 
         return query
 
-    def apply_team_filter(
-        self,
-        query: Query,
-        user: User,
-        team_column: Any
-    ) -> Query:
+    def apply_team_filter(self, query: Query, user: User, team_column: Any) -> Query:
         """
         Apply team-level filter to query
 
@@ -159,17 +146,12 @@ class RowLevelSecurityService:
 
         logger.debug(
             f"Applied team filter for user {user.id}",
-            extra={"user_id": str(user.id), "team_count": len(team_ids)}
+            extra={"user_id": str(user.id), "team_count": len(team_ids)},
         )
 
         return query
 
-    def apply_ownership_filter(
-        self,
-        query: Query,
-        user: User,
-        owner_column: Any
-    ) -> Query:
+    def apply_ownership_filter(self, query: Query, user: User, owner_column: Any) -> Query:
         """
         Apply ownership filter to query
 
@@ -185,8 +167,7 @@ class RowLevelSecurityService:
         query = query.filter(owner_column == user.id)
 
         logger.debug(
-            f"Applied ownership filter for user {user.id}",
-            extra={"user_id": str(user.id)}
+            f"Applied ownership filter for user {user.id}", extra={"user_id": str(user.id)}
         )
 
         return query
@@ -197,7 +178,7 @@ class RowLevelSecurityService:
         user: User,
         org_column: Any = None,
         team_column: Any = None,
-        owner_column: Any = None
+        owner_column: Any = None,
     ) -> Query:
         """
         Apply tenant isolation based on configured level
@@ -224,24 +205,23 @@ class RowLevelSecurityService:
         if self.isolation_level == "organization" and org_column is not None:
             return self.apply_organization_filter(query, user, org_column)
 
-        elif self.isolation_level == "team" and team_column is not None:
+        if self.isolation_level == "team" and team_column is not None:
             return self.apply_team_filter(query, user, team_column)
 
-        elif owner_column is not None:
+        if owner_column is not None:
             # Fall back to ownership filter
             return self.apply_ownership_filter(query, user, owner_column)
 
-        else:
-            raise RowLevelSecurityError(
-                f"No valid column provided for isolation level: {self.isolation_level}"
-            )
+        raise RowLevelSecurityError(
+            f"No valid column provided for isolation level: {self.isolation_level}"
+        )
 
     def check_cross_tenant_access(
         self,
         user: User,
-        resource_org_id: Optional[str],
-        resource_team_id: Optional[str],
-        resource_owner_id: Optional[str] = None
+        resource_org_id: str | None,
+        resource_team_id: str | None,
+        resource_owner_id: str | None = None,
     ) -> bool:
         """
         Check if user is attempting cross-tenant access
@@ -265,8 +245,8 @@ class RowLevelSecurityService:
                 extra={
                     "user_id": str(user.id),
                     "resource_org_id": resource_org_id,
-                    "resource_team_id": resource_team_id
-                }
+                    "resource_team_id": resource_team_id,
+                },
             )
             return True
 
@@ -279,8 +259,8 @@ class RowLevelSecurityService:
                     extra={
                         "user_id": str(user.id),
                         "user_org": str(user.organization_id),
-                        "resource_org": resource_org_id
-                    }
+                        "resource_org": resource_org_id,
+                    },
                 )
                 raise CrossTenantAccessError(
                     f"User does not have access to organization {resource_org_id}"
@@ -292,9 +272,7 @@ class RowLevelSecurityService:
             if str(resource_team_id) not in accessible_teams:
                 # Check if user's org has the team (org-level access)
                 if resource_org_id and str(resource_org_id) in self.get_accessible_org_ids(user):
-                    logger.info(
-                        f"User {user.id} has org-level access to team {resource_team_id}"
-                    )
+                    logger.info(f"User {user.id} has org-level access to team {resource_team_id}")
                     return True
 
                 logger.warning(
@@ -302,8 +280,8 @@ class RowLevelSecurityService:
                     extra={
                         "user_id": str(user.id),
                         "resource_team": resource_team_id,
-                        "accessible_teams": list(accessible_teams)
-                    }
+                        "accessible_teams": list(accessible_teams),
+                    },
                 )
                 raise CrossTenantAccessError(
                     f"User does not have access to team {resource_team_id}"
@@ -314,25 +292,18 @@ class RowLevelSecurityService:
             if str(resource_owner_id) != str(user.id):
                 # Users can't access others' private data unless same org/team
                 if resource_org_id == str(user.organization_id):
-                    logger.info(
-                        f"User {user.id} accessing org-member resource"
-                    )
+                    logger.info(f"User {user.id} accessing org-member resource")
                     return True
 
                 logger.warning(
                     f"Cross-ownership access attempt by user {user.id}",
-                    extra={
-                        "user_id": str(user.id),
-                        "resource_owner": resource_owner_id
-                    }
+                    extra={"user_id": str(user.id), "resource_owner": resource_owner_id},
                 )
-                raise CrossTenantAccessError(
-                    f"User does not have access to this resource"
-                )
+                raise CrossTenantAccessError("User does not have access to this resource")
 
         return True
 
-    def get_isolation_context(self, user: User) -> Dict[str, Any]:
+    def get_isolation_context(self, user: User) -> dict[str, Any]:
         """
         Get isolation context for user
 
@@ -350,8 +321,8 @@ class RowLevelSecurityService:
             "organization_id": str(user.organization_id) if user.organization_id else None,
             "team_ids": list(self.get_accessible_team_ids(user)),
             "is_superuser": user.is_superuser,
-            "role": user.role.value if hasattr(user.role, 'value') else user.role,
-            "isolation_level": self.isolation_level
+            "role": user.role.value if hasattr(user.role, "value") else user.role,
+            "isolation_level": self.isolation_level,
         }
 
 
@@ -364,9 +335,9 @@ def setup_row_level_security():
     to register event listeners on models
     """
     from sqlalchemy import event
+
     from app.db.models.assessment import Assessment
     from app.db.models.response import Response
-    from app.db.models.team import Team
 
     @event.listens_for(Assessment, "before_update")
     @event.listens_for(Assessment, "before_insert")
@@ -374,13 +345,11 @@ def setup_row_level_security():
         """Validate tenant isolation for assessments"""
         # This would need access to current user from context
         # Implementation depends on how user context is stored
-        pass
 
     @event.listens_for(Response, "before_update")
     @event.listens_for(Response, "before_insert")
     def validate_response_tenant(mapper, connection, target):
         """Validate tenant isolation for responses"""
-        pass
 
     logger.info("Row-level security event listeners registered")
 
@@ -395,10 +364,7 @@ class TenantIsolatedMixin:
 
     @classmethod
     def get_accessible_query(
-        cls,
-        db: AsyncSession,
-        user: User,
-        rls_service: RowLevelSecurityService
+        cls, db: AsyncSession, user: User, rls_service: RowLevelSecurityService
     ):
         """
         Get query with RLS filters applied
@@ -417,22 +383,16 @@ class TenantIsolatedMixin:
         query = select(cls)
 
         # Apply organization filter if model has organization_id
-        if hasattr(cls, 'organization_id'):
-            query = rls_service.apply_organization_filter(
-                query, user, cls.organization_id
-            )
+        if hasattr(cls, "organization_id"):
+            query = rls_service.apply_organization_filter(query, user, cls.organization_id)
 
         # Apply team filter if model has team_id
-        elif hasattr(cls, 'team_id'):
-            query = rls_service.apply_team_filter(
-                query, user, cls.team_id
-            )
+        elif hasattr(cls, "team_id"):
+            query = rls_service.apply_team_filter(query, user, cls.team_id)
 
         # Apply ownership filter if model has created_by_id
-        elif hasattr(cls, 'created_by_id'):
-            query = rls_service.apply_ownership_filter(
-                query, user, cls.created_by_id
-            )
+        elif hasattr(cls, "created_by_id"):
+            query = rls_service.apply_ownership_filter(query, user, cls.created_by_id)
 
         return query
 

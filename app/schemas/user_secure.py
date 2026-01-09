@@ -18,17 +18,16 @@ Author: Security Team
 Version: 3.0 Enterprise Security
 """
 
-from pydantic import BaseModel, EmailStr, ConfigDict, Field, validator, field_validator, constr, SecretStr
-from typing import Optional, List, Dict, Any, Union
-from datetime import datetime, date
-from uuid import UUID
+from datetime import date, datetime
 import re
-import html
-import bleach
-from urllib.parse import urlparse
+from typing import Any
+from uuid import UUID
 
-from app.db.models.user_secure import UserRole, UserSecurityLevel, DataClassification
+import bleach
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, constr, field_validator
+
 from app.core.security import validate_password
+from app.db.models.user_secure import UserRole, UserSecurityLevel
 
 # Security logger
 security_logger = logging.getLogger("app.security.schemas")
@@ -36,9 +35,10 @@ security_logger = logging.getLogger("app.security.schemas")
 # Constants for validation
 MAX_TEXT_LENGTH = 10000
 MAX_JSON_LENGTH = 1000000
-ALLOWED_TAGS = ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li']
-ALLOWED_ATTRIBUTES = {'*': ['class']}
+ALLOWED_TAGS = ["p", "br", "strong", "em", "ul", "ol", "li"]
+ALLOWED_ATTRIBUTES = {"*": ["class"]}
 SANITIZATION_PATTERN = re.compile(r'[<>"\']')
+
 
 class SecurityMixin:
     """Mixin class for security validation methods"""
@@ -50,12 +50,7 @@ class SecurityMixin:
             return value
 
         # Basic HTML sanitization
-        return bleach.clean(
-            value,
-            tags=ALLOWED_TAGS,
-            attributes=ALLOWED_ATTRIBUTES,
-            strip=True
-        )
+        return bleach.clean(value, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True)
 
     @classmethod
     def validate_no_injection(cls, value: str, field_name: str) -> str:
@@ -65,33 +60,41 @@ class SecurityMixin:
 
         # Check for dangerous patterns
         dangerous_patterns = [
-            r'<script[^>]*>.*?</script>',
-            r'javascript:',
-            r'data:',
-            r'vbscript:',
-            r'on\w+\s*=',  # Event handlers
-            r'expression\s*\(',
-            r'@import',
-            r'union\s+select',
-            r'drop\s+table',
-            r'insert\s+into',
-            r'update\s+set',
-            r'delete\s+from',
-            r'exec\s*\(',
-            r'system\s*\(',
-            r'eval\s*\(',
+            r"<script[^>]*>.*?</script>",
+            r"javascript:",
+            r"data:",
+            r"vbscript:",
+            r"on\w+\s*=",  # Event handlers
+            r"expression\s*\(",
+            r"@import",
+            r"union\s+select",
+            r"drop\s+table",
+            r"insert\s+into",
+            r"update\s+set",
+            r"delete\s+from",
+            r"exec\s*\(",
+            r"system\s*\(",
+            r"eval\s*\(",
         ]
 
         value_lower = value.lower()
         for pattern in dangerous_patterns:
             if re.search(pattern, value_lower, re.IGNORECASE):
-                security_logger.warning(f"Potentially dangerous content detected in {field_name}: {pattern}")
+                security_logger.warning(
+                    f"Potentially dangerous content detected in {field_name}: {pattern}"
+                )
                 raise ValueError(f"Invalid content detected in {field_name}")
 
         return value
 
     @classmethod
-    def validate_length(cls, value: str, min_length: int = 0, max_length: int = MAX_TEXT_LENGTH, field_name: str = "field") -> str:
+    def validate_length(
+        cls,
+        value: str,
+        min_length: int = 0,
+        max_length: int = MAX_TEXT_LENGTH,
+        field_name: str = "field",
+    ) -> str:
         """Validate string length"""
         if len(value) < min_length:
             raise ValueError(f"{field_name} must be at least {min_length} characters long")
@@ -99,50 +102,33 @@ class SecurityMixin:
             raise ValueError(f"{field_name} must not exceed {max_length} characters")
         return value
 
+
 class UserBaseSecure(SecurityMixin, BaseModel):
     """Enhanced base user schema with security validation"""
 
-    email: Optional[EmailStr] = Field(
-        None,
-        description="User email address (validated format)"
+    email: EmailStr | None = Field(None, description="User email address (validated format)")
+
+    full_name: constr(min_length=2, max_length=255, strip_whitespace=True) | None = Field(
+        None, description="Full legal name (sanitized)"
     )
 
-    full_name: Optional[constr(min_length=2, max_length=255, strip_whitespace=True)] = Field(
-        None,
-        description="Full legal name (sanitized)"
-    )
-
-    role: UserRole = Field(
-        UserRole.USER,
-        description="User role with permission level"
-    )
+    role: UserRole = Field(UserRole.USER, description="User role with permission level")
 
     security_level: UserSecurityLevel = Field(
-        UserSecurityLevel.INTERNAL,
-        description="User security classification level"
+        UserSecurityLevel.INTERNAL, description="User security classification level"
     )
 
-    is_active: bool = Field(
-        True,
-        description="Account active status"
+    is_active: bool = Field(True, description="Account active status")
+
+    timezone: str | None = Field("UTC", description="User timezone (validated)")
+
+    locale: str | None = Field("en-US", description="User locale preference")
+
+    preferences: dict[str, Any] | None = Field(
+        default_factory=dict, description="User preferences (validated)"
     )
 
-    timezone: Optional[str] = Field(
-        "UTC",
-        description="User timezone (validated)"
-    )
-
-    locale: Optional[str] = Field(
-        "en-US",
-        description="User locale preference"
-    )
-
-    preferences: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
-        description="User preferences (validated)"
-    )
-
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email(cls, v):
         """Enhanced email validation with security checks"""
@@ -153,19 +139,19 @@ class UserBaseSecure(SecurityMixin, BaseModel):
         v = v.lower().strip()
 
         # Additional security validation
-        dangerous_domains = ['tempmail.com', '10minutemail.com', 'guerrillamail.com', 'yopmail.com']
-        domain = v.split('@')[-1]
+        dangerous_domains = ["tempmail.com", "10minutemail.com", "guerrillamail.com", "yopmail.com"]
+        domain = v.split("@")[-1]
 
         if domain in dangerous_domains:
             security_logger.warning(f"Suspicious domain detected: {domain}")
 
         # Check for suspicious patterns
-        if '+' in v and v.count('+') > 1:
+        if "+" in v and v.count("+") > 1:
             security_logger.warning(f"Multiple plus signs in email: {v}")
 
         return v
 
-    @field_validator('full_name')
+    @field_validator("full_name")
     @classmethod
     def validate_full_name(cls, v):
         """Validate full name with security checks"""
@@ -184,7 +170,7 @@ class UserBaseSecure(SecurityMixin, BaseModel):
 
         return v.strip()
 
-    @field_validator('timezone')
+    @field_validator("timezone")
     @classmethod
     def validate_timezone(cls, v):
         """Validate timezone format"""
@@ -193,18 +179,18 @@ class UserBaseSecure(SecurityMixin, BaseModel):
 
         # Basic timezone validation
         valid_patterns = [
-            r'^[A-Za-z_]+/[A-Za-z_]+$',
-            r'^UTC[+-]\d{1,2}:\d{2}$',
-            r'^GMT[+-]\d{1,2}:\d{2}$'
+            r"^[A-Za-z_]+/[A-Za-z_]+$",
+            r"^UTC[+-]\d{1,2}:\d{2}$",
+            r"^GMT[+-]\d{1,2}:\d{2}$",
         ]
 
         if not any(re.match(pattern, v) for pattern in valid_patterns):
-            if v != 'UTC':
+            if v != "UTC":
                 raise ValueError("Invalid timezone format")
 
         return v
 
-    @field_validator('preferences')
+    @field_validator("preferences")
     @classmethod
     def validate_preferences(cls, v):
         """Validate preferences dictionary"""
@@ -228,99 +214,77 @@ class UserBaseSecure(SecurityMixin, BaseModel):
 
         return v
 
+
 class UserCreateSecure(UserBaseSecure):
     """Enhanced user creation schema with comprehensive validation"""
 
-    email: EmailStr = Field(
-        ...,
-        description="User email address (required, validated)"
-    )
+    email: EmailStr = Field(..., description="User email address (required, validated)")
 
     password: SecretStr = Field(
-        ...,
-        min_length=12,
-        max_length=128,
-        description="Secure password (encrypted in transit)"
+        ..., min_length=12, max_length=128, description="Secure password (encrypted in transit)"
     )
 
-    confirm_password: SecretStr = Field(
-        ...,
-        description="Password confirmation"
+    confirm_password: SecretStr = Field(..., description="Password confirmation")
+
+    phone_number: constr(min_length=10, max_length=20) | None = Field(
+        None, description="Phone number (validated format)"
     )
 
-    phone_number: Optional[constr(min_length=10, max_length=20)] = Field(
-        None,
-        description="Phone number (validated format)"
+    date_of_birth: date | None = Field(None, description="Date of birth (validated range)")
+
+    address: constr(max_length=1000) | None = Field(
+        None, description="Physical address (sanitized)"
     )
 
-    date_of_birth: Optional[date] = Field(
-        None,
-        description="Date of birth (validated range)"
-    )
+    accept_terms: bool = Field(..., description="Terms of service acceptance")
 
-    address: Optional[constr(max_length=1000)] = Field(
-        None,
-        description="Physical address (sanitized)"
-    )
+    data_processing_consent: bool = Field(False, description="Data processing consent (GDPR)")
 
-    accept_terms: bool = Field(
-        ...,
-        description="Terms of service acceptance"
-    )
+    marketing_consent: bool = Field(False, description="Marketing communication consent")
 
-    data_processing_consent: bool = Field(
-        False,
-        description="Data processing consent (GDPR)"
-    )
+    ip_address: str | None = Field(None, description="Registration IP address (for security)")
 
-    marketing_consent: bool = Field(
-        False,
-        description="Marketing communication consent"
-    )
+    user_agent: str | None = Field(None, description="User agent string (for security)")
 
-    ip_address: Optional[str] = Field(
-        None,
-        description="Registration IP address (for security)"
-    )
-
-    user_agent: Optional[str] = Field(
-        None,
-        description="User agent string (for security)"
-    )
-
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v, info):
         """Enhanced password validation"""
-        password = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+        password = v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
 
         validation_result = validate_password(password)
         if not validation_result["valid"]:
-            raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
+            raise ValueError(
+                f"Password validation failed: {', '.join(validation_result['errors'])}"
+            )
 
         # Check against common breaches (would integrate with haveibeenpwned API)
         # For now, just check against very common passwords
-        common_passwords = ['password', '123456', 'qwerty', 'admin', 'letmein']
+        common_passwords = ["password", "123456", "qwerty", "admin", "letmein"]
         if password.lower() in common_passwords:
             raise ValueError("Password is too common")
 
         return v
 
-    @field_validator('confirm_password')
+    @field_validator("confirm_password")
     @classmethod
     def validate_password_confirmation(cls, v, info):
         """Validate password confirmation"""
-        if 'password' in info.data:
-            password = info.data['password']
-            password_value = password.get_secret_value() if hasattr(password, 'get_secret_value') else str(password)
-            confirm_value = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+        if "password" in info.data:
+            password = info.data["password"]
+            password_value = (
+                password.get_secret_value()
+                if hasattr(password, "get_secret_value")
+                else str(password)
+            )
+            confirm_value = v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
 
             if password_value != confirm_value:
                 raise ValueError("Passwords do not match")
 
         return v
 
-    @field_validator('phone_number')
+    @field_validator("phone_number")
     @classmethod
     def validate_phone_number(cls, v):
         """Validate phone number format"""
@@ -328,20 +292,20 @@ class UserCreateSecure(UserBaseSecure):
             return v
 
         # Remove non-digit characters
-        digits = re.sub(r'\D', '', v)
+        digits = re.sub(r"\D", "", v)
 
         # Basic phone number validation
         if len(digits) < 10 or len(digits) > 15:
             raise ValueError("Invalid phone number format")
 
         # Check for obviously fake numbers
-        fake_patterns = ['1234567890', '5555555555', '1111111111']
+        fake_patterns = ["1234567890", "5555555555", "1111111111"]
         if digits in fake_patterns:
             raise ValueError("Invalid phone number")
 
         return v
 
-    @field_validator('date_of_birth')
+    @field_validator("date_of_birth")
     @classmethod
     def validate_date_of_birth(cls, v):
         """Validate date of birth"""
@@ -359,7 +323,7 @@ class UserCreateSecure(UserBaseSecure):
 
         return v
 
-    @field_validator('address')
+    @field_validator("address")
     @classmethod
     def validate_address(cls, v):
         """Validate and sanitize address"""
@@ -374,7 +338,7 @@ class UserCreateSecure(UserBaseSecure):
 
         return v.strip()
 
-    @field_validator('ip_address')
+    @field_validator("ip_address")
     @classmethod
     def validate_ip_address(cls, v):
         """Validate IP address format"""
@@ -382,6 +346,7 @@ class UserCreateSecure(UserBaseSecure):
             return v
 
         import ipaddress
+
         try:
             ipaddress.ip_address(v)
         except ValueError:
@@ -389,7 +354,7 @@ class UserCreateSecure(UserBaseSecure):
 
         return v
 
-    @field_validator('user_agent')
+    @field_validator("user_agent")
     @classmethod
     def validate_user_agent(cls, v):
         """Validate user agent string"""
@@ -405,65 +370,39 @@ class UserCreateSecure(UserBaseSecure):
 
         return v
 
+
 class UserUpdateSecure(SecurityMixin, BaseModel):
     """Enhanced user update schema with security validation"""
 
-    email: Optional[EmailStr] = Field(
-        None,
-        description="Updated email address"
+    email: EmailStr | None = Field(None, description="Updated email address")
+
+    full_name: constr(min_length=2, max_length=255) | None = Field(
+        None, description="Updated full name"
     )
 
-    full_name: Optional[constr(min_length=2, max_length=255)] = Field(
-        None,
-        description="Updated full name"
+    phone_number: constr(min_length=10, max_length=20) | None = Field(
+        None, description="Updated phone number"
     )
 
-    phone_number: Optional[constr(min_length=10, max_length=20)] = Field(
-        None,
-        description="Updated phone number"
+    address: constr(max_length=1000) | None = Field(None, description="Updated address")
+
+    role: UserRole | None = Field(None, description="Updated user role (admin only)")
+
+    security_level: UserSecurityLevel | None = Field(
+        None, description="Updated security level (admin only)"
     )
 
-    address: Optional[constr(max_length=1000)] = Field(
-        None,
-        description="Updated address"
-    )
+    is_active: bool | None = Field(None, description="Account active status")
 
-    role: Optional[UserRole] = Field(
-        None,
-        description="Updated user role (admin only)"
-    )
+    timezone: str | None = Field(None, description="Updated timezone")
 
-    security_level: Optional[UserSecurityLevel] = Field(
-        None,
-        description="Updated security level (admin only)"
-    )
+    locale: str | None = Field(None, description="Updated locale")
 
-    is_active: Optional[bool] = Field(
-        None,
-        description="Account active status"
-    )
+    preferences: dict[str, Any] | None = Field(None, description="Updated preferences")
 
-    timezone: Optional[str] = Field(
-        None,
-        description="Updated timezone"
-    )
+    marketing_consent: bool | None = Field(None, description="Marketing consent update")
 
-    locale: Optional[str] = Field(
-        None,
-        description="Updated locale"
-    )
-
-    preferences: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Updated preferences"
-    )
-
-    marketing_consent: Optional[bool] = Field(
-        None,
-        description="Marketing consent update"
-    )
-
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email_update(cls, v):
         """Validate email update"""
@@ -471,211 +410,123 @@ class UserUpdateSecure(SecurityMixin, BaseModel):
             v = v.lower().strip()
         return v
 
+
 class UserPasswordChangeSecure(BaseModel):
     """Enhanced password change schema with security validation"""
 
-    current_password: SecretStr = Field(
-        ...,
-        description="Current password for verification"
-    )
+    current_password: SecretStr = Field(..., description="Current password for verification")
 
     new_password: SecretStr = Field(
-        ...,
-        min_length=12,
-        max_length=128,
-        description="New secure password"
+        ..., min_length=12, max_length=128, description="New secure password"
     )
 
-    confirm_new_password: SecretStr = Field(
-        ...,
-        description="New password confirmation"
-    )
+    confirm_new_password: SecretStr = Field(..., description="New password confirmation")
 
-    ip_address: Optional[str] = Field(
-        None,
-        description="Request IP address for audit"
-    )
+    ip_address: str | None = Field(None, description="Request IP address for audit")
 
-    @field_validator('new_password')
+    @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, v):
         """Validate new password strength"""
-        password = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+        password = v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
 
         validation_result = validate_password(password)
         if not validation_result["valid"]:
-            raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
+            raise ValueError(
+                f"Password validation failed: {', '.join(validation_result['errors'])}"
+            )
 
         return v
 
-    @field_validator('confirm_new_password')
+    @field_validator("confirm_new_password")
     @classmethod
     def validate_password_confirmation(cls, v, info):
         """Validate password confirmation"""
-        if 'new_password' in info.data:
-            new_password = info.data['new_password']
-            new_value = new_password.get_secret_value() if hasattr(new_password, 'get_secret_value') else str(new_password)
-            confirm_value = v.get_secret_value() if hasattr(v, 'get_secret_value') else str(v)
+        if "new_password" in info.data:
+            new_password = info.data["new_password"]
+            new_value = (
+                new_password.get_secret_value()
+                if hasattr(new_password, "get_secret_value")
+                else str(new_password)
+            )
+            confirm_value = v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
 
             if new_value != confirm_value:
                 raise ValueError("New passwords do not match")
 
         return v
 
+
 class UserReadSecure(SecurityMixin, BaseModel):
     """Enhanced user read schema with field-level access control"""
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True
-    )
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
-    id: UUID = Field(
-        ...,
-        description="User unique identifier"
-    )
+    id: UUID = Field(..., description="User unique identifier")
 
-    email: Optional[str] = Field(
-        None,
-        description="User email address"
-    )
+    email: str | None = Field(None, description="User email address")
 
-    full_name: Optional[str] = Field(
-        None,
-        description="User full name"
-    )
+    full_name: str | None = Field(None, description="User full name")
 
-    role: UserRole = Field(
-        ...,
-        description="User role"
-    )
+    role: UserRole = Field(..., description="User role")
 
-    security_level: UserSecurityLevel = Field(
-        ...,
-        description="Security classification level"
-    )
+    security_level: UserSecurityLevel = Field(..., description="Security classification level")
 
-    is_active: bool = Field(
-        ...,
-        description="Account active status"
-    )
+    is_active: bool = Field(..., description="Account active status")
 
-    is_verified: bool = Field(
-        ...,
-        description="Email verification status"
-    )
+    is_verified: bool = Field(..., description="Email verification status")
 
-    timezone: Optional[str] = Field(
-        None,
-        description="User timezone"
-    )
+    timezone: str | None = Field(None, description="User timezone")
 
-    locale: Optional[str] = Field(
-        None,
-        description="User locale"
-    )
+    locale: str | None = Field(None, description="User locale")
 
-    created_at: datetime = Field(
-        ...,
-        description="Account creation timestamp"
-    )
+    created_at: datetime = Field(..., description="Account creation timestamp")
 
-    updated_at: datetime = Field(
-        ...,
-        description="Last update timestamp"
-    )
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
-    last_login: Optional[datetime] = Field(
-        None,
-        description="Last login timestamp"
-    )
+    last_login: datetime | None = Field(None, description="Last login timestamp")
+
 
 class UserAdminReadSecure(UserReadSecure):
     """Admin-only user read schema with additional sensitive fields"""
 
-    phone_number: Optional[str] = Field(
-        None,
-        description="Phone number (admin only)"
-    )
+    phone_number: str | None = Field(None, description="Phone number (admin only)")
 
-    address: Optional[str] = Field(
-        None,
-        description="Address (admin only)"
-    )
+    address: str | None = Field(None, description="Address (admin only)")
 
-    date_of_birth: Optional[date] = Field(
-        None,
-        description="Date of birth (admin only)"
-    )
+    date_of_birth: date | None = Field(None, description="Date of birth (admin only)")
 
-    login_attempts: int = Field(
-        ...,
-        description="Failed login attempts count"
-    )
+    login_attempts: int = Field(..., description="Failed login attempts count")
 
-    is_locked: bool = Field(
-        ...,
-        description="Account lock status"
-    )
+    is_locked: bool = Field(..., description="Account lock status")
 
-    risk_score: float = Field(
-        ...,
-        description="Security risk score"
-    )
+    risk_score: float = Field(..., description="Security risk score")
 
-    last_ip_address: Optional[str] = Field(
-        None,
-        description="Last known IP address"
-    )
+    last_ip_address: str | None = Field(None, description="Last known IP address")
+
 
 class UserSearchSecure(BaseModel):
     """Secure user search schema with input validation"""
 
-    query: Optional[constr(min_length=2, max_length=100)] = Field(
-        None,
-        description="Search query (sanitized)"
+    query: constr(min_length=2, max_length=100) | None = Field(
+        None, description="Search query (sanitized)"
     )
 
-    role: Optional[UserRole] = Field(
-        None,
-        description="Filter by role"
-    )
+    role: UserRole | None = Field(None, description="Filter by role")
 
-    is_active: Optional[bool] = Field(
-        None,
-        description="Filter by active status"
-    )
+    is_active: bool | None = Field(None, description="Filter by active status")
 
-    is_verified: Optional[bool] = Field(
-        None,
-        description="Filter by verification status"
-    )
+    is_verified: bool | None = Field(None, description="Filter by verification status")
 
-    created_after: Optional[datetime] = Field(
-        None,
-        description="Filter by creation date (after)"
-    )
+    created_after: datetime | None = Field(None, description="Filter by creation date (after)")
 
-    created_before: Optional[datetime] = Field(
-        None,
-        description="Filter by creation date (before)"
-    )
+    created_before: datetime | None = Field(None, description="Filter by creation date (before)")
 
-    page: int = Field(
-        1,
-        ge=1,
-        le=1000,
-        description="Page number"
-    )
+    page: int = Field(1, ge=1, le=1000, description="Page number")
 
-    page_size: int = Field(
-        20,
-        ge=1,
-        le=100,
-        description="Items per page"
-    )
+    page_size: int = Field(20, ge=1, le=100, description="Items per page")
 
-    @field_validator('query')
+    @field_validator("query")
     @classmethod
     def validate_search_query(cls, v):
         """Validate and sanitize search query"""
@@ -690,32 +541,21 @@ class UserSearchSecure(BaseModel):
 
         return v.strip()
 
+
 class UserBulkOperationSecure(BaseModel):
     """Secure bulk user operation schema"""
 
-    user_ids: List[UUID] = Field(
-        ...,
-        min_items=1,
-        max_items=100,
-        description="List of user IDs (max 100)"
+    user_ids: list[UUID] = Field(
+        ..., min_items=1, max_items=100, description="List of user IDs (max 100)"
     )
 
-    operation: str = Field(
-        ...,
-        description="Operation type (activate, deactivate, delete, etc.)"
-    )
+    operation: str = Field(..., description="Operation type (activate, deactivate, delete, etc.)")
 
-    reason: Optional[constr(max_length=1000)] = Field(
-        None,
-        description="Reason for operation"
-    )
+    reason: constr(max_length=1000) | None = Field(None, description="Reason for operation")
 
-    ip_address: Optional[str] = Field(
-        None,
-        description="Request IP address"
-    )
+    ip_address: str | None = Field(None, description="Request IP address")
 
-    @field_validator('user_ids')
+    @field_validator("user_ids")
     @classmethod
     def validate_user_ids(cls, v):
         """Validate user ID list"""
@@ -729,13 +569,20 @@ class UserBulkOperationSecure(BaseModel):
 
         return unique_ids
 
-    @field_validator('operation')
+    @field_validator("operation")
     @classmethod
     def validate_operation(cls, v):
         """Validate operation type"""
         allowed_operations = [
-            'activate', 'deactivate', 'suspend', 'unsuspend',
-            'verify', 'unverify', 'lock', 'unlock', 'delete'
+            "activate",
+            "deactivate",
+            "suspend",
+            "unsuspend",
+            "verify",
+            "unverify",
+            "lock",
+            "unlock",
+            "delete",
         ]
 
         if v not in allowed_operations:
@@ -743,7 +590,7 @@ class UserBulkOperationSecure(BaseModel):
 
         return v
 
-    @field_validator('reason')
+    @field_validator("reason")
     @classmethod
     def validate_reason(cls, v):
         """Validate operation reason"""
@@ -758,64 +605,33 @@ class UserBulkOperationSecure(BaseModel):
 
         return v.strip()
 
+
 # Response schemas for API endpoints
 class UserResponseSecure(BaseModel):
     """Standard user response schema"""
 
-    success: bool = Field(
-        ...,
-        description="Operation success status"
-    )
+    success: bool = Field(..., description="Operation success status")
 
-    message: str = Field(
-        ...,
-        description="Response message"
-    )
+    message: str = Field(..., description="Response message")
 
-    data: Optional[UserReadSecure] = Field(
-        None,
-        description="User data"
-    )
+    data: UserReadSecure | None = Field(None, description="User data")
 
-    request_id: Optional[str] = Field(
-        None,
-        description="Request tracking ID"
-    )
+    request_id: str | None = Field(None, description="Request tracking ID")
+
 
 class UsersListResponseSecure(BaseModel):
     """Paginated users list response schema"""
 
-    success: bool = Field(
-        ...,
-        description="Operation success status"
-    )
+    success: bool = Field(..., description="Operation success status")
 
-    message: str = Field(
-        ...,
-        description="Response message"
-    )
+    message: str = Field(..., description="Response message")
 
-    data: List[UserReadSecure] = Field(
-        ...,
-        description="List of users"
-    )
+    data: list[UserReadSecure] = Field(..., description="List of users")
 
-    total: int = Field(
-        ...,
-        description="Total number of users"
-    )
+    total: int = Field(..., description="Total number of users")
 
-    page: int = Field(
-        ...,
-        description="Current page number"
-    )
+    page: int = Field(..., description="Current page number")
 
-    page_size: int = Field(
-        ...,
-        description="Items per page"
-    )
+    page_size: int = Field(..., description="Items per page")
 
-    total_pages: int = Field(
-        ...,
-        description="Total number of pages"
-    )
+    total_pages: int = Field(..., description="Total number of pages")

@@ -4,13 +4,11 @@ Secure Configuration & Secrets Management for PsychSync
 Replaces vibe-coded config with production-ready secrets handling
 """
 
-from typing import Optional, Any
-from pydantic_settings import BaseSettings
-from pydantic import Field, validator, SecretStr
-import os
-import json
 from functools import lru_cache
 import logging
+
+from pydantic import Field, SecretStr, validator
+from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +16,7 @@ logger = logging.getLogger(__name__)
 # ============================================
 # SECURE SETTINGS (Production-Ready)
 # ============================================
+
 
 class SecureSettings(BaseSettings):
     """
@@ -76,9 +75,7 @@ class SecureSettings(BaseSettings):
 
         for pattern in dangerous_patterns:
             if pattern in url.lower():
-                raise ValueError(
-                    f"Database URL contains default credentials: {pattern}"
-                )
+                raise ValueError(f"Database URL contains default credentials: {pattern}")
 
         return v
 
@@ -86,7 +83,7 @@ class SecureSettings(BaseSettings):
     # REDIS (Secure Credentials)
     # ============================================
     REDIS_URL: SecretStr = Field(..., env="REDIS_URL")
-    REDIS_PASSWORD: Optional[SecretStr] = Field(default=None, env="REDIS_PASSWORD")
+    REDIS_PASSWORD: SecretStr | None = Field(default=None, env="REDIS_PASSWORD")
 
     @validator("REDIS_PASSWORD", always=True)
     def validate_redis_password(cls, v, values):
@@ -132,7 +129,7 @@ class SecureSettings(BaseSettings):
     # ============================================
     # ENCRYPTION (Data at Rest)
     # ============================================
-    ENCRYPTION_KEY: Optional[SecretStr] = Field(default=None, env="ENCRYPTION_KEY")
+    ENCRYPTION_KEY: SecretStr | None = Field(default=None, env="ENCRYPTION_KEY")
 
     @validator("ENCRYPTION_KEY")
     def validate_encryption_key(cls, v):
@@ -143,6 +140,7 @@ class SecureSettings(BaseSettings):
 
         try:
             from cryptography.fernet import Fernet
+
             Fernet(v.get_secret_value().encode())
         except Exception:
             raise ValueError(
@@ -155,10 +153,7 @@ class SecureSettings(BaseSettings):
     # ============================================
     # CORS (Strict in Production)
     # ============================================
-    CORS_ORIGINS: list[str] = Field(
-        default=["http://localhost:3000"],
-        env="CORS_ORIGINS"
-    )
+    CORS_ORIGINS: list[str] = Field(default=["http://localhost:3000"], env="CORS_ORIGINS")
 
     @validator("CORS_ORIGINS", pre=True)
     def parse_cors_origins(cls, v):
@@ -175,15 +170,11 @@ class SecureSettings(BaseSettings):
 
             for origin in v:
                 if origin in dangerous_origins:
-                    raise ValueError(
-                        f"CORS origin '{origin}' is too permissive for production"
-                    )
+                    raise ValueError(f"CORS origin '{origin}' is too permissive for production")
 
                 # Ensure HTTPS in production
                 if origin.startswith("http://") and "localhost" not in origin:
-                    raise ValueError(
-                        f"CORS origin must use HTTPS in production: {origin}"
-                    )
+                    raise ValueError(f"CORS origin must use HTTPS in production: {origin}")
 
         return v
 
@@ -192,8 +183,8 @@ class SecureSettings(BaseSettings):
     # ============================================
     SMTP_HOST: str = Field(default="smtp.gmail.com", env="SMTP_HOST")
     SMTP_PORT: int = Field(default=587, env="SMTP_PORT")
-    SMTP_USER: Optional[str] = Field(default=None, env="SMTP_USER")
-    SMTP_PASSWORD: Optional[SecretStr] = Field(default=None, env="SMTP_PASSWORD")
+    SMTP_USER: str | None = Field(default=None, env="SMTP_USER")
+    SMTP_PASSWORD: SecretStr | None = Field(default=None, env="SMTP_PASSWORD")
     SMTP_TLS: bool = Field(default=True, env="SMTP_TLS")
 
     @validator("SMTP_TLS")
@@ -206,13 +197,13 @@ class SecureSettings(BaseSettings):
     # ============================================
     # THIRD-PARTY APIS (Secure Tokens)
     # ============================================
-    SLACK_CLIENT_ID: Optional[str] = Field(default=None, env="SLACK_CLIENT_ID")
-    SLACK_CLIENT_SECRET: Optional[SecretStr] = Field(default=None, env="SLACK_CLIENT_SECRET")
+    SLACK_CLIENT_ID: str | None = Field(default=None, env="SLACK_CLIENT_ID")
+    SLACK_CLIENT_SECRET: SecretStr | None = Field(default=None, env="SLACK_CLIENT_SECRET")
 
-    GOOGLE_CLIENT_ID: Optional[str] = Field(default=None, env="GOOGLE_CLIENT_ID")
-    GOOGLE_CLIENT_SECRET: Optional[SecretStr] = Field(default=None, env="GOOGLE_CLIENT_SECRET")
+    GOOGLE_CLIENT_ID: str | None = Field(default=None, env="GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET: SecretStr | None = Field(default=None, env="GOOGLE_CLIENT_SECRET")
 
-    OPENAI_API_KEY: Optional[SecretStr] = Field(default=None, env="OPENAI_API_KEY")
+    OPENAI_API_KEY: SecretStr | None = Field(default=None, env="OPENAI_API_KEY")
 
     # ============================================
     # RATE LIMITING
@@ -223,10 +214,7 @@ class SecureSettings(BaseSettings):
     # ============================================
     # SECURITY SETTINGS
     # ============================================
-    ALLOWED_HOSTS: list[str] = Field(
-        default=["localhost", "127.0.0.1"],
-        env="ALLOWED_HOSTS"
-    )
+    ALLOWED_HOSTS: list[str] = Field(default=["localhost", "127.0.0.1"], env="ALLOWED_HOSTS")
 
     # Session security
     SECURE_COOKIES: bool = Field(default=True, env="SECURE_COOKIES")
@@ -249,7 +237,7 @@ class SecureSettings(BaseSettings):
     # ============================================
     # MONITORING
     # ============================================
-    SENTRY_DSN: Optional[SecretStr] = Field(default=None, env="SENTRY_DSN")
+    SENTRY_DSN: SecretStr | None = Field(default=None, env="SENTRY_DSN")
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
 
     @validator("LOG_LEVEL")
@@ -273,7 +261,8 @@ class SecureSettings(BaseSettings):
 # SETTINGS INSTANCE (Cached)
 # ============================================
 
-@lru_cache()
+
+@lru_cache
 def get_settings() -> SecureSettings:
     """
     Get cached settings instance
@@ -306,6 +295,7 @@ settings = get_settings()
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
+
 
 def get_secret(key: str) -> str:
     """
@@ -361,6 +351,7 @@ def validate_production_readiness() -> bool:
 # ============================================
 # ENVIRONMENT FILE GENERATOR
 # ============================================
+
 
 def generate_secure_env_template():
     """

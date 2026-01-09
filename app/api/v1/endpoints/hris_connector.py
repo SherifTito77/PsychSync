@@ -39,7 +39,7 @@ hris_sync = HRISSyncService()
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/connection/setup", response_model=HRISConnectionResponse)
 async def setup_hris_connection(
     request: HRISConnectionRequest,
@@ -131,7 +131,7 @@ async def setup_hris_connection(
         logger.error(f"HRIS connection setup failed: {str(e)}")
         raise HTTPException(
             status_code=500
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ,
             detail="HRIS connection setup failed"
         )
@@ -234,7 +234,7 @@ async def analyze_workforce_data(
         raise
     except Exception as e:
         logger.error(f"HRIS analytics analysis failed: {str(
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 e)}")
         raise HTTPException(
             status_code=500,

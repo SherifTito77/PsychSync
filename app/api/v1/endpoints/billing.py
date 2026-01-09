@@ -3,27 +3,18 @@ Billing and Subscription Management API Endpoints
 Enterprise-grade revenue generation and subscription management
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Header, Request
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
-from typing import Dict, List, Any, Optional
-import uuid
-import json
 from datetime import datetime, timedelta
 import logging
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.middleware.rate_limiter import rate_limiter, RateLimiter
 from app.core.security import get_current_user
-from app.db.models.user import User
 from app.db.models.organization import Organization
-from app.services.billing import (
-    RevenueGenerationService,
-    SubscriptionTier,
-    BillingCycle,
-    PRICING_TIERS,
-    revenue_service
-)
+from app.db.models.user import User
+from app.services.billing import PRICING_TIERS, BillingCycle, SubscriptionTier, revenue_service
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +28,7 @@ router = APIRouter(prefix="/billing", tags=["Billing & Subscriptions"])
 _idempotency_cache = {}
 
 
-def check_idempotency(idempotency_key: str) -> Optional[Dict[str, Any]]:
+def check_idempotency(idempotency_key: str) -> dict[str, Any] | None:
     """
     Check if request was already processed
     In production, use Redis instead of in-memory cache
@@ -47,7 +38,7 @@ def check_idempotency(idempotency_key: str) -> Optional[Dict[str, Any]]:
     return _idempotency_cache.get(idempotency_key)
 
 
-def store_idempotency_result(idempotency_key: str, result: Dict[str, Any], ttl: int = 86400):
+def store_idempotency_result(idempotency_key: str, result: dict[str, Any], ttl: int = 86400):
     """
     Store result of idempotent request (24 hour TTL)
     In production, use Redis with: redis_client.setex(key, ttl, json.dumps(result))
@@ -60,15 +51,16 @@ def store_idempotency_result(idempotency_key: str, result: Dict[str, Any], ttl: 
 
 # ============================================================================
 
+
 @router.post("/subscribe")
 async def create_subscription(
     tier: SubscriptionTier,
     billing_cycle: BillingCycle = BillingCycle.MONTHLY,
     trial_period_days: int = 14,
-    promotion_code: Optional[str] = None,
-    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    promotion_code: str | None = None,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Create a new subscription with idempotency protection
@@ -85,9 +77,9 @@ async def create_subscription(
 
     try:
         # Create or retrieve Stripe customer
-        organization = db.query(Organization).filter(
-            Organization.id == current_user.organization_id
-        ).first()
+        organization = (
+            db.query(Organization).filter(Organization.id == current_user.organization_id).first()
+        )
 
         if not current_user.stripe_customer_id:
             customer = await revenue_service.create_customer_with_metadata(
@@ -103,7 +95,7 @@ async def create_subscription(
             tier=tier,
             billing_cycle=billing_cycle,
             trial_period_days=trial_period_days,
-            promotion_code=promotion_code
+            promotion_code=promotion_code,
         )
 
         # Update user's subscription status in database
@@ -118,7 +110,9 @@ async def create_subscription(
             "trial_period_days": trial_period_days,
             "status": subscription.status,
             "current_period_end": subscription.current_period_end,
-            "client_secret": subscription.latest_invoice.payment_intent.client_secret if subscription.latest_invoice else None
+            "client_secret": subscription.latest_invoice.payment_intent.client_secret
+            if subscription.latest_invoice
+            else None,
         }
 
         # Store idempotency result
@@ -127,18 +121,19 @@ async def create_subscription(
         return result
 
     except Exception as e:
-        logger.error(f"Failed to create subscription: {str(e)}")
+        logger.error(f"Failed to create subscription: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create subscription: {str(e)}"
-        )
+            detail=f"Failed to create subscription: {e!s}",
+        ) from e
+
 
 @router.post("/cancel")
 async def cancel_subscription(
     subscription_id: str,
     reason: str = "user_request",
     immediate: bool = False,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Cancel subscription
@@ -148,9 +143,7 @@ async def cancel_subscription(
         # Note: This would require database validation
 
         cancelled_subscription = await revenue_service.cancel_subscription(
-            subscription_id=subscription_id,
-            reason=reason,
-            immediate=immediate
+            subscription_id=subscription_id, reason=reason, immediate=immediate
         )
 
         return {
@@ -160,24 +153,25 @@ async def cancel_subscription(
             "reason": reason,
             "immediate": immediate,
             "status": cancelled_subscription.status,
-            "canceled_at_period_end": cancelled_subscription.cancel_at_period_end
+            "canceled_at_period_end": cancelled_subscription.cancel_at_period_end,
         }
 
     except Exception as e:
-        logger.error(f"Failed to cancel subscription {subscription_id}: {str(e)}")
+        logger.error(f"Failed to cancel subscription {subscription_id}: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to cancel subscription: {str(e)}"
-        )
+            detail=f"Failed to cancel subscription: {e!s}",
+        ) from e
+
 
 @router.post("/modify")
 async def modify_subscription(
     subscription_id: str,
     new_tier: SubscriptionTier,
-    new_billing_cycle: Optional[BillingCycle] = None,
+    new_billing_cycle: BillingCycle | None = None,
     prorate: bool = True,
-    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user)
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Upgrade or downgrade subscription with idempotency protection
@@ -196,7 +190,7 @@ async def modify_subscription(
             subscription_id=subscription_id,
             new_tier=new_tier,
             new_billing_cycle=new_billing_cycle,
-            prorate=prorate
+            prorate=prorate,
         )
 
         result = {
@@ -206,7 +200,7 @@ async def modify_subscription(
             "new_billing_cycle": new_billing_cycle.value if new_billing_cycle else "unchanged",
             "prorate": prorate,
             "status": modified_subscription.status,
-            "current_period_end": modified_subscription.current_period_end
+            "current_period_end": modified_subscription.current_period_end,
         }
 
         # Store idempotency result
@@ -215,11 +209,12 @@ async def modify_subscription(
         return result
 
     except Exception as e:
-        logger.error(f"Failed to modify subscription {subscription_id}: {str(e)}")
+        logger.error(f"Failed to modify subscription {subscription_id}: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to modify subscription: {str(e)}"
-        )
+            detail=f"Failed to modify subscription: {e!s}",
+        ) from e
+
 
 @router.get("/pricing")
 async def get_pricing_tiers():
@@ -246,43 +241,43 @@ async def get_pricing_tiers():
                     "priority_support": tier_config.priority_support,
                     "dedicated_account_manager": tier_config.dedicated_account_manager,
                     "HIPAA_compliance": tier_config.HIPAA_compliance,
-                    "sla_guarantee": tier_config.sla_guarantee
+                    "sla_guarantee": tier_config.sla_guarantee,
                 },
                 "usage_pricing": {
-                    "price_per_assessment_over_limit": float(tier_config.price_per_assessment_over_limit),
-                    "price_per_additional_team_member": float(tier_config.price_per_additional_team_member),
-                    "price_per_additional_team": float(tier_config.price_per_additional_team)
-                }
+                    "price_per_assessment_over_limit": float(
+                        tier_config.price_per_assessment_over_limit
+                    ),
+                    "price_per_additional_team_member": float(
+                        tier_config.price_per_additional_team_member
+                    ),
+                    "price_per_additional_team": float(tier_config.price_per_additional_team),
+                },
             }
 
         return {
             "pricing_tiers": pricing_info,
             "available_tiers": [tier.value for tier in SubscriptionTier],
-            "available_billing_cycles": [cycle.value for cycle in BillingCycle]
+            "available_billing_cycles": [cycle.value for cycle in BillingCycle],
         }
 
     except Exception as e:
-        logger.error(f"Failed to get pricing tiers: {str(e)}")
+        logger.error(f"Failed to get pricing tiers: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve pricing information"
-        )
+            detail="Failed to retrieve pricing information",
+        ) from e
+
 
 @router.get("/subscription/current")
 async def get_current_subscription(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """
     Get user's current subscription details
     """
     try:
         if not current_user.stripe_customer_id:
-            return {
-                "has_subscription": False,
-                "tier": "free",
-                "status": "active"
-            }
+            return {"has_subscription": False, "tier": "free", "status": "active"}
 
         # This would query your database for subscription information
         # For now, return a basic structure
@@ -296,20 +291,20 @@ async def get_current_subscription(
             "current_period_start": None,
             "current_period_end": None,
             "cancel_at_period_end": False,
-            "trial_end": None
+            "trial_end": None,
         }
 
     except Exception as e:
-        logger.error(f"Failed to get current subscription: {str(e)}")
+        logger.error(f"Failed to get current subscription: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve subscription information"
-        )
+            detail="Failed to retrieve subscription information",
+        ) from e
+
 
 @router.get("/usage")
 async def get_usage_metrics(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """
     Get user's current usage metrics
@@ -320,40 +315,33 @@ async def get_usage_metrics(
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         usage_report = await revenue_service.calculate_usage_based_billing(
-            user_id=str(current_user.id),
-            billing_period_start=month_start,
-            billing_period_end=now
+            user_id=str(current_user.id), billing_period_start=month_start, billing_period_end=now
         )
 
         # Get user's subscription tier for limit comparison
         # Note: This would come from your database
 
         return {
-            "current_period": {
-                "start": month_start.isoformat(),
-                "end": now.isoformat()
-            },
+            "current_period": {"start": month_start.isoformat(), "end": now.isoformat()},
             "usage_metrics": usage_report["usage_metrics"],
             "pricing_tier": usage_report["pricing_tier"],
             "limits": {
                 "assessments_completed": usage_report["usage_metrics"]["assessments_completed"],
                 "team_members_active": usage_report["usage_metrics"]["team_members_active"],
-                "teams_active": usage_report["usage_metrics"]["teams_active"]
-            }
+                "teams_active": usage_report["usage_metrics"]["teams_active"],
+            },
         }
 
     except Exception as e:
-        logger.error(f"Failed to get usage metrics: {str(e)}")
+        logger.error(f"Failed to get usage metrics: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve usage metrics"
-        )
+            detail="Failed to retrieve usage metrics",
+        ) from e
+
 
 @router.post("/feature-check")
-async def check_feature_access(
-    feature: str,
-    current_user: User = Depends(get_current_user)
-):
+async def check_feature_access(feature: str, current_user: User = Depends(get_current_user)):
     """
     Check if user has access to a specific feature
     """
@@ -361,7 +349,9 @@ async def check_feature_access(
         access_validation = await revenue_service.validate_feature_access(
             user_id=str(current_user.id),
             feature=feature,
-            organization_id=str(current_user.organization_id) if current_user.organization_id else None
+            organization_id=str(current_user.organization_id)
+            if current_user.organization_id
+            else None,
         )
 
         return {
@@ -372,21 +362,22 @@ async def check_feature_access(
             "upgrade_required": access_validation["upgrade_required"],
             "upgrade_options": access_validation["upgrade_options"],
             "current_usage": access_validation["current_usage"],
-            "usage_limit": access_validation["usage_limit"]
+            "usage_limit": access_validation["usage_limit"],
         }
 
     except Exception as e:
-        logger.error(f"Failed to check feature access: {str(e)}")
+        logger.error(f"Failed to check feature access: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to check feature access: {str(e)}"
-        )
+            detail=f"Failed to check feature access: {e!s}",
+        ) from e
+
 
 @router.get("/invoices")
 async def get_invoices(
     limit: int = 10,
-    starting_after: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    starting_after: str | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get user's invoice history
@@ -400,21 +391,22 @@ async def get_invoices(
 
         return {
             "invoices": [],  # Would be populated from Stripe API
-            "has_more": False
+            "has_more": False,
         }
 
     except Exception as e:
-        logger.error(f"Failed to get invoices: {str(e)}")
+        logger.error(f"Failed to get invoices: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve invoice history"
-        )
+            detail="Failed to retrieve invoice history",
+        ) from e
+
 
 @router.post("/payment-methods")
 async def add_payment_method(
     payment_method_id: str,
     set_as_default: bool = True,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Add a payment method to customer account
@@ -422,8 +414,7 @@ async def add_payment_method(
     try:
         if not current_user.stripe_customer_id:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No Stripe customer found for user"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="No Stripe customer found for user"
             )
 
         # Attach payment method to customer
@@ -432,20 +423,19 @@ async def add_payment_method(
         return {
             "success": True,
             "payment_method_id": payment_method_id,
-            "set_as_default": set_as_default
+            "set_as_default": set_as_default,
         }
 
     except Exception as e:
-        logger.error(f"Failed to add payment method: {str(e)}")
+        logger.error(f"Failed to add payment method: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to add payment method: {str(e)}"
-        )
+            detail=f"Failed to add payment method: {e!s}",
+        ) from e
+
 
 @router.get("/payment-methods")
-async def get_payment_methods(
-    current_user: User = Depends(get_current_user)
-):
+async def get_payment_methods(current_user: User = Depends(get_current_user)):
     """
     Get user's saved payment methods
     """
@@ -461,23 +451,21 @@ async def get_payment_methods(
         }
 
     except Exception as e:
-        logger.error(f"Failed to get payment methods: {str(e)}")
+        logger.error(f"Failed to get payment methods: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve payment methods"
-        )
-
-
+            detail="Failed to retrieve payment methods",
+        ) from e
 
 
 # ============================================================================
 # WEBHOOK HANDLING
 # ============================================================================
 
+
 @router.post("/webhooks/stripe", dependencies=[Depends(get_current_user)])
 async def stripe_webhook(
-    request: Request,
-    stripe_signature: str = Header(None, alias="stripe-signature")
+    request: Request, stripe_signature: str = Header(None, alias="stripe-signature")
 ):
     """
     Handle Stripe webhooks for subscription events
@@ -488,6 +476,7 @@ async def stripe_webhook(
     - invoice.payment_failed: Payment failure
     """
     import stripe
+
     from app.core.config import settings
 
     try:
@@ -499,28 +488,23 @@ async def stripe_webhook(
         try:
             webhook_secret = settings.STRIPE_WEBHOOK_SECRET
             if webhook_secret:
-                event = stripe.Webhook.construct_event(
-                    payload,
-                    stripe_signature,
-                    webhook_secret
-                )
+                event = stripe.Webhook.construct_event(payload, stripe_signature, webhook_secret)
             else:
                 # For development: skip signature verification
                 import json
+
                 event = json.loads(payload)
 
         except ValueError as e:
-            logger.error(f"Invalid webhook payload: {str(e)}")
+            logger.error(f"Invalid webhook payload: {e!s}")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid payload"
-            )
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload"
+            ) from e
         except stripe.error.SignatureVerificationError as e:
-            logger.error(f"Invalid webhook signature: {str(e)}")
+            logger.error(f"Invalid webhook signature: {e!s}")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid signature"
-            )
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature"
+            ) from e
 
         # Handle event
         event_type = event.get("type", "")
@@ -541,11 +525,11 @@ async def stripe_webhook(
         return {"status": "processed", "event_type": event_type}
 
     except Exception as e:
-        logger.error(f"Webhook processing failed: {str(e)}")
+        logger.error(f"Webhook processing failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Webhook processing failed: {str(e)}"
-        )
+            detail=f"Webhook processing failed: {e!s}",
+        ) from e
 
 
 async def handle_subscription_cancellation(event: dict):
@@ -573,10 +557,12 @@ async def handle_subscription_cancellation(event: dict):
         # TODO: Implement cache invalidation
         # redis_client.delete(f"user:{user_id}:features")
 
-        logger.info(f"Subscription {subscription_id} cancelled, access revoked for customer {customer_id}")
+        logger.info(
+            f"Subscription {subscription_id} cancelled, access revoked for customer {customer_id}"
+        )
 
     except Exception as e:
-        logger.error(f"Failed to handle subscription cancellation: {str(e)}")
+        logger.error(f"Failed to handle subscription cancellation: {e!s}")
         raise
 
 
@@ -586,7 +572,7 @@ async def handle_payment_success(event: dict):
     customer_id = invoice_data.get("customer")
     amount_paid = invoice_data.get("amount_paid", 0)
 
-    logger.info(f"Payment succeeded for customer {customer_id}: ${amount_paid/100:.2f}")
+    logger.info(f"Payment succeeded for customer {customer_id}: ${amount_paid / 100:.2f}")
 
     # TODO: Update subscription status, send receipt email, etc.
 
@@ -601,15 +587,16 @@ async def handle_payment_failure(event: dict):
 
     # TODO: Send payment failure notification, handle dunning
 
+
 # ============================================================================
 
 
 # Admin endpoints (protected by additional permissions)
 @router.get("/admin/analytics")
 async def get_billing_analytics(
-    date_range_start: Optional[str] = None,
-    date_range_end: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    date_range_start: str | None = None,
+    date_range_end: str | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get comprehensive billing analytics (admin only)
@@ -620,24 +607,22 @@ async def get_billing_analytics(
 
         if not current_user.is_admin:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
             )
 
         # Parse date range
         if date_range_start:
-            start_date = datetime.fromisoformat(date_range_start.replace('Z', '+00:00'))
+            start_date = datetime.fromisoformat(date_range_start.replace("Z", "+00:00"))
         else:
             start_date = datetime.utcnow() - timedelta(days=30)
 
         if date_range_end:
-            end_date = datetime.fromisoformat(date_range_end.replace('Z', '+00:00'))
+            end_date = datetime.fromisoformat(date_range_end.replace("Z", "+00:00"))
         else:
             end_date = datetime.utcnow()
 
         analytics = await revenue_service.get_subscription_analytics(
-            date_range_start=start_date,
-            date_range_end=end_date
+            date_range_start=start_date, date_range_end=end_date
         )
 
         return analytics
@@ -645,21 +630,22 @@ async def get_billing_analytics(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get billing analytics: {str(e)}")
+        logger.error(f"Failed to get billing analytics: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve billing analytics"
-        )
+            detail="Failed to retrieve billing analytics",
+        ) from e
+
 
 @router.post("/admin/promotions")
 async def create_promotional_code(
     discount_type: str,
-    amount_off: Optional[int] = None,
-    percent_off: Optional[int] = None,
+    amount_off: int | None = None,
+    percent_off: int | None = None,
     duration: str = "once",
-    duration_in_months: Optional[int] = None,
-    metadata: Optional[Dict[str, str]] = None,
-    current_user: User = Depends(get_current_user)
+    duration_in_months: int | None = None,
+    metadata: dict[str, str] | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create promotional discount code (admin only)
@@ -668,8 +654,7 @@ async def create_promotional_code(
         # Check if user has admin permissions
         if not current_user.is_admin:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
             )
 
         coupon = await revenue_service.create_promotional_discount(
@@ -678,7 +663,7 @@ async def create_promotional_code(
             percent_off=percent_off,
             duration=duration,
             duration_in_months=duration_in_months,
-            metadata=metadata
+            metadata=metadata,
         )
 
         return {
@@ -689,14 +674,14 @@ async def create_promotional_code(
             "percent_off": percent_off,
             "duration": duration,
             "duration_in_months": duration_in_months,
-            "metadata": metadata
+            "metadata": metadata,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to create promotional code: {str(e)}")
+        logger.error(f"Failed to create promotional code: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create promotional code: {str(e)}"
-        )
+            detail=f"Failed to create promotional code: {e!s}",
+        ) from e

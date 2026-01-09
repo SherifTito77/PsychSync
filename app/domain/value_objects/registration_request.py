@@ -12,9 +12,8 @@ Version: 2.0 Enterprise Security
 """
 
 from dataclasses import dataclass
-from typing import Optional
-import re
 import logging
+import re
 
 # Initialize domain logger
 domain_logger = logging.getLogger("app.domain.registration_request")
@@ -32,14 +31,14 @@ class RegistrationRequest:
     email: str
     password: str
     full_name: str
-    organization_id: Optional[str] = None
-    phone: Optional[str] = None
-    timezone: Optional[str] = None
-    language: Optional[str] = None
-    source: Optional[str] = None
-    client_ip: Optional[str] = None
-    user_agent: Optional[str] = None
-    referral_code: Optional[str] = None
+    organization_id: str | None = None
+    phone: str | None = None
+    timezone: str | None = None
+    language: str | None = None
+    source: str | None = None
+    client_ip: str | None = None
+    user_agent: str | None = None
+    referral_code: str | None = None
 
     def __post_init__(self):
         """Validate registration request data"""
@@ -54,7 +53,7 @@ class RegistrationRequest:
         if not self.email:
             raise ValueError("Email is required")
 
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         if not re.match(email_pattern, self.email):
             raise ValueError(f"Invalid email format: {self.email}")
 
@@ -70,7 +69,7 @@ class RegistrationRequest:
         has_upper = any(c.isupper() for c in self.password)
         has_lower = any(c.islower() for c in self.password)
         has_digit = any(c.isdigit() for c in self.password)
-        has_special = any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in self.password)
+        has_special = any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in self.password)
 
         complexity_score = sum([has_upper, has_lower, has_digit, has_special])
 
@@ -95,7 +94,7 @@ class RegistrationRequest:
         """Validate phone number format if provided"""
         if self.phone:
             # Basic phone validation - can be enhanced based on requirements
-            phone_pattern = r'^\+?[\d\s\-\(\)]{10,}$'
+            phone_pattern = r"^\+?[\d\s\-\(\)]{10,}$"
             if not re.match(phone_pattern, self.phone):
                 raise ValueError(f"Invalid phone number format: {self.phone}")
 
@@ -103,11 +102,7 @@ class RegistrationRequest:
         """Validate timezone if provided"""
         if self.timezone:
             # Basic timezone validation - can be enhanced with pytz
-            valid_timezone_patterns = [
-                r'^[A-Za-z_]+/[A-Za-z_]+$',
-                r'^UTC[+-]\d+$',
-                r'^GMT[+-]\d+$'
-            ]
+            valid_timezone_patterns = [r"^[A-Za-z_]+/[A-Za-z_]+$", r"^UTC[+-]\d+$", r"^GMT[+-]\d+$"]
 
             if not any(re.match(pattern, self.timezone) for pattern in valid_timezone_patterns):
                 domain_logger.warning(f"Potentially invalid timezone: {self.timezone}")
@@ -125,11 +120,11 @@ class RegistrationRequest:
             "source": self.source,
             "client_ip": self.client_ip,
             "user_agent": self.user_agent,
-            "referral_code": self.referral_code
+            "referral_code": self.referral_code,
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'RegistrationRequest':
+    def from_dict(cls, data: dict) -> "RegistrationRequest":
         """Create registration request from dictionary"""
         return cls(
             email=data.get("email", ""),
@@ -142,16 +137,12 @@ class RegistrationRequest:
             source=data.get("source"),
             client_ip=data.get("client_ip"),
             user_agent=data.get("user_agent"),
-            referral_code=data.get("referral_code")
+            referral_code=data.get("referral_code"),
         )
 
     def is_complete(self) -> bool:
         """Check if all required fields are present"""
-        return all([
-            self.email,
-            self.password,
-            self.full_name
-        ])
+        return all([self.email, self.password, self.full_name])
 
     def get_risk_score(self) -> float:
         """
@@ -172,7 +163,7 @@ class RegistrationRequest:
 
         # Check email domain patterns
         if self.email:
-            email_domain = self.email.split('@')[-1].lower()
+            email_domain = self.email.split("@")[-1].lower()
             disposable_domains = ["10minutemail.com", "tempmail.org", "guerrillamail.com"]
             if any(disposable in email_domain for disposable in disposable_domains):
                 risk_score += 0.5

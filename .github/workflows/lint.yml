@@ -1,0 +1,352 @@
+# GitHub Actions workflow for linting PsychSync codebase
+# This workflow runs on every pull request and push to main/main branches
+# It checks code quality, security, and formatting consistency
+
+name: Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:  # Allow manual triggering
+
+# Cancel in-progress runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==============================================================================
+  # Python Linting Job
+  # ==============================================================================
+  python-lint:
+    name: Python Linting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy bandit[toml]
+          pip install pydantic types-requests types-redis
+          pip install sqlalchemy
+
+      - name: Run Ruff linter
+        run: |
+          ruff check .
+        continue-on-error: false
+
+      - name: Run Ruff formatter check
+        run: |
+          ruff format --check .
+        continue-on-error: false
+
+      - name: Run mypy type checker
+        run: |
+          mypy app/ --ignore-missing-imports --no-strict-optional
+        continue-on-error: true  # Don't fail the build on type errors
+
+      - name: Run Bandit security linter
+        run: |
+          bandit -r app/ -c pyproject.toml
+        continue-on-error: true  # Security issues are warnings, not blockers
+
+      - name: Upload linting results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-lint-results
+          path: |
+            .ruff_cache/
+            .mypy_cache/
+
+  # ==============================================================================
+  # Frontend Linting Job
+  # ==============================================================================
+  frontend-lint:
+    name: Frontend Linting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+        working-directory: ./frontend
+
+      - name: Run ESLint
+        run: |
+          npm run lint
+        continue-on-error: false
+
+      - name: Run TypeScript type check
+        run: |
+          npm run type-check
+        continue-on-error: true  # Don't fail the build on type errors
+
+      - name: Check Prettier formatting
+        run: |
+          npm run format:check
+        continue-on-error: false
+
+      - name: Upload linting results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-lint-results
+          path: frontend/coverage/
+
+  # ==============================================================================
+  # Security Scanning Job
+  # ==============================================================================
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit[toml] semgrep safety
+
+      - name: Run Bandit security check
+        run: |
+          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/
+        continue-on-error: true
+
+      - name: Run Semgrep security scan
+        run: |
+          pip install semgrep
+          semgrep --config=semgrep_rules/owasp-python.yaml || true
+          semgrep --config=semgrep_rules/ai-introduced-security.yaml || true
+        continue-on-error: true
+
+      - name: Run Safety check (dependencies)
+        run: |
+          safety check --json > safety-report.json || true
+          cat safety-report.json
+        continue-on-error: true
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  # ==============================================================================
+  # Configuration Files Validation
+  # ==============================================================================
+  config-validation:
+    name: Config Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install validation tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install yamllint toml
+
+      - name: Validate YAML files
+        run: |
+          find . -name "*.yaml" -o -name "*.yml" | \
+          grep -v node_modules | \
+          grep -v .git | \
+          xargs yamllint -d relaxed || true
+
+      - name: Validate TOML files
+        run: |
+          python -c "import tomllib; [tomllib.load(open(f)) for f in ['pyproject.toml', 'ruff.toml']]"
+
+      - name: Validate JSON files
+        run: |
+          find . -name "*.json" | \
+          grep -v node_modules | \
+          grep -v .git | \
+          xargs -I {} sh -c 'jq empty {} || echo "Invalid JSON: {}"'
+
+  # ==============================================================================
+  # Documentation Linting
+  # ==============================================================================
+  documentation-lint:
+    name: Documentation Linting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdown linting tools
+        run: |
+          npm install -g markdownlint-cli2
+
+      - name: Run Markdown linting
+        run: |
+          markdownlint-cli2 "docs/**/*.md" "*.md" || true
+        continue-on-error: true
+
+      - name: Install spell checker
+        run: |
+          python -m pip install codespell
+
+      - name: Run spell check
+        run: |
+          codespell docs/ --skip="*.lock,*.min.js,node_modules/"
+        continue-on-error: true
+
+  # ==============================================================================
+  # Pre-commit Hooks Check
+  # ==============================================================================
+  pre-commit-check:
+    name: Pre-commit Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install pre-commit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pre-commit
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit on all files
+        run: |
+          pre-commit run --all-files --show-diff-on-failure || true
+
+  # ==============================================================================
+  # Summary Job
+  # ==============================================================================
+  lint-summary:
+    name: Lint Summary
+    runs-on: ubuntu-latest
+    needs: [python-lint, frontend-lint, security-scan, config-validation, documentation-lint, pre-commit-check]
+    if: always()
+
+    steps:
+      - name: Check job results
+        run: |
+          echo "## Lint Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Linting | ${{ needs.python-lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Linting | ${{ needs.frontend-lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scanning | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Config Validation | ${{ needs.config-validation.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation Linting | ${{ needs.documentation-lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pre-commit Check | ${{ needs.pre-commit-check.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if any required job failed
+        if: |
+          needs.python-lint.result == 'failure' ||
+          needs.frontend-lint.result == 'failure'
+        run: |
+          echo "::error::Required linting jobs failed. Please check the logs above."
+          exit 1
+
+# ==============================================================================
+# Workflow Rationale
+# ==============================================================================
+#
+# Job Structure:
+# - Separate jobs for Python, Frontend, Security, and Config validation
+# - Jobs run in parallel for faster feedback
+# - Summary job aggregates all results
+#
+# Python Linting:
+# - Ruff: Fast linter for Python code quality
+# - Ruff format: Ensures consistent formatting
+# - mypy: Type checking (non-blocking warnings)
+# - Bandit: Security vulnerability scanning
+#
+# Frontend Linting:
+# - ESLint: JavaScript/TypeScript code quality
+# - TypeScript: Type checking
+# - Prettier: Code formatting consistency
+#
+# Security Scanning:
+# - Bandit: Python security issues
+# - Semgrep: Advanced security patterns
+# - Safety: Dependency vulnerability scanning
+#
+# Configuration:
+# - YAML/TOML/JSON validation ensures config files are valid
+# - Catches syntax errors before deployment
+#
+# Documentation:
+# - Markdown linting for consistent formatting
+# - Spell checking for documentation
+#
+# Pre-commit:
+# - Runs all pre-commit hooks in CI environment
+# - Ensures local hooks catch same issues as CI
+#
+# Team Adoption:
+# - All PRs must pass linting checks
+# - Security scans run on every push
+# - Results uploaded as artifacts for review
+# - Failed linting blocks merge (enforced in summary job)

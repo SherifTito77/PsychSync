@@ -29,18 +29,17 @@ Usage:
     service.invalidate_session(session_id)
 """
 
-import secrets
-import hashlib
-import logging
-from typing import Dict, Any, Optional, List, Tuple
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from collections import defaultdict
+import hashlib
+import logging
+import secrets
+from typing import Any
 
 # import uvicorn
 from fastapi import Request
-
 
 # ============================================================================
 # Session Configuration
@@ -106,7 +105,7 @@ class SessionData:
     ip_address: str
     user_agent: str
     csrf_token: str
-    privileges: List[str] = field(default_factory=list)
+    privileges: list[str] = field(default_factory=list)
     is_elevated: bool = False
     status: SessionStatus = SessionStatus.ACTIVE
 
@@ -167,18 +166,18 @@ class SessionService:
         # - Session storage
         # - Device tracking
         # - CSRF tokens
-        self._sessions: Dict[str, SessionData] = {}
-        self._user_sessions: Dict[str, List[str]] = defaultdict(list)
-        self._csrf_tokens: Dict[str, str] = {}  # session_id -> token
+        self._sessions: dict[str, SessionData] = {}
+        self._user_sessions: dict[str, list[str]] = defaultdict(list)
+        self._csrf_tokens: dict[str, str] = {}  # session_id -> token
 
     def create_session(
         self,
         user_id: str,
         user_role: str,
         request: Request,
-        privileges: Optional[List[str]] = None,
+        privileges: list[str] | None = None,
         remember_me: bool = False
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Create new session
 
@@ -247,8 +246,8 @@ class SessionService:
         self,
         session_id: str,
         request: Request,
-        csrf_token: Optional[str] = None
-    ) -> Tuple[bool, Optional[str], Optional[SessionStatus]]:
+        csrf_token: str | None = None
+    ) -> tuple[bool, str | None, SessionStatus | None]:
         """
         Validate session and rotate if needed
 
@@ -481,7 +480,7 @@ class SessionService:
 
         return "unknown"
 
-    def get_session_cookie_config(self) -> Dict[str, Any]:
+    def get_session_cookie_config(self) -> dict[str, Any]:
         """
         Get secure cookie configuration
 
@@ -533,7 +532,7 @@ class SessionService:
 
         return True
 
-    def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def get_session_info(self, session_id: str) -> dict[str, Any] | None:
         """
         Get session information
 
@@ -593,8 +592,8 @@ def create_secure_session(
     user_id: str,
     user_role: str,
     request: Request,
-    privileges: Optional[List[str]] = None
-) -> Tuple[str, str]:
+    privileges: list[str] | None = None
+) -> tuple[str, str]:
     """
     Convenience function to create secure session
 
@@ -615,8 +614,8 @@ def create_secure_session(
 def validate_session(
     session_id: str,
     request: Request,
-    csrf_token: Optional[str] = None
-) -> Tuple[bool, Optional[str]]:
+    csrf_token: str | None = None
+) -> tuple[bool, str | None]:
     """
     Convenience function to validate session
 

@@ -4,21 +4,20 @@ Implements automated backups with S3 integration and point-in-time recovery
 """
 
 import asyncio
-import subprocess
+from datetime import datetime, timedelta
+import gzip
+import hashlib
+import json
 import logging
 import os
-import gzip
-import json
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any, List
 from pathlib import Path
-import hashlib
 import tempfile
+from typing import Any
 
 from app.core.config import settings
-from app.core.secret_manager import get_secure_secret
 
 logger = logging.getLogger(__name__)
+
 
 class DatabaseBackupManager:
     """
@@ -42,7 +41,7 @@ class DatabaseBackupManager:
         self.s3_region = settings.BACKUP_S3_REGION
         self.retention_days = settings.BACKUP_RETENTION_DAYS
 
-    async def create_full_backup(self, description: Optional[str] = None) -> Dict[str, Any]:
+    async def create_full_backup(self, description: str | None = None) -> dict[str, Any]:
         """
         Create a full database backup
 
@@ -78,14 +77,14 @@ class DatabaseBackupManager:
 
             # Set PGPASSWORD environment variable for authentication
             env = os.environ.copy()
-            env["PGPASSWORD"] = db_config['password']
+            env["PGPASSWORD"] = db_config["password"]
 
             # Execute backup command
             process = await asyncio.create_subprocess_exec(
                 *dump_command,
                 env=env,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             stdout, stderr = await process.communicate()
@@ -113,15 +112,15 @@ class DatabaseBackupManager:
                 "checksum": checksum,
                 "compressed_file": str(compressed_file),
                 "database_config": {
-                    "host": db_config['host'],
-                    "name": db_config['name'],
+                    "host": db_config["host"],
+                    "name": db_config["name"],
                     # Don't store sensitive info
-                }
+                },
             }
 
             # Save metadata
             metadata_file = self.backup_dir / f"{backup_id}_metadata.json"
-            with open(metadata_file, 'w') as f:
+            with open(metadata_file, "w") as f:
                 json.dump(backup_metadata, f, indent=2)
 
             # Upload to cloud storage if configured
@@ -135,13 +134,13 @@ class DatabaseBackupManager:
             return backup_metadata
 
         except Exception as e:
-            logger.error(f"Full backup failed: {str(e)}")
+            logger.error(f"Full backup failed: {e!s}")
             # Clean up partial files
             if backup_file.exists():
                 backup_file.unlink()
             raise
 
-    async def create_incremental_backup(self, base_backup_id: str) -> Dict[str, Any]:
+    async def create_incremental_backup(self, base_backup_id: str) -> dict[str, Any]:
         """
         Create an incremental backup based on WAL changes
 
@@ -171,17 +170,17 @@ class DatabaseBackupManager:
 
             # Save metadata
             metadata_file = self.backup_dir / f"{backup_id}_metadata.json"
-            with open(metadata_file, 'w') as f:
+            with open(metadata_file, "w") as f:
                 json.dump(backup_metadata, f, indent=2)
 
             logger.info(f"Incremental backup completed: {backup_id}")
             return backup_metadata
 
         except Exception as e:
-            logger.error(f"Incremental backup failed: {str(e)}")
+            logger.error(f"Incremental backup failed: {e!s}")
             raise
 
-    async def restore_from_backup(self, backup_id: str, target_db: Optional[str] = None) -> bool:
+    async def restore_from_backup(self, backup_id: str, target_db: str | None = None) -> bool:
         """
         Restore database from backup
 
@@ -212,7 +211,7 @@ class DatabaseBackupManager:
 
                 # Get target database configuration
                 db_config = self._get_db_config()
-                target_database = target_db or db_config['name']
+                target_database = target_db or db_config["name"]
 
                 # Restore using pg_restore
                 restore_command = [
@@ -227,19 +226,19 @@ class DatabaseBackupManager:
                     "--if-exists",
                     "--no-owner",
                     "--no-privileges",
-                    str(decompressed_file)
+                    str(decompressed_file),
                 ]
 
                 # Set PGPASSWORD environment variable
                 env = os.environ.copy()
-                env["PGPASSWORD"] = db_config['password']
+                env["PGPASSWORD"] = db_config["password"]
 
                 # Execute restore command
                 process = await asyncio.create_subprocess_exec(
                     *restore_command,
                     env=env,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
                 )
 
                 stdout, stderr = await process.communicate()
@@ -252,10 +251,10 @@ class DatabaseBackupManager:
             return True
 
         except Exception as e:
-            logger.error(f"Database restore failed: {str(e)}")
+            logger.error(f"Database restore failed: {e!s}")
             return False
 
-    async def verify_backup(self, backup_id: str) -> Dict[str, Any]:
+    async def verify_backup(self, backup_id: str) -> dict[str, Any]:
         """
         Verify backup integrity and test restore
 
@@ -284,16 +283,10 @@ class DatabaseBackupManager:
                 return {"valid": False, "error": "Backup checksum mismatch"}
 
             # Test backup file integrity
-            test_command = [
-                "pg_restore",
-                "--list",
-                str(backup_file)
-            ]
+            test_command = ["pg_restore", "--list", str(backup_file)]
 
             process = await asyncio.create_subprocess_exec(
-                *test_command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *test_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             stdout, stderr = await process.communicate()
@@ -306,14 +299,14 @@ class DatabaseBackupManager:
                 "backup_id": backup_id,
                 "file_size": backup_file.stat().st_size,
                 "timestamp": metadata["timestamp"],
-                "verification_time": datetime.utcnow().isoformat()
+                "verification_time": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
-            logger.error(f"Backup verification failed: {str(e)}")
+            logger.error(f"Backup verification failed: {e!s}")
             return {"valid": False, "error": str(e)}
 
-    async def list_backups(self, backup_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def list_backups(self, backup_type: str | None = None) -> list[dict[str, Any]]:
         """
         List all available backups
 
@@ -327,7 +320,7 @@ class DatabaseBackupManager:
 
         for metadata_file in self.backup_dir.glob("*_metadata.json"):
             try:
-                with open(metadata_file, 'r') as f:
+                with open(metadata_file) as f:
                     metadata = json.load(f)
 
                 if backup_type and metadata.get("type") != backup_type:
@@ -339,7 +332,7 @@ class DatabaseBackupManager:
 
         return sorted(backups, key=lambda x: x["timestamp"], reverse=True)
 
-    async def cleanup_old_backups(self) -> Dict[str, Any]:
+    async def cleanup_old_backups(self) -> dict[str, Any]:
         """
         Clean up backups older than retention period
 
@@ -379,14 +372,14 @@ class DatabaseBackupManager:
             return {
                 "cleaned_count": cleaned_count,
                 "cleaned_size": cleaned_size,
-                "cutoff_date": cutoff_date.isoformat()
+                "cutoff_date": cutoff_date.isoformat(),
             }
 
         except Exception as e:
-            logger.error(f"Backup cleanup failed: {str(e)}")
+            logger.error(f"Backup cleanup failed: {e!s}")
             return {"error": str(e)}
 
-    async def _get_db_config(self) -> Dict[str, str]:
+    async def _get_db_config(self) -> dict[str, str]:
         """Get database configuration"""
         from app.core.config import get_database_url
 
@@ -426,7 +419,7 @@ class DatabaseBackupManager:
                 "password": password,
                 "host": host,
                 "port": port,
-                "name": database
+                "name": database,
             }
 
         raise Exception("Invalid database URL format")
@@ -443,9 +436,8 @@ class DatabaseBackupManager:
         """Compress backup file using gzip"""
         compressed_file = backup_file.with_suffix(backup_file.suffix + ".gz")
 
-        with open(backup_file, 'rb') as f_in:
-            with gzip.open(compressed_file, 'wb') as f_out:
-                f_out.writelines(f_in)
+        with open(backup_file, "rb") as f_in, gzip.open(compressed_file, "wb") as f_out:
+            f_out.writelines(f_in)
 
         return compressed_file
 
@@ -453,20 +445,20 @@ class DatabaseBackupManager:
         """Decompress backup file"""
         decompressed_file = Path(temp_dir) / compressed_file.stem
 
-        with gzip.open(compressed_file, 'rb') as f_in:
-            with open(decompressed_file, 'wb') as f_out:
+        with gzip.open(compressed_file, "rb") as f_in:
+            with open(decompressed_file, "wb") as f_out:
                 f_out.writelines(f_in)
 
         return decompressed_file
 
-    async def _get_backup_metadata(self, backup_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_backup_metadata(self, backup_id: str) -> dict[str, Any] | None:
         """Get backup metadata"""
         metadata_file = self.backup_dir / f"{backup_id}_metadata.json"
         if not metadata_file.exists():
             return None
 
         try:
-            with open(metadata_file, 'r') as f:
+            with open(metadata_file) as f:
                 return json.load(f)
         except Exception:
             return None

@@ -3,11 +3,12 @@ Dynamic Security Headers Configuration
 Provides secure headers with dynamic host configuration
 """
 
-from fastapi import Request, Response
-from typing import Optional
 import logging
 
+from fastapi import Request, Response
+
 logger = logging.getLogger(__name__)
+
 
 def get_dynamic_security_headers(request: Request) -> dict:
     """
@@ -27,22 +28,24 @@ def get_dynamic_security_headers(request: Request) -> dict:
     connect_sources = [
         "'self'",
         f"{protocol}://{host}",
-        f"wss://{host}" if protocol == "https" else f"ws://{host}"
+        f"wss://{host}" if protocol == "https" else f"ws://{host}",
     ]
 
     # In development, allow localhost connections
     if host in ["localhost", "127.0.0.1"] or "localhost" in host:
-        connect_sources.extend([
-            "ws://localhost:8000",
-            "ws://localhost:3000",
-            "ws://localhost:5173",
-            "ws://localhost:5174",
-            "http://localhost:8000",
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "http://localhost:5174",
-            "https://localhost:8443"
-        ])
+        connect_sources.extend(
+            [
+                "ws://localhost:8000",
+                "ws://localhost:3000",
+                "ws://localhost:5173",
+                "ws://localhost:5174",
+                "http://localhost:8000",
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "https://localhost:8443",
+            ]
+        )
 
     # Build CSP header
     csp_value = (
@@ -62,22 +65,18 @@ def get_dynamic_security_headers(request: Request) -> dict:
     headers = {
         # Clickjacking protection
         "X-Frame-Options": "DENY",
-
         # MIME type sniffing protection
         "X-Content-Type-Options": "nosniff",
-
         # XSS protection
         "X-XSS-Protection": "1; mode=block",
-
         # Referrer policy
         "Referrer-Policy": "strict-origin-when-cross-origin",
-
         # Content Security Policy
         "Content-Security-Policy": csp_value,
-
         # HSTS (only on HTTPS)
-        "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload" if protocol == "https" else "",
-
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
+        if protocol == "https"
+        else "",
         # Permissions policy
         "Permissions-Policy": (
             "geolocation=(), "
@@ -89,21 +88,16 @@ def get_dynamic_security_headers(request: Request) -> dict:
             "gyroscope=(), "
             "accelerometer=()"
         ),
-
         # Cross-domain policies
         "X-Permitted-Cross-Domain-Policies": "none",
-
         # DNS prefetch control
         "X-DNS-Prefetch-Control": "off",
-
         # Cross-origin embedder policy
         "Cross-Origin-Embedder-Policy": "require-corp",
-
         # Cross-origin opener policy
         "Cross-Origin-Opener-Policy": "same-origin",
-
         # CSRF protection
-        "X-CSRF-Protection": "1; mode=strict"
+        "X-CSRF-Protection": "1; mode=strict",
     }
 
     # Remove empty headers
@@ -111,6 +105,7 @@ def get_dynamic_security_headers(request: Request) -> dict:
 
     logger.debug(f"Generated security headers for host: {host}")
     return headers
+
 
 def add_security_headers(response: Response, request: Request) -> Response:
     """

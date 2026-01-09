@@ -1,0 +1,7 @@
+{
+  "z_score_threshold": 3.0,
+  "min_samples_for_stats": 100,
+  "backdoor_patterns": ["TODO", "FIXME", "XXX", "HACK"],
+  "enable_provenance_check": true,
+  "label_flip_threshold": 0.1
+}

@@ -155,7 +155,7 @@ def _convert_succession_scenario(scenario: SuccessionScenario) -> SuccessionScen
 
 # API Endpoints
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/leadership-pipeline", response_model=List[LeadershipPipelineResponse])
 async def get_leadership_pipeline(
     organization_id: Optional[str] = Query(None, description="Organization ID to analyze"),
@@ -185,8 +185,8 @@ async def get_leadership_pipeline(
 
         return [_convert_leadership_pipeline(pipeline) for pipeline in pipeline_analysis.values()]
 
-    except Exception as 
-@check_rate_limit(identifier="public", endpoint_type="public")
+    except Exception as
+@check_rate_limit(identifier="public", limit_name="public")
 e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -229,7 +229,7 @@ async def get_succession_candidates(
         ]
 
         return [_convert_succession_candidate(candidate)
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
  for candidate in filtered_candidates]
 
     except Exception as e:

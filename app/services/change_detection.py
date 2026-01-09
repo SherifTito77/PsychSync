@@ -13,26 +13,27 @@ Key Features:
 - Change impact assessment and prioritization
 """
 
-from typing import List, Dict, Any, Optional, Tuple, Union
+from collections import deque
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+import logging
+from typing import Any
+import warnings
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta, timezone
-from dataclasses import dataclass, field
-from enum import Enum
-import json
-import logging
 from scipy import stats
-from scipy.signal import savgol_filter
-from collections import deque
-import warnings
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
 
 # Machine learning libraries
 try:
-    from sklearn.ensemble import IsolationForest
-    from sklearn.svm import OneClassSVM
-    from sklearn.preprocessing import StandardScaler
     from sklearn.decomposition import PCA
+    from sklearn.ensemble import IsolationForest
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.svm import OneClassSVM
+
     ML_AVAILABLE = True
 except ImportError:
     ML_AVAILABLE = False
@@ -40,33 +41,40 @@ except ImportError:
 # Time series libraries
 try:
     import ruptures as rpt
-    from statsmodels.tsa.stattools import adfuller, kpss
     from statsmodels.tsa.seasonal import seasonal_decompose
+    from statsmodels.tsa.stattools import adfuller, kpss
+
     ADVANCED_TS_AVAILABLE = True
 except ImportError:
     ADVANCED_TS_AVAILABLE = False
 
-from sqlalchemy.orm import Session
 import redis.asyncio as redis
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+
 class ChangeDetectionMode(Enum):
     """Modes for change detection."""
-    REAL_TIME = "real_time"          # Continuous monitoring
-    BATCH = "batch"                 # Periodic analysis
-    HYBRID = "hybrid"               # Combination of real-time and batch
-    RETROSPECTIVE = "retrospective" # Historical analysis
+
+    REAL_TIME = "real_time"  # Continuous monitoring
+    BATCH = "batch"  # Periodic analysis
+    HYBRID = "hybrid"  # Combination of real-time and batch
+    RETROSPECTIVE = "retrospective"  # Historical analysis
+
 
 class ChangeSeverity(Enum):
     """Severity levels for detected changes."""
+
     MINOR = "minor"
     MODERATE = "moderate"
     SIGNIFICANT = "significant"
     CRITICAL = "critical"
 
+
 class DetectionAlgorithm(Enum):
     """Advanced change detection algorithms."""
+
     ADAPTIVE_CUSUM = "adaptive_cusum"
     EWMA = "ewma"
     BAYESIAN_ONLINE = "bayesian_online"
@@ -79,9 +87,11 @@ class DetectionAlgorithm(Enum):
     MULTIVARIATE_HOTELLING = "multivariate_hotelling"
     CHANGE_FINDER = "change_finder"
 
+
 @dataclass
 class ChangeAlert:
     """Alert for detected change."""
+
     alert_id: str
     user_id: str
     metric_name: str
@@ -95,20 +105,23 @@ class ChangeAlert:
     confidence: float
     statistical_significance: float
     description: str
-    recommended_actions: List[str] = field(default_factory=list)
-    context: Dict[str, Any] = field(default_factory=dict)
+    recommended_actions: list[str] = field(default_factory=list)
+    context: dict[str, Any] = field(default_factory=dict)
     false_positive_probability: float = 0.0
+
 
 @dataclass
 class StreamingDetectionState:
     """State for streaming change detection algorithms."""
+
     algorithm: DetectionAlgorithm
-    parameters: Dict[str, Any]
-    current_statistics: Dict[str, float]
-    detection_history: List[datetime] = field(default_factory=list)
+    parameters: dict[str, Any]
+    current_statistics: dict[str, float]
+    detection_history: list[datetime] = field(default_factory=list)
     false_positive_count: int = 0
     true_positive_count: int = 0
     last_update: datetime = field(default_factory=datetime.utcnow)
+
 
 class ChangeDetectionConfig:
     """Configuration for change detection service."""
@@ -120,36 +133,46 @@ class ChangeDetectionConfig:
     alert_cooldown_minutes: int = 60
 
     # Algorithm-specific parameters
-    cusum_parameters: Dict[str, Any] = field(default_factory=lambda: {
-        'k': 0.5,           # Reference value
-        'h': 5.0,           # Decision threshold
-        'baseline_window': 30
-    })
+    cusum_parameters: dict[str, Any] = field(
+        default_factory=lambda: {
+            "k": 0.5,  # Reference value
+            "h": 5.0,  # Decision threshold
+            "baseline_window": 30,
+        }
+    )
 
-    ewma_parameters: Dict[str, Any] = field(default_factory=lambda: {
-        'alpha': 0.3,       # Smoothing factor
-        'lambda': 3.0,      # Control limit multiplier
-        'baseline_window': 30
-    })
+    ewma_parameters: dict[str, Any] = field(
+        default_factory=lambda: {
+            "alpha": 0.3,  # Smoothing factor
+            "lambda": 3.0,  # Control limit multiplier
+            "baseline_window": 30,
+        }
+    )
 
-    bayesian_parameters: Dict[str, Any] = field(default_factory=lambda: {
-        'prior_mean': 0.0,
-        'prior_variance': 1.0,
-        'likelihood_variance': 0.5,
-        'threshold': 0.95
-    })
+    bayesian_parameters: dict[str, Any] = field(
+        default_factory=lambda: {
+            "prior_mean": 0.0,
+            "prior_variance": 1.0,
+            "likelihood_variance": 0.5,
+            "threshold": 0.95,
+        }
+    )
 
-    page_hinkley_parameters: Dict[str, Any] = field(default_factory=lambda: {
-        'delta': 0.005,     # Minimum change magnitude
-        'lambda': 50.0,     # Threshold
-        'alpha': 0.9999    # Forgetting factor
-    })
+    page_hinkley_parameters: dict[str, Any] = field(
+        default_factory=lambda: {
+            "delta": 0.005,  # Minimum change magnitude
+            "lambda": 50.0,  # Threshold
+            "alpha": 0.9999,  # Forgetting factor
+        }
+    )
 
-    adwin_parameters: Dict[str, Any] = field(default_factory=lambda: {
-        'delta': 0.002,     # Confidence parameter
-        'max_buckets': 5,
-        'min_window_size': 10
-    })
+    adwin_parameters: dict[str, Any] = field(
+        default_factory=lambda: {
+            "delta": 0.002,  # Confidence parameter
+            "max_buckets": 5,
+            "min_window_size": 10,
+        }
+    )
 
     # Multi-dimensional settings
     multivariate_threshold: float = 3.0
@@ -164,19 +187,20 @@ class ChangeDetectionConfig:
     # Redis configuration
     redis_url: str = "redis://localhost:6379/9"
 
+
 class AdvancedChangeDetector:
     """
     Advanced change detection service with multiple algorithms and real-time capabilities.
     """
 
-    def __init__(self, db_session: Session, config: Optional[ChangeDetectionConfig] = None):
+    def __init__(self, db_session: Session, config: ChangeDetectionConfig | None = None):
         self.db = db_session
         self.config = config or ChangeDetectionConfig()
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
         self._init_redis()
 
         # Initialize algorithm states for streaming detection
-        self.streaming_states: Dict[str, Dict[str, StreamingDetectionState]] = {}
+        self.streaming_states: dict[str, dict[str, StreamingDetectionState]] = {}
 
         # Initialize ML models if available
         self.ml_models = {}
@@ -187,7 +211,9 @@ class AdvancedChangeDetector:
         self.advanced_ts_available = ADVANCED_TS_AVAILABLE
         self.ruptures_available = ADVANCED_TS_AVAILABLE
 
-        logger.info(f"Change detector initialized - ML: {ML_AVAILABLE}, Advanced TS: {self.advanced_ts_available}")
+        logger.info(
+            f"Change detector initialized - ML: {ML_AVAILABLE}, Advanced TS: {self.advanced_ts_available}"
+        )
 
     def _init_redis(self) -> None:
         """Initialize Redis connection for caching and state management."""
@@ -197,7 +223,7 @@ class AdvancedChangeDetector:
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_timeout=True
+                retry_on_timeout=True,
             )
             logger.info("Change detection Redis connection established")
         except Exception as e:
@@ -208,18 +234,12 @@ class AdvancedChangeDetector:
         """Initialize machine learning models for change detection."""
         try:
             self.ml_models = {
-                'isolation_forest': IsolationForest(
-                    contamination=0.1,
-                    random_state=42,
-                    n_estimators=100
+                "isolation_forest": IsolationForest(
+                    contamination=0.1, random_state=42, n_estimators=100
                 ),
-                'one_class_svm': OneClassSVM(
-                    nu=0.1,
-                    kernel='rbf',
-                    gamma='scale'
-                ),
-                'scaler': StandardScaler(),
-                'pca': PCA(n_components=self.config.pca_components)
+                "one_class_svm": OneClassSVM(nu=0.1, kernel="rbf", gamma="scale"),
+                "scaler": StandardScaler(),
+                "pca": PCA(n_components=self.config.pca_components),
             }
         except Exception as e:
             logger.error(f"Error initializing ML models: {e}")
@@ -230,10 +250,10 @@ class AdvancedChangeDetector:
         user_id: str,
         metric_name: str,
         new_value: float,
-        timestamp: Optional[datetime] = None,
-        algorithms: Optional[List[DetectionAlgorithm]] = None,
-        context: Optional[Dict[str, Any]] = None
-    ) -> List[ChangeAlert]:
+        timestamp: datetime | None = None,
+        algorithms: list[DetectionAlgorithm] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> list[ChangeAlert]:
         """
         Real-time change detection for streaming data.
 
@@ -255,7 +275,7 @@ class AdvancedChangeDetector:
             algorithms = algorithms or [
                 DetectionAlgorithm.ADAPTIVE_CUSUM,
                 DetectionAlgorithm.EWMA,
-                DetectionAlgorithm.PAGE_HINKLEY
+                DetectionAlgorithm.PAGE_HINKLEY,
             ]
 
             alerts = []
@@ -301,10 +321,10 @@ class AdvancedChangeDetector:
         self,
         user_id: str,
         metric_name: str,
-        data_points: List[Tuple[datetime, float]],
-        algorithms: Optional[List[DetectionAlgorithm]] = None,
-        context: Optional[Dict[str, Any]] = None
-    ) -> List[ChangeAlert]:
+        data_points: list[tuple[datetime, float]],
+        algorithms: list[DetectionAlgorithm] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> list[ChangeAlert]:
         """
         Batch change detection for historical data analysis.
 
@@ -330,7 +350,7 @@ class AdvancedChangeDetector:
             algorithms = algorithms or [
                 DetectionAlgorithm.CHANGE_FINDER,
                 DetectionAlgorithm.MULTIVARIATE_HOTELLING,
-                DetectionAlgorithm.ENSEMBLE_STREAM
+                DetectionAlgorithm.ENSEMBLE_STREAM,
             ]
 
             alerts = []
@@ -361,9 +381,9 @@ class AdvancedChangeDetector:
     async def detect_multivariate_changes(
         self,
         user_id: str,
-        metrics_data: Dict[str, List[Tuple[datetime, float]]],
-        correlation_threshold: Optional[float] = None
-    ) -> List[ChangeAlert]:
+        metrics_data: dict[str, list[tuple[datetime, float]]],
+        correlation_threshold: float | None = None,
+    ) -> list[ChangeAlert]:
         """
         Detect changes in multivariate behavioral patterns.
 
@@ -410,10 +430,7 @@ class AdvancedChangeDetector:
             return []
 
     async def _initialize_user_state(
-        self,
-        user_id: str,
-        metric_name: str,
-        algorithms: List[DetectionAlgorithm]
+        self, user_id: str, metric_name: str, algorithms: list[DetectionAlgorithm]
     ) -> None:
         """Initialize streaming detection state for a user-metric combination."""
         user_key = f"{user_id}:{metric_name}"
@@ -424,24 +441,24 @@ class AdvancedChangeDetector:
                 algorithm=algorithm,
                 parameters=self._get_algorithm_parameters(algorithm),
                 current_statistics={
-                    'count': 0,
-                    'mean': 0.0,
-                    'variance': 0.0,
-                    'min': float('inf'),
-                    'max': float('-inf')
-                }
+                    "count": 0,
+                    "mean": 0.0,
+                    "variance": 0.0,
+                    "min": float("inf"),
+                    "max": float("-inf"),
+                },
             )
 
             self.streaming_states[user_key][algorithm.value] = state
 
-    def _get_algorithm_parameters(self, algorithm: DetectionAlgorithm) -> Dict[str, Any]:
+    def _get_algorithm_parameters(self, algorithm: DetectionAlgorithm) -> dict[str, Any]:
         """Get parameters for a specific algorithm."""
         param_map = {
             DetectionAlgorithm.ADAPTIVE_CUSUM: self.config.cusum_parameters,
             DetectionAlgorithm.EWMA: self.config.ewma_parameters,
             DetectionAlgorithm.BAYESIAN_ONLINE: self.config.bayesian_parameters,
             DetectionAlgorithm.PAGE_HINKLEY: self.config.page_hinkley_parameters,
-            DetectionAlgorithm.ADWIN: self.config.adwin_parameters
+            DetectionAlgorithm.ADWIN: self.config.adwin_parameters,
         }
         return param_map.get(algorithm, {})
 
@@ -451,85 +468,103 @@ class AdvancedChangeDetector:
         state: StreamingDetectionState,
         new_value: float,
         timestamp: datetime,
-        context: Dict[str, Any]
-    ) -> Optional[ChangeAlert]:
+        context: dict[str, Any],
+    ) -> ChangeAlert | None:
         """Run a streaming change detection algorithm."""
         try:
             # Update statistics
-            state.count = state.current_statistics['count'] + 1
-            state.current_statistics['count'] = state.count
+            state.count = state.current_statistics["count"] + 1
+            state.current_statistics["count"] = state.count
 
             # Update mean and variance incrementally
-            old_mean = state.current_statistics['mean']
-            state.current_statistics['mean'] = old_mean + (new_value - old_mean) / state.count
+            old_mean = state.current_statistics["mean"]
+            state.current_statistics["mean"] = old_mean + (new_value - old_mean) / state.count
 
             if state.count > 1:
-                old_variance = state.current_statistics['variance']
-                state.current_statistics['variance'] = old_variance + ((new_value - old_mean) * (new_value - state.current_statistics['mean']) - old_variance) / state.count
+                old_variance = state.current_statistics["variance"]
+                state.current_statistics["variance"] = (
+                    old_variance
+                    + (
+                        (new_value - old_mean) * (new_value - state.current_statistics["mean"])
+                        - old_variance
+                    )
+                    / state.count
+                )
 
             # Update min/max
-            state.current_statistics['min'] = min(state.current_statistics['min'], new_value)
-            state.current_statistics['max'] = max(state.current_statistics['max'], new_value)
+            state.current_statistics["min"] = min(state.current_statistics["min"], new_value)
+            state.current_statistics["max"] = max(state.current_statistics["max"], new_value)
 
             # Run specific algorithm
             if algorithm == DetectionAlgorithm.ADAPTIVE_CUSUM:
                 return await self._adaptive_cusum_stream(state, new_value, timestamp)
-            elif algorithm == DetectionAlgorithm.EWMA:
+            if algorithm == DetectionAlgorithm.EWMA:
                 return await self._ewma_stream(state, new_value, timestamp)
-            elif algorithm == DetectionAlgorithm.PAGE_HINKLEY:
+            if algorithm == DetectionAlgorithm.PAGE_HINKLEY:
                 return await self._page_hinkley_stream(state, new_value, timestamp)
-            elif algorithm == DetectionAlgorithm.ADWIN:
+            if algorithm == DetectionAlgorithm.ADWIN:
                 return await self._adwin_stream(state, new_value, timestamp)
-            else:
-                logger.warning(f"Streaming algorithm {algorithm.value} not implemented")
-                return None
+            logger.warning(f"Streaming algorithm {algorithm.value} not implemented")
+            return None
 
         except Exception as e:
             logger.error(f"Error running streaming algorithm {algorithm.value}: {e}")
             return None
 
     async def _adaptive_cusum_stream(
-        self,
-        state: StreamingDetectionState,
-        new_value: float,
-        timestamp: datetime
-    ) -> Optional[ChangeAlert]:
+        self, state: StreamingDetectionState, new_value: float, timestamp: datetime
+    ) -> ChangeAlert | None:
         """Adaptive CUSUM streaming algorithm."""
         try:
             params = state.parameters
-            k = params['k']
-            h = params['h']
+            k = params["k"]
+            h = params["h"]
 
             # Initialize CUSUM variables if not present
-            if 'cusum_pos' not in state.current_statistics:
-                state.current_statistics['cusum_pos'] = 0.0
-                state.current_statistics['cusum_neg'] = 0.0
-                state.current_statistics['baseline_mean'] = new_value
-                state.current_statistics['baseline_std'] = 1.0
+            if "cusum_pos" not in state.current_statistics:
+                state.current_statistics["cusum_pos"] = 0.0
+                state.current_statistics["cusum_neg"] = 0.0
+                state.current_statistics["baseline_mean"] = new_value
+                state.current_statistics["baseline_std"] = 1.0
 
-            baseline_mean = state.current_statistics['baseline_mean']
-            baseline_std = max(state.current_statistics['baseline_std'], 0.1)  # Avoid division by zero
+            baseline_mean = state.current_statistics["baseline_mean"]
+            baseline_std = max(
+                state.current_statistics["baseline_std"], 0.1
+            )  # Avoid division by zero
 
             # Calculate CUSUM statistics
             deviation = new_value - baseline_mean
-            state.current_statistics['cusum_pos'] = max(0, state.current_statistics['cusum_pos'] + deviation - k * baseline_std)
-            state.current_statistics['cusum_neg'] = max(0, state.current_statistics['cusum_neg'] - deviation - k * baseline_std)
+            state.current_statistics["cusum_pos"] = max(
+                0, state.current_statistics["cusum_pos"] + deviation - k * baseline_std
+            )
+            state.current_statistics["cusum_neg"] = max(
+                0, state.current_statistics["cusum_neg"] - deviation - k * baseline_std
+            )
 
             # Check for change
-            if (state.current_statistics['cusum_pos'] > h or state.current_statistics['cusum_neg'] > h):
+            if (
+                state.current_statistics["cusum_pos"] > h
+                or state.current_statistics["cusum_neg"] > h
+            ):
                 # Change detected
-                change_type = "increase" if state.current_statistics['cusum_pos'] > h else "decrease"
-                change_magnitude = state.current_statistics['cusum_pos'] if state.current_statistics['cusum_pos'] > h else state.current_statistics['cusum_neg']
+                change_type = (
+                    "increase" if state.current_statistics["cusum_pos"] > h else "decrease"
+                )
+                change_magnitude = (
+                    state.current_statistics["cusum_pos"]
+                    if state.current_statistics["cusum_pos"] > h
+                    else state.current_statistics["cusum_neg"]
+                )
 
                 # Calculate confidence based on CUSUM value
                 confidence = min(1.0, change_magnitude / h)
 
                 # Update baseline
-                state.current_statistics['baseline_mean'] = new_value
+                state.current_statistics["baseline_mean"] = new_value
 
                 # Reset CUSUM
-                state.current_statistics['cusum_pos'] = 0.0
-                state.current_statistics['cusum_neg'] = 0.0
+                state.current_statistics["cusum_pos"] = 0.0
+                state.current_statistics["cusum_neg"] = 0.0
 
                 return ChangeAlert(
                     alert_id=f"cusum_{state.algorithm.value}_{timestamp.timestamp()}",
@@ -545,7 +580,7 @@ class AdvancedChangeDetector:
                     confidence=confidence,
                     statistical_significance=1.0 - confidence,
                     description=f"CUSUM detected {change_type} in metric value",
-                    recommended_actions=[f"Investigate {change_type} in {state.algorithm.value}"]
+                    recommended_actions=[f"Investigate {change_type} in {state.algorithm.value}"],
                 )
 
         except Exception as e:
@@ -554,29 +589,29 @@ class AdvancedChangeDetector:
         return None
 
     async def _ewma_stream(
-        self,
-        state: StreamingDetectionState,
-        new_value: float,
-        timestamp: datetime
-    ) -> Optional[ChangeAlert]:
+        self, state: StreamingDetectionState, new_value: float, timestamp: datetime
+    ) -> ChangeAlert | None:
         """EWMA (Exponentially Weighted Moving Average) streaming algorithm."""
         try:
             params = state.parameters
-            alpha = params['alpha']
-            lambda_param = params['lambda']
+            alpha = params["alpha"]
+            lambda_param = params["lambda"]
 
             # Initialize EWMA variables if not present
-            if 'ewma' not in state.current_statistics:
-                state.current_statistics['ewma'] = new_value
-                state.current_statistics['ewma_variance'] = 1.0
+            if "ewma" not in state.current_statistics:
+                state.current_statistics["ewma"] = new_value
+                state.current_statistics["ewma_variance"] = 1.0
 
-            old_ewma = state.current_statistics['ewma']
+            old_ewma = state.current_statistics["ewma"]
             new_ewma = alpha * new_value + (1 - alpha) * old_ewma
-            state.current_statistics['ewma'] = new_ewma
+            state.current_statistics["ewma"] = new_ewma
 
             # Update EWMA variance
-            ewma_variance = alpha * (new_value - new_ewma) ** 2 + (1 - alpha) * state.current_statistics['ewma_variance']
-            state.current_statistics['ewma_variance'] = ewma_variance
+            ewma_variance = (
+                alpha * (new_value - new_ewma) ** 2
+                + (1 - alpha) * state.current_statistics["ewma_variance"]
+            )
+            state.current_statistics["ewma_variance"] = ewma_variance
 
             # Calculate control limits
             std_dev = np.sqrt(ewma_variance)
@@ -604,7 +639,7 @@ class AdvancedChangeDetector:
                     confidence=confidence,
                     statistical_significance=1.0 - confidence,
                     description=f"EWMA detected {change_type} control limit violation",
-                    recommended_actions=[f"Monitor {change_type} trend in metric"]
+                    recommended_actions=[f"Monitor {change_type} trend in metric"],
                 )
 
         except Exception as e:
@@ -613,42 +648,52 @@ class AdvancedChangeDetector:
         return None
 
     async def _page_hinkley_stream(
-        self,
-        state: StreamingDetectionState,
-        new_value: float,
-        timestamp: datetime
-    ) -> Optional[ChangeAlert]:
+        self, state: StreamingDetectionState, new_value: float, timestamp: datetime
+    ) -> ChangeAlert | None:
         """Page-Hinkley streaming change detection algorithm."""
         try:
             params = state.parameters
-            delta = params['delta']
-            lambda_param = params['lambda']
-            alpha = params['alpha']
+            delta = params["delta"]
+            lambda_param = params["lambda"]
+            alpha = params["alpha"]
 
             # Initialize Page-Hinkley variables if not present
-            if 'ph_mean' not in state.current_statistics:
-                state.current_statistics['ph_mean'] = new_value
-                state.current_statistics['ph_mh'] = 0.0
-                state.current_statistics['ph_ml'] = 0.0
+            if "ph_mean" not in state.current_statistics:
+                state.current_statistics["ph_mean"] = new_value
+                state.current_statistics["ph_mh"] = 0.0
+                state.current_statistics["ph_ml"] = 0.0
 
-            old_mean = state.current_statistics['ph_mean']
+            old_mean = state.current_statistics["ph_mean"]
             new_mean = alpha * old_mean + (1 - alpha) * new_value
-            state.current_statistics['ph_mean'] = new_mean
+            state.current_statistics["ph_mean"] = new_mean
 
             # Update Page-Hinkley statistics
-            state.current_statistics['ph_mh'] = max(state.current_statistics['ph_mh'] + (new_value - new_mean - delta), 0)
-            state.current_statistics['ph_ml'] = max(state.current_statistics['ph_ml'] - (new_value - new_mean + delta), 0)
+            state.current_statistics["ph_mh"] = max(
+                state.current_statistics["ph_mh"] + (new_value - new_mean - delta), 0
+            )
+            state.current_statistics["ph_ml"] = max(
+                state.current_statistics["ph_ml"] - (new_value - new_mean + delta), 0
+            )
 
             # Check for change
-            if (state.current_statistics['ph_mh'] > lambda_param or state.current_statistics['ph_ml'] > lambda_param):
-                change_type = "increase" if state.current_statistics['ph_mh'] > lambda_param else "decrease"
-                ph_value = state.current_statistics['ph_mh'] if state.current_statistics['ph_mh'] > lambda_param else state.current_statistics['ph_ml']
+            if (
+                state.current_statistics["ph_mh"] > lambda_param
+                or state.current_statistics["ph_ml"] > lambda_param
+            ):
+                change_type = (
+                    "increase" if state.current_statistics["ph_mh"] > lambda_param else "decrease"
+                )
+                ph_value = (
+                    state.current_statistics["ph_mh"]
+                    if state.current_statistics["ph_mh"] > lambda_param
+                    else state.current_statistics["ph_ml"]
+                )
 
                 confidence = min(1.0, ph_value / lambda_param)
 
                 # Reset statistics after change detection
-                state.current_statistics['ph_mh'] = 0.0
-                state.current_statistics['ph_ml'] = 0.0
+                state.current_statistics["ph_mh"] = 0.0
+                state.current_statistics["ph_ml"] = 0.0
 
                 return ChangeAlert(
                     alert_id=f"page_hinkley_{state.algorithm.value}_{timestamp.timestamp()}",
@@ -664,7 +709,7 @@ class AdvancedChangeDetector:
                     confidence=confidence,
                     statistical_significance=1.0 - confidence,
                     description=f"Page-Hinkley detected {change_type} change",
-                    recommended_actions=["Investigate recent behavioral changes"]
+                    recommended_actions=["Investigate recent behavioral changes"],
                 )
 
         except Exception as e:
@@ -673,24 +718,21 @@ class AdvancedChangeDetector:
         return None
 
     async def _adwin_stream(
-        self,
-        state: StreamingDetectionState,
-        new_value: float,
-        timestamp: datetime
-    ) -> Optional[ChangeAlert]:
+        self, state: StreamingDetectionState, new_value: float, timestamp: datetime
+    ) -> ChangeAlert | None:
         """ADWIN (Adaptive Windowing) streaming algorithm."""
         try:
             params = state.parameters
-            delta = params['delta']
-            max_buckets = params['max_buckets']
-            min_window_size = params['min_window_size']
+            delta = params["delta"]
+            max_buckets = params["max_buckets"]
+            min_window_size = params["min_window_size"]
 
             # Initialize ADWIN window if not present
-            if 'adwin_window' not in state.current_statistics:
-                state.current_statistics['adwin_window'] = deque([new_value], maxlen=1000)
-                state.current_statistics['adwin_buckets'] = [deque([new_value])]
+            if "adwin_window" not in state.current_statistics:
+                state.current_statistics["adwin_window"] = deque([new_value], maxlen=1000)
+                state.current_statistics["adwin_buckets"] = [deque([new_value])]
 
-            window = state.current_statistics['adwin_window']
+            window = state.current_statistics["adwin_window"]
             window.append(new_value)
 
             # Split window and test for difference
@@ -716,7 +758,7 @@ class AdvancedChangeDetector:
                 if best_p_value < delta and best_split > 0:
                     # Keep only recent part of window
                     new_window = deque(list(window)[best_split:], maxlen=1000)
-                    state.current_statistics['adwin_window'] = new_window
+                    state.current_statistics["adwin_window"] = new_window
 
                     # Calculate change metrics
                     old_mean = np.mean(list(window)[:best_split])
@@ -739,7 +781,7 @@ class AdvancedChangeDetector:
                         confidence=confidence,
                         statistical_significance=best_p_value,
                         description=f"ADWIN detected distribution change (p={best_p_value:.4f})",
-                        recommended_actions=["Investigate change in data distribution"]
+                        recommended_actions=["Investigate change in data distribution"],
                     )
 
         except Exception as e:
@@ -752,33 +794,28 @@ class AdvancedChangeDetector:
         algorithm: DetectionAlgorithm,
         user_id: str,
         metric_name: str,
-        timestamps: List[datetime],
-        values: List[float],
-        context: Dict[str, Any]
-    ) -> List[ChangeAlert]:
+        timestamps: list[datetime],
+        values: list[float],
+        context: dict[str, Any],
+    ) -> list[ChangeAlert]:
         """Run a batch change detection algorithm."""
         try:
             if algorithm == DetectionAlgorithm.CHANGE_FINDER and self.advanced_ts_available:
                 return await self._change_finder_batch(user_id, metric_name, timestamps, values)
-            elif algorithm == DetectionAlgorithm.MULTIVARIATE_HOTELLING and ML_AVAILABLE:
+            if algorithm == DetectionAlgorithm.MULTIVARIATE_HOTELLING and ML_AVAILABLE:
                 return await self._hotelling_t2_batch(user_id, metric_name, timestamps, values)
-            elif algorithm == DetectionAlgorithm.ENSEMBLE_STREAM and ML_AVAILABLE:
+            if algorithm == DetectionAlgorithm.ENSEMBLE_STREAM and ML_AVAILABLE:
                 return await self._ensemble_batch(user_id, metric_name, timestamps, values)
-            else:
-                logger.warning(f"Batch algorithm {algorithm.value} not available")
-                return []
+            logger.warning(f"Batch algorithm {algorithm.value} not available")
+            return []
 
         except Exception as e:
             logger.error(f"Error running batch algorithm {algorithm.value}: {e}")
             return []
 
     async def _change_finder_batch(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangeAlert]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangeAlert]:
         """Change Finder algorithm for batch change detection."""
         try:
             if not self.ruptures_available:
@@ -821,7 +858,7 @@ class AdvancedChangeDetector:
                             confidence=0.8,  # Fixed confidence for Pelt
                             statistical_significance=0.05,
                             description="Change Finder detected level shift",
-                            recommended_actions=["Investigate behavioral pattern change"]
+                            recommended_actions=["Investigate behavioral pattern change"],
                         )
                         alerts.append(alert)
 
@@ -832,12 +869,8 @@ class AdvancedChangeDetector:
             return []
 
     async def _ensemble_batch(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangeAlert]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangeAlert]:
         """Ensemble method combining multiple change detection algorithms."""
         try:
             # Combine results from multiple algorithms
@@ -845,9 +878,9 @@ class AdvancedChangeDetector:
 
             # Try different algorithms
             algorithms = [
-                ('cusum', self._cusum_batch_indices),
-                ('ewma', self._ewma_batch_indices),
-                ('statistical', self._statistical_batch_indices)
+                ("cusum", self._cusum_batch_indices),
+                ("ewma", self._ewma_batch_indices),
+                ("statistical", self._statistical_batch_indices),
             ]
 
             for alg_name, alg_func in algorithms:
@@ -872,7 +905,7 @@ class AdvancedChangeDetector:
                         change_magnitude = abs(post_change_mean - baseline_mean)
 
                         # Confidence based on consensus level
-                        confidence = consensus_info['consensus_level'] / len(algorithms)
+                        confidence = consensus_info["consensus_level"] / len(algorithms)
 
                         alert = ChangeAlert(
                             alert_id=f"ensemble_{user_id}_{metric_name}_{change_idx}",
@@ -888,8 +921,10 @@ class AdvancedChangeDetector:
                             confidence=confidence,
                             statistical_significance=1.0 - confidence,
                             description=f"Ensemble detected change (consensus: {consensus_info['algorithms']})",
-                            recommended_actions=["Multi-algorithm consensus indicates significant change"],
-                            context={'consensus_info': consensus_info}
+                            recommended_actions=[
+                                "Multi-algorithm consensus indicates significant change"
+                            ],
+                            context={"consensus_info": consensus_info},
                         )
                         alerts.append(alert)
 
@@ -899,7 +934,7 @@ class AdvancedChangeDetector:
             logger.error(f"Error in ensemble batch: {e}")
             return []
 
-    def _cusum_batch_indices(self, values: List[float]) -> List[int]:
+    def _cusum_batch_indices(self, values: list[float]) -> list[int]:
         """CUSUM batch implementation returning change indices."""
         try:
             if len(values) < 20:
@@ -932,7 +967,7 @@ class AdvancedChangeDetector:
         except Exception:
             return []
 
-    def _ewma_batch_indices(self, values: List[float]) -> List[int]:
+    def _ewma_batch_indices(self, values: list[float]) -> list[int]:
         """EWMA batch implementation returning change indices."""
         try:
             if len(values) < 20:
@@ -963,7 +998,7 @@ class AdvancedChangeDetector:
         except Exception:
             return []
 
-    def _statistical_batch_indices(self, values: List[float]) -> List[int]:
+    def _statistical_batch_indices(self, values: list[float]) -> list[int]:
         """Statistical batch implementation using sliding window t-tests."""
         try:
             if len(values) < 40:
@@ -973,8 +1008,8 @@ class AdvancedChangeDetector:
             change_indices = []
 
             for i in range(window_size, len(values) - window_size):
-                before_window = values[i-window_size:i]
-                after_window = values[i:i+window_size]
+                before_window = values[i - window_size : i]
+                after_window = values[i : i + window_size]
 
                 t_stat, p_value = stats.ttest_ind(before_window, after_window)
 
@@ -987,10 +1022,8 @@ class AdvancedChangeDetector:
             return []
 
     def _find_consensus_changes(
-        self,
-        all_changes: List[Tuple[int, str]],
-        data_length: int
-    ) -> List[Tuple[int, Dict[str, Any]]]:
+        self, all_changes: list[tuple[int, str]], data_length: int
+    ) -> list[tuple[int, dict[str, Any]]]:
         """Find consensus change points from multiple algorithms."""
         try:
             if not all_changes:
@@ -1004,33 +1037,33 @@ class AdvancedChangeDetector:
                 # Find existing group
                 assigned = False
                 for group in consensus_groups:
-                    if abs(change_idx - group['center']) <= tolerance:
-                        group['indices'].append(change_idx)
-                        group['algorithms'].append(algorithm)
+                    if abs(change_idx - group["center"]) <= tolerance:
+                        group["indices"].append(change_idx)
+                        group["algorithms"].append(algorithm)
                         # Update center to be mean of indices
-                        group['center'] = np.mean(group['indices'])
+                        group["center"] = np.mean(group["indices"])
                         assigned = True
                         break
 
                 if not assigned:
-                    consensus_groups.append({
-                        'center': change_idx,
-                        'indices': [change_idx],
-                        'algorithms': [algorithm]
-                    })
+                    consensus_groups.append(
+                        {"center": change_idx, "indices": [change_idx], "algorithms": [algorithm]}
+                    )
 
             # Filter groups with consensus (at least 2 algorithms)
             consensus_points = []
             for group in consensus_groups:
-                if len(group['algorithms']) >= 2:
-                    consensus_points.append((
-                        int(round(group['center'])),
-                        {
-                            'consensus_level': len(group['algorithms']),
-                            'algorithms': group['algorithms'],
-                            'indices': group['indices']
-                        }
-                    ))
+                if len(group["algorithms"]) >= 2:
+                    consensus_points.append(
+                        (
+                            int(round(group["center"])),
+                            {
+                                "consensus_level": len(group["algorithms"]),
+                                "algorithms": group["algorithms"],
+                                "indices": group["indices"],
+                            },
+                        )
+                    )
 
             return consensus_points
 
@@ -1044,50 +1077,51 @@ class AdvancedChangeDetector:
 
             if ratio >= 3.0:
                 return ChangeSeverity.CRITICAL
-            elif ratio >= 2.0:
+            if ratio >= 2.0:
                 return ChangeSeverity.SIGNIFICANT
-            elif ratio >= 1.0:
+            if ratio >= 1.0:
                 return ChangeSeverity.MODERATE
-            else:
-                return ChangeSeverity.MINOR
+            return ChangeSeverity.MINOR
 
         except Exception:
             return ChangeSeverity.MODERATE
 
     # TODO(human): Implement remaining methods for multivariate analysis, alert management, and database operations
-    async def _align_multivariate_data(self, metrics_data: Dict[str, List[Tuple[datetime, float]]]) -> Optional[pd.DataFrame]:
+    async def _align_multivariate_data(
+        self, metrics_data: dict[str, list[tuple[datetime, float]]]
+    ) -> pd.DataFrame | None:
         """Align multivariate time series data by timestamps."""
         return None
 
-    async def _hotelling_t2_test(self, user_id: str, aligned_data: pd.DataFrame) -> List[ChangeAlert]:
+    async def _hotelling_t2_test(
+        self, user_id: str, aligned_data: pd.DataFrame
+    ) -> list[ChangeAlert]:
         """Perform Hotelling T² test for multivariate change detection."""
         return []
 
-    async def _pca_change_detection(self, user_id: str, aligned_data: pd.DataFrame) -> List[ChangeAlert]:
+    async def _pca_change_detection(
+        self, user_id: str, aligned_data: pd.DataFrame
+    ) -> list[ChangeAlert]:
         """Perform PCA-based change detection."""
         return []
 
     async def _correlation_change_detection(
-        self,
-        user_id: str,
-        aligned_data: pd.DataFrame,
-        correlation_threshold: Optional[float]
-    ) -> List[ChangeAlert]:
+        self, user_id: str, aligned_data: pd.DataFrame, correlation_threshold: float | None
+    ) -> list[ChangeAlert]:
         """Detect changes in correlation patterns."""
         return []
 
-    async def _filter_and_prioritize_alerts(self, alerts: List[ChangeAlert]) -> List[ChangeAlert]:
+    async def _filter_and_prioritize_alerts(self, alerts: list[ChangeAlert]) -> list[ChangeAlert]:
         """Filter and prioritize change alerts."""
         return alerts
 
-    async def _filter_multivariate_alerts(self, alerts: List[ChangeAlert]) -> List[ChangeAlert]:
+    async def _filter_multivariate_alerts(self, alerts: list[ChangeAlert]) -> list[ChangeAlert]:
         """Filter multivariate change alerts."""
         return alerts
 
-    async def _consolidate_alerts(self, alerts: List[ChangeAlert]) -> List[ChangeAlert]:
+    async def _consolidate_alerts(self, alerts: list[ChangeAlert]) -> list[ChangeAlert]:
         """Consolidate nearby change alerts."""
         return alerts
 
-    async def _store_change_alerts(self, alerts: List[ChangeAlert]) -> None:
+    async def _store_change_alerts(self, alerts: list[ChangeAlert]) -> None:
         """Store change alerts in database."""
-        pass

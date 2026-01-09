@@ -1,7 +1,7 @@
 // // ===== TEAM CONTEXT FILE =====
 // // src/contexts/TeamContext.tsx
 // src/contexts/TeamContext.tsx - Team Management Context
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { Team, ApiResponse } from '../types';
 import { useNotification } from './NotificationContext';
 interface TeamContextType {
@@ -30,7 +30,9 @@ export const TeamProvider: React.FC<TeamProviderProps> = ({ children }) => {
   const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const { showNotification } = useNotification();
-  const fetchTeams = async (): Promise<void> => {
+
+  // ✅ MEMOIZED: Functions with useCallback
+  const fetchTeams = useCallback(async (): Promise<void> => {
     setLoading(true);
     try {
       // Mock data - replace with actual API call
@@ -45,8 +47,9 @@ export const TeamProvider: React.FC<TeamProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
-  const createTeam = async (teamData: Omit<Team, 'id'>): Promise<ApiResponse<Team>> => {
+  }, [showNotification]);
+
+  const createTeam = useCallback(async (teamData: Omit<Team, 'id'>): Promise<ApiResponse<Team>> => {
     try {
       const newTeam: Team = { id: Date.now(), ...teamData, status: 'active' };
       setTeams((prev) => [...prev, newTeam]);
@@ -57,8 +60,9 @@ export const TeamProvider: React.FC<TeamProviderProps> = ({ children }) => {
       showNotification(errorMessage, 'error');
       return { success: false, error: errorMessage };
     }
-  };
-  const updateTeam = async (teamId: number, updateData: Partial<Team>): Promise<ApiResponse<Team>> => {
+  }, [showNotification]);
+
+  const updateTeam = useCallback(async (teamId: number, updateData: Partial<Team>): Promise<ApiResponse<Team>> => {
     try {
       const updatedTeam: Team = { ...updateData, id: teamId } as Team;
       setTeams((prev) => prev.map((team) => team.id === teamId ? { ...team, ...updatedTeam } : team));
@@ -72,8 +76,9 @@ export const TeamProvider: React.FC<TeamProviderProps> = ({ children }) => {
       showNotification(errorMessage, 'error');
       return { success: false, error: errorMessage };
     }
-  };
-  const deleteTeam = async (teamId: number): Promise<ApiResponse> => {
+  }, [currentTeam, showNotification]);
+
+  const deleteTeam = useCallback(async (teamId: number): Promise<ApiResponse> => {
     try {
       setTeams((prev) => prev.filter((team) => team.id !== teamId));
       if (currentTeam && currentTeam.id === teamId) {
@@ -86,12 +91,23 @@ export const TeamProvider: React.FC<TeamProviderProps> = ({ children }) => {
       showNotification(errorMessage, 'error');
       return { success: false, error: errorMessage };
     }
-  };
-  const selectTeam = (team: Team): void => {
+  }, [currentTeam, showNotification]);
+
+  const selectTeam = useCallback((team: Team): void => {
     setCurrentTeam(team);
-  };
-  const value: TeamContextType = {
-    teams, currentTeam, loading, fetchTeams, createTeam, updateTeam, deleteTeam, selectTeam,
-  };
+  }, []);
+
+  // ✅ MEMOIZED: Context value only changes when dependencies change
+  const value: TeamContextType = useMemo(() => ({
+    teams,
+    currentTeam,
+    loading,
+    fetchTeams,
+    createTeam,
+    updateTeam,
+    deleteTeam,
+    selectTeam,
+  }), [teams, currentTeam, loading, fetchTeams, createTeam, updateTeam, deleteTeam, selectTeam]);
+
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 };

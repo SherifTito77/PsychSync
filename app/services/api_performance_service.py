@@ -4,20 +4,20 @@ Comprehensive monitoring and analysis of API performance metrics
 Performance improvement: 60% faster issue detection and resolution
 """
 
-from typing import Dict, Any, Optional, List, Tuple
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
-import asyncio
-import json
-import time
-import psutil
-import statistics
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
-from fastapi import Request, Response
-import redis.asyncio as redis
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+import json
 import logging
+import statistics
+import time
+from typing import Any
+
+from fastapi import Request
+import psutil
+import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class PerformanceMetric:
     response_size_bytes: int
     user_agent: str
     ip_address: str
-    user_id: Optional[str] = None
+    user_id: str | None = None
 
 @dataclass
 class PerformanceStats:
@@ -102,7 +102,7 @@ class PerformanceMonitor:
             PerformanceLevel.GOOD: 300,
             PerformanceLevel.ACCEPTABLE: 1000,
             PerformanceLevel.SLOW: 3000,
-            PerformanceLevel.CRITICAL: float('inf')
+            PerformanceLevel.CRITICAL: float("inf")
         }
 
         # Alert state tracking
@@ -208,17 +208,16 @@ class PerformanceMonitor:
                     response_time=metric.duration_ms,
                     duration=degradation_duration
                 )
-        else:
-            # Performance recovered
-            if self._alert_state[endpoint]:
-                self._alert_state[endpoint] = False
-                if endpoint in self._performance_degradation_start:
-                    del self._performance_degradation_start[endpoint]
+        # Performance recovered
+        elif self._alert_state[endpoint]:
+            self._alert_state[endpoint] = False
+            if endpoint in self._performance_degradation_start:
+                del self._performance_degradation_start[endpoint]
 
-                await self._send_performance_recovery_alert(
-                    endpoint=endpoint,
-                    response_time=metric.duration_ms
-                )
+            await self._send_performance_recovery_alert(
+                endpoint=endpoint,
+                response_time=metric.duration_ms
+            )
 
     async def _send_performance_alert(
         self,
@@ -302,7 +301,7 @@ class PerformanceMonitor:
         self,
         endpoint: str = None,
         time_window_minutes: int = 60
-    ) -> List[PerformanceStats]:
+    ) -> list[PerformanceStats]:
         """
         Get performance statistics for endpoints
 
@@ -349,7 +348,7 @@ class PerformanceMonitor:
         client: redis.Redis,
         endpoint: str,
         time_window_minutes: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Get metrics for a specific endpoint within time window
 
@@ -384,7 +383,7 @@ class PerformanceMonitor:
     async def _calculate_performance_stats(
         self,
         endpoint: str,
-        metrics_data: List[Dict[str, Any]]
+        metrics_data: list[dict[str, Any]]
     ) -> PerformanceStats:
         """
         Calculate performance statistics from raw metrics data
@@ -447,7 +446,7 @@ class PerformanceMonitor:
             performance_level=performance_level
         )
 
-    def _calculate_percentile(self, data: List[float], percentile: int) -> float:
+    def _calculate_percentile(self, data: list[float], percentile: int) -> float:
         """
         Calculate percentile of data
 
@@ -466,15 +465,13 @@ class PerformanceMonitor:
 
         if index.is_integer():
             return sorted_data[int(index)]
-        else:
-            lower_index = int(index)
-            upper_index = lower_index + 1
-            weight = index - lower_index
+        lower_index = int(index)
+        upper_index = lower_index + 1
+        weight = index - lower_index
 
-            if upper_index < len(sorted_data):
-                return sorted_data[lower_index] * (1 - weight) + sorted_data[upper_index] * weight
-            else:
-                return sorted_data[lower_index]
+        if upper_index < len(sorted_data):
+            return sorted_data[lower_index] * (1 - weight) + sorted_data[upper_index] * weight
+        return sorted_data[lower_index]
 
     async def collect_system_metrics(self) -> SystemMetrics:
         """
@@ -489,9 +486,9 @@ class PerformanceMonitor:
             metrics = SystemMetrics(
                 cpu_percent=psutil.cpu_percent(interval=1),
                 memory_percent=psutil.virtual_memory().percent,
-                disk_usage_percent=psutil.disk_usage('/').percent,
-                active_connections=len(process.connections()) if hasattr(process, 'connections') else 0,
-                open_files=len(process.open_files()) if hasattr(process, 'open_files') else 0,
+                disk_usage_percent=psutil.disk_usage("/").percent,
+                active_connections=len(process.connections()) if hasattr(process, "connections") else 0,
+                open_files=len(process.open_files()) if hasattr(process, "open_files") else 0,
                 threads_count=process.num_threads(),
                 timestamp=datetime.utcnow()
             )
@@ -529,7 +526,7 @@ class PerformanceMonitor:
         self,
         endpoint: str,
         hours: int = 24
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get performance trends for an endpoint over time
 
@@ -593,7 +590,7 @@ class PerformanceMonitor:
         # Get request metadata
         user_agent = request.headers.get("user-agent", "unknown")
         ip_address = request.client.host if request.client else "unknown"
-        user_id = getattr(request.state, 'user_id', None)
+        user_id = getattr(request.state, "user_id", None)
 
         try:
             # Execute the request (this will be replaced by actual request handling)
@@ -605,8 +602,8 @@ class PerformanceMonitor:
             duration_ms = (end_time - start_time) * 1000
 
             # Get response info (will be set by middleware)
-            status_code = getattr(request.state, 'response_status_code', 200)
-            response_size = getattr(request.state, 'response_size', 0)
+            status_code = getattr(request.state, "response_status_code", 200)
+            response_size = getattr(request.state, "response_size", 0)
 
             metric = PerformanceMetric(
                 timestamp=datetime.utcnow(),
@@ -622,7 +619,7 @@ class PerformanceMonitor:
 
             await self.record_metric(metric)
 
-    def get_current_performance_summary(self) -> Dict[str, Any]:
+    def get_current_performance_summary(self) -> dict[str, Any]:
         """
         Get current performance summary from in-memory data
 
@@ -671,6 +668,6 @@ async def performance_middleware(request: Request, call_next):
 
         # Store response information for metric recording
         request.state.response_status_code = response.status_code
-        request.state.response_size = len(response.body) if hasattr(response, 'body') else 0
+        request.state.response_size = len(response.body) if hasattr(response, "body") else 0
 
         return response

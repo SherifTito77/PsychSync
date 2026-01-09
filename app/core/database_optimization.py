@@ -8,30 +8,30 @@ Database Query Optimization and Index Management
 - Performance monitoring for database operations
 """
 
-import time
 import asyncio
-from typing import Dict, Any, List, Optional, Tuple
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from collections import defaultdict, deque
 from functools import wraps
+import time
+from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select, func
-from sqlalchemy.sql import ClauseElement
 
-from app.core.config import settings
 
 @dataclass
 class QueryMetric:
     """Database query performance metric"""
+
     query_hash: str
     query_sql: str
     duration_ms: float
     timestamp: datetime
     rows_returned: int
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
+
 
 class QueryAnalyzer:
     """Analyzes query performance and recommends optimizations"""
@@ -48,7 +48,7 @@ class QueryAnalyzer:
         duration_ms: float,
         rows_returned: int,
         success: bool = True,
-        error: Optional[str] = None
+        error: str | None = None,
     ) -> QueryMetric:
         """Analyze a database query and record metrics"""
 
@@ -62,7 +62,7 @@ class QueryAnalyzer:
             timestamp=datetime.utcnow(),
             rows_returned=rows_returned,
             success=success,
-            error=error
+            error=error,
         )
 
         async with self._lock:
@@ -77,17 +77,15 @@ class QueryAnalyzer:
     def _generate_query_hash(self, query: str) -> str:
         """Generate a normalized hash for query comparison"""
         import hashlib
-        normalized = ' '.join(query.lower().split())
+
+        normalized = " ".join(query.lower().split())
         return hashlib.md5(normalized.encode()).hexdigest()[:16]
 
-    async def get_slow_queries_summary(self, hours: int = 1) -> Dict[str, Any]:
+    async def get_slow_queries_summary(self, hours: int = 1) -> dict[str, Any]:
         """Get summary of slow queries"""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
 
-        slow_queries = [
-            q for q in self.slow_queries
-            if q.timestamp >= cutoff_time
-        ]
+        slow_queries = [q for q in self.slow_queries if q.timestamp >= cutoff_time]
 
         if not slow_queries:
             return {"total": 0, "queries": []}
@@ -105,15 +103,19 @@ class QueryAnalyzer:
             total_executions = len(queries)
             error_rate = sum(1 for q in queries if not q.success) / total_executions
 
-            analyzed_queries.append({
-                "query_hash": query_hash,
-                "query_sql": queries[0].query_sql[:200] + "..." if len(queries[0].query_sql) > 200 else queries[0].query_sql,
-                "avg_duration_ms": round(avg_duration, 2),
-                "max_duration_ms": round(max_duration, 2),
-                "total_executions": total_executions,
-                "error_rate": round(error_rate, 4),
-                "last_seen": queries[-1].timestamp.isoformat()
-            })
+            analyzed_queries.append(
+                {
+                    "query_hash": query_hash,
+                    "query_sql": queries[0].query_sql[:200] + "..."
+                    if len(queries[0].query_sql) > 200
+                    else queries[0].query_sql,
+                    "avg_duration_ms": round(avg_duration, 2),
+                    "max_duration_ms": round(max_duration, 2),
+                    "total_executions": total_executions,
+                    "error_rate": round(error_rate, 4),
+                    "last_seen": queries[-1].timestamp.isoformat(),
+                }
+            )
 
         # Sort by average duration
         analyzed_queries.sort(key=lambda x: x["avg_duration_ms"], reverse=True)
@@ -121,8 +123,9 @@ class QueryAnalyzer:
         return {
             "total": len(analyzed_queries),
             "time_range_hours": hours,
-            "queries": analyzed_queries[:20]  # Top 20 slowest queries
+            "queries": analyzed_queries[:20],  # Top 20 slowest queries
         }
+
 
 class DatabaseOptimizer:
     """Database optimization utilities"""
@@ -130,7 +133,7 @@ class DatabaseOptimizer:
     def __init__(self, query_analyzer: QueryAnalyzer = None):
         self.query_analyzer = query_analyzer or QueryAnalyzer()
 
-    async def analyze_table_indexes(self, db: AsyncSession, table_name: str) -> Dict[str, Any]:
+    async def analyze_table_indexes(self, db: AsyncSession, table_name: str) -> dict[str, Any]:
         """Analyze existing indexes on a table"""
 
         # Get current indexes
@@ -172,7 +175,7 @@ class DatabaseOptimizer:
                 {
                     "name": idx.index_name,
                     "definition": idx.index_definition,
-                    "schema": idx.schema_name
+                    "schema": idx.schema_name,
                 }
                 for idx in indexes
             ],
@@ -181,13 +184,13 @@ class DatabaseOptimizer:
                     "name": usage.index_name,
                     "scans": usage.index_scans,
                     "tuples_read": usage.tuples_read,
-                    "tuples_fetched": usage.tuples_fetched
+                    "tuples_fetched": usage.tuples_fetched,
                 }
                 for usage in usage_stats
-            ]
+            ],
         }
 
-    async def get_table_statistics(self, db: AsyncSession, table_name: str) -> Dict[str, Any]:
+    async def get_table_statistics(self, db: AsyncSession, table_name: str) -> dict[str, Any]:
         """Get comprehensive table statistics"""
 
         try:
@@ -210,18 +213,20 @@ class DatabaseOptimizer:
                 "table_name": table_name,
                 "row_count": row_count,
                 "sizes": dict(size_row._mapping) if size_row else {},
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
             return {
                 "table_name": table_name,
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
+
 # Global optimizer instance
-_db_optimizer: Optional[DatabaseOptimizer] = None
+_db_optimizer: DatabaseOptimizer | None = None
+
 
 def get_db_optimizer() -> DatabaseOptimizer:
     """Get global database optimizer instance"""
@@ -230,9 +235,11 @@ def get_db_optimizer() -> DatabaseOptimizer:
         _db_optimizer = DatabaseOptimizer()
     return _db_optimizer
 
+
 # Decorator for query performance monitoring
 def monitor_query_performance(min_duration_ms: float = 100):
     """Decorator to monitor query performance"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -257,7 +264,7 @@ def monitor_query_performance(min_duration_ms: float = 100):
                         query=str(func.__name__),
                         duration_ms=duration_ms,
                         rows_returned=len(result) if isinstance(result, list) else 1,
-                        success=True
+                        success=True,
                     )
 
                 return result
@@ -272,10 +279,11 @@ def monitor_query_performance(min_duration_ms: float = 100):
                     duration_ms=duration_ms,
                     rows_returned=0,
                     success=False,
-                    error=str(e)
+                    error=str(e),
                 )
 
                 raise
 
         return wrapper
+
     return decorator

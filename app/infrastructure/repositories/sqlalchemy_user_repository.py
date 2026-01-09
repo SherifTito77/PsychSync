@@ -15,21 +15,21 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import logging
-from typing import List, Optional, Dict, Any
 from datetime import datetime
+import logging
+from typing import Any
 
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, update, delete
-from sqlalchemy.orm import selectinload
 
+from app.domain.entities.user import User
 from app.domain.repositories.user_repository import UserRepository as IUserRepository
-from app.domain.entities.user import User, UserRole, UserStatus
-from app.infrastructure.models.user_model import UserModel
 from app.infrastructure.mappers.user_mapper import UserMapper
+from app.infrastructure.models.user_model import UserModel
 
 # Initialize infrastructure logger
 infra_logger = logging.getLogger("app.infrastructure.user_repository")
+
 
 class SQLAlchemyUserRepository(IUserRepository):
     """
@@ -67,12 +67,10 @@ class SQLAlchemyUserRepository(IUserRepository):
             await self.db.rollback()
             raise
 
-    async def find_by_id(self, user_id: str) -> Optional[User]:
+    async def find_by_id(self, user_id: str) -> User | None:
         """Find user by ID"""
         try:
-            result = await self.db.execute(
-                select(UserModel).where(UserModel.id == user_id)
-            )
+            result = await self.db.execute(select(UserModel).where(UserModel.id == user_id))
             user_model = result.scalar_one_or_none()
 
             if user_model:
@@ -84,13 +82,11 @@ class SQLAlchemyUserRepository(IUserRepository):
             infra_logger.error(f"Failed to find user by ID {user_id}: {e}")
             raise
 
-    async def find_by_email(self, email: str) -> Optional[User]:
+    async def find_by_email(self, email: str) -> User | None:
         """Find user by email"""
         try:
             result = await self.db.execute(
-                select(UserModel).where(
-                    func.lower(UserModel.email) == func.lower(email)
-                )
+                select(UserModel).where(func.lower(UserModel.email) == func.lower(email))
             )
             user_model = result.scalar_one_or_none()
 
@@ -104,11 +100,8 @@ class SQLAlchemyUserRepository(IUserRepository):
             raise
 
     async def find_all(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        filters: Optional[Dict[str, Any]] = None
-    ) -> List[User]:
+        self, skip: int = 0, limit: int = 100, filters: dict[str, Any] | None = None
+    ) -> list[User]:
         """Find all users with pagination and filtering"""
         try:
             query = select(UserModel)
@@ -146,9 +139,7 @@ class SQLAlchemyUserRepository(IUserRepository):
         """Update existing user"""
         try:
             # Find existing user model
-            result = await self.db.execute(
-                select(UserModel).where(UserModel.id == user.id)
-            )
+            result = await self.db.execute(select(UserModel).where(UserModel.id == user.id))
             user_model = result.scalar_one_or_none()
 
             if not user_model:
@@ -197,9 +188,7 @@ class SQLAlchemyUserRepository(IUserRepository):
     async def delete(self, user_id: str) -> bool:
         """Delete user"""
         try:
-            result = await self.db.execute(
-                delete(UserModel).where(UserModel.id == user_id)
-            )
+            result = await self.db.execute(delete(UserModel).where(UserModel.id == user_id))
 
             success = result.rowcount > 0
             if success:
@@ -214,7 +203,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             await self.db.rollback()
             raise
 
-    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+    async def count(self, filters: dict[str, Any] | None = None) -> int:
         """Count users with optional filters"""
         try:
             query = select(func.count(UserModel.id))
@@ -236,7 +225,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             infra_logger.error(f"Failed to count users: {e}")
             raise
 
-    async def email_exists(self, email: str, exclude_user_id: Optional[str] = None) -> bool:
+    async def email_exists(self, email: str, exclude_user_id: str | None = None) -> bool:
         """Check if email already exists"""
         try:
             query = select(func.count(UserModel.id)).where(
@@ -270,16 +259,16 @@ class SQLAlchemyUserRepository(IUserRepository):
             raise
 
     async def find_by_organization(
-        self,
-        organization_id: str,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[User]:
+        self, organization_id: str, skip: int = 0, limit: int = 100
+    ) -> list[User]:
         """Find users by organization"""
         try:
-            query = select(UserModel).where(
-                UserModel.organization_id == organization_id
-            ).offset(skip).limit(limit)
+            query = (
+                select(UserModel)
+                .where(UserModel.organization_id == organization_id)
+                .offset(skip)
+                .limit(limit)
+            )
 
             result = await self.db.execute(query)
             user_models = result.scalars().all()
@@ -305,7 +294,7 @@ class SQLAlchemyUserRepository(IUserRepository):
                     last_login_ip=ip_address,
                     last_login_user_agent=user_agent,
                     failed_login_attempts=0,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.utcnow(),
                 )
             )
 
@@ -335,30 +324,29 @@ class SQLAlchemyUserRepository(IUserRepository):
                 .values(
                     failed_login_attempts=new_attempts,
                     updated_at=datetime.utcnow(),
-                    status="suspended" if new_attempts >= suspension_threshold else None
+                    status="suspended" if new_attempts >= suspension_threshold else None,
                 )
             )
 
             await self.db.execute(stmt)
 
-            infra_logger.warning(f"Failed login attempts incremented for user {user_id}: {new_attempts}")
+            infra_logger.warning(
+                f"Failed login attempts incremented for user {user_id}: {new_attempts}"
+            )
             return new_attempts
 
         except Exception as e:
             infra_logger.error(f"Failed to increment failed login for user {user_id}: {e}")
             raise
 
-    async def find_active_users_by_role(self, role: str, skip: int = 0, limit: int = 100) -> List[User]:
+    async def find_active_users_by_role(
+        self, role: str, skip: int = 0, limit: int = 100
+    ) -> list[User]:
         """Find active users by role"""
         try:
             query = (
                 select(UserModel)
-                .where(
-                    and_(
-                        UserModel.role == role,
-                        UserModel.status == "active"
-                    )
-                )
+                .where(and_(UserModel.role == role, UserModel.status == "active"))
                 .offset(skip)
                 .limit(limit)
             )
@@ -376,7 +364,7 @@ class SQLAlchemyUserRepository(IUserRepository):
             infra_logger.error(f"Failed to find active users by role {role}: {e}")
             raise
 
-    async def search_users(self, search_term: str, limit: int = 20) -> List[User]:
+    async def search_users(self, search_term: str, limit: int = 20) -> list[User]:
         """Search users by email or full name"""
         try:
             search_pattern = f"%{search_term.lower()}%"
@@ -385,7 +373,7 @@ class SQLAlchemyUserRepository(IUserRepository):
                 .where(
                     or_(
                         func.lower(UserModel.email).like(search_pattern),
-                        func.lower(UserModel.full_name).like(search_pattern)
+                        func.lower(UserModel.full_name).like(search_pattern),
                     )
                 )
                 .limit(limit)
@@ -403,6 +391,7 @@ class SQLAlchemyUserRepository(IUserRepository):
         except Exception as e:
             infra_logger.error(f"Failed to search users: {e}")
             raise
+
 
 # Factory function for creating repository
 def create_sqlalchemy_user_repository(db_session: AsyncSession) -> SQLAlchemyUserRepository:

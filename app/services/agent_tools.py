@@ -9,21 +9,18 @@ Each tool implementation must:
 4. Handle errors gracefully
 """
 
-from typing import Dict, Any, List
-from datetime import datetime
 import hashlib
 import os
-
+from typing import Any
 
 # ============================================================================
 # Database Tools
 # ============================================================================
 
+
 async def db_read_query_impl(
-    parameters: Dict[str, Any],
-    user_id: str,
-    user_role: str
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], user_id: str, user_role: str
+) -> dict[str, Any]:
     """
     Execute read-only SQL query
 
@@ -32,8 +29,9 @@ async def db_read_query_impl(
         row_limit: Maximum rows to return (default: 1000)
     """
 
-    from app.db.session import get_db
     from sqlalchemy import text
+
+    from app.db.session import get_db
 
     query = parameters.get("query", "")
     row_limit = parameters.get("row_limit", 1000)
@@ -59,18 +57,12 @@ async def db_read_query_impl(
     for row in result:
         rows.append(dict(row._mapping))
 
-    return {
-        "rows": rows,
-        "row_count": len(rows),
-        "query_executed": query
-    }
+    return {"rows": rows, "row_count": len(rows), "query_executed": query}
 
 
 async def db_anonymized_export_impl(
-    parameters: Dict[str, Any],
-    user_id: str,
-    user_role: str
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], user_id: str, user_role: str
+) -> dict[str, Any]:
     """
     Export anonymized data for research
 
@@ -79,8 +71,9 @@ async def db_anonymized_export_impl(
         anonymize_fields: List of fields to anonymize
     """
 
-    from app.db.session import get_db
     from sqlalchemy import text
+
+    from app.db.session import get_db
 
     query = parameters.get("query", "")
     anonymize_fields = parameters.get("anonymize_fields", [])
@@ -111,7 +104,7 @@ async def db_anonymized_export_impl(
     return {
         "rows": anonymized_rows,
         "row_count": len(anonymized_rows),
-        "anonymized_fields": anonymize_fields
+        "anonymized_fields": anonymize_fields,
     }
 
 
@@ -119,14 +112,22 @@ def _validate_read_only_query(query: str) -> bool:
     """Validate query is read-only SELECT"""
 
     dangerous_keywords = [
-        'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE',
-        'ALTER', 'GRANT', 'REVOKE', 'TRUNCATE', 'EXEC'
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "CREATE",
+        "ALTER",
+        "GRANT",
+        "REVOKE",
+        "TRUNCATE",
+        "EXEC",
     ]
 
     query_upper = query.upper()
 
     # Must start with SELECT
-    if not query_upper.strip().startswith('SELECT'):
+    if not query_upper.strip().startswith("SELECT"):
         return False
 
     # Must not contain dangerous keywords
@@ -135,7 +136,7 @@ def _validate_read_only_query(query: str) -> bool:
             return False
 
     # Check for comment injection
-    if '--' in query or '/*' in query:
+    if "--" in query or "/*" in query:
         return False
 
     return True
@@ -145,11 +146,10 @@ def _validate_read_only_query(query: str) -> bool:
 # Email Tools
 # ============================================================================
 
+
 async def email_draft_create_impl(
-    parameters: Dict[str, Any],
-    user_id: str,
-    user_role: str
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], user_id: str, user_role: str
+) -> dict[str, Any]:
     """
     Create email draft (does not send)
 
@@ -170,25 +170,19 @@ async def email_draft_create_impl(
     # Create draft
     email_service = EmailService()
     draft_id = await email_service.create_draft(
-        user_id=user_id,
-        to=to_email,
-        subject=subject,
-        body=body,
-        template_id=template_id
+        user_id=user_id, to=to_email, subject=subject, body=body, template_id=template_id
     )
 
     return {
         "draft_id": draft_id,
         "status": "draft_created",
-        "message": "Email draft created. Manual send required."
+        "message": "Email draft created. Manual send required.",
     }
 
 
 async def email_send_verified_impl(
-    parameters: Dict[str, Any],
-    user_id: str,
-    user_role: str
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], user_id: str, user_role: str
+) -> dict[str, Any]:
     """
     Send pre-verified email template
 
@@ -200,9 +194,9 @@ async def email_send_verified_impl(
 
     # Approved templates
     APPROVED_TEMPLATES = {
-        'assessment_invitation': 'emails/assessment_invite.html',
-        'reminder': 'emails/reminder.html',
-        'results_available': 'emails/results_ready.html'
+        "assessment_invitation": "emails/assessment_invite.html",
+        "reminder": "emails/reminder.html",
+        "results_available": "emails/results_ready.html",
     }
 
     template_id = parameters.get("template_id")
@@ -216,7 +210,7 @@ async def email_send_verified_impl(
     # Check role permissions
     if user_role == "clinician":
         # Clinicians can only send certain templates
-        if template_id not in ['assessment_invitation', 'reminder']:
+        if template_id not in ["assessment_invitation", "reminder"]:
             raise ValueError(f"Clinicians cannot send template '{template_id}'")
 
     # Send email
@@ -224,41 +218,24 @@ async def email_send_verified_impl(
 
     email_service = EmailService()
     result = await email_service.send_template_email(
-        template_id=template_id,
-        to=to_email,
-        data=template_data
+        template_id=template_id, to=to_email, data=template_data
     )
 
-    return {
-        "email_id": result.get("email_id"),
-        "status": "sent",
-        "template_used": template_id
-    }
+    return {"email_id": result.get("email_id"), "status": "sent", "template_used": template_id}
 
 
 # ============================================================================
 # File System Tools
 # ============================================================================
 
-ALLOWED_READ_DIRS = [
-    '/app/public/',
-    '/app/templates/',
-    '/app/docs/',
-    '/var/assessment-exports/'
-]
+ALLOWED_READ_DIRS = ["/app/public/", "/app/templates/", "/app/docs/", "/var/assessment-exports/"]
 
-ALLOWED_WRITE_DIRS = [
-    '/var/assessment-exports/',
-    '/var/tmp/',
-    '/var/user-uploads/'
-]
+ALLOWED_WRITE_DIRS = ["/var/assessment-exports/", "/var/tmp/", "/var/user-uploads/"]
 
 
 async def file_read_allowed_impl(
-    parameters: Dict[str, Any],
-    user_id: str,
-    user_role: str
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], user_id: str, user_role: str
+) -> dict[str, Any]:
     """
     Read file from allowed directory
 
@@ -282,21 +259,15 @@ async def file_read_allowed_impl(
         raise ValueError(f"File too large: {file_size} bytes (max 10MB)")
 
     # Read file
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         content = f.read()
 
-    return {
-        "file_path": file_path,
-        "content": content,
-        "size_bytes": file_size
-    }
+    return {"file_path": file_path, "content": content, "size_bytes": file_size}
 
 
 async def file_write_allowed_impl(
-    parameters: Dict[str, Any],
-    user_id: str,
-    user_role: str
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], user_id: str, user_role: str
+) -> dict[str, Any]:
     """
     Write file to allowed directory
 
@@ -322,24 +293,20 @@ async def file_write_allowed_impl(
         raise ValueError(f"Content too large: {content_size} bytes (max 50MB)")
 
     # Write file
-    with open(file_path, 'w') as f:
+    with open(file_path, "w") as f:
         f.write(content)
 
-    return {
-        "file_path": file_path,
-        "size_bytes": content_size,
-        "status": "written"
-    }
+    return {"file_path": file_path, "size_bytes": content_size, "status": "written"}
 
 
-def _validate_file_path(file_path: str, allowed_dirs: List[str]) -> bool:
+def _validate_file_path(file_path: str, allowed_dirs: list[str]) -> bool:
     """Validate file path is in allowed directories"""
 
     # Normalize path
     normalized = os.path.normpath(file_path)
 
     # Check for directory traversal
-    if '..' in normalized:
+    if ".." in normalized:
         return False
 
     # Check against allowed directories
@@ -355,26 +322,15 @@ def _validate_file_path(file_path: str, allowed_dirs: List[str]) -> bool:
 # ============================================================================
 
 ALLOWED_API_DOMAINS = {
-    'api.openai.com': {
-        'rate_limit': '100/minute',
-        'data_types': ['text']
-    },
-    'api.anthropic.com': {
-        'rate_limit': '100/minute',
-        'data_types': ['text']
-    },
-    'api.sendgrid.com': {
-        'rate_limit': '10/second',
-        'data_types': ['email_metadata']
-    }
+    "api.openai.com": {"rate_limit": "100/minute", "data_types": ["text"]},
+    "api.anthropic.com": {"rate_limit": "100/minute", "data_types": ["text"]},
+    "api.sendgrid.com": {"rate_limit": "10/second", "data_types": ["email_metadata"]},
 }
 
 
 async def api_external_call_impl(
-    parameters: Dict[str, Any],
-    user_id: str,
-    user_role: str
-) -> Dict[str, Any]:
+    parameters: dict[str, Any], user_id: str, user_role: str
+) -> dict[str, Any]:
     """
     Call approved external API
 
@@ -394,6 +350,7 @@ async def api_external_call_impl(
 
     # Validate domain
     from urllib.parse import urlparse
+
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
 
@@ -407,20 +364,17 @@ async def api_external_call_impl(
             raise ValueError(f"Request body too large: {body_size} bytes (max 1MB)")
 
     # Make request
-    async with aiohttp.ClientSession() as session:
-        async with session.request(
+    async with (
+        aiohttp.ClientSession() as session,
+        session.request(
             method=method,
             url=url,
             headers=headers,
             json=body if body else None,
-            timeout=aiohttp.ClientTimeout(total=30)
-        ) as response:
-            response_data = await response.text()
-            response_status = response.status
+            timeout=aiohttp.ClientTimeout(total=30),
+        ) as response,
+    ):
+        response_data = await response.text()
+        response_status = response.status
 
-    return {
-        "url": url,
-        "status_code": response_status,
-        "response": response_data,
-        "domain": domain
-    }
+    return {"url": url, "status_code": response_status, "response": response_data, "domain": domain}

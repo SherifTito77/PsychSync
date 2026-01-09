@@ -3,25 +3,18 @@ Accessibility Compliance Service
 Provides WCAG 2.1 compliance testing, audit tools, and accessibility monitoring
 """
 
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-import json
-import re
-
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, or_
-
-from app.core.config import settings
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class ConformanceLevel(Enum):
     """WCAG conformance levels"""
+
     A = "A"  # Minimum level
     AA = "AA"  # Standard level
     AAA = "AAA"  # Highest level
@@ -29,6 +22,7 @@ class ConformanceLevel(Enum):
 
 class SeverityLevel(Enum):
     """Accessibility issue severity levels"""
+
     CRITICAL = "critical"
     SERIOUS = "serious"
     MODERATE = "moderate"
@@ -39,10 +33,11 @@ class SeverityLevel(Enum):
 @dataclass
 class AccessibilityTest:
     """Individual accessibility test definition"""
+
     id: str
     name: str
     description: str
-    wcag_criteria: List[str]  # e.g., ["1.1.1", "1.2.1"]
+    wcag_criteria: list[str]  # e.g., ["1.1.1", "1.2.1"]
     conformance_level: ConformanceLevel
     severity: SeverityLevel
     test_type: str  # "automated", "manual", "semi-automated"
@@ -53,14 +48,15 @@ class AccessibilityTest:
 @dataclass
 class AccessibilityIssue:
     """Accessibility issue discovered during testing"""
+
     test_id: str
     severity: SeverityLevel
-    wcag_criteria: List[str]
+    wcag_criteria: list[str]
     element: str  # Element with issue
     description: str
     remediation: str
-    url: Optional[str] = None
-    screenshot: Optional[str] = None
+    url: str | None = None
+    screenshot: str | None = None
     automated: bool = True
     confidence: float = 1.0  # 0-1 confidence score
 
@@ -68,16 +64,17 @@ class AccessibilityIssue:
 @dataclass
 class AccessibilityAudit:
     """Complete accessibility audit results"""
+
     timestamp: datetime
     url: str
     conformance_target: ConformanceLevel
     total_tests: int
     passed_tests: int
     failed_tests: int
-    issues: List[AccessibilityIssue] = field(default_factory=list)
+    issues: list[AccessibilityIssue] = field(default_factory=list)
     score: float = 0.0  # Overall accessibility score
     compliance_percentage: float = 0.0
-    remediation_priority: List[str] = field(default_factory=list)
+    remediation_priority: list[str] = field(default_factory=list)
 
 
 class AccessibilityAuditService:
@@ -89,10 +86,10 @@ class AccessibilityAuditService:
             "AA_normal": 4.5,
             "AA_large": 3.0,
             "AAA_normal": 7.0,
-            "AAA_large": 4.5
+            "AAA_large": 4.5,
         }
 
-    def _initialize_wcag_tests(self) -> Dict[str, AccessibilityTest]:
+    def _initialize_wcag_tests(self) -> dict[str, AccessibilityTest]:
         """Initialize WCAG 2.1 test suite"""
         return {
             # Perceivable
@@ -105,7 +102,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.CRITICAL,
                 test_type="semi-automated",
                 implementation="Check for alt text, aria-labels, and descriptive text",
-                remediation="Add appropriate alt attributes or ARIA labels to provide text alternatives"
+                remediation="Add appropriate alt attributes or ARIA labels to provide text alternatives",
             ),
             "captions_prerecorded": AccessibilityTest(
                 id="captions_prerecorded",
@@ -116,7 +113,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.CRITICAL,
                 test_type="manual",
                 implementation="Verify presence and accuracy of captions in video content",
-                remediation="Add synchronized captions using WebVTT or similar technology"
+                remediation="Add synchronized captions using WebVTT or similar technology",
             ),
             "color_reliance": AccessibilityTest(
                 id="color_reliance",
@@ -127,7 +124,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="automated",
                 implementation="Check for color-only indicators and verify alternative indicators exist",
-                remediation="Add non-color indicators (icons, text, patterns) alongside color coding"
+                remediation="Add non-color indicators (icons, text, patterns) alongside color coding",
             ),
             "audio_control": AccessibilityTest(
                 id="audio_control",
@@ -138,7 +135,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="automated",
                 implementation="Check for auto-playing audio elements and verify controls exist",
-                remediation="Add audio controls or prevent auto-play"
+                remediation="Add audio controls or prevent auto-play",
             ),
             "contrast_normal": AccessibilityTest(
                 id="contrast_normal",
@@ -149,7 +146,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="automated",
                 implementation="Calculate color contrast ratios for all text elements",
-                remediation="Increase contrast between text and background colors"
+                remediation="Increase contrast between text and background colors",
             ),
             "contrast_large": AccessibilityTest(
                 id="contrast_large",
@@ -160,7 +157,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="automated",
                 implementation="Identify large text (18pt+ or 14pt+ bold) and check contrast ratios",
-                remediation="Increase contrast between large text and background colors"
+                remediation="Increase contrast between large text and background colors",
             ),
             "reflow": AccessibilityTest(
                 id="reflow",
@@ -171,7 +168,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="automated",
                 implementation="Check for horizontal scrolling at various viewport sizes",
-                remediation="Use responsive design and flexible layouts that adapt to screen size"
+                remediation="Use responsive design and flexible layouts that adapt to screen size",
             ),
             "non_text_contrast": AccessibilityTest(
                 id="non_text_contrast",
@@ -182,7 +179,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="automated",
                 implementation="Check contrast of buttons, icons, form controls, and other UI elements",
-                remediation="Increase contrast or add outlines/borders to improve visibility"
+                remediation="Increase contrast or add outlines/borders to improve visibility",
             ),
             "text_spacing": AccessibilityTest(
                 id="text_spacing",
@@ -193,9 +190,8 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="manual",
                 implementation="Test text spacing adjustments (line height, letter spacing, word spacing)",
-                remediation="Ensure layout adapts to increased text spacing"
+                remediation="Ensure layout adapts to increased text spacing",
             ),
-
             # Operable
             "keyboard_accessible": AccessibilityTest(
                 id="keyboard_accessible",
@@ -206,7 +202,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.CRITICAL,
                 test_type="manual",
                 implementation="Navigate entire interface using only keyboard",
-                remediation="Ensure all interactive elements are keyboard accessible and properly focused"
+                remediation="Ensure all interactive elements are keyboard accessible and properly focused",
             ),
             "keyboard_trap": AccessibilityTest(
                 id="keyboard_trap",
@@ -217,7 +213,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.CRITICAL,
                 test_type="manual",
                 implementation="Test for keyboard focus traps in modals, menus, and custom components",
-                remediation="Implement proper focus management and escape mechanisms"
+                remediation="Implement proper focus management and escape mechanisms",
             ),
             "timeout_customizable": AccessibilityTest(
                 id="timeout_customizable",
@@ -228,7 +224,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test session timeouts and auto-dismissing messages",
-                remediation="Provide timeout controls and warnings before session expiration"
+                remediation="Provide timeout controls and warnings before session expiration",
             ),
             "pause_stop_hide": AccessibilityTest(
                 id="pause_stop_hide",
@@ -239,7 +235,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test for auto-updating content and verify pause/stop controls",
-                remediation="Add controls to pause, stop, or hide auto-updating content"
+                remediation="Add controls to pause, stop, or hide auto-updating content",
             ),
             "navigation_order": AccessibilityTest(
                 id="navigation_order",
@@ -250,7 +246,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test tab order through all interactive elements",
-                remediation="Ensure logical focus order using source order and tabindex management"
+                remediation="Ensure logical focus order using source order and tabindex management",
             ),
             "link_purpose": AccessibilityTest(
                 id="link_purpose",
@@ -261,7 +257,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="automated",
                 implementation="Analyze link text for descriptiveness and clarity",
-                remediation="Use descriptive link text or add ARIA labels for context"
+                remediation="Use descriptive link text or add ARIA labels for context",
             ),
             "headings_labels": AccessibilityTest(
                 id="headings_labels",
@@ -272,7 +268,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="automated",
                 implementation="Check headings and form labels for descriptiveness",
-                remediation="Use meaningful headings and descriptive form labels"
+                remediation="Use meaningful headings and descriptive form labels",
             ),
             "focus_visible": AccessibilityTest(
                 id="focus_visible",
@@ -283,7 +279,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test focus visibility on all interactive elements",
-                remediation="Add visible focus styles using CSS :focus-visible"
+                remediation="Add visible focus styles using CSS :focus-visible",
             ),
             "location_purpose": AccessibilityTest(
                 id="location_purpose",
@@ -294,9 +290,8 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="automated",
                 implementation="Check page titles for descriptiveness and uniqueness",
-                remediation="Use unique, descriptive page titles"
+                remediation="Use unique, descriptive page titles",
             ),
-
             # Understandable
             "language_identified": AccessibilityTest(
                 id="language_identified",
@@ -307,7 +302,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="automated",
                 implementation="Check for lang attribute on html element",
-                remediation="Add appropriate lang attribute to html element"
+                remediation="Add appropriate lang attribute to html element",
             ),
             "language_parts": AccessibilityTest(
                 id="language_parts",
@@ -318,7 +313,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="manual",
                 implementation="Check for content in different languages and proper lang attributes",
-                remediation="Add lang attributes to content in different languages"
+                remediation="Add lang attributes to content in different languages",
             ),
             "input_purpose": AccessibilityTest(
                 id="input_purpose",
@@ -329,7 +324,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="automated",
                 implementation="Check for autocomplete attributes on form inputs",
-                remediation="Add appropriate autocomplete attributes to form inputs"
+                remediation="Add appropriate autocomplete attributes to form inputs",
             ),
             "error_identification": AccessibilityTest(
                 id="error_identification",
@@ -340,7 +335,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test form validation and error messages",
-                remediation="Provide clear, descriptive error messages"
+                remediation="Provide clear, descriptive error messages",
             ),
             "labels_instructions": AccessibilityTest(
                 id="labels_instructions",
@@ -351,7 +346,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Check form fields for labels and instructions",
-                remediation="Add clear labels and instructions for all form inputs"
+                remediation="Add clear labels and instructions for all form inputs",
             ),
             "error_suggestion": AccessibilityTest(
                 id="error_suggestion",
@@ -362,7 +357,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="manual",
                 implementation="Test form error handling and suggestions",
-                remediation="Provide helpful suggestions for input corrections"
+                remediation="Provide helpful suggestions for input corrections",
             ),
             "error_prevention": AccessibilityTest(
                 id="error_prevention",
@@ -373,9 +368,8 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test critical form submissions and error prevention mechanisms",
-                remediation="Add confirmation steps or ability to review/edit before submission"
+                remediation="Add confirmation steps or ability to review/edit before submission",
             ),
-
             # Robust
             "markup_valid": AccessibilityTest(
                 id="markup_valid",
@@ -386,7 +380,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.CRITICAL,
                 test_type="automated",
                 implementation="Validate HTML markup and DOM structure",
-                remediation="Fix HTML markup errors and ensure proper nesting"
+                remediation="Fix HTML markup errors and ensure proper nesting",
             ),
             "name_role_value": AccessibilityTest(
                 id="name_role_value",
@@ -397,9 +391,8 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="semi-automated",
                 implementation="Check ARIA attributes and native semantic elements",
-                remediation="Ensure proper ARIA implementation and use of semantic HTML"
+                remediation="Ensure proper ARIA implementation and use of semantic HTML",
             ),
-
             # WCAG 2.1 additions
             "character_key_shortcuts": AccessibilityTest(
                 id="character_key_shortcuts",
@@ -410,7 +403,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="manual",
                 implementation="Test for single-key shortcuts and provide alternatives",
-                remediation="Provide multiple-key shortcuts or ability to disable single-key shortcuts"
+                remediation="Provide multiple-key shortcuts or ability to disable single-key shortcuts",
             ),
             "motion_animation": AccessibilityTest(
                 id="motion_animation",
@@ -421,7 +414,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="manual",
                 implementation="Test for motion animations and provide controls",
-                remediation="Add prefers-reduced-motion support and animation controls"
+                remediation="Add prefers-reduced-motion support and animation controls",
             ),
             "orientation": AccessibilityTest(
                 id="orientation",
@@ -432,7 +425,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test content in portrait and landscape orientations",
-                remediation="Ensure content adapts to both orientations"
+                remediation="Ensure content adapts to both orientations",
             ),
             "reauthentication": AccessibilityTest(
                 id="reauthentication",
@@ -443,7 +436,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test timeout and re-authentication workflows",
-                remediation="Preserve form data and state through authentication processes"
+                remediation="Preserve form data and state through authentication processes",
             ),
             "target_size": AccessibilityTest(
                 id="target_size",
@@ -454,7 +447,7 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.MODERATE,
                 test_type="automated",
                 implementation="Measure target sizes for clickable elements",
-                remediation="Increase target size or ensure adequate spacing"
+                remediation="Increase target size or ensure adequate spacing",
             ),
             "concurrent_input": AccessibilityTest(
                 id="concurrent_input",
@@ -465,8 +458,8 @@ class AccessibilityAuditService:
                 severity=SeverityLevel.SERIOUS,
                 test_type="manual",
                 implementation="Test with various input methods (mouse, keyboard, touch, voice)",
-                remediation="Ensure content works with all input methods"
-            )
+                remediation="Ensure content works with all input methods",
+            ),
         }
 
     async def run_accessibility_audit(
@@ -474,10 +467,12 @@ class AccessibilityAuditService:
         url: str,
         conformance_target: ConformanceLevel = ConformanceLevel.AA,
         include_automated: bool = True,
-        include_manual: bool = False
+        include_manual: bool = False,
     ) -> AccessibilityAudit:
         """Run comprehensive accessibility audit"""
-        logger.info(f"Starting accessibility audit for {url} targeting {conformance_target.value} compliance")
+        logger.info(
+            f"Starting accessibility audit for {url} targeting {conformance_target.value} compliance"
+        )
 
         audit = AccessibilityAudit(
             timestamp=datetime.utcnow(),
@@ -485,12 +480,13 @@ class AccessibilityAuditService:
             conformance_target=conformance_target,
             total_tests=0,
             passed_tests=0,
-            failed_tests=0
+            failed_tests=0,
         )
 
         # Filter tests based on conformance level and test type
         applicable_tests = [
-            test for test in self.tests.values()
+            test
+            for test in self.tests.values()
             if self._is_applicable_test(test, conformance_target, include_automated, include_manual)
         ]
 
@@ -506,28 +502,32 @@ class AccessibilityAuditService:
                 else:
                     audit.passed_tests += 1
             except Exception as e:
-                logger.error(f"Error running accessibility test {test.id}: {str(e)}")
+                logger.error(f"Error running accessibility test {test.id}: {e!s}")
                 # Create issue for test failure
                 issue = AccessibilityIssue(
                     test_id=test.id,
                     severity=SeverityLevel.CRITICAL,
                     wcag_criteria=test.wcag_criteria,
                     element="Test System",
-                    description=f"Test execution failed: {str(e)}",
+                    description=f"Test execution failed: {e!s}",
                     remediation="Fix test execution environment or update test implementation",
                     url=url,
                     automated=True,
-                    confidence=0.0
+                    confidence=0.0,
                 )
                 audit.issues.append(issue)
                 audit.failed_tests += 1
 
         # Calculate scores
-        audit.compliance_percentage = (audit.passed_tests / audit.total_tests) * 100 if audit.total_tests > 0 else 0
+        audit.compliance_percentage = (
+            (audit.passed_tests / audit.total_tests) * 100 if audit.total_tests > 0 else 0
+        )
         audit.score = self._calculate_accessibility_score(audit.issues, audit.total_tests)
         audit.remediation_priority = self._prioritize_remediation(audit.issues)
 
-        logger.info(f"Accessibility audit completed: {audit.compliance_percentage:.1f}% compliance, {audit.failed_tests} issues found")
+        logger.info(
+            f"Accessibility audit completed: {audit.compliance_percentage:.1f}% compliance, {audit.failed_tests} issues found"
+        )
         return audit
 
     def _is_applicable_test(
@@ -535,42 +535,44 @@ class AccessibilityAuditService:
         test: AccessibilityTest,
         conformance_target: ConformanceLevel,
         include_automated: bool,
-        include_manual: bool
+        include_manual: bool,
     ) -> bool:
         """Check if test is applicable for current audit configuration"""
         # Check conformance level
-        if self._conformance_level_priority(test.conformance_level) > self._conformance_level_priority(conformance_target):
+        if self._conformance_level_priority(
+            test.conformance_level
+        ) > self._conformance_level_priority(conformance_target):
             return False
 
         # Check test type
-        if test.test_type == "automated" and not include_automated:
-            return False
-        elif test.test_type == "manual" and not include_manual:
+        if (test.test_type == "automated" and not include_automated) or (
+            test.test_type == "manual" and not include_manual
+        ):
             return False
 
         return True
 
     def _conformance_level_priority(self, level: ConformanceLevel) -> int:
         """Get numeric priority for conformance level (higher = stricter)"""
-        priorities = {
-            ConformanceLevel.A: 1,
-            ConformanceLevel.AA: 2,
-            ConformanceLevel.AAA: 3
-        }
+        priorities = {ConformanceLevel.A: 1, ConformanceLevel.AA: 2, ConformanceLevel.AAA: 3}
         return priorities.get(level, 0)
 
-    async def _run_individual_test(self, test: AccessibilityTest, url: str) -> Optional[AccessibilityIssue]:
+    async def _run_individual_test(
+        self, test: AccessibilityTest, url: str
+    ) -> AccessibilityIssue | None:
         """Run individual accessibility test"""
         if test.test_type == "automated":
             return await self._run_automated_test(test, url)
-        elif test.test_type == "manual":
+        if test.test_type == "manual":
             return None  # Manual tests require human evaluation
-        elif test.test_type == "semi-automated":
+        if test.test_type == "semi-automated":
             return await self._run_semi_automated_test(test, url)
 
         return None
 
-    async def _run_automated_test(self, test: AccessibilityTest, url: str) -> Optional[AccessibilityIssue]:
+    async def _run_automated_test(
+        self, test: AccessibilityTest, url: str
+    ) -> AccessibilityIssue | None:
         """Run automated accessibility test"""
         # This would integrate with automated testing tools like axe-core, lighthouse, etc.
         # For now, returning placeholder results
@@ -579,7 +581,7 @@ class AccessibilityAuditService:
             # Simulate HTML validation
             return None  # Assume valid markup for demo
 
-        elif test.id == "contrast_normal":
+        if test.id == "contrast_normal":
             # Simulate contrast checking
             # In real implementation, this would use color contrast calculation
             return AccessibilityIssue(
@@ -591,10 +593,10 @@ class AccessibilityAuditService:
                 remediation="Increase text or background color contrast",
                 url=url,
                 automated=True,
-                confidence=0.9
+                confidence=0.9,
             )
 
-        elif test.id == "focus_visible":
+        if test.id == "focus_visible":
             # Simulate focus visibility check
             return AccessibilityIssue(
                 test_id=test.id,
@@ -605,18 +607,22 @@ class AccessibilityAuditService:
                 remediation="Add visible focus styles using CSS :focus-visible",
                 url=url,
                 automated=True,
-                confidence=0.8
+                confidence=0.8,
             )
 
         # Default: pass test
         return None
 
-    async def _run_semi_automated_test(self, test: AccessibilityTest, url: str) -> Optional[AccessibilityIssue]:
+    async def _run_semi_automated_test(
+        self, test: AccessibilityTest, url: str
+    ) -> AccessibilityIssue | None:
         """Run semi-automated accessibility test"""
         # These tests combine automated checks with human verification
         return None  # Placeholder for semi-automated tests
 
-    def _calculate_accessibility_score(self, issues: List[AccessibilityIssue], total_tests: int) -> float:
+    def _calculate_accessibility_score(
+        self, issues: list[AccessibilityIssue], total_tests: int
+    ) -> float:
         """Calculate overall accessibility score (0-100)"""
         if total_tests == 0:
             return 0.0
@@ -627,7 +633,7 @@ class AccessibilityAuditService:
             SeverityLevel.SERIOUS: 5.0,
             SeverityLevel.MODERATE: 2.0,
             SeverityLevel.MINOR: 1.0,
-            SeverityLevel.INFO: 0.5
+            SeverityLevel.INFO: 0.5,
         }
 
         total_penalty = sum(severity_weights[issue.severity] for issue in issues)
@@ -636,20 +642,19 @@ class AccessibilityAuditService:
 
         return min(100.0, score)
 
-    def _prioritize_remediation(self, issues: List[AccessibilityIssue]) -> List[str]:
+    def _prioritize_remediation(self, issues: list[AccessibilityIssue]) -> list[str]:
         """Prioritize issues for remediation based on severity and impact"""
         severity_priority = {
             SeverityLevel.CRITICAL: 1,
             SeverityLevel.SERIOUS: 2,
             SeverityLevel.MODERATE: 3,
             SeverityLevel.MINOR: 4,
-            SeverityLevel.INFO: 5
+            SeverityLevel.INFO: 5,
         }
 
         # Sort by severity priority, then by number of affected WCAG criteria
         prioritized_issues = sorted(
-            issues,
-            key=lambda x: (severity_priority[x.severity], -len(x.wcag_criteria))
+            issues, key=lambda x: (severity_priority[x.severity], -len(x.wcag_criteria))
         )
 
         return [
@@ -657,7 +662,7 @@ class AccessibilityAuditService:
             for issue in prioritized_issues[:10]  # Top 10 priorities
         ]
 
-    def generate_accessibility_report(self, audit: AccessibilityAudit) -> Dict[str, Any]:
+    def generate_accessibility_report(self, audit: AccessibilityAudit) -> dict[str, Any]:
         """Generate comprehensive accessibility audit report"""
         return {
             "executive_summary": {
@@ -665,17 +670,23 @@ class AccessibilityAuditService:
                 "compliance_percentage": audit.compliance_percentage,
                 "conformance_target": audit.conformance_target.value,
                 "total_issues": len(audit.issues),
-                "critical_issues": len([i for i in audit.issues if i.severity == SeverityLevel.CRITICAL]),
+                "critical_issues": len(
+                    [i for i in audit.issues if i.severity == SeverityLevel.CRITICAL]
+                ),
                 "audit_date": audit.timestamp.isoformat(),
-                "url_audited": audit.url
+                "url_audited": audit.url,
             },
             "test_summary": {
                 "total_tests": audit.total_tests,
                 "passed_tests": audit.passed_tests,
                 "failed_tests": audit.failed_tests,
-                "automated_tests": len([t for t in self.tests.values() if t.test_type == "automated"]),
+                "automated_tests": len(
+                    [t for t in self.tests.values() if t.test_type == "automated"]
+                ),
                 "manual_tests": len([t for t in self.tests.values() if t.test_type == "manual"]),
-                "semi_automated_tests": len([t for t in self.tests.values() if t.test_type == "semi-automated"])
+                "semi_automated_tests": len(
+                    [t for t in self.tests.values() if t.test_type == "semi-automated"]
+                ),
             },
             "issues_by_severity": self._group_issues_by_severity(audit.issues),
             "issues_by_wcag": self._group_issues_by_wcag(audit.issues),
@@ -690,21 +701,21 @@ class AccessibilityAuditService:
                     "remediation": issue.remediation,
                     "url": issue.url,
                     "automated": issue.automated,
-                    "confidence": issue.confidence
+                    "confidence": issue.confidence,
                 }
                 for issue in audit.issues
             ],
-            "recommendations": self._generate_recommendations(audit)
+            "recommendations": self._generate_recommendations(audit),
         }
 
-    def _group_issues_by_severity(self, issues: List[AccessibilityIssue]) -> Dict[str, int]:
+    def _group_issues_by_severity(self, issues: list[AccessibilityIssue]) -> dict[str, int]:
         """Group issues by severity level"""
         severity_counts = {level.value: 0 for level in SeverityLevel}
         for issue in issues:
             severity_counts[issue.severity.value] += 1
         return severity_counts
 
-    def _group_issues_by_wcag(self, issues: List[AccessibilityIssue]) -> Dict[str, int]:
+    def _group_issues_by_wcag(self, issues: list[AccessibilityIssue]) -> dict[str, int]:
         """Group issues by WCAG criteria"""
         wcag_counts = {}
         for issue in issues:
@@ -712,7 +723,7 @@ class AccessibilityAuditService:
                 wcag_counts[criterion] = wcag_counts.get(criterion, 0) + 1
         return wcag_counts
 
-    def _generate_recommendations(self, audit: AccessibilityAudit) -> List[str]:
+    def _generate_recommendations(self, audit: AccessibilityAudit) -> list[str]:
         """Generate specific recommendations based on audit results"""
         recommendations = []
 
@@ -742,74 +753,83 @@ class AccessibilityAuditService:
                 "Establish keyboard accessibility testing as part of regular QA process"
             )
 
-        if any("alt" in str(issue).lower() or "aria" in str(issue).lower() for issue in audit.issues):
+        if any(
+            "alt" in str(issue).lower() or "aria" in str(issue).lower() for issue in audit.issues
+        ):
             recommendations.append(
                 "Create guidelines and training for content authors on accessible media and ARIA usage"
             )
 
         return recommendations
 
-    def create_accessibility_checklist(self, conformance_target: ConformanceLevel = ConformanceLevel.AA) -> Dict[str, Any]:
+    def create_accessibility_checklist(
+        self, conformance_target: ConformanceLevel = ConformanceLevel.AA
+    ) -> dict[str, Any]:
         """Create accessibility testing checklist for developers and testers"""
         applicable_tests = [
-            test for test in self.tests.values()
-            if self._conformance_level_priority(test.conformance_level) <= self._conformance_level_priority(conformance_target)
+            test
+            for test in self.tests.values()
+            if self._conformance_level_priority(test.conformance_level)
+            <= self._conformance_level_priority(conformance_target)
         ]
 
         checklist = {
             "conformance_target": conformance_target.value,
             "created_date": datetime.utcnow().isoformat(),
-            "sections": {}
+            "sections": {},
         }
 
         # Group tests by WCAG principle
-        principles = {
-            "Perceivable": [],
-            "Operable": [],
-            "Understandable": [],
-            "Robust": []
-        }
+        principles = {"Perceivable": [], "Operable": [], "Understandable": [], "Robust": []}
 
         for test in applicable_tests:
             # Determine principle based on WCAG criteria first digit
             if test.wcag_criteria:
-                first_digit = test.wcag_criteria[0].split('.')[0]
-                if first_digit == '1':
-                    principles["Perceivable"].append({
-                        "test_id": test.id,
-                        "description": test.description,
-                        "wcag_criteria": test.wcag_criteria,
-                        "test_type": test.test_type,
-                        "how_to_test": test.implementation,
-                        "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}"
-                    })
-                elif first_digit == '2':
-                    principles["Operable"].append({
-                        "test_id": test.id,
-                        "description": test.description,
-                        "wcag_criteria": test.wcag_criteria,
-                        "test_type": test.test_type,
-                        "how_to_test": test.implementation,
-                        "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}"
-                    })
-                elif first_digit == '3':
-                    principles["Understandable"].append({
-                        "test_id": test.id,
-                        "description": test.description,
-                        "wcag_criteria": test.wcag_criteria,
-                        "test_type": test.test_type,
-                        "how_to_test": test.implementation,
-                        "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}"
-                    })
-                elif first_digit == '4':
-                    principles["Robust"].append({
-                        "test_id": test.id,
-                        "description": test.description,
-                        "wcag_criteria": test.wcag_criteria,
-                        "test_type": test.test_type,
-                        "how_to_test": test.implementation,
-                        "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}"
-                    })
+                first_digit = test.wcag_criteria[0].split(".")[0]
+                if first_digit == "1":
+                    principles["Perceivable"].append(
+                        {
+                            "test_id": test.id,
+                            "description": test.description,
+                            "wcag_criteria": test.wcag_criteria,
+                            "test_type": test.test_type,
+                            "how_to_test": test.implementation,
+                            "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}",
+                        }
+                    )
+                elif first_digit == "2":
+                    principles["Operable"].append(
+                        {
+                            "test_id": test.id,
+                            "description": test.description,
+                            "wcag_criteria": test.wcag_criteria,
+                            "test_type": test.test_type,
+                            "how_to_test": test.implementation,
+                            "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}",
+                        }
+                    )
+                elif first_digit == "3":
+                    principles["Understandable"].append(
+                        {
+                            "test_id": test.id,
+                            "description": test.description,
+                            "wcag_criteria": test.wcag_criteria,
+                            "test_type": test.test_type,
+                            "how_to_test": test.implementation,
+                            "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}",
+                        }
+                    )
+                elif first_digit == "4":
+                    principles["Robust"].append(
+                        {
+                            "test_id": test.id,
+                            "description": test.description,
+                            "wcag_criteria": test.wcag_criteria,
+                            "test_type": test.test_type,
+                            "how_to_test": test.implementation,
+                            "pass_criteria": f"{test.wcag_criteria[0]} - {test.description}",
+                        }
+                    )
 
         checklist["sections"] = principles
 
@@ -820,20 +840,20 @@ class AccessibilityAuditService:
                 "Google Lighthouse",
                 "WAVE Web Accessibility Evaluation Tool",
                 "Color Contrast Analyzer",
-                "Screen reader simulators"
+                "Screen reader simulators",
             ],
             "manual": [
                 "Keyboard-only navigation testing",
                 "Screen reader testing (NVDA, JAWS, VoiceOver)",
                 "Zoom testing (200% and 400%)",
                 "Voice recognition software testing",
-                "Mobile accessibility testing"
+                "Mobile accessibility testing",
             ],
             "user_testing": [
                 "Testing with assistive technology users",
                 "Testing with users with disabilities",
-                "Usability testing with accessibility focus"
-            ]
+                "Usability testing with accessibility focus",
+            ],
         }
 
         # Add common accessibility patterns
@@ -845,7 +865,7 @@ class AccessibilityAuditService:
             "color_contrast": "Test color contrast ratios for all text and UI elements",
             "responsive_design": "Test content reflow at different viewport sizes",
             "form_labels": "Associate labels with form inputs and provide clear instructions",
-            "error_handling": "Provide clear error messages and suggestions for correction"
+            "error_handling": "Provide clear error messages and suggestions for correction",
         }
 
         return checklist

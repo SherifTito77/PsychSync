@@ -3,17 +3,18 @@ Manual QA & Testing Service
 Provides comprehensive testing frameworks for manual QA, UAT, and accessibility testing
 """
 
-import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
+from datetime import datetime
 from enum import Enum
-from pathlib import Path
+import json
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class TestStatus(str, Enum):
     """Test execution status"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     PASSED = "passed"
@@ -22,15 +23,19 @@ class TestStatus(str, Enum):
     SKIPPED = "skipped"
     DEFERRED = "deferred"
 
+
 class TestPriority(str, Enum):
     """Test priority levels"""
+
     CRITICAL = "critical"  # Blocks release
-    HIGH = "high"         # Important functionality
-    MEDIUM = "medium"     # Standard testing
-    LOW = "low"           # Nice to have
+    HIGH = "high"  # Important functionality
+    MEDIUM = "medium"  # Standard testing
+    LOW = "low"  # Nice to have
+
 
 class TestCategory(str, Enum):
     """Test categories for organization"""
+
     FUNCTIONAL = "functional"
     REGRESSION = "regression"
     INTEGRATION = "integration"
@@ -43,6 +48,7 @@ class TestCategory(str, Enum):
     SMOKE = "smoke"
     SANITY = "sanity"
 
+
 class TestExecution:
     """Individual test execution result"""
 
@@ -53,21 +59,21 @@ class TestExecution:
         category: TestCategory,
         priority: TestPriority,
         description: str,
-        steps: List[str],
+        steps: list[str],
         expected_result: str,
         actual_result: str = None,
         status: TestStatus = TestStatus.PENDING,
         assigned_to: str = None,
         environment: str = "staging",
         browser: str = "chrome",
-        test_data: Dict = None,
-        screenshots: List[str] = None,
+        test_data: dict = None,
+        screenshots: list[str] = None,
         execution_time: int = 0,
         executed_by: str = None,
         executed_at: datetime = None,
         notes: str = None,
-        bugs: List[Dict] = None,
-        tags: List[str] = None
+        bugs: list[dict] = None,
+        tags: list[str] = None,
     ):
         self.test_id = test_id
         self.title = title
@@ -90,7 +96,7 @@ class TestExecution:
         self.bugs = bugs or []
         self.tags = tags or []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage"""
         return {
             "test_id": self.test_id,
@@ -112,8 +118,9 @@ class TestExecution:
             "executed_at": self.executed_at.isoformat() if self.executed_at else None,
             "notes": self.notes,
             "bugs": self.bugs,
-            "tags": self.tags
+            "tags": self.tags,
         }
+
 
 class QATestPlan:
     """Comprehensive QA test plan with structured test cases"""
@@ -130,19 +137,19 @@ class QATestPlan:
         """Add a test case to the plan"""
         self.test_cases.append(test_execution)
 
-    def get_test_cases_by_category(self, category: TestCategory) -> List[TestExecution]:
+    def get_test_cases_by_category(self, category: TestCategory) -> list[TestExecution]:
         """Get test cases filtered by category"""
         return [test for test in self.test_cases if test.category == category]
 
-    def get_test_cases_by_priority(self, priority: TestPriority) -> List[TestExecution]:
+    def get_test_cases_by_priority(self, priority: TestPriority) -> list[TestExecution]:
         """Get test cases filtered by priority"""
         return [test for test in self.test_cases if test.priority == priority]
 
-    def get_test_cases_by_status(self, status: TestStatus) -> List[TestExecution]:
+    def get_test_cases_by_status(self, status: TestStatus) -> list[TestExecution]:
         """Get test cases filtered by status"""
         return [test for test in self.test_cases if test.status == status]
 
-    def calculate_execution_metrics(self) -> Dict[str, Any]:
+    def calculate_execution_metrics(self) -> dict[str, Any]:
         """Calculate test execution metrics"""
         total_tests = len(self.test_cases)
         if total_tests == 0:
@@ -161,8 +168,9 @@ class QATestPlan:
             "skipped": skipped_tests,
             "pass_rate": (passed_tests / total_tests) * 100,
             "failure_rate": (failed_tests / total_tests) * 100,
-            "execution_rate": ((passed_tests + failed_tests + blocked_tests) / total_tests) * 100
+            "execution_rate": ((passed_tests + failed_tests + blocked_tests) / total_tests) * 100,
         }
+
 
 class ManualQAService:
     """Manual QA testing management service"""
@@ -179,7 +187,7 @@ class ManualQAService:
         plan = QATestPlan(
             plan_name="PsychSync Comprehensive QA Test Plan",
             version="1.2",
-            description="Complete manual testing plan covering all platform features and requirements"
+            description="Complete manual testing plan covering all platform features and requirements",
         )
 
         # Authentication & Authorization Tests
@@ -240,10 +248,10 @@ class ManualQAService:
                     "Click 'Create Account'",
                     "Verify confirmation email is sent",
                     "Click verification link in email",
-                    "Verify user is logged in after verification"
+                    "Verify user is logged in after verification",
                 ],
                 expected_result="User successfully registers, receives verification email, and can log in after verification",
-                tags=["authentication", "registration", "email-verification"]
+                tags=["authentication", "registration", "email-verification"],
             ),
             TestExecution(
                 test_id="AUTH_002",
@@ -255,10 +263,10 @@ class ManualQAService:
                     "Navigate to login page",
                     "Enter registered email and password",
                     "Click 'Login'",
-                    "Verify user is redirected to dashboard"
+                    "Verify user is redirected to dashboard",
                 ],
                 expected_result="User successfully logs in and is redirected to dashboard",
-                tags=["authentication", "login", "dashboard"]
+                tags=["authentication", "login", "dashboard"],
             ),
             TestExecution(
                 test_id="AUTH_003",
@@ -270,10 +278,10 @@ class ManualQAService:
                     "Navigate to login page",
                     "Enter incorrect email or password",
                     "Click 'Login'",
-                    "Verify error message is displayed"
+                    "Verify error message is displayed",
                 ],
                 expected_result="Login fails and appropriate error message is shown",
-                tags=["authentication", "login", "error-handling"]
+                tags=["authentication", "login", "error-handling"],
             ),
             TestExecution(
                 test_id="AUTH_004",
@@ -289,10 +297,10 @@ class ManualQAService:
                     "Click reset link",
                     "Enter new password",
                     "Confirm new password",
-                    "Verify password is updated"
+                    "Verify password is updated",
                 ],
                 expected_result="Password reset email is sent, user can reset password successfully",
-                tags=["authentication", "password-reset", "email"]
+                tags=["authentication", "password-reset", "email"],
             ),
             TestExecution(
                 test_id="AUTH_005",
@@ -306,10 +314,10 @@ class ManualQAService:
                     "Click 'Logout'",
                     "Verify user is logged out",
                     "Try to access protected page",
-                    "Verify user is redirected to login"
+                    "Verify user is redirected to login",
                 ],
                 expected_result="Session properly terminated, protected pages redirect to login",
-                tags=["authentication", "logout", "session-management"]
+                tags=["authentication", "logout", "session-management"],
             ),
             TestExecution(
                 test_id="AUTH_006",
@@ -322,11 +330,11 @@ class ManualQAService:
                     "Wait for token to approach expiry",
                     "Make an API request",
                     "Verify token is refreshed automatically",
-                    "Verify user remains logged in"
+                    "Verify user remains logged in",
                 ],
                 expected_result="Token refreshes seamlessly without user interruption",
-                tags=["authentication", "jwt", "token-refresh"]
-            )
+                tags=["authentication", "jwt", "token-refresh"],
+            ),
         ]
 
         for test in auth_tests:
@@ -351,10 +359,10 @@ class ManualQAService:
                     "Save changes",
                     "Verify profile is updated",
                     "Logout and login again",
-                    "Verify changes persist"
+                    "Verify changes persist",
                 ],
                 expected_result="Profile updates successfully and persists across sessions",
-                tags=["user-management", "profile", "settings"]
+                tags=["user-management", "profile", "settings"],
             ),
             TestExecution(
                 test_id="USER_002",
@@ -369,10 +377,10 @@ class ManualQAService:
                     "Click upload",
                     "Verify image preview",
                     "Save changes",
-                    "Verify avatar displays in profile"
+                    "Verify avatar displays in profile",
                 ],
                 expected_result="Avatar uploads successfully and displays correctly",
-                tags=["user-management", "avatar", "file-upload"]
+                tags=["user-management", "avatar", "file-upload"],
             ),
             TestExecution(
                 test_id="USER_003",
@@ -386,10 +394,10 @@ class ManualQAService:
                     "Save changes",
                     "Verify verification email is sent to new address",
                     "Click verification link",
-                    "Verify email is updated"
+                    "Verify email is updated",
                 ],
                 expected_result="Email change requires verification before taking effect",
-                tags=["user-management", "email", "verification"]
+                tags=["user-management", "email", "verification"],
             ),
             TestExecution(
                 test_id="USER_004",
@@ -402,11 +410,11 @@ class ManualQAService:
                     "Click 'Deactivate Account'",
                     "Confirm deactivation",
                     "Verify account is deactivated",
-                    "Verify login fails with deactivated account"
+                    "Verify login fails with deactivated account",
                 ],
                 expected_result="Account deactivates successfully, login is blocked",
-                tags=["user-management", "account-deactivation", "security"]
-            )
+                tags=["user-management", "account-deactivation", "security"],
+            ),
         ]
 
         for test in user_tests:
@@ -431,10 +439,10 @@ class ManualQAService:
                     "Submit assessment",
                     "Verify results are generated",
                     "View personality profile",
-                    "Verify trait scores are displayed"
+                    "Verify trait scores are displayed",
                 ],
                 expected_result="Assessment completes successfully, results show accurate personality traits",
-                tags=["assessment", "big-five", "personality"]
+                tags=["assessment", "big-five", "personality"],
             ),
             TestExecution(
                 test_id="ASSESS_002",
@@ -448,10 +456,10 @@ class ManualQAService:
                     "Complete assessment",
                     "Verify MBTI type is calculated",
                     "View type description",
-                    "Verify type matches responses"
+                    "Verify type matches responses",
                 ],
                 expected_result="MBTI type is correctly calculated based on responses",
-                tags=["assessment", "mbti", "personality-type"]
+                tags=["assessment", "mbti", "personality-type"],
             ),
             TestExecution(
                 test_id="ASSESS_003",
@@ -468,10 +476,10 @@ class ManualQAService:
                     "Navigate to assessments",
                     "Click 'Resume Assessment'",
                     "Verify progress is restored",
-                    "Continue and complete assessment"
+                    "Continue and complete assessment",
                 ],
                 expected_result="Progress saves correctly and can be resumed later",
-                tags=["assessment", "progress-saving", "resume"]
+                tags=["assessment", "progress-saving", "resume"],
             ),
             TestExecution(
                 test_id="ASSESS_004",
@@ -484,10 +492,10 @@ class ManualQAService:
                     "Compare results for consistency",
                     "Verify scoring algorithm works correctly",
                     "Check for calculation errors",
-                    "Validate personality type assignments"
+                    "Validate personality type assignments",
                 ],
                 expected_result="Results are consistent and mathematically correct",
-                tags=["assessment", "accuracy", "scoring"]
+                tags=["assessment", "accuracy", "scoring"],
             ),
             TestExecution(
                 test_id="ASSESS_005",
@@ -500,11 +508,11 @@ class ManualQAService:
                     "Wait beyond time limit",
                     "Verify assessment auto-submits",
                     "Check results are based on completed questions",
-                    "Verify timeout message is shown"
+                    "Verify timeout message is shown",
                 ],
                 expected_result="Time limits are enforced, partial results are used",
-                tags=["assessment", "time-limits", "auto-submit"]
-            )
+                tags=["assessment", "time-limits", "auto-submit"],
+            ),
         ]
 
         for test in assessment_tests:
@@ -528,10 +536,10 @@ class ManualQAService:
                     "Select team type",
                     "Save team",
                     "Verify team appears in dashboard",
-                    "Verify team member can be added"
+                    "Verify team member can be added",
                 ],
                 expected_result="Team creates successfully with correct information",
-                tags=["team-optimization", "team-creation", "management"]
+                tags=["team-optimization", "team-creation", "management"],
             ),
             TestExecution(
                 test_id="TEAM_002",
@@ -547,10 +555,10 @@ class ManualQAService:
                     "Assign role (member/admin/owner)",
                     "Send invitation",
                     "Verify invitation email is sent",
-                    "Accept invitation as invited user"
+                    "Accept invitation as invited user",
                 ],
                 expected_result="Team member added successfully with correct role",
-                tags=["team-optimization", "team-members", "invitations"]
+                tags=["team-optimization", "team-members", "invitations"],
             ),
             TestExecution(
                 test_id="TEAM_003",
@@ -565,10 +573,10 @@ class ManualQAService:
                     "Wait for analysis to complete",
                     "Review generated recommendations",
                     "Verify compatibility scores",
-                    "Check suggested team configurations"
+                    "Check suggested team configurations",
                 ],
                 expected_result="Optimization analysis completes with valid recommendations",
-                tags=["team-optimization", "ai-analysis", "recommendations"]
+                tags=["team-optimization", "ai-analysis", "recommendations"],
             ),
             TestExecution(
                 test_id="TEAM_004",
@@ -581,10 +589,10 @@ class ManualQAService:
                     "Run optimization analysis",
                     "Check compatibility scores manually",
                     "Verify algorithm calculations",
-                    "Validate score ranges (0-1)"
+                    "Validate score ranges (0-1)",
                 ],
                 expected_result="Compatibility scores are mathematically accurate",
-                tags=["team-optimization", "compatibility", "scoring"]
+                tags=["team-optimization", "compatibility", "scoring"],
             ),
             TestExecution(
                 test_id="TEAM_005",
@@ -597,11 +605,11 @@ class ManualQAService:
                     "View performance dashboard",
                     "Check key metrics displayed",
                     "Verify metric calculations",
-                    "Validate historical tracking"
+                    "Validate historical tracking",
                 ],
                 expected_result="Performance metrics are accurate and comprehensive",
-                tags=["team-optimization", "performance", "metrics"]
-            )
+                tags=["team-optimization", "performance", "metrics"],
+            ),
         ]
 
         for test in team_tests:
@@ -623,10 +631,10 @@ class ManualQAService:
                     "Verify assessment completion rates",
                     "Check team optimization usage",
                     "Validate performance indicators",
-                    "Verify data freshness"
+                    "Verify data freshness",
                 ],
                 expected_result="All dashboard metrics are accurate and up-to-date",
-                tags=["analytics", "dashboard", "metrics"]
+                tags=["analytics", "dashboard", "metrics"],
             ),
             TestExecution(
                 test_id="ANALYTICS_002",
@@ -641,11 +649,11 @@ class ManualQAService:
                     "Generate report",
                     "Verify report contents",
                     "Export to PDF/CSV",
-                    "Check exported file format"
+                    "Check exported file format",
                 ],
                 expected_result="Reports generate correctly with accurate data",
-                tags=["analytics", "reports", "export"]
-            )
+                tags=["analytics", "reports", "export"],
+            ),
         ]
 
         for test in analytics_tests:
@@ -669,10 +677,10 @@ class ManualQAService:
                     "Download exported data",
                     "Verify all user data is included",
                     "Check data format compliance",
-                    "Verify export link expires after 7 days"
+                    "Verify export link expires after 7 days",
                 ],
                 expected_result="Data export complies with GDPR requirements",
-                tags=["compliance", "gdpr", "data-export"]
+                tags=["compliance", "gdpr", "data-export"],
             ),
             TestExecution(
                 test_id="COMPLIANCE_002",
@@ -685,10 +693,10 @@ class ManualQAService:
                     "Confirm password",
                     "Verify 30-day grace period",
                     "Check account deactivation",
-                    "Verify data deletion after grace period"
+                    "Verify data deletion after grace period",
                 ],
                 expected_result="Data deletion process complies with GDPR Article 17",
-                tags=["compliance", "gdpr", "data-deletion"]
+                tags=["compliance", "gdpr", "data-deletion"],
             ),
             TestExecution(
                 test_id="COMPLIANCE_003",
@@ -702,11 +710,11 @@ class ManualQAService:
                     "Grant marketing consent",
                     "Verify consent changes are recorded",
                     "Check consent history",
-                    "Verify audit trail"
+                    "Verify audit trail",
                 ],
                 expected_result="Consent management meets GDPR requirements",
-                tags=["compliance", "gdpr", "consent"]
-            )
+                tags=["compliance", "gdpr", "consent"],
+            ),
         ]
 
         for test in compliance_tests:
@@ -727,10 +735,10 @@ class ManualQAService:
                     "Check breadcrumb navigation",
                     "Verify consistent button placement",
                     "Test responsive navigation on mobile",
-                    "Check keyboard navigation support"
+                    "Check keyboard navigation support",
                 ],
                 expected_result="Navigation is intuitive and easy to use",
-                tags=["ui", "ux", "navigation"]
+                tags=["ui", "ux", "navigation"],
             ),
             TestExecution(
                 test_id="UI_002",
@@ -743,11 +751,11 @@ class ManualQAService:
                     "Test invalid email format validation",
                     "Check password strength indicators",
                     "Verify real-time validation feedback",
-                    "Test error message clarity"
+                    "Test error message clarity",
                 ],
                 expected_result="Form validation provides clear, helpful feedback",
-                tags=["ui", "ux", "forms", "validation"]
-            )
+                tags=["ui", "ux", "forms", "validation"],
+            ),
         ]
 
         for test in ui_tests:
@@ -768,10 +776,10 @@ class ManualQAService:
                     "Verify focus indicators are visible",
                     "Check all interactive elements reachable",
                     "Test skip navigation links",
-                    "Verify focus trap in modals"
+                    "Verify focus trap in modals",
                 ],
                 expected_result="Site fully navigable via keyboard",
-                tags=["accessibility", "wcag", "keyboard"]
+                tags=["accessibility", "wcag", "keyboard"],
             ),
             TestExecution(
                 test_id="A11Y_002",
@@ -784,10 +792,10 @@ class ManualQAService:
                     "Check alt text on images",
                     "Verify form labels are announced",
                     "Test ARIA landmarks",
-                    "Check page structure clarity"
+                    "Check page structure clarity",
                 ],
                 expected_result="Site works well with screen readers",
-                tags=["accessibility", "wcag", "screen-reader"]
+                tags=["accessibility", "wcag", "screen-reader"],
             ),
             TestExecution(
                 test_id="A11Y_003",
@@ -799,10 +807,10 @@ class ManualQAService:
                     "Check text contrast ratios",
                     "Test color combinations",
                     "Verify sufficient contrast",
-                    "Check with contrast checking tools"
+                    "Check with contrast checking tools",
                 ],
                 expected_result="All text meets WCAG AA contrast standards",
-                tags=["accessibility", "wcag", "color-contrast"]
+                tags=["accessibility", "wcag", "color-contrast"],
             ),
             TestExecution(
                 test_id="A11Y_004",
@@ -814,11 +822,11 @@ class ManualQAService:
                     "Test focus in modals and dialogs",
                     "Verify focus returns correctly",
                     "Check focus indicators are visible",
-                    "Test focus trap in overlays"
+                    "Test focus trap in overlays",
                 ],
                 expected_result="Focus management is accessible and predictable",
-                tags=["accessibility", "wcag", "focus-management"]
-            )
+                tags=["accessibility", "wcag", "focus-management"],
+            ),
         ]
 
         for test in accessibility_tests:
@@ -839,10 +847,10 @@ class ManualQAService:
                     "Check layout adaptation",
                     "Test touch interactions",
                     "Verify menu functionality",
-                    "Check form usability"
+                    "Check form usability",
                 ],
                 expected_result="Site works well on iPhone devices",
-                tags=["mobile", "responsive", "ios"]
+                tags=["mobile", "responsive", "ios"],
             ),
             TestExecution(
                 test_id="MOBILE_002",
@@ -855,17 +863,17 @@ class ManualQAService:
                     "Check layout adaptation",
                     "Test touch interactions",
                     "Verify menu functionality",
-                    "Check form usability"
+                    "Check form usability",
                 ],
                 expected_result="Site works well on Android devices",
-                tags=["mobile", "responsive", "android"]
-            )
+                tags=["mobile", "responsive", "android"],
+            ),
         ]
 
         for test in mobile_tests:
             plan.add_test_case(test)
 
-    def get_test_execution_summary(self, plan_name: str) -> Dict[str, Any]:
+    def get_test_execution_summary(self, plan_name: str) -> dict[str, Any]:
         """Get comprehensive test execution summary"""
 
         plan = self.test_plans.get(plan_name)
@@ -884,7 +892,7 @@ class ManualQAService:
                 category_breakdown[category.value] = {
                     "total": total,
                     "passed": passed,
-                    "pass_rate": (passed / total) * 100 if total > 0 else 0
+                    "pass_rate": (passed / total) * 100 if total > 0 else 0,
                 }
 
         priority_breakdown = {}
@@ -896,7 +904,7 @@ class ManualQAService:
                     status_counts[test.status.value] = status_counts.get(test.status.value, 0) + 1
                 priority_breakdown[priority.value] = {
                     "total": len(priority_tests),
-                    "status_counts": status_counts
+                    "status_counts": status_counts,
                 }
 
         return {
@@ -907,7 +915,7 @@ class ManualQAService:
             "test_metrics": metrics,
             "category_breakdown": category_breakdown,
             "priority_breakdown": priority_breakdown,
-            "total_test_cases": len(plan.test_cases)
+            "total_test_cases": len(plan.test_cases),
         }
 
     def generate_test_report(self, plan_name: str, format: str = "json") -> str:
@@ -924,13 +932,12 @@ class ManualQAService:
                 "generated_at": datetime.utcnow().isoformat(),
                 "plan_name": plan.plan_name,
                 "version": plan.version,
-                "generator": "PsychSync QA Service"
+                "generator": "PsychSync QA Service",
             },
             "test_summary": summary,
-            "test_cases": [test.to_dict() for test in plan.test_cases]
+            "test_cases": [test.to_dict() for test in plan.test_cases],
         }
 
         if format == "json":
             return json.dumps(report_data, indent=2, default=str)
-        else:
-            return str(report_data)
+        return str(report_data)

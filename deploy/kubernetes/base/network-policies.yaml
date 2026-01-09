@@ -1,0 +1,756 @@
+---
+# Network Policies for PsychSync - Zero Trust Networking
+# Purpose: Prevent cross-pod snooping and enforce least-privilege communication
+# Default: Deny all ingress and egress, then allow specific flows
+
+################################################################################
+# DEFAULT DENY ALL - Start with zero trust
+################################################################################
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all-ingress
+  namespace: psychsync
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all-egress
+  namespace: psychsync
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+
+################################################################################
+# BACKEND POD POLICIES
+################################################################################
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: psychsync-backend-ingress
+  namespace: psychsync
+  annotations:
+    description: "Allow ingress to backend from ingress controller and same namespace pods"
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-backend
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow from Ingress Controller (external traffic)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+
+  # Allow from Ingress Controller (NGINX specific)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+
+  # Allow from monitoring (Prometheus)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+      podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: psychsync-backend-egress
+  namespace: psychsync
+  annotations:
+    description: "Allow backend to reach dependencies (database, redis, external APIs)"
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-backend
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS (essential for all pods)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+  # Allow to PostgreSQL database
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: postgres
+          tier: database
+    ports:
+    - protocol: TCP
+      port: 5432
+
+  # Allow to Redis cache
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: redis
+          tier: cache
+    ports:
+    - protocol: TCP
+      port: 6379
+
+  # Allow to external APIs (HTTPS only)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+
+  # Allow to OpenAI API
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  # Note: OpenAI doesn't have fixed IPs, so we allow all HTTPS on 443
+  # In production, consider using an egress gateway or proxy
+
+  # Allow to logging/monitoring
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+      podSelector:
+        matchLabels:
+          app: loki
+    ports:
+    - protocol: TCP
+      port: 3100
+
+  # Allow to external email services (SendGrid, Mailgun)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+
+################################################################################
+# DATABASE POD POLICIES
+################################################################################
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+  namespace: psychsync
+  annotations:
+    description: "Only allow backend pods to connect to PostgreSQL"
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+      tier: database
+  policyTypes:
+  - Ingress
+  ingress:
+  # Only backend pods can connect
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: psychsync-backend
+    ports:
+    - protocol: TCP
+      port: 5432
+
+  # Allow from monitoring (Postgres exporter)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+      podSelector:
+        matchLabels:
+          app: postgres-exporter
+    ports:
+    - protocol: TCP
+      port: 5432
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-egress
+  namespace: psychsync
+  annotations:
+    description: "Allow PostgreSQL to reach DNS and backup storage"
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+      tier: database
+  policyTypes:
+  - Egress
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+  # Allow to backup storage (S3, GCS, etc.)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+
+################################################################################
+# REDIS POD POLICIES
+################################################################################
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-ingress
+  namespace: psychsync
+  annotations:
+    description: "Only allow backend pods to connect to Redis"
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+      tier: cache
+  policyTypes:
+  - Ingress
+  ingress:
+  # Only backend pods
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: psychsync-backend
+    ports:
+    - protocol: TCP
+      port: 6379
+
+  # Allow from monitoring (Redis exporter)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+      podSelector:
+        matchLabels:
+          app: redis-exporter
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-egress
+  namespace: psychsync
+  annotations:
+    description: "Allow Redis to reach DNS"
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+      tier: cache
+  policyTypes:
+  - Egress
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+################################################################################
+# WORKER POD POLICIES (AI processing, background jobs)
+################################################################################
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: psychsync-worker-ingress
+  namespace: psychsync
+  annotations:
+    description: "Workers don't need ingress traffic"
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-worker
+  policyTypes:
+  - Ingress
+  ingress:
+  # No ingress needed for workers
+  # They only make outbound connections
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: psychsync-worker-egress
+  namespace: psychsync
+  annotations:
+    description: "Allow workers to reach backend, database, Redis, and external APIs"
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-worker
+  policyTypes:
+  - Egress
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+  # Allow to backend API (for status updates)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: psychsync-backend
+    ports:
+    - protocol: TCP
+      port: 8000
+
+  # Allow to database
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: postgres
+          tier: database
+    ports:
+    - protocol: TCP
+      port: 5432
+
+  # Allow to Redis
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: redis
+          tier: cache
+    ports:
+    - protocol: TCP
+      port: 6379
+
+  # Allow to external APIs (OpenAI, Anthropic, etc.)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+
+################################################################################
+# MONITORING & LOGGING POD POLICIES
+################################################################################
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: psychsync
+  annotations:
+    description: "Allow Prometheus to scrape metrics from all pods"
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+      podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+
+################################################################################
+# EGRESS GATEWAY POLICY (Optional - for external traffic)
+################################################################################
+
+---
+# If using an egress gateway/proxy for external API calls
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: force-egress-via-gateway
+  namespace: psychsync
+  annotations:
+    description: "Force all external HTTPS traffic through egress gateway"
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-backend
+  policyTypes:
+  - Egress
+  egress:
+  # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+
+  # Internal services (database, redis)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+
+  # External traffic MUST go through egress gateway
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: egress-gateway
+    ports:
+    - protocol: TCP
+      port: 8443
+
+################################################################################
+# CROSS-NAMESPACE POLICIES (if using multi-namespace setup)
+################################################################################
+
+---
+# Allow ingress from ingress namespace (if separate)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-ingress-namespace
+  namespace: psychsync
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-backend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx  # or your ingress namespace
+    ports:
+    - protocol: TCP
+      port: 8000
+
+################################################################################
+# SPECIAL POLICY: PREVENT POD-TO-POD SNIOPING
+################################################################################
+
+---
+# Explicitly prevent backend pods from talking to each other
+# This prevents a compromised backend pod from attacking other backend pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prevent-backend-to-backend
+  namespace: psychsync
+  annotations:
+    description: "Prevent backend pods from connecting to each other (anti-snooping)"
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow from ingress controller and monitoring
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+
+  # EXPLICITLY DENY backend-to-backend communication
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: psychsync-backend
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Note: This is a whitelist approach - we explicitly don't allow backend-to-backend
+
+  egress:
+  # Normal egress (database, redis, external APIs)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+      podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+
+  # DO NOT allow egress to other backend pods
+  # This prevents a compromised pod from attacking other backend pods
+
+################################################################################
+# ADDITIONAL SECURITY POLICIES
+################################################################################
+
+---
+# Policy to limit which namespaces can interact
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-cross-namespace
+  namespace: psychsync
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Only allow from same namespace or whitelisted namespaces
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+
+  egress:
+  # Only allow to same namespace or whitelisted namespaces
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+
+---
+# Prevent pods from accessing the Kubernetes API server directly
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-k8s-api-access
+  namespace: psychsync
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync-backend
+  policyTypes:
+  - Egress
+  egress:
+  # Block access to Kubernetes API server
+  # Applications should use service accounts for K8s API access, not direct network access
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          component: kube-apiserver
+    ports:
+    - protocol: TCP
+      port: 443
+  # Note: This doesn't block service account token-based access
+  # It only blocks direct network access to the API server
+
+---
+# Rate limiting network policy (using Cilium/Kube-Router specific features)
+# This requires a CNI that supports advanced network policies
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: rate-limit-backend-ingress
+  namespace: psychsync
+spec:
+  endpointSelector:
+    matchLabels:
+      app: psychsync-backend
+  ingress:
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+      rules:
+        http:
+          - rateLimit:
+              max: 100
+              burst: 200
+              duration: "1s"
+
+---
+# L7 network policy example (requires Cilium or similar CNI)
+# This allows us to filter traffic at the HTTP layer
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: http-filter-backend
+  namespace: psychsync
+spec:
+  endpointSelector:
+    matchLabels:
+      app: psychsync-backend
+  ingress:
+  - fromEntities:
+    - world
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+      rules:
+        http:
+          # Only allow specific HTTP methods
+          - method: "GET"
+          - method: "POST"
+          - method: "PUT"
+          - method: "DELETE"
+          - method: "OPTIONS"
+
+          # Block certain paths
+          - headers:
+            - "^X-Forbidden.*": ".*"
+
+          # Require authentication header
+          - headers:
+            - "^Authorization$": ".*"
+
+          # Path-based filtering
+          - path: "/api/v1/.*"
+
+          # Block admin endpoints from external
+          - NOT paths:
+            - "/admin/.*"
+            - "/internal/.*"

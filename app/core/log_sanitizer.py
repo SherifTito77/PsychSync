@@ -3,10 +3,11 @@ Log Sanitization Module
 Prevents sensitive data from being exposed in log files
 """
 
-import re
-import logging
-from typing import Any, Dict, List
 import json
+import logging
+import re
+from typing import Any
+
 
 class SensitiveDataFilter(logging.Filter):
     """
@@ -15,70 +16,91 @@ class SensitiveDataFilter(logging.Filter):
 
     # Patterns for sensitive data that should be redacted
     SENSITIVE_PATTERNS = {
-        'password': [
+        "password": [
             r'password[=:]\s*[^\s,}"]+',
             r'pwd[=:]\s*[^\s,}"]+',
             r'pass[=:]\s*[^\s,}"]+',
             r'(?:\{|["\'])password(?:\}|["\'])\s*:\s*"[^"]+"',
         ],
-        'token': [
+        "token": [
             r'token[=:]\s*[^\s,}"]{20,}',
             r'jwt[=:]\s*[^\s,}"]{20,}',
             r'auth[_-]?token[=:]\s*[^\s,}"]{20,}',
-            r'Bearer\s+[A-Za-z0-9\-._~+/]+=*',
+            r"Bearer\s+[A-Za-z0-9\-._~+/]+=*",
         ],
-        'api_key': [
+        "api_key": [
             r'api[_-]?key[=:]\s*[^\s,}"]{16,}',
             r'apikey[=:]\s*[^\s,}"]{16,}',
             r'secret[_-]?key[=:]\s*[^\s,}"]{16,}',
             r'access[_-]?key[=:]\s*[^\s,}"]{16,}',
         ],
-        'credit_card': [
-            r'\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}',
-            r'\d{16}',
+        "credit_card": [
+            r"\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}",
+            r"\d{16}",
         ],
-        'ssn': [
-            r'\d{3}[-\s]?\d{2}[-\s]?\d{4}',
+        "ssn": [
+            r"\d{3}[-\s]?\d{2}[-\s]?\d{4}",
         ],
-        'email': [
-            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+        "email": [
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
         ],
-        'ip_address': [
-            r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+        "ip_address": [
+            r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",
         ],
-        'phone': [
-            r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b',
-            r'\b\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b',
+        "phone": [
+            r"\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b",
+            r"\b\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b",
         ],
-        'pii': [
+        "pii": [
             r'(?:first|last|full)[_-]?name[=:]\s*[^\s,}"]{2,}',
             r'(?:address|street|city|state|zip)[=:]\s*[^\s,}"]{5,}',
             r'(?:dob|birth[_-]?date)[=:]\s*[^\s,}"]{8,}',
         ],
-        'database_url': [
-            r'(?:postgres|mysql|mongodb)://[^\s]+:[^\s]+@',
+        "database_url": [
+            r"(?:postgres|mysql|mongodb)://[^\s]+:[^\s]+@",
         ],
-        'session_id': [
-            r'session[_-]?id[=:]\s*[a-f0-9]{32,}',
+        "session_id": [
+            r"session[_-]?id[=:]\s*[a-f0-9]{32,}",
         ],
     }
 
     # Fields to redact in JSON/dict data
     SENSITIVE_FIELDS = {
-        'password', 'passwd', 'pwd',
-        'token', 'jwt', 'auth_token', 'access_token', 'refresh_token',
-        'api_key', 'apikey', 'secret_key', 'secret',
-        'credit_card', 'cc_number', 'card_number',
-        'ssn', 'social_security',
-        'email_address', 'email',
-        'phone_number', 'phone', 'mobile',
-        'address', 'street_address',
-        'date_of_birth', 'dob', 'birth_date',
-        'database_url', 'db_url', 'connection_string',
-        'session_id', 'sessionid',
+        "password",
+        "passwd",
+        "pwd",
+        "token",
+        "jwt",
+        "auth_token",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "apikey",
+        "secret_key",
+        "secret",
+        "credit_card",
+        "cc_number",
+        "card_number",
+        "ssn",
+        "social_security",
+        "email_address",
+        "email",
+        "phone_number",
+        "phone",
+        "mobile",
+        "address",
+        "street_address",
+        "date_of_birth",
+        "dob",
+        "birth_date",
+        "database_url",
+        "db_url",
+        "connection_string",
+        "session_id",
+        "sessionid",
     }
 
-    def __init__(self, redaction_string='[REDACTED]'):
+    def __init__(self, redaction_string="[REDACTED]"):
         super().__init__()
         self.redaction_string = redaction_string
         self._compile_patterns()
@@ -88,8 +110,7 @@ class SensitiveDataFilter(logging.Filter):
         self.compiled_patterns = {}
         for data_type, patterns in self.SENSITIVE_PATTERNS.items():
             self.compiled_patterns[data_type] = [
-                re.compile(pattern, re.IGNORECASE)
-                for pattern in patterns
+                re.compile(pattern, re.IGNORECASE) for pattern in patterns
             ]
 
     def filter(self, record):
@@ -98,14 +119,14 @@ class SensitiveDataFilter(logging.Filter):
         record.msg = self.sanitize(record.msg)
 
         # Sanitize args if present
-        if hasattr(record, 'args') and record.args:
+        if hasattr(record, "args") and record.args:
             record.args = tuple(
                 self.sanitize(str(arg)) if isinstance(arg, (str, bytes)) else arg
                 for arg in record.args
             )
 
         # Sanitize extra fields if present
-        if hasattr(record, 'extra'):
+        if hasattr(record, "extra"):
             record.extra = self.sanitize_dict(record.extra)
 
         return True
@@ -122,7 +143,7 @@ class SensitiveDataFilter(logging.Filter):
 
         return text
 
-    def sanitize_dict(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def sanitize_dict(self, data: dict[str, Any]) -> dict[str, Any]:
         """Recursively sanitize dictionary data"""
         if not isinstance(data, dict):
             return data
@@ -136,8 +157,10 @@ class SensitiveDataFilter(logging.Filter):
                 sanitized[key] = self.sanitize_dict(value)
             elif isinstance(value, list):
                 sanitized[key] = [
-                    self.sanitize_dict(item) if isinstance(item, dict)
-                    else self.sanitize(str(item)) if isinstance(item, (str, bytes))
+                    self.sanitize_dict(item)
+                    if isinstance(item, dict)
+                    else self.sanitize(str(item))
+                    if isinstance(item, (str, bytes))
                     else item
                     for item in value
                 ]
@@ -155,7 +178,7 @@ class SecureLogger:
     """
 
     @staticmethod
-    def setup_logging(app_name: str = 'psychsync', log_level: str = 'INFO'):
+    def setup_logging(app_name: str = "psychsync", log_level: str = "INFO"):
         """Set up secure logging with sanitization"""
         # Create logger
         logger = logging.getLogger(app_name)
@@ -167,8 +190,7 @@ class SecureLogger:
 
         # Create formatter
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         console_handler.setFormatter(formatter)
 
@@ -235,7 +257,7 @@ if __name__ == "__main__":
         "password": "SecretPass123",
         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
         "address": "123 Main St",
-        "safe_field": "This is fine"
+        "safe_field": "This is fine",
     }
 
     print("=" * 60)

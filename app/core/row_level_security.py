@@ -18,20 +18,20 @@ Author: Security Team
 Version: 3.0 Enterprise Security
 """
 
-import sqlalchemy as sa
+from contextlib import asynccontextmanager
+from datetime import datetime
+import json
+import logging
+from typing import Any
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Dict, Any, List, Union
-from contextlib import asynccontextmanager
-import logging
-import json
-from datetime import datetime
 
-from app.core.database import get_async_db
 from app.core.config import settings
 
 # Security logger
 security_logger = logging.getLogger("app.security.rls")
+
 
 class RowLevelSecurityManager:
     """
@@ -94,7 +94,6 @@ class RowLevelSecurityManager:
                 OR current_setting('app.current_user_role', true) = 'super_admin'
             );
             """,
-
             # Organizations table RLS policy
             """
             DROP POLICY IF EXISTS organizations_secure_policy ON organizations_secure;
@@ -117,7 +116,6 @@ class RowLevelSecurityManager:
                 current_setting('app.current_user_role', true) = 'super_admin'
             );
             """,
-
             # Teams table RLS policy
             """
             DROP POLICY IF EXISTS teams_secure_policy ON teams_secure;
@@ -143,7 +141,6 @@ class RowLevelSecurityManager:
                 OR current_setting('app.current_user_role', true) = 'super_admin'
             );
             """,
-
             # Team members table RLS policy
             """
             DROP POLICY IF EXISTS team_members_secure_policy ON team_members_secure;
@@ -202,7 +199,6 @@ class RowLevelSecurityManager:
                 OR current_setting('app.current_user_role', true) = 'super_admin'
             );
             """,
-
             # Assessments table RLS policy
             """
             DROP POLICY IF EXISTS assessments_secure_policy ON assessments_secure;
@@ -240,7 +236,6 @@ class RowLevelSecurityManager:
                 OR current_setting('app.current_user_role', true) = 'super_admin'
             );
             """,
-
             # Responses table RLS policy
             """
             DROP POLICY IF EXISTS responses_secure_policy ON responses_secure;
@@ -286,7 +281,7 @@ class RowLevelSecurityManager:
                 -- OR system processes can create responses (for imports, etc.)
                 OR current_setting('app.current_user_id', true) = 'system'
             );
-            """
+            """,
         ]
 
         for policy_sql in policies:
@@ -299,8 +294,9 @@ class RowLevelSecurityManager:
                 security_logger.error(f"Failed to apply RLS policy: {e}")
                 raise
 
-    async def set_security_context(self, session: AsyncSession, user_id: str,
-                                 user_role: str, org_id: Optional[str] = None) -> None:
+    async def set_security_context(
+        self, session: AsyncSession, user_id: str, user_role: str, org_id: str | None = None
+    ) -> None:
         """
         Set PostgreSQL session variables for RLS context
 
@@ -312,15 +308,12 @@ class RowLevelSecurityManager:
             ("app.current_user_role", user_role.lower()),
             ("app.current_org_id", org_id if org_id else "NULL"),
             ("app.session_start", datetime.utcnow().isoformat()),
-            ("app.rls_enabled", "true")
+            ("app.rls_enabled", "true"),
         ]
 
         for var_name, var_value in context_variables:
             try:
-                await session.execute(
-                    text(f"SET {var_name} TO :value"),
-                    {"value": var_value}
-                )
+                await session.execute(text(f"SET {var_name} TO :value"), {"value": var_value})
                 security_logger.debug(f"Set security context: {var_name} = {var_value}")
             except Exception as e:
                 security_logger.error(f"Failed to set security context {var_name}: {e}")
@@ -333,7 +326,7 @@ class RowLevelSecurityManager:
             "app.current_user_role",
             "app.current_org_id",
             "app.session_start",
-            "app.rls_enabled"
+            "app.rls_enabled",
         ]
 
         for var_name in context_variables:
@@ -344,8 +337,9 @@ class RowLevelSecurityManager:
                 security_logger.error(f"Failed to clear security context {var_name}: {e}")
 
     @asynccontextmanager
-    async def secure_session(self, session: AsyncSession, user_id: str,
-                           user_role: str, org_id: Optional[str] = None):
+    async def secure_session(
+        self, session: AsyncSession, user_id: str, user_role: str, org_id: str | None = None
+    ):
         """
         Context manager for secure database sessions with RLS
 
@@ -358,8 +352,9 @@ class RowLevelSecurityManager:
         finally:
             await self.clear_security_context(session)
 
-    async def check_data_access(self, session: AsyncSession, table_name: str,
-                              record_id: str, user_id: str, user_role: str) -> bool:
+    async def check_data_access(
+        self, session: AsyncSession, table_name: str, record_id: str, user_id: str, user_role: str
+    ) -> bool:
         """
         Check if user has access to a specific record
 
@@ -387,9 +382,15 @@ class RowLevelSecurityManager:
         finally:
             await self.clear_security_context(session)
 
-    async def audit_data_access(self, session: AsyncSession, user_id: str,
-                              table_name: str, operation: str, record_id: Optional[str] = None,
-                              additional_context: Optional[Dict[str, Any]] = None) -> None:
+    async def audit_data_access(
+        self,
+        session: AsyncSession,
+        user_id: str,
+        table_name: str,
+        operation: str,
+        record_id: str | None = None,
+        additional_context: dict[str, Any] | None = None,
+    ) -> None:
         """
         Log data access for audit purposes
 
@@ -408,7 +409,7 @@ class RowLevelSecurityManager:
             "ip_address": additional_context.get("ip_address") if additional_context else None,
             "user_agent": additional_context.get("user_agent") if additional_context else None,
             "session_id": additional_context.get("session_id") if additional_context else None,
-            "additional_data": additional_context or {}
+            "additional_data": additional_context or {},
         }
 
         try:
@@ -424,8 +425,8 @@ class RowLevelSecurityManager:
                     "table_name": audit_record["table_name"],
                     "operation": audit_record["operation"],
                     "record_id": audit_record["record_id"],
-                    "context": json.dumps(audit_record)
-                }
+                    "context": json.dumps(audit_record),
+                },
             )
             await session.commit()
 
@@ -454,7 +455,6 @@ class RowLevelSecurityManager:
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
             """,
-
             # Function to check if user is team member
             """
             CREATE OR REPLACE FUNCTION user_is_team_member(user_uuid UUID, team_uuid UUID)
@@ -467,7 +467,6 @@ class RowLevelSecurityManager:
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
             """,
-
             # Function to get user's organization teams
             """
             CREATE OR REPLACE FUNCTION get_user_org_teams(user_uuid UUID)
@@ -482,7 +481,6 @@ class RowLevelSecurityManager:
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
             """,
-
             # Function for secure data filtering
             """
             CREATE OR REPLACE FUNCTION apply_tenant_filter(table_name TEXT)
@@ -508,7 +506,7 @@ class RowLevelSecurityManager:
                 END IF;
             END;
             $$ LANGUAGE plpgsql SECURITY DEFINER;
-            """
+            """,
         ]
 
         for function_sql in functions:
@@ -521,7 +519,7 @@ class RowLevelSecurityManager:
                 security_logger.error(f"Failed to create tenant isolation function: {e}")
                 raise
 
-    async def validate_rls_enforcement(self, session: AsyncSession) -> Dict[str, bool]:
+    async def validate_rls_enforcement(self, session: AsyncSession) -> dict[str, bool]:
         """
         Validate that RLS is properly enforced on all secure tables
 
@@ -531,21 +529,23 @@ class RowLevelSecurityManager:
         validation_results = {}
 
         secure_tables = [
-            'users_secure',
-            'organizations_secure',
-            'teams_secure',
-            'team_members_secure',
-            'assessments_secure',
-            'responses_secure'
+            "users_secure",
+            "organizations_secure",
+            "teams_secure",
+            "team_members_secure",
+            "assessments_secure",
+            "responses_secure",
         ]
 
         for table in secure_tables:
             try:
-                result = await session.execute(text(f"""
+                result = await session.execute(
+                    text(f"""
                     SELECT rowsecurity
                     FROM pg_tables
                     WHERE schemaname = 'public' AND tablename = '{table}'
-                """))
+                """)
+                )
 
                 rls_enabled = result.scalar() or False
                 validation_results[table] = rls_enabled
@@ -561,8 +561,10 @@ class RowLevelSecurityManager:
 
         return validation_results
 
+
 # Global RLS manager instance
 rls_manager = RowLevelSecurityManager()
+
 
 # Database role setup (run once during database initialization)
 async def setup_database_roles(session: AsyncSession) -> None:
@@ -584,16 +586,14 @@ async def setup_database_roles(session: AsyncSession) -> None:
         ALTER DEFAULT PRIVILEGES IN SCHEMA public
         GRANT USAGE, SELECT ON SEQUENCES TO authenticated_role;
         """,
-
         """
         CREATE ROLE IF NOT EXISTS service_role NOINHERIT;
         GRANT authenticated_role TO service_role;
         """,
-
         """
         CREATE ROLE IF NOT EXISTS admin_role NOINHERIT;
         GRANT authenticated_role TO admin_role;
-        """
+        """,
     ]
 
     for role_sql in roles:
@@ -606,14 +606,15 @@ async def setup_database_roles(session: AsyncSession) -> None:
             security_logger.error(f"Failed to setup database roles: {e}")
             raise
 
+
 # Utility function for secure queries
 async def execute_secure_query(
     session: AsyncSession,
     query: str,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     user_id: str,
     user_role: str,
-    org_id: Optional[str] = None
+    org_id: str | None = None,
 ) -> Any:
     """
     Execute a database query with RLS context

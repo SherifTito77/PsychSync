@@ -4,16 +4,15 @@ Enterprise-grade rate limiting with Redis backend
 Provides comprehensive protection against abuse and DoS attacks
 """
 
-import time
-import json
-import logging
-import hashlib
-from typing import Optional, Dict, Any
 from functools import wraps
-from fastapi import Request, HTTPException, status
+import hashlib
+import logging
+import time
+from typing import Any
+
+from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +23,13 @@ class RateLimiterCore:
     Supports multiple rate limiting strategies and key generation
     """
 
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: redis.Redis | None = None):
         self.redis_client = redis_client
         self.fallback_storage = {}  # In-memory fallback if Redis unavailable
 
     async def is_allowed(
-        self,
-        key: str,
-        limit: int,
-        window_seconds: int,
-        increment: int = 1
-    ) -> tuple[bool, Dict[str, Any]]:
+        self, key: str, limit: int, window_seconds: int, increment: int = 1
+    ) -> tuple[bool, dict[str, Any]]:
         """
         Check if request is allowed based on rate limit
 
@@ -44,21 +39,16 @@ class RateLimiterCore:
         try:
             if self.redis_client:
                 return await self._redis_is_allowed(key, limit, window_seconds, increment)
-            else:
-                return await self._memory_is_allowed(key, limit, window_seconds, increment)
+            return await self._memory_is_allowed(key, limit, window_seconds, increment)
 
         except Exception as e:
-            logger.error(f"Rate limiter error: {str(e)}")
+            logger.error(f"Rate limiter error: {e!s}")
             # Fail open - allow request if rate limiter fails
             return True, {"error": "rate_limiter_failed"}
 
     async def _redis_is_allowed(
-        self,
-        key: str,
-        limit: int,
-        window_seconds: int,
-        increment: int = 1
-    ) -> tuple[bool, Dict[str, Any]]:
+        self, key: str, limit: int, window_seconds: int, increment: int = 1
+    ) -> tuple[bool, dict[str, Any]]:
         """Redis-based sliding window rate limiting"""
 
         # Use atomic Redis operations for thread safety
@@ -79,7 +69,11 @@ class RateLimiterCore:
 
         # Calculate reset time
         oldest_request = await self.redis_client.zrange(key, 0, 0, withscores=True)
-        reset_time = oldest_request[0][1] + window_seconds if oldest_request else current_time + window_seconds
+        reset_time = (
+            oldest_request[0][1] + window_seconds
+            if oldest_request
+            else current_time + window_seconds
+        )
 
         is_allowed = count <= limit
 
@@ -89,18 +83,14 @@ class RateLimiterCore:
             "reset_time": reset_time,
             "retry_after": max(0, reset_time - current_time) if not is_allowed else 0,
             "current_count": count,
-            "window_seconds": window_seconds
+            "window_seconds": window_seconds,
         }
 
         return is_allowed, metadata
 
     async def _memory_is_allowed(
-        self,
-        key: str,
-        limit: int,
-        window_seconds: int,
-        increment: int = 1
-    ) -> tuple[bool, Dict[str, Any]]:
+        self, key: str, limit: int, window_seconds: int, increment: int = 1
+    ) -> tuple[bool, dict[str, Any]]:
         """In-memory fallback rate limiting (single process only)"""
 
         current_time = time.time()
@@ -112,8 +102,7 @@ class RateLimiterCore:
         # Clean old entries
         window_start = current_time - window_seconds
         self.fallback_storage[key] = [
-            timestamp for timestamp in self.fallback_storage[key]
-            if timestamp > window_start
+            timestamp for timestamp in self.fallback_storage[key] if timestamp > window_start
         ]
 
         # Add current request timestamp
@@ -123,7 +112,11 @@ class RateLimiterCore:
         count = len(self.fallback_storage[key])
 
         # Calculate reset time
-        reset_time = min(self.fallback_storage[key]) + window_seconds if self.fallback_storage[key] else current_time + window_seconds
+        reset_time = (
+            min(self.fallback_storage[key]) + window_seconds
+            if self.fallback_storage[key]
+            else current_time + window_seconds
+        )
 
         is_allowed = count <= limit
 
@@ -133,7 +126,7 @@ class RateLimiterCore:
             "reset_time": reset_time,
             "retry_after": max(0, reset_time - current_time) if not is_allowed else 0,
             "current_count": count,
-            "window_seconds": window_seconds
+            "window_seconds": window_seconds,
         }
 
         return is_allowed, metadata
@@ -141,10 +134,10 @@ class RateLimiterCore:
     def generate_key(
         self,
         identifier: str,
-        endpoint: Optional[str] = None,
-        user_id: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        custom_prefix: Optional[str] = None
+        endpoint: str | None = None,
+        user_id: str | None = None,
+        ip_address: str | None = None,
+        custom_prefix: str | None = None,
     ) -> str:
         """Generate a unique rate limit key"""
 
@@ -177,11 +170,11 @@ class RateLimiterCore:
 def rate_limit(
     limit: int,
     window_seconds: int,
-    key_func: Optional[callable] = None,
-    identifier: Optional[str] = None,
+    key_func: callable | None = None,
+    identifier: str | None = None,
     per_user: bool = False,
     per_ip: bool = True,
-    custom_response: Optional[callable] = None
+    custom_response: callable | None = None,
 ):
     """
     Rate limiting decorator for FastAPI endpoints
@@ -208,7 +201,7 @@ def rate_limit(
                 for name, value in kwargs.items():
                     if isinstance(value, Request):
                         request = value
-                    elif hasattr(value, 'id'):  # User-like object
+                    elif hasattr(value, "id"):  # User-like object
                         current_user = value
 
                 if not request:
@@ -231,12 +224,15 @@ def rate_limit(
                         key_parts.append(f"user:{current_user.id}")
 
                     if per_ip:
-                        client_ip = getattr(request.client, 'host', 'unknown') if request.client else 'unknown'
+                        client_ip = (
+                            getattr(request.client, "host", "unknown")
+                            if request.client
+                            else "unknown"
+                        )
                         key_parts.append(f"ip:{client_ip}")
 
                     key = rate_limiter.generate_key(
-                        identifier=":".join(key_parts),
-                        endpoint=func.__name__
+                        identifier=":".join(key_parts), endpoint=func.__name__
                     )
 
                 # Check rate limit
@@ -251,23 +247,22 @@ def rate_limit(
 
                     if custom_response:
                         return await custom_response(metadata)
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail={
-                                "error": "Rate limit exceeded",
-                                "limit": metadata["limit"],
-                                "window_seconds": window_seconds,
-                                "retry_after": metadata["retry_after"],
-                                "reset_time": metadata["reset_time"]
-                            },
-                            headers={
-                                "X-RateLimit-Limit": str(metadata["limit"]),
-                                "X-RateLimit-Remaining": str(metadata["remaining"]),
-                                "X-RateLimit-Reset": str(int(metadata["reset_time"])),
-                                "Retry-After": str(int(metadata["retry_after"]))
-                            }
-                        )
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail={
+                            "error": "Rate limit exceeded",
+                            "limit": metadata["limit"],
+                            "window_seconds": window_seconds,
+                            "retry_after": metadata["retry_after"],
+                            "reset_time": metadata["reset_time"],
+                        },
+                        headers={
+                            "X-RateLimit-Limit": str(metadata["limit"]),
+                            "X-RateLimit-Remaining": str(metadata["remaining"]),
+                            "X-RateLimit-Reset": str(int(metadata["reset_time"])),
+                            "Retry-After": str(int(metadata["retry_after"])),
+                        },
+                    )
 
                 # Add rate limit headers to successful response
                 response = await func(*args, **kwargs)
@@ -275,10 +270,10 @@ def rate_limit(
                 # If response is a dict, FastAPI will convert it to a proper response
                 if isinstance(response, dict):
                     # Store rate limit headers to be added by middleware
-                    response['_rate_limit_headers'] = {
+                    response["_rate_limit_headers"] = {
                         "X-RateLimit-Limit": str(metadata["limit"]),
                         "X-RateLimit-Remaining": str(metadata["remaining"]),
-                        "X-RateLimit-Reset": str(int(metadata["reset_time"]))
+                        "X-RateLimit-Reset": str(int(metadata["reset_time"])),
                     }
 
                 return response
@@ -286,11 +281,12 @@ def rate_limit(
             except HTTPException:
                 raise
             except Exception as e:
-                logger.error(f"Rate limiting error: {str(e)}")
+                logger.error(f"Rate limiting error: {e!s}")
                 # Fail open - allow the request
                 return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -301,19 +297,16 @@ class AdvancedRateLimiter:
         self.redis_client = None
         self.rate_limit_policies = {
             "default": {"limit": 100, "window": 3600},  # 100 requests per hour
-            "strict": {"limit": 10, "window": 60},       # 10 requests per minute
+            "strict": {"limit": 10, "window": 60},  # 10 requests per minute
             "lenient": {"limit": 1000, "window": 3600},  # 1000 requests per hour
-            "api": {"limit": 1000, "window": 3600},      # 1000 requests per hour
-            "auth": {"limit": 5, "window": 900},         # 5 requests per 15 minutes
-            "registration": {"limit": 3, "window": 3600} # 3 registrations per hour
+            "api": {"limit": 1000, "window": 3600},  # 1000 requests per hour
+            "auth": {"limit": 5, "window": 900},  # 5 requests per 15 minutes
+            "registration": {"limit": 3, "window": 3600},  # 3 registrations per hour
         }
 
     async def check_rate_limit(
-        self,
-        policy_name: str,
-        identifier: str,
-        request_context: Optional[Dict[str, Any]] = None
-    ) -> tuple[bool, Dict[str, Any]]:
+        self, policy_name: str, identifier: str, request_context: dict[str, Any] | None = None
+    ) -> tuple[bool, dict[str, Any]]:
         """Check rate limit based on policy"""
 
         if policy_name not in self.rate_limit_policies:
@@ -324,22 +317,16 @@ class AdvancedRateLimiter:
 
         # Generate enhanced key with context
         key = rate_limiter.generate_key(
-            identifier=f"{policy_name}:{identifier}",
-            **(request_context or {})
+            identifier=f"{policy_name}:{identifier}", **(request_context or {})
         )
 
         return await rate_limiter.is_allowed(
-            key=key,
-            limit=policy["limit"],
-            window_seconds=policy["window"]
+            key=key, limit=policy["limit"], window_seconds=policy["window"]
         )
 
     def set_policy(self, name: str, limit: int, window_seconds: int) -> None:
         """Set or update a rate limiting policy"""
-        self.rate_limit_policies[name] = {
-            "limit": limit,
-            "window": window_seconds
-        }
+        self.rate_limit_policies[name] = {"limit": limit, "window": window_seconds}
 
 
 # Global rate limiter instance
@@ -369,12 +356,12 @@ class RateLimiterDecorator:
         async def wrapper(*args, **kwargs):
             # Extract request from kwargs or args
             request = None
-            if 'request' in kwargs:
-                request = kwargs['request']
+            if "request" in kwargs:
+                request = kwargs["request"]
             else:
                 # Try to find request in args
                 for arg in args:
-                    if hasattr(arg, 'client') and hasattr(arg, 'url'):
+                    if hasattr(arg, "client") and hasattr(arg, "url"):
                         request = arg
                         break
 
@@ -390,7 +377,7 @@ class RateLimiterDecorator:
                     is_allowed, metadata = await self.limiter.is_allowed(
                         key=f"{self.key}:{client_ip}",
                         limit=self.limit,
-                        window_seconds=self.window_seconds
+                        window_seconds=self.window_seconds,
                     )
 
                     # For testing purposes, always allow
@@ -409,6 +396,7 @@ class RateLimiterDecorator:
                     # Allow request if rate limiting fails
 
             return await func(*args, **kwargs)
+
         return wrapper
 
 
@@ -423,7 +411,7 @@ async def rate_limit_headers_middleware(request: Request, call_next):
     response = await call_next(request)
 
     # Add rate limit headers if they were stored in the response
-    if hasattr(response, '_rate_limit_headers'):
+    if hasattr(response, "_rate_limit_headers"):
         for header, value in response._rate_limit_headers.items():
             response.headers[header] = value
 
@@ -433,6 +421,7 @@ async def rate_limit_headers_middleware(request: Request, call_next):
 # ============================================================================
 # ADDITIONAL CLASSES FOR COMPREHENSIVE TESTING
 # ============================================================================
+
 
 class RateLimitExceeded(Exception):
     """Exception raised when rate limit is exceeded"""
@@ -451,7 +440,7 @@ class RateLimitConfig:
         requests_per_minute: int = 60,
         burst_size: int = 10,
         requests_per_hour: int = 1000,
-        enabled: bool = True
+        enabled: bool = True,
     ):
         self.requests_per_minute = requests_per_minute
         self.burst_size = burst_size
@@ -521,8 +510,7 @@ class TokenBucket:
             # Estimate retry time based on refill rate
             retry_after = int((tokens - self.tokens) / self.refill_rate) + 1
             raise RateLimitExceeded(
-                f"Rate limit exceeded. Retry after {retry_after} seconds.",
-                retry_after=retry_after
+                f"Rate limit exceeded. Retry after {retry_after} seconds.", retry_after=retry_after
             )
 
     def get_tokens_available(self) -> float:
@@ -581,7 +569,7 @@ class RateLimitMiddleware:
         allowed, metadata = await self.limiter.is_allowed(
             key,
             self.config.requests_per_minute,
-            60  # 1 minute window
+            60,  # 1 minute window
         )
 
         if not allowed:
@@ -590,9 +578,9 @@ class RateLimitMiddleware:
                 status_code=429,
                 content={
                     "detail": "Rate limit exceeded",
-                    "retry_after": metadata.get("retry_after", 60)
+                    "retry_after": metadata.get("retry_after", 60),
                 },
-                headers={"Retry-After": str(metadata.get("retry_after", 60))}
+                headers={"Retry-After": str(metadata.get("retry_after", 60))},
             )
             await response(scope, receive, send)
             return
@@ -602,11 +590,13 @@ class RateLimitMiddleware:
             if message["type"] == "http.response.start":
                 # Add rate limit headers
                 headers = list(message.get("headers", []))
-                headers.extend([
-                    (b"x-rate-limit-remaining", str(metadata.get("remaining", 0)).encode()),
-                    (b"x-rate-limit-limit", str(self.config.requests_per_minute).encode()),
-                    (b"x-rate-limit-reset", str(metadata.get("reset_time", 0)).encode()),
-                ])
+                headers.extend(
+                    [
+                        (b"x-rate-limit-remaining", str(metadata.get("remaining", 0)).encode()),
+                        (b"x-rate-limit-limit", str(self.config.requests_per_minute).encode()),
+                        (b"x-rate-limit-reset", str(metadata.get("reset_time", 0)).encode()),
+                    ]
+                )
                 message["headers"] = headers
             await send(message)
 
@@ -616,12 +606,7 @@ class RateLimitMiddleware:
 class EndpointRateLimiter:
     """Rate limiter for specific endpoints"""
 
-    def __init__(
-        self,
-        default_limit: int = 100,
-        endpoints: dict = None,
-        key_extractor=None
-    ):
+    def __init__(self, default_limit: int = 100, endpoints: dict = None, key_extractor=None):
         """
         Initialize endpoint rate limiter
 
@@ -638,7 +623,7 @@ class EndpointRateLimiter:
     def _default_key_extractor(self, request: Request) -> str:
         """Default key extraction combining IP and endpoint"""
         forwarded_for = request.headers.get("x-forwarded-for")
-        ip = forwarded_for.split(',')[0].strip() if forwarded_for else request.client.host
+        ip = forwarded_for.split(",")[0].strip() if forwarded_for else request.client.host
         endpoint = request.url.path
         return f"endpoint:{endpoint}:ip:{ip}"
 
@@ -650,7 +635,7 @@ class EndpointRateLimiter:
 
         # Pattern matching (simple prefix matching)
         for pattern, limit in self.endpoints.items():
-            if pattern.endswith('*') and endpoint.startswith(pattern[:-1]):
+            if pattern.endswith("*") and endpoint.startswith(pattern[:-1]):
                 return limit
 
         return self.default_limit
@@ -670,6 +655,7 @@ class EndpointRateLimiter:
 
     async def create_middleware(self):
         """Create ASGI middleware from this rate limiter"""
+
         async def middleware(app):
             async def asgi_middleware(scope, receive, send):
                 if scope["type"] != "http":
@@ -684,9 +670,9 @@ class EndpointRateLimiter:
                         status_code=429,
                         content={
                             "detail": "Rate limit exceeded",
-                            "retry_after": metadata.get("retry_after", 60)
+                            "retry_after": metadata.get("retry_after", 60),
                         },
-                        headers={"Retry-After": str(metadata.get("retry_after", 60))}
+                        headers={"Retry-After": str(metadata.get("retry_after", 60))},
                     )
                     await response(scope, receive, send)
                     return
@@ -696,14 +682,24 @@ class EndpointRateLimiter:
                     if message["type"] == "http.response.start":
                         headers = list(message.get("headers", []))
                         limit = self.get_limit_for_endpoint(request.url.path)
-                        headers.extend([
-                            (b"x-rate-limit-remaining", str(metadata.get("remaining", 0)).encode()),
-                            (b"x-rate-limit-limit", str(limit).encode()),
-                            (b"x-rate-limit-reset", str(metadata.get("reset_time", 0)).encode()),
-                        ])
+                        headers.extend(
+                            [
+                                (
+                                    b"x-rate-limit-remaining",
+                                    str(metadata.get("remaining", 0)).encode(),
+                                ),
+                                (b"x-rate-limit-limit", str(limit).encode()),
+                                (
+                                    b"x-rate-limit-reset",
+                                    str(metadata.get("reset_time", 0)).encode(),
+                                ),
+                            ]
+                        )
                         message["headers"] = headers
                     await send(message)
 
                 await app(scope, receive, send_wrapper)
+
             return asgi_middleware
+
         return await middleware()

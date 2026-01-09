@@ -1,0 +1,1342 @@
+################################################################################
+# ELK Stack for PsychSync - Production Logging & Monitoring
+# Components: Elasticsearch, Logstash/Fluentd, Kibana, ElastAlert2
+# Platform: Kubernetes (EKS/GKE/AKS)
+# Date: 2025-12-27
+################################################################################
+
+---
+# Elasticsearch Cluster Configuration
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: psychsync-logs
+  namespace: logging
+spec:
+  version: 8.11.0
+  # Node configuration for production
+  nodeSets:
+  - name: masters
+    count: 3
+    config:
+      node.roles: ["master", "data_hot", "data_content", "ingest"]
+      # Security settings
+      xpack.security.enabled: true
+      xpack.security.transport.ssl.enabled: true
+      xpack.security.http.ssl.enabled: true
+      # Performance tuning
+      cluster.routing.allocation.awareness.attributes: ["zone"]
+      cluster.routing.allocation.awareness.zone: ["us-east-1a", "us-east-1b", "us-east-1c"]
+
+    # VolumeClaimTemplates for data persistence
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+        labels:
+          app: elasticsearch
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        storageClassName: gp3-encrypted
+        resources:
+          requests:
+            storage: 200Gi
+
+    # Resource allocation
+    resources:
+      requests:
+        cpu: "2"
+        memory: 8Gi
+      limits:
+        cpu: "4"
+        memory: 16Gi
+
+    # Pod scheduling
+    podTemplate:
+      spec:
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          fsGroup: 1000
+          readOnlyRootFilesystem: false
+
+        # Init container to set vm.max_map_count
+        initContainers:
+        - name: sysctl
+          image: public.ecr.aws/docker/library/busybox:1.36
+          command: ["sysctl", "-w", "vm.max_map_count=262144"]
+          securityContext:
+            privileged: true
+
+        containers:
+        - name: elasticsearch
+          # Probes
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - |
+                # Wait for Elasticsearch to be ready
+                curl -s -u elastic:${ELASTICSEARCH_PASSWORD} https://localhost:9200/_cluster/health | jq -e '.status == "green" or .status == "yellow"'
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - |
+                # Check if Elasticsearch is alive
+                curl -s -u elastic:${ELASTICSEARCH_PASSWORD} https://localhost:9200/_cluster/health
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+---
+# Kibana Configuration
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: psychsync-kibana
+  namespace: logging
+spec:
+  version: 8.11.0
+  count: 2
+
+  # Elasticsearch connection
+  elasticsearchRef:
+    name: psychsync-logs
+
+  # Configuration
+  config:
+    # Server settings
+    server.host: "0.0.0.0"
+    server.port: 5601
+    server.name: kibana
+
+    # Security
+    xpack.security.enabled: true
+    xpack.encryptedSavedObjects.encryptionKey: "${KIBANA_ENCRYPTION_KEY}"
+
+    # Logging
+    logging.appenders:
+      console:
+        kind: console
+        layout:
+          kind: json
+    logging.root:
+      level: info
+      refs:
+        - console
+
+    # Monitoring
+    monitoring.kibana.collection.enabled: true
+
+  # Resources
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 2Gi
+    limits:
+      cpu: "2000m"
+      memory: 4Gi
+
+  # Pod Template
+  podTemplate:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+      - name: kibana
+        env:
+        - name: KIBANA_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kibana-encryption-key
+              key: encryptionKey
+
+        readinessProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+            scheme: HTTPS
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        livenessProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+            scheme: HTTPS
+          initialDelaySeconds: 90
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+---
+# Fluentd Log Forwarder Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: logging
+data:
+  fluent.conf: |
+    # Fluentd configuration for PsychSync
+    # Collects logs from Kubernetes, filters/enriches, sends to Elasticsearch
+
+    # Source: Kubernetes logs
+    <source>
+      @type tail
+      @id kubernetes_containers
+      path /var/log/containers/*.log
+      pos_file /var/log/fluentd-containers.log.pos
+      tag kubernetes.*
+      read_from_head true
+      <parse>
+        @type json
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+      </parse>
+    </source>
+
+    # Filter: Add Kubernetes metadata
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+      @id filter_kubernetes_metadata
+    </filter>
+
+    # Filter: Enrich with application metadata
+    <filter kubernetes.**>
+      @type record_transformer
+      @id filter_record_transformer
+      <record>
+        environment "#{ENV.fetch('ENVIRONMENT') { 'production' }}"
+        cluster "#{ENV.fetch('CLUSTER_NAME') { 'psychsync-production' }}"
+        application psychsync
+        log_type kubernetes
+      </record>
+    </filter>
+
+    # Filter: Drop debug logs in production (optional)
+    <filter kubernetes.**>
+      @type grep
+      @id filter_drop_debug
+      <regexp>
+        key level
+        pattern /^DEBUG$/i
+      </regexp>
+      <rule>
+        key environment
+        pattern /^production$/
+      </rule>
+      ignore true
+    </filter>
+
+    # Filter: Parse Python application logs
+    <filter kubernetes.**>
+      @type parser
+      key_name log
+      <parse>
+        @type json
+      </parse>
+    </filter>
+
+    # Filter: Detect errors and critical events
+    <filter kubernetes.**>
+      @type grep
+      @id filter_errors
+      <regexp>
+        key level
+        pattern /^(ERROR|CRITICAL|FATAL)$/
+      </regexp>
+      <tag>
+        kubernetes.error
+      </tag>
+    </filter>
+
+    # Filter: Detect security events
+    <filter kubernetes.**>
+      @type detect_exceptions
+      @id detect_exceptions
+      remove_tag_prefix_prefix true
+      message log
+      languages java, python, go, nodejs, csharp
+      multiline_flush_interval 0.2
+    </filter>
+
+    # Output: Send to Elasticsearch
+    <match kubernetes.**>
+      @type elasticsearch_dynamic
+      @id elasticsearch
+      @log_level info
+
+      host "#{ENV.fetch('ELASTICSEARCH_HOST', 'elasticsearch-master.logging.svc.cluster.local')}"
+      port "#{ENV.fetch('ELASTICSEARCH_PORT', 9200)}"
+      user elastic
+      password "#{ENV.fetch('ELASTICSEARCH_PASSWORD')}"
+
+      scheme https
+      ssl_verify true
+
+      logstash_format true
+      logstash_prefix psychsync
+      logstash_dateformat %Y.%m.%d
+
+      include_tag_key true
+      tag_key @log_name
+
+      # Index lifecycle management
+      index_date_pattern %Y.%m.%d
+      index_name psychsync-${record['environment']}-${record['log_type']}-${record['kubernetes']['namespace_name']}
+
+      # Buffer configuration
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        flush_interval 5s
+        chunk_limit_size 5M
+        total_limit_size 10G
+        overflow_action block
+      </buffer>
+    </match>
+
+    # Output: Error logs to separate index for alerting
+    <match kubernetes.error>
+      @type elasticsearch_dynamic
+      @id elasticsearch_errors
+      @log_level error
+
+      host "#{ENV.fetch('ELASTICSEARCH_HOST')}"
+      port "#{ENV.fetch('ELASTICSEARCH_PORT')}"
+      user elastic
+      password "#{ENV.fetch('ELASTICSEARCH_PASSWORD')}"
+
+      scheme https
+      ssl_verify true
+
+      index_name psychsync-errors-${record['environment']}
+
+      <buffer>
+        @type file
+        path /var/log/fluentd-buffers/kubernetes.error.buffer
+        flush_mode interval
+        flush_interval 1s
+        chunk_limit_size 2M
+        total_limit_size 5G
+      </buffer>
+    </match>
+
+---
+# Fluentd DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: logging
+  labels:
+    app: fluentd
+    component: log-collector
+spec:
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    metadata:
+      labels:
+        app: fluentd
+        component: log-collector
+    spec:
+      serviceAccountName: fluentd
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      # Tolerations to run on all nodes
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1-debian-elasticsearch
+        imagePullPolicy: IfNotPresent
+
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: "elasticsearch-master.logging.svc.cluster.local"
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        - name: ENVIRONMENT
+          value: "production"
+        - name: CLUSTER_NAME
+          value: "psychsync-production"
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: 200Mi
+          limits:
+            cpu: "500m"
+            memory: 512Mi
+
+        volumeMounts:
+        # Kubernetes logs
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        # Fluentd buffers
+        - name: fluentdbuf
+          mountPath: /var/log/fluentd-buffers
+        # Config files
+        - name: config-volume
+          mountPath: /fluentd/etc
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+          readOnly: true
+
+      # Volumes
+      volumes:
+      # Kubernetes log directory
+      - name: varlog
+        hostPath:
+          path: /var/log
+
+      # Docker containers directory
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+
+      # Fluentd buffer storage
+      - name: fluentdbuf
+        hostPath:
+          path: /var/log/fluentd-buffers
+          type: DirectoryOrCreate
+
+      # Fluentd configuration
+      - name: config-volume
+        configMap:
+          name: fluentd-config
+
+      # Docker socket for container metadata
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+
+---
+# Filebeat for application log collection (alternative to Fluentd)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: logging
+data:
+  filebeat.yml: |
+    filebeat.inputs:
+    # Collect container logs
+    - type: container
+      enabled: true
+      paths:
+        - /var/log/containers/*.log
+
+      # Process multiline logs (Python tracebacks, etc.)
+      multiline:
+        pattern: '^\s'
+        match: after
+        max_lines: 500
+        negate: true
+        match: after
+
+      # Drop lines
+      drop_event:
+        when:
+          not:
+            or:
+              - equals:
+                  kubernetes.container.name: psychsync-backend
+              - equals:
+                  kubernetes.container.name: psychsync-frontend
+
+      # Add Kubernetes metadata
+      processors:
+        - add_kubernetes_metadata:
+            host: ${NODE_NAME}
+            match_fields:
+              log_format:
+                json: true
+        - drop_event:
+            when:
+              equals:
+                kubernetes.namespace: kube-system
+        - add_fields:
+            application: psychsync
+            environment: production
+            cluster: psychsync-production
+
+    # Output to Elasticsearch
+    output.elasticsearch:
+      hosts: ["elasticsearch-master.logging.svc.cluster.local:9200"]
+      protocol: "https"
+      username: "elastic"
+      password: "${ELASTICSEARCH_PASSWORD}"
+
+      # SSL configuration
+      ssl.verification_mode: certificate
+      ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
+
+      # Index configuration
+      indices:
+        - index: "psychsync-logs-%{[agent.version]}-%{+yyyy.MM.dd}"
+          when.equals:
+            kubernetes.namespace: psychsync
+
+        - index: "psychsync-system-logs-%{[agent.version]}-%{+yyyy.MM.dd}"
+          when.equals:
+            kubernetes.namespace: kube-system
+
+      # Index lifecycle management
+      ilm.enabled: true
+      ilm.rollover_alias: "psychsync-logs"
+      ilm.pattern: "{now/d}-000001"
+      ilm.policy: "psychsync-logs-policy"
+
+    # Kibana dashboards
+    setup.kibana:
+      host: "kibana.logging.svc.cluster.local:5601"
+      protocol: "https"
+      username: "elastic"
+      password: "${KIBANA_PASSWORD}"
+      ssl.enabled: true
+      ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
+      dashboards.folder.enabled: true
+
+    # Logging configuration
+    logging.level: info
+    logging.to_files: true
+    logging.files:
+      path: /var/log/filebeat
+      name: filebeat
+      keepfiles: 7
+      permissions: 0644
+
+    # Monitoring
+    monitoring.enabled: true
+
+---
+# ElastAlert2 Configuration (Alerting)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elastalert-config
+  namespace: logging
+data:
+  elastalert_rules.yaml: |-
+    # Alert Rule: High Error Rate
+    - name: PsychSync High Error Rate
+      type: frequency
+      index: psychsync-logs-production-*
+
+      # Alert every 100 errors in 5 minutes
+      num_events: 100
+      timeframe:
+        minutes: 5
+
+      # Filter for error logs
+      filter:
+      - term:
+          level: "ERROR"
+
+      # Alert configuration
+      alert:
+        - debug
+        - slack
+
+      # Slack webhook
+      slack_webhook_url: "${SLACK_WEBHOOK}"
+
+      alert_subject: "⚠️ High Error Rate in PsychSync Production"
+      alert_subject_args:
+        - num_hits
+      alert_text: |
+        *High Error Rate Detected*
+
+        Number of errors: {0}
+        Timeframe: Last 5 minutes
+        Environment: Production
+
+        Investigate: https://kibana.psychsync.com/app/dashboards
+      alert_text_type: alert_text_only
+
+      # Include relevant logs in alert
+      include:
+      - level
+      - message
+      - kubernetes.pod_name
+      - kubernetes.namespace_name
+
+      # Owner and team
+      owner: infrastructure-team
+      priority: 2
+
+    # Alert Rule: Critical Application Errors
+    - name: PsychSync Critical Errors
+      type: frequency
+      index: psychsync-errors-production
+
+      # Alert on any 10 critical errors in 1 minute
+      num_events: 10
+      timeframe:
+        minutes: 1
+
+      filter:
+      - query:
+          query_string:
+            query: 'level:CRITICAL OR level:FATAL'
+
+      alert:
+        - slack
+        - pagerduty
+
+      slack_webhook_url: "${SLACK_WEBHOOK}"
+
+      alert_subject: "🚨 CRITICAL Errors in PsychSync Production"
+      alert_text: |
+        *CRITICAL Production Errors*
+
+        {0} critical errors detected in the last 1 minute.
+
+        Immediate action required!
+        Incident channel: https://psychsync.slack.com/channels/incidents
+      alert_text_type: alert_text_only
+
+      owner: sre-team
+      priority: 1
+
+    # Alert Rule: Database Connection Failures
+    - name: Database Connection Failures
+      type: frequency
+      index: psychsync-logs-production
+
+      # Alert on 50 database connection errors in 5 minutes
+      num_events: 50
+      timeframe:
+        minutes: 5
+
+      filter:
+      - query:
+          query_string:
+            query: 'message:"database connection" AND level:ERROR'
+
+      alert:
+        - slack
+
+      alert_subject: "🔴 Database Connection Failures"
+      alert_text: |
+        Database connection failures detected:
+
+        Errors: {0}
+        Time: {1}
+
+        Check: https://kibana.psychsync.com/app/dashboards
+      alert_text_type: alert_text_with_args
+
+      owner: database-team
+      priority: 1
+
+    # Alert Rule: Application Down (No Logs)
+    - name: Application Not Logging
+      type: flatline
+      index: psychsync-logs-production
+
+      # Alert if less than 10 logs in 10 minutes
+      threshold: 10
+      timeframe:
+        minutes: 10
+
+      alert:
+        - slack
+        - email
+
+      alert_subject: "⚠️ Application Not Logging - Potential Outage"
+      alert_text: |
+        Application has generated fewer than 10 logs in the last 10 minutes.
+
+        This may indicate:
+        - Application is down
+        - Logging pipeline is broken
+        - Network issues
+
+        Check immediately!
+
+      owner: sre-team
+      priority: 1
+
+    # Alert Rule: Security Events Detected
+    - name: Security Events
+      type: any
+      index: psychsync-logs-production
+
+      filter:
+      - query:
+          query_string:
+            query: 'message:"authentication failure" OR message:"unauthorized" OR message:"sql injection"'
+
+      alert:
+        - slack
+        - email
+
+      alert_subject: "🔒 Security Event Detected"
+      alert_text: |
+        Security event detected in production:
+
+        Event: {0}
+        Details: {1}
+
+        Investigate immediately!
+      alert_text_type: alert_text_with_args
+
+      owner: security-team
+      priority: 1
+
+    # Alert Rule: API Latency High
+    - name: High API Latency
+      type: average
+      index: psychsync-logs-production
+
+      # Alert if average request duration > 1 second over 5 minutes
+      metric_agg_key: "duration_ms"
+      query_key: "endpoint"
+      max_threshold: 1000
+      timeframe:
+        minutes: 5
+
+      filter:
+      - query:
+          query_string:
+            query: 'application:psychsync AND type:request'
+
+      alert:
+        - slack
+
+      alert_subject: "⏱️ High API Latency Detected"
+      alert_text: |
+        High API latency detected:
+
+        Endpoint: {0}
+        Average Duration: {1}ms
+        Threshold: >1000ms
+
+        Investigate performance issues.
+      alert_text_type: alert_text_with_args
+
+      owner: performance-team
+      priority: 2
+
+    # Alert Rule: 5xx HTTP Errors Spiking
+    - name: High HTTP Error Rate
+      type: spike
+      index: psychsync-logs-production
+
+      # Alert on 5x spike in HTTP 5xx errors
+      spike_height: 5
+      spike_type: up
+      threshold_ref: 50
+      timeframe:
+        minutes: 1
+
+      filter:
+      - query:
+          query_string:
+            query: 'http_status:5*'
+
+      alert:
+        - slack
+        - pagerduty
+
+      alert_subject: "📈 HTTP 5xx Error Rate Spiking"
+      alert_text: |
+        HTTP 5xx error rate is spiking!
+
+        Current rate: {0}
+        Baseline: {1}
+        Spike multiplier: 5x
+
+        Investigate immediately!
+      alert_text_type: alert_text_with_args
+
+      owner: sre-team
+      priority: 1
+
+---
+# ElastAlert2 Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elastalert
+  namespace: logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elastalert
+  template:
+    metadata:
+      labels:
+        app: elastalert
+    spec:
+      serviceAccountName: elastalert
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+      - name: elastalert
+        image: bitnami/elastalert2:latest
+        imagePullPolicy: IfNotPresent
+
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: "elasticsearch-master.logging.svc.cluster.local"
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
+        - name: ELASTICSEARCH_USERNAME
+          value: "elastic"
+        - name: ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        - name: SLACK_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: slack-webhook
+              key: webhook
+        - name: TZ
+          value: "UTC"
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: 256Mi
+          limits:
+            cpu: "500m"
+            memory: 512Mi
+
+        volumeMounts:
+        - name: config
+          mountPath: /opt/elastalert/config
+        - name: rules
+          mountPath: /opt/elastalert/rules
+        - name: data
+          mountPath: /opt/elastalert/data
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3030
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3030
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+      volumes:
+      - name: config
+        configMap:
+          name: elastalert-config
+
+      - name: rules
+        configMap:
+          name: elastalert-config
+
+      - name: data
+        persistentVolumeClaim:
+          claimName: elastalert-data
+
+---
+# Persistent Volume Claim for ElastAlert
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elastalert-data
+  namespace: logging
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3-encrypted
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+# Service: Elasticsearch
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-master
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+spec:
+  selector:
+    app: elasticsearch
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 9200
+    targetPort: 9200
+  - name: transport
+    port: 9300
+    targetPort: 9300
+  sessionAffinity: ClientIP
+
+---
+# Service: Kibana
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  selector:
+    app: kibana
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 5601
+    targetPort: 5601
+
+---
+# Ingress: Kibana
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kibana-ingress
+  namespace: logging
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: logging/kibana-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Kibana Authentication"
+spec:
+  tls:
+  - hosts:
+    - kibana.psychsync.com
+    secretName: kibana-psychsync-tls
+  rules:
+  - host: kibana.psychsync.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kibana
+            port:
+              number: 5601
+
+---
+# Index Lifecycle Management Policy
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: ElasticsearchIndexPolicy
+metadata:
+  name: psychsync-logs-policy
+  namespace: logging
+spec:
+  phase:
+    # Hot phase (first 7 days) - Frequent writes
+    hot:
+      actions:
+        - rollover:
+            max_age: 7d
+            max_size: 50gb
+      setttings:
+        index:
+          lifecycle:
+            rollover_alias: psychsync-logs
+            rollover_max_age: 7d
+
+    # Warm phase (days 7-30) - Less frequent access
+    warm:
+      actions:
+        - forcemerge:
+            max_age: 30d
+            max_docs: 1000000
+        - shrink:
+            number_of_shards: 1
+
+    # Cold phase (days 30-90) - Archive
+    cold:
+      actions:
+        - freeze:
+            index_mode: frozen
+        - delete:
+            min_age: 90d
+      setttings:
+        index:
+          lifecycle:
+            rollover_alias: psychsync-logs
+            rollover_max_age: 90d
+
+---
+# Kibana Index Pattern and Dashboard Initialization
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kibana-setup
+  namespace: logging
+data:
+  init-kibana.sh: |
+    #!/bin/bash
+    # Initialize Kibana index patterns and dashboards
+
+    # Wait for Kibana to be ready
+    echo "Waiting for Kibana..."
+    until curl -s -f http://kibana.logging.svc.cluster.local:5601/api/status | jq -e '.status.available' > /dev/null; do
+      echo "Kibana not ready, waiting..."
+      sleep 5
+    done
+    echo "Kibana is ready!"
+
+    # Create index pattern
+    echo "Creating index patterns..."
+
+    # PsychSync logs index pattern
+    curl -X POST "http://kibana.logging.svc.cluster.local:5601/api/saved_objects/index-pattern/psychsync-logs" \
+      -H 'kbn-xsrf: true' \
+      -H 'Content-Type: application/json' \
+      -u elastic:${ELASTICSEARCH_PASSWORD} \
+      -d '{
+        "attributes": {
+          "title": "psychsync-logs-*",
+          "timeFieldName": "@timestamp"
+        }
+      }'
+
+    # PsychSync errors index pattern
+    curl -X POST "http://kibana.logging.svc.cluster.local:5601/api/saved_objects/index-pattern/psychsync-errors" \
+      -H 'kbn-xsrf: true' \
+      -H 'Content-Type: application/json' \
+      -u elastic:${ELASTICSEARCH_PASSWORD} \
+      -d '{
+        "attributes": {
+          "title": "psychsync-errors-*",
+          "timeFieldName": "@timestamp"
+        }
+      }'
+
+    # Import dashboards
+    echo "Importing dashboards..."
+    # (Dashboards would be exported and imported here)
+
+    echo "Kibana initialization complete!"
+
+---
+# Job: Initialize Kibana
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kibana-init
+  namespace: logging
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: init
+        image: public.ecr.aws/docker/library/curlimages/curl:7.88.1
+        command:
+        - /bin/bash
+        - /scripts/init-kibana.sh
+        env:
+        - name: ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+      volumes:
+      - name: scripts
+        configMap:
+          name: kibana-setup
+
+---
+# Monitoring: Elasticsearch Exporter
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-exporter
+  namespace: logging
+  labels:
+    app: elasticsearch-exporter
+spec:
+  selector:
+    app: elasticsearch-exporter
+  ports:
+  - name: http
+    port: 9114
+    targetPort: 9114
+
+---
+# Elasticsearch Exporter Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-exporter
+  namespace: logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch-exporter
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-exporter
+    spec:
+      containers:
+      - name: exporter
+        image: quay.io/prometheuscommunity/elasticsearch-exporter:latest
+        env:
+        - name: ES_URI
+          value: "https://elasticsearch-master.logging.svc.cluster.local:9200"
+        - name: ES_USERNAME
+          value: "elastic"
+        - name: ES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-credentials
+              key: password
+        ports:
+        - name: http
+          containerPort: 9114
+        resources:
+          requests:
+            cpu: "100m"
+            memory: 128Mi
+          limits:
+            cpu: "200m"
+            memory: 256Mi
+
+---
+# ServiceMonitor for Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: elasticsearch-exporter
+  namespace: logging
+  labels:
+    app: elasticsearch-exporter
+spec:
+  selector:
+    matchLabels:
+      app: elasticsearch-exporter
+  endpoints:
+  - port: http
+    interval: 30s
+    path: /metrics
+
+---
+# Grafana Dashboard Configuration (saved to Git)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: logging
+data:
+  psychsync-logs-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "PsychSync Logs Overview",
+        "tags": ["psychsync", "logs", "elk"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Logs Over Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(log_messages_total{application=\"psychsync\"}[5m]))",
+                "legendFormat": "Logs/sec"
+              }
+            ]
+          },
+          {
+            "title": "Error Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "sum(rate(log_messages_total{application=\"psychsync\",level=\"error\"}[5m]))",
+                "legendFormat": "Errors/sec"
+              }
+            ]
+          },
+          {
+            "title": "Logs by Level",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "count by (level) (log_messages_total{application=\"psychsync\"})",
+                "legendFormat": "{{level}}"
+              }
+            ]
+          },
+          {
+            "title": "Logs by Namespace",
+            "type": "piechart",
+            "targets": [
+              {
+                "expr": "count by (namespace_name) (log_messages_total{application=\"psychsync\"})",
+                "legendFormat": "{{namespace_name}}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+---
+# Alerting Rules for Prometheus (uptime monitoring)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alerts
+  namespace: logging
+data:
+  psychsync-alerts.yaml: |
+    groups:
+    - name: psychsync.uptime
+      interval: 30s
+      rules:
+      # Alert: Application Down (1 minute)
+      - alert: PsychSyncApplicationDown
+        expr: |
+          up{job="psychsync-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "PsychSync application is down"
+          description: "PsychSync backend has been down for more than 1 minute"
+          runbook_url: "https://github.com/psychsync/psychsync/docs/runbooks/application-down.md"
+
+      # Alert: High Error Rate (1 minute window)
+      - alert: PsychSyncHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="psychsync-backend",status=~"5.."}[1m]))
+          / sum(rate(http_requests_total{job="psychsync-backend"}[1m])) > 0.01
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High error rate in PsychSync"
+          description: "Error rate is {{ $value | humanizePercentage }} (target: < 1%)"
+
+      # Alert: P95 Latency High (1 minute window)
+      - alert: PsychSyncHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="psychsync-backend"}[1m])) by (le)
+          ) > 1
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High P95 latency in PsychSync"
+          description: "P95 latency is {{ $value }}s (target: < 500ms)"
+
+      # Alert: Database Connection Failures
+      - alert: PsychSyncDatabaseConnectionFailures
+        expr: |
+          sum(rate(pg_stat_database_numbackends{datname="psychsync",state!="up"}[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: database
+        annotations:
+          summary: "Database connection failures detected"
+          description: "PostgreSQL database has connection failures"
+
+      # Alert: Redis Connection Failures
+      - alert: PsychSyncRedisDown
+        expr: |
+          up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for more than 1 minute"
+
+      # Alert: Disk Space Low (Elasticsearch)
+      - alert: ElasticsearchDiskSpaceLow
+        expr: |
+          elasticsearch_filesystem_data_available_bytes{path="/usr/share/elasticsearch/data/nodes"}
+          / elasticsearch_filesystem_data_size_bytes{path="/usr/share/elasticsearch/data/nodes"} < 0.15
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Elasticsearch disk space low"
+          description: "Elasticsearch has less than 15% disk space available"
+
+      # Alert: Indexing Errors
+      - alert: ElasticsearchIndexingErrors
+        expr: |
+          sum(rate(elasticsearch_cluster_health_index_errors[1m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Elasticsearch indexing errors detected"
+          description: "Elasticsearch is experiencing indexing errors"
+
+---
+# End of ELK Stack Configuration

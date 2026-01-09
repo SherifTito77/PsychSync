@@ -25,23 +25,23 @@ Usage:
         await middleware.execute_tool(result)
 """
 
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-import json
-import hashlib
 from functools import wraps
+import json
+from typing import Any
 
 from fastapi import HTTPException
 from pydantic import BaseModel
-
 
 # ============================================================================
 # Tool Definitions
 # ============================================================================
 
+
 class ToolSafetyLevel(Enum):
     """Tool safety levels"""
+
     SAFE = "safe"
     MEDIUM = "medium"
     DANGEROUS = "dangerous"
@@ -54,23 +54,23 @@ class ToolDefinition(BaseModel):
     name: str
     description: str
     safety_level: ToolSafetyLevel
-    allowed_roles: List[str]
+    allowed_roles: list[str]
 
     # Constraints
-    rate_limit: Optional[int] = None  # per minute
-    row_limit: Optional[int] = None
+    rate_limit: int | None = None  # per minute
+    row_limit: int | None = None
     requires_consent: bool = False
     consent_type: str = "explicit"  # explicit or implicit
 
     # Validation
-    parameter_schema: Optional[Dict] = None
+    parameter_schema: dict | None = None
 
     class Config:
         use_enum_values = True
 
 
 # Tool Registry (Allow-List)
-TOOL_REGISTRY: Dict[str, ToolDefinition] = {
+TOOL_REGISTRY: dict[str, ToolDefinition] = {
     # Database Tools
     "db_read_query": ToolDefinition(
         name="db_read_query",
@@ -79,18 +79,16 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         allowed_roles=["clinician", "researcher", "admin", "super_admin"],
         rate_limit=10,
         row_limit=1000,
-        requires_consent=False
+        requires_consent=False,
     ),
-
     "db_anonymized_export": ToolDefinition(
         name="db_anonymized_export",
         description="Export anonymized data for research",
         safety_level=ToolSafetyLevel.MEDIUM,
         allowed_roles=["researcher", "admin", "super_admin"],
         rate_limit=1,  # per hour
-        requires_consent=True
+        requires_consent=True,
     ),
-
     # Email Tools
     "email_draft_create": ToolDefinition(
         name="email_draft_create",
@@ -98,9 +96,8 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         safety_level=ToolSafetyLevel.SAFE,
         allowed_roles=["patient", "clinician", "admin", "super_admin"],
         rate_limit=5,
-        requires_consent=False
+        requires_consent=False,
     ),
-
     "email_send_verified": ToolDefinition(
         name="email_send_verified",
         description="Send pre-verified email templates",
@@ -108,9 +105,8 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         allowed_roles=["clinician", "admin", "super_admin"],
         rate_limit=10,
         requires_consent=True,
-        consent_type="explicit"
+        consent_type="explicit",
     ),
-
     # File System Tools
     "file_read_allowed": ToolDefinition(
         name="file_read_allowed",
@@ -118,18 +114,16 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         safety_level=ToolSafetyLevel.SAFE,
         allowed_roles=["clinician", "researcher", "admin", "super_admin"],
         rate_limit=20,
-        requires_consent=False
+        requires_consent=False,
     ),
-
     "file_write_allowed": ToolDefinition(
         name="file_write_allowed",
         description="Write files to allowed directories",
         safety_level=ToolSafetyLevel.MEDIUM,
         allowed_roles=["clinician", "researcher", "admin", "super_admin"],
         rate_limit=5,
-        requires_consent=True  # For writes > 1MB
+        requires_consent=True,  # For writes > 1MB
     ),
-
     # API Tools
     "api_external_call": ToolDefinition(
         name="api_external_call",
@@ -138,9 +132,8 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         allowed_roles=["researcher", "admin", "super_admin"],
         rate_limit=100,
         requires_consent=False,
-        consent_type="implicit"
+        consent_type="implicit",
     ),
-
     # Shell Tools (BLOCKED)
     "shell_execute": ToolDefinition(
         name="shell_execute",
@@ -148,7 +141,7 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         safety_level=ToolSafetyLevel.BLOCKED,
         allowed_roles=[],  # No roles allowed
         rate_limit=0,
-        requires_consent=True
+        requires_consent=True,
     ),
 }
 
@@ -160,38 +153,33 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
 ROLE_PERMISSIONS = {
     "patient": {
         "allowed_tools": ["email_draft_create"],
-        "constraints": {
-            "email_draft_create": {"max_per_day": 5}
-        }
+        "constraints": {"email_draft_create": {"max_per_day": 5}},
     },
-
     "clinician": {
         "allowed_tools": [
             "db_read_query",
             "email_draft_create",
             "email_send_verified",
             "file_read_allowed",
-            "file_write_allowed"
+            "file_write_allowed",
         ],
         "constraints": {
             "db_read_query": {"row_limit": 100, "require_patient_id": True},
-            "email_send_verified": {"templates": ["assessment_invitation", "reminder"]}
-        }
+            "email_send_verified": {"templates": ["assessment_invitation", "reminder"]},
+        },
     },
-
     "researcher": {
         "allowed_tools": [
             "db_anonymized_export",
             "file_read_allowed",
             "file_write_allowed",
-            "api_external_call"
+            "api_external_call",
         ],
         "constraints": {
             "db_anonymized_export": {"requires_irb_approval": True},
-            "api_external_call": {"require_approval": True}
-        }
+            "api_external_call": {"require_approval": True},
+        },
     },
-
     "admin": {
         "allowed_tools": [
             "db_read_query",
@@ -200,13 +188,10 @@ ROLE_PERMISSIONS = {
             "email_send_verified",
             "file_read_allowed",
             "file_write_allowed",
-            "api_external_call"
+            "api_external_call",
         ],
-        "constraints": {
-            "db_read_query": {"row_limit": 10000}
-        }
+        "constraints": {"db_read_query": {"row_limit": 10000}},
     },
-
     "super_admin": {
         "allowed_tools": [
             "db_read_query",
@@ -215,11 +200,11 @@ ROLE_PERMISSIONS = {
             "email_send_verified",
             "file_read_allowed",
             "file_write_allowed",
-            "api_external_call"
+            "api_external_call",
             # Note: shell_execute is blocked even for super_admin (emergency only)
         ],
-        "constraints": {}
-    }
+        "constraints": {},
+    },
 }
 
 
@@ -227,13 +212,14 @@ ROLE_PERMISSIONS = {
 # Tool Access Check Result
 # ============================================================================
 
+
 class ToolAccessResult(BaseModel):
     """Result of tool access check"""
 
     allowed: bool
-    reason: Optional[str] = None
+    reason: str | None = None
     consent_required: bool = False
-    consent_request_id: Optional[str] = None
+    consent_request_id: str | None = None
 
     # Audit info
     user_id: str
@@ -245,6 +231,7 @@ class ToolAccessResult(BaseModel):
 # ============================================================================
 # Middleware Implementation
 # ============================================================================
+
 
 class AgentToolMiddleware:
     """
@@ -260,19 +247,15 @@ class AgentToolMiddleware:
 
     def __init__(self):
         from app.core.redis_client import RedisClient
-        from app.services.audit_logger import AuditLogger
         from app.db.session import get_db
+        from app.services.audit_logger import AuditLogger
 
         self.redis = RedisClient().get_client()
         self.audit_logger = AuditLogger()
         self.db = get_db()
 
     async def check_tool_access(
-        self,
-        user_id: str,
-        user_role: str,
-        tool_name: str,
-        parameters: Dict[str, Any]
+        self, user_id: str, user_role: str, tool_name: str, parameters: dict[str, Any]
     ) -> ToolAccessResult:
         """
         Check if user is allowed to invoke tool
@@ -294,7 +277,7 @@ class AgentToolMiddleware:
                 reason=f"Tool '{tool_name}' not found in registry",
                 user_id=user_id,
                 user_role=user_role,
-                tool_name=tool_name
+                tool_name=tool_name,
             )
 
         tool_def = TOOL_REGISTRY[tool_name]
@@ -302,43 +285,39 @@ class AgentToolMiddleware:
         # 2. Check if tool is blocked
         if tool_def.safety_level == ToolSafetyLevel.BLOCKED:
             self._log_denied_access(
-                user_id, user_role, tool_name,
-                "Tool is blocked (shell execution)"
+                user_id, user_role, tool_name, "Tool is blocked (shell execution)"
             )
             return ToolAccessResult(
                 allowed=False,
                 reason=f"Tool '{tool_name}' is blocked for security reasons",
                 user_id=user_id,
                 user_role=user_role,
-                tool_name=tool_name
+                tool_name=tool_name,
             )
 
         # 3. Check role-based access
         if user_role not in tool_def.allowed_roles:
             self._log_denied_access(
-                user_id, user_role, tool_name,
-                f"User role '{user_role}' not allowed"
+                user_id, user_role, tool_name, f"User role '{user_role}' not allowed"
             )
             return ToolAccessResult(
                 allowed=False,
                 reason=f"Role '{user_role}' is not allowed to use tool '{tool_name}'",
                 user_id=user_id,
                 user_role=user_role,
-                tool_name=tool_name
+                tool_name=tool_name,
             )
 
         # 4. Validate parameters against schema
         if tool_def.parameter_schema:
-            validation_error = self._validate_parameters(
-                parameters, tool_def.parameter_schema
-            )
+            validation_error = self._validate_parameters(parameters, tool_def.parameter_schema)
             if validation_error:
                 return ToolAccessResult(
                     allowed=False,
                     reason=f"Parameter validation failed: {validation_error}",
                     user_id=user_id,
                     user_role=user_role,
-                    tool_name=tool_name
+                    tool_name=tool_name,
                 )
 
         # 5. Check rate limits
@@ -349,7 +328,7 @@ class AgentToolMiddleware:
                 reason=f"Rate limit exceeded for tool '{tool_name}'",
                 user_id=user_id,
                 user_role=user_role,
-                tool_name=tool_name
+                tool_name=tool_name,
             )
 
         # 6. Check if consent is required
@@ -365,23 +344,17 @@ class AgentToolMiddleware:
                 consent_request_id=consent_request_id,
                 user_id=user_id,
                 user_role=user_role,
-                tool_name=tool_name
+                tool_name=tool_name,
             )
 
         # 7. All checks passed
         return ToolAccessResult(
-            allowed=True,
-            user_id=user_id,
-            user_role=user_role,
-            tool_name=tool_name
+            allowed=True, user_id=user_id, user_role=user_role, tool_name=tool_name
         )
 
     async def execute_tool(
-        self,
-        access_result: ToolAccessResult,
-        parameters: Dict[str, Any],
-        context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, access_result: ToolAccessResult, parameters: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Execute tool with logging and monitoring
 
@@ -398,16 +371,11 @@ class AgentToolMiddleware:
 
         try:
             # Log invocation start
-            await self._log_invocation_start(
-                access_result, parameters, context
-            )
+            await self._log_invocation_start(access_result, parameters, context)
 
             # Execute the tool
             result = await self._execute_tool_impl(
-                access_result.tool_name,
-                parameters,
-                access_result.user_id,
-                access_result.user_role
+                access_result.tool_name, parameters, access_result.user_id, access_result.user_role
             )
 
             # Calculate execution time
@@ -418,11 +386,7 @@ class AgentToolMiddleware:
                 access_result, parameters, result, execution_time, None
             )
 
-            return {
-                "success": True,
-                "result": result,
-                "execution_time_ms": execution_time
-            }
+            return {"success": True, "result": result, "execution_time_ms": execution_time}
 
         except Exception as e:
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -432,17 +396,9 @@ class AgentToolMiddleware:
                 access_result, parameters, None, execution_time, str(e)
             )
 
-            return {
-                "success": False,
-                "error": str(e),
-                "execution_time_ms": execution_time
-            }
+            return {"success": False, "error": str(e), "execution_time_ms": execution_time}
 
-    async def grant_consent(
-        self,
-        consent_request_id: str,
-        granted: bool
-    ) -> bool:
+    async def grant_consent(self, consent_request_id: str, granted: bool) -> bool:
         """
         Grant/deny consent for tool invocation
 
@@ -460,15 +416,12 @@ class AgentToolMiddleware:
         await self.redis.setex(
             key,
             300,  # 5 minutes
-            json.dumps({"granted": granted, "timestamp": datetime.utcnow().isoformat()})
+            json.dumps({"granted": granted, "timestamp": datetime.utcnow().isoformat()}),
         )
 
         return True
 
-    async def check_consent(
-        self,
-        consent_request_id: str
-    ) -> Optional[bool]:
+    async def check_consent(self, consent_request_id: str) -> bool | None:
         """
         Check if consent was granted
 
@@ -494,10 +447,8 @@ class AgentToolMiddleware:
     # ========================================================================
 
     def _validate_parameters(
-        self,
-        parameters: Dict[str, Any],
-        schema: Dict[str, Any]
-    ) -> Optional[str]:
+        self, parameters: dict[str, Any], schema: dict[str, Any]
+    ) -> str | None:
         """Validate parameters against schema"""
 
         # Simplified validation - in production, use pydantic/jsonschema
@@ -511,17 +462,12 @@ class AgentToolMiddleware:
                 expected_type = field_schema.get("type")
                 if expected_type == "string" and not isinstance(parameters[field_name], str):
                     return f"Parameter '{field_name}' must be a string"
-                elif expected_type == "integer" and not isinstance(parameters[field_name], int):
+                if expected_type == "integer" and not isinstance(parameters[field_name], int):
                     return f"Parameter '{field_name}' must be an integer"
 
         return None  # Validation passed
 
-    async def _check_rate_limit(
-        self,
-        user_id: str,
-        tool_name: str,
-        rate_limit: Optional[int]
-    ) -> bool:
+    async def _check_rate_limit(self, user_id: str, tool_name: str, rate_limit: int | None) -> bool:
         """Check if user is within rate limit"""
 
         if rate_limit is None:
@@ -548,23 +494,19 @@ class AgentToolMiddleware:
         return True
 
     async def _execute_tool_impl(
-        self,
-        tool_name: str,
-        parameters: Dict[str, Any],
-        user_id: str,
-        user_role: str
+        self, tool_name: str, parameters: dict[str, Any], user_id: str, user_role: str
     ) -> Any:
         """Execute the actual tool implementation"""
 
         # Import tool implementations
         from app.services.agent_tools import (
-            db_read_query_impl,
+            api_external_call_impl,
             db_anonymized_export_impl,
+            db_read_query_impl,
             email_draft_create_impl,
             email_send_verified_impl,
             file_read_allowed_impl,
             file_write_allowed_impl,
-            api_external_call_impl
         )
 
         # Map tool names to implementations
@@ -589,10 +531,7 @@ class AgentToolMiddleware:
         return result
 
     async def _log_invocation_start(
-        self,
-        access_result: ToolAccessResult,
-        parameters: Dict[str, Any],
-        context: Dict[str, Any]
+        self, access_result: ToolAccessResult, parameters: dict[str, Any], context: dict[str, Any]
     ):
         """Log tool invocation start"""
 
@@ -607,16 +546,16 @@ class AgentToolMiddleware:
             ip_address=context.get("ip_address"),
             user_agent=context.get("user_agent"),
             service="agent_orchestration",
-            status="started"
+            status="started",
         )
 
     async def _log_invocation_complete(
         self,
         access_result: ToolAccessResult,
-        parameters: Dict[str, Any],
+        parameters: dict[str, Any],
         result: Any,
         execution_time_ms: float,
-        error: Optional[str]
+        error: str | None,
     ):
         """Log tool invocation completion"""
 
@@ -635,25 +574,19 @@ class AgentToolMiddleware:
             service="agent_orchestration",
             status=status,
             error_code=None if error is None else "TOOL_EXECUTION_ERROR",
-            failure_reason=error
+            failure_reason=error,
         )
 
-    def _log_denied_access(
-        self,
-        user_id: str,
-        user_role: str,
-        tool_name: str,
-        reason: str
-    ):
+    def _log_denied_access(self, user_id: str, user_role: str, tool_name: str, reason: str):
         """Log denied tool access"""
 
         # This would use the audit logger in production
-        pass
 
 
 # ============================================================================
 # Decorators for Easy Use
 # ============================================================================
+
 
 def require_tool_access(middleware: AgentToolMiddleware):
     """
@@ -670,27 +603,22 @@ def require_tool_access(middleware: AgentToolMiddleware):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Extract user info from kwargs
-            user_id = kwargs.get('user_id')
-            user_role = kwargs.get('user_role')
-            tool_name = kwargs.get('tool_name', func.__name__)
-            parameters = kwargs.get('parameters', {})
+            user_id = kwargs.get("user_id")
+            user_role = kwargs.get("user_role")
+            tool_name = kwargs.get("tool_name", func.__name__)
+            parameters = kwargs.get("parameters", {})
 
             # Check access
             access_result = await middleware.check_tool_access(
-                user_id=user_id,
-                user_role=user_role,
-                tool_name=tool_name,
-                parameters=parameters
+                user_id=user_id, user_role=user_role, tool_name=tool_name, parameters=parameters
             )
 
             if not access_result.allowed:
-                raise HTTPException(
-                    status_code=403,
-                    detail=access_result.reason
-                )
+                raise HTTPException(status_code=403, detail=access_result.reason)
 
             # Call original function
             return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator

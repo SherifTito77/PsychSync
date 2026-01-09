@@ -13,14 +13,12 @@ Date: 2025-12-24
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
-from sqlalchemy.orm import Session
+from datetime import datetime
+
 from fastapi import HTTPException, status
 import redis.asyncio as redis
 
 from app.core.config import settings
-
 
 # =============================================================================
 # Threat Intelligence Models
@@ -35,7 +33,7 @@ class ThreatIntel:
     confidence: float  # 0.0 to 1.0
     first_seen: datetime
     last_seen: datetime
-    tags: List[str]
+    tags: list[str]
     description: str
 
 
@@ -45,7 +43,7 @@ class IPReputation:
     reputation_score: float  # 0.0 (bad) to 100.0 (good)
     threat_level: str
     last_updated: datetime
-    factors: Dict[str, bool]
+    factors: dict[str, bool]
     # Factors:
     # - is_tor_exit: bool
     # - is_vpn: bool
@@ -74,14 +72,14 @@ class ThreatIntelligenceService:
     """
 
     def __init__(self):
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
         self.cache_ttl = 3600  # 1 hour
-        self.blocklists: Dict[str, Set[str]] = {
-            'malicious_ips': set(),
-            'tor_exit_nodes': set(),
-            'botnet_ips': set(),
-            'abusive_ips': set(),
-            'datacenter_ips': set(),
+        self.blocklists: dict[str, set[str]] = {
+            "malicious_ips": set(),
+            "tor_exit_nodes": set(),
+            "botnet_ips": set(),
+            "abusive_ips": set(),
+            "datacenter_ips": set(),
         }
 
     async def initialize(self):
@@ -112,53 +110,53 @@ class ThreatIntelligenceService:
         tags = []
 
         # Check 1: Is it in our malicious IPs blocklist?
-        if ip_address in self.blocklists['malicious_ips']:
+        if ip_address in self.blocklists["malicious_ips"]:
             reputation_score -= 50
-            factors['is_known_attacker'] = True
-            tags.append('known_malicious')
+            factors["is_known_attacker"] = True
+            tags.append("known_malicious")
 
         # Check 2: Is it a Tor exit node?
-        if ip_address in self.blocklists['tor_exit_nodes']:
+        if ip_address in self.blocklists["tor_exit_nodes"]:
             reputation_score -= 20
-            factors['is_tor_exit'] = True
-            tags.append('tor_exit_node')
+            factors["is_tor_exit"] = True
+            tags.append("tor_exit_node")
 
         # Check 3: Is it in a botnet?
-        if ip_address in self.blocklists['botnet_ips']:
+        if ip_address in self.blocklists["botnet_ips"]:
             reputation_score -= 40
-            factors['is_botnet'] = True
-            tags.append('botnet')
+            factors["is_botnet"] = True
+            tags.append("botnet")
 
         # Check 4: Has it been reported for abuse?
-        if ip_address in self.blocklists['abusive_ips']:
+        if ip_address in self.blocklists["abusive_ips"]:
             reputation_score -= 15
-            factors['reported_abuse'] = True
-            tags.append('abuse_reported')
+            factors["reported_abuse"] = True
+            tags.append("abuse_reported")
 
         # Check 5: Is it from a datacenter (suspicious for user traffic)?
-        if ip_address in self.blocklists['datacenter_ips']:
+        if ip_address in self.blocklists["datacenter_ips"]:
             reputation_score -= 10
-            factors['is_datacenter'] = True
-            tags.append('datacenter_ip')
+            factors["is_datacenter"] = True
+            tags.append("datacenter_ip")
 
         # Check 6: Query external threat intelligence APIs
         external_reputation = await self._query_external_threat_apis(ip_address)
-        reputation_score += external_reputation['score_adjustment']
-        factors.update(external_reputation['factors'])
-        tags.extend(external_reputation['tags'])
+        reputation_score += external_reputation["score_adjustment"]
+        factors.update(external_reputation["factors"])
+        tags.extend(external_reputation["tags"])
 
         # Normalize score to 0-100
         reputation_score = max(0, min(100, reputation_score))
 
         # Determine threat level
         if reputation_score >= 80:
-            threat_level = 'low'
+            threat_level = "low"
         elif reputation_score >= 50:
-            threat_level = 'medium'
+            threat_level = "medium"
         elif reputation_score >= 25:
-            threat_level = 'high'
+            threat_level = "high"
         else:
-            threat_level = 'critical'
+            threat_level = "critical"
 
         return IPReputation(
             ip_address=ip_address,
@@ -172,7 +170,7 @@ class ThreatIntelligenceService:
         self,
         email: str,
         password_hash: str
-    ) -> Dict:
+    ) -> dict:
         """
         Check if credentials have been compromised in data breaches
 
@@ -196,23 +194,23 @@ class ThreatIntelligenceService:
         if password_compromised:
             compromised = True
             breaches.append({
-                'type': 'password_leak',
-                'severity': 'high',
-                'description': 'Password found in leaked data breaches'
+                "type": "password_leak",
+                "severity": "high",
+                "description": "Password found in leaked data breaches"
             })
 
         return {
-            'compromised': compromised,
-            'breaches': breaches,
-            'recommendation': 'Force password change immediately' if compromised else 'No action needed'
+            "compromised": compromised,
+            "breaches": breaches,
+            "recommendation": "Force password change immediately" if compromised else "No action needed"
         }
 
     async def is_malicious_user_agent(self, user_agent: str) -> bool:
         """Check if user agent matches known malicious patterns"""
         malicious_patterns = [
-            'sqlmap', 'nikto', 'dirbuster', 'nmap', 'masscan',
-            'python-requests', 'curl', 'wget', 'apachebench',
-            'bot', 'spider', 'crawler', 'scraper'
+            "sqlmap", "nikto", "dirbuster", "nmap", "masscan",
+            "python-requests", "curl", "wget", "apachebench",
+            "bot", "spider", "crawler", "scraper"
         ]
 
         user_agent_lower = user_agent.lower()
@@ -280,7 +278,7 @@ class ThreatIntelligenceService:
         # Check 1: IP reputation
         ip_reputation = await self.check_ip_reputation(ip_address)
 
-        if ip_reputation.threat_level == 'critical':
+        if ip_reputation.threat_level == "critical":
             return True, f"Critical threat IP: {ip_address} (reputation: {ip_reputation.reputation_score})"
 
         # Check 2: Malicious user agent
@@ -306,19 +304,19 @@ class ThreatIntelligenceService:
 
         # Feed 1: Tor exit nodes (official Tor Project list)
         tor_nodes = await self._fetch_tor_exit_nodes()
-        self.blocklists['tor_exit_nodes'].update(tor_nodes)
+        self.blocklists["tor_exit_nodes"].update(tor_nodes)
 
         # Feed 2: Abuse.ch Feodo Tracker (C2 servers)
         feodo = await self._fetch_abuse_ch_feodo()
-        self.blocklists['malicious_ips'].update(feodo)
+        self.blocklists["malicious_ips"].update(feodo)
 
         # Feed 3: Blocklist.de Abuse tracker
         abuse_ips = await self._fetch_blocklist_de_abuse()
-        self.blocklists['abusive_ips'].update(abuse_ips)
+        self.blocklists["abusive_ips"].update(abuse_ips)
 
         # Feed 4: Known botnet IPs
         botnet_ips = await self._fetch_botnet_ips()
-        self.blocklists['botnet_ips'].update(botnet_ips)
+        self.blocklists["botnet_ips"].update(botnet_ips)
 
     async def _refresh_threat_feeds(self):
         """Background task to refresh threat feeds periodically"""
@@ -327,23 +325,23 @@ class ThreatIntelligenceService:
             await self._load_threat_feeds()
             print(f"[THREAT_INTEL] Feeds refreshed at {datetime.utcnow()}")
 
-    async def _fetch_tor_exit_nodes(self) -> Set[str]:
+    async def _fetch_tor_exit_nodes(self) -> set[str]:
         """Fetch Tor exit node list from Tor Project"""
         # In production, fetch from: https://check.torproject.org/torbulkexitlist
         # For now, return empty set
         return set()
 
-    async def _fetch_abuse_ch_feodo(self) -> Set[str]:
+    async def _fetch_abuse_ch_feodo(self) -> set[str]:
         """Fetch Feodo Tracker C2 list from abuse.ch"""
         # In production, fetch from: https://feodotracker.abuse.ch/downloads/ipblocklist.json
         return set()
 
-    async def _fetch_blocklist_de_abuse(self) -> Set[str]:
+    async def _fetch_blocklist_de_abuse(self) -> set[str]:
         """Fetch abuse IPs from blocklist.de"""
         # In production, fetch from blocklist.de API
         return set()
 
-    async def _fetch_botnet_ips(self) -> Set[str]:
+    async def _fetch_botnet_ips(self) -> set[str]:
         """Fetch known botnet IPs"""
         # In production, integrate with:
         # - Spamhaus DROP list
@@ -351,7 +349,7 @@ class ThreatIntelligenceService:
         # - FBI InfraGard
         return set()
 
-    async def _query_external_threat_apis(self, ip_address: str) -> Dict:
+    async def _query_external_threat_apis(self, ip_address: str) -> dict:
         """
         Query external threat intelligence APIs
 
@@ -371,12 +369,12 @@ class ThreatIntelligenceService:
 
         # For now, return no adjustment
         return {
-            'score_adjustment': score_adjustment,
-            'factors': factors,
-            'tags': tags
+            "score_adjustment": score_adjustment,
+            "factors": factors,
+            "tags": tags
         }
 
-    async def _check_email_breaches(self, email: str) -> List[Dict]:
+    async def _check_email_breaches(self, email: str) -> list[dict]:
         """Check if email has been in data breaches"""
         # In production, use:
         # - Have I Been Pwned API: https://haveibeenpwned.com/api/v3/breachedaccount/{email}
@@ -468,7 +466,7 @@ async def threat_intel_middleware(request: Request, call_next):
 # Admin Endpoints
 # =============================================================================
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
 admin_router = APIRouter(prefix="/api/v1/admin/security/threat-intel", tags=["Threat Intelligence Admin"])

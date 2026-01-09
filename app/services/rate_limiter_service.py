@@ -4,15 +4,14 @@ Implements tier-based, endpoint-specific rate limiting with Redis backend
 Performance improvement: 90% reduction in abuse-related server load
 """
 
-from typing import Dict, Any, Optional, Tuple, Union
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import redis.asyncio as redis
-from dataclasses import dataclass
-from fastapi import HTTPException, status, Request
-import hashlib
 import logging
+from typing import Any
+
+from fastapi import HTTPException, Request, status
+import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +111,7 @@ class AdvancedRateLimiter:
             Unique identifier string
         """
         # Use user ID if authenticated, IP address if anonymous
-        if hasattr(request.state, 'user_id'):
+        if hasattr(request.state, "user_id"):
             identifier = f"user:{request.state.user_id}"
         else:
             identifier = f"ip:{request.client.host}"
@@ -157,7 +156,7 @@ class AdvancedRateLimiter:
         self,
         request: Request,
         user_tier: UserTier = UserTier.ANONYMOUS
-    ) -> Tuple[bool, Dict[str, Any]]:
+    ) -> tuple[bool, dict[str, Any]]:
         """
         Check if request is within rate limits
 
@@ -184,39 +183,42 @@ class AdvancedRateLimiter:
             hour_key = f"rate_limit:{client_id}:{endpoint}:hour:{current_hour}"
             day_key = f"rate_limit:{client_id}:{endpoint}:day:{current_day}"
 
-            # Use Redis pipeline for atomic operations
+            # ATOMIC RATE LIMITING USING INCR (Prevents race conditions)
+            # Strategy: Increment first (atomic), then check limits
+            # This ensures thread-safety even under high concurrency
+
             pipe = client.pipeline()
 
-            # Get current counts
+            # ATOMIC OPERATION: Increment all counters first
+            # INCR is atomic in Redis, preventing race conditions
+            pipe.incr(minute_key)
+            pipe.incr(hour_key)
+            pipe.incr(day_key)
+
+            # Set expiration for cleanup (also atomic)
+            pipe.expire(minute_key, 300)  # 5 minutes
+            pipe.expire(hour_key, 3600)    # 1 hour
+            pipe.expire(day_key, 86400)    # 24 hours
+
+            # Get the incremented values
             pipe.get(minute_key)
             pipe.get(hour_key)
             pipe.get(day_key)
 
-            minute_count, hour_count, day_count = await pipe.execute()
-            minute_count = int(minute_count or 0)
-            hour_count = int(hour_count or 0)
-            day_count = int(day_count or 0)
+            # Execute all operations atomically
+            results = await pipe.execute()
 
-            # Check if any limit exceeded
+            # Extract results (INCR returns new values)
+            minute_count = int(results[3] or 1)
+            hour_count = int(results[4] or 1)
+            day_count = int(results[5] or 1)
+
+            # Check if any limit exceeded (after increment)
             is_allowed = (
-                minute_count < rate_limit.requests_per_minute and
-                hour_count < rate_limit.requests_per_hour and
-                day_count < rate_limit.requests_per_day
+                minute_count <= rate_limit.requests_per_minute and
+                hour_count <= rate_limit.requests_per_hour and
+                day_count <= rate_limit.requests_per_day
             )
-
-            # Increment counters if allowed
-            if is_allowed:
-                pipe = client.pipeline()
-                pipe.incr(minute_key)
-                pipe.incr(hour_key)
-                pipe.incr(day_key)
-
-                # Set expiration for cleanup
-                pipe.expire(minute_key, 300)  # 5 minutes
-                pipe.expire(hour_key, 3600)    # 1 hour
-                pipe.expire(day_key, 86400)    # 24 hours
-
-                await pipe.execute()
 
             # Prepare limit info for headers
             limit_info = {
@@ -255,7 +257,7 @@ class AdvancedRateLimiter:
         self,
         user_id: str,
         user_tier: UserTier
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get comprehensive rate limit statistics for a user
 
@@ -359,7 +361,7 @@ def rate_limit_protected(user_tier: UserTier = UserTier.ANONYMOUS):
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             # Determine actual user tier (can be overridden in kwargs)
-            actual_user_tier = kwargs.get('user_tier', user_tier)
+            actual_user_tier = kwargs.get("user_tier", user_tier)
 
             # Check rate limit
             is_allowed, limit_info = await advanced_rate_limiter.check_rate_limit(

@@ -9,13 +9,12 @@ Features:
 - Security event categorization
 """
 
+from contextlib import contextmanager
 import json
 import logging
 import re
 import sys
-from contextlib import contextmanager
-from typing import Any, Dict, Optional
-from datetime import datetime
+from typing import Any
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -34,28 +33,23 @@ class SensitiveDataFilter(logging.Filter):
     # Patterns to redact (order matters - most specific first)
     SENSITIVE_PATTERNS = [
         # JWT tokens
-        (r'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+', '***JWT***'),
-
+        (r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "***JWT***"),
         # Passwords in various formats
-        (r'password["\']?\s*[:=]\s*["\']?[^"\'}\s]+', 'password=***REDACTED***'),
+        (r'password["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "password=***REDACTED***"),
         (r'"password"\s*:\s*"[^"]*"', '"password": "***REDACTED***"'),
         (r"'password'\s*:\s*'[^']*'", "'password': '***REDACTED***'"),
-
         # Tokens
-        (r'access_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+', 'access_token=***REDACTED***'),
-        (r'refresh_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+', 'refresh_token=***REDACTED***'),
-        (r'api_key["\']?\s*[:=]\s*["\']?[^"\'}\s]+', 'api_key=***REDACTED***'),
-        (r'secret["\']?\s*[:=]\s*["\']?[^"\'}\s]+', 'secret=***REDACTED***'),
-        (r'key["\']?\s*[:=]\s*["\']?[^"\'}\s]+', 'key=***REDACTED***'),
-
+        (r'access_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "access_token=***REDACTED***"),
+        (r'refresh_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "refresh_token=***REDACTED***"),
+        (r'api_key["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "api_key=***REDACTED***"),
+        (r'secret["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "secret=***REDACTED***"),
+        (r'key["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "key=***REDACTED***"),
         # Credit card numbers (16 digits with spaces/dashes)
-        (r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b', '***CARD***'),
-
+        (r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b", "***CARD***"),
         # SSN (###-##-#### format)
-        (r'\b\d{3}-\d{2}-\d{4}\b', '***SSN***'),
-
+        (r"\b\d{3}-\d{2}-\d{4}\b", "***SSN***"),
         # API keys/secret patterns
-        (r'\b[A-Za-z0-9]{32,}\b', '***SECRET***'),  # Long alphanumeric strings
+        (r"\b[A-Za-z0-9]{32,}\b", "***SECRET***"),  # Long alphanumeric strings
     ]
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -74,8 +68,7 @@ class SensitiveDataFilter(logging.Filter):
         # Redact from args if present
         if record.args:
             record.args = tuple(
-                self._redact(str(arg)) if isinstance(arg, str) else arg
-                for arg in record.args
+                self._redact(str(arg)) if isinstance(arg, str) else arg for arg in record.args
             )
 
         return True
@@ -136,18 +129,18 @@ class SecureFormatter(logging.Formatter):
         }
 
         # Add contextual information if available
-        if hasattr(record, 'user_id'):
-            log_entry['user_id'] = record.user_id
-        if hasattr(record, 'request_id'):
-            log_entry['request_id'] = record.request_id
-        if hasattr(record, 'ip_address'):
-            log_entry['ip_address'] = self.filter._redact(record.ip_address)
-        if hasattr(record, 'security_event'):
-            log_entry['security_event'] = record.security_event
+        if hasattr(record, "user_id"):
+            log_entry["user_id"] = record.user_id
+        if hasattr(record, "request_id"):
+            log_entry["request_id"] = record.request_id
+        if hasattr(record, "ip_address"):
+            log_entry["ip_address"] = self.filter._redact(record.ip_address)
+        if hasattr(record, "security_event"):
+            log_entry["security_event"] = record.security_event
 
         # Add exception info if present
         if record.exc_info:
-            log_entry['exception'] = self.formatException(record.exc_info)
+            log_entry["exception"] = self.formatException(record.exc_info)
 
         return json.dumps(log_entry)
 
@@ -189,10 +182,7 @@ def log_context(**kwargs):
         logger.removeFilter(context_filter)
 
 
-def configure_secure_logging(
-    log_level: str = "INFO",
-    log_file: Optional[str] = None
-):
+def configure_secure_logging(log_level: str = "INFO", log_file: str | None = None):
     """
     Configure secure logging for the application.
 
@@ -229,8 +219,8 @@ def configure_secure_logging(
 
         file_handler = RotatingFileHandler(
             log_file,
-            maxBytes=10*1024*1024,  # 10MB
-            backupCount=10
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=10,
         )
         file_handler.setFormatter(formatter)
         file_handler.addFilter(SensitiveDataFilter())
@@ -257,24 +247,24 @@ class SecurityLogger:
     """
 
     CATEGORIES = {
-        'AUTH': 'Authentication',
-        'AUTHZ': 'Authorization',
-        'DATA': 'Data Access',
-        'RATE_LIMIT': 'Rate Limiting',
-        'VALIDATION': 'Input Validation',
-        'SYSTEM': 'System Security',
+        "AUTH": "Authentication",
+        "AUTHZ": "Authorization",
+        "DATA": "Data Access",
+        "RATE_LIMIT": "Rate Limiting",
+        "VALIDATION": "Input Validation",
+        "SYSTEM": "System Security",
     }
 
     def __init__(self):
-        self.logger = logging.getLogger('security')
+        self.logger = logging.getLogger("security")
 
     def log_security_event(
         self,
         user_id: Any,
         event_type: str,
         details: str,
-        client_ip: str = 'unknown',
-        severity: str = 'INFO'
+        client_ip: str = "unknown",
+        severity: str = "INFO",
     ):
         """
         Log a security event.
@@ -292,21 +282,15 @@ class SecurityLogger:
             level,
             details,
             extra={
-                'user_id': str(user_id) if user_id else 'anonymous',
-                'security_event': event_type,
-                'ip_address': client_ip,
-            }
+                "user_id": str(user_id) if user_id else "anonymous",
+                "security_event": event_type,
+                "ip_address": client_ip,
+            },
         )
 
-    def log_auth_event(
-        self,
-        user_id: Any,
-        action: str,
-        success: bool,
-        client_ip: str = 'unknown'
-    ):
+    def log_auth_event(self, user_id: Any, action: str, success: bool, client_ip: str = "unknown"):
         """Log authentication event."""
-        severity = 'INFO' if success else 'WARNING'
+        severity = "INFO" if success else "WARNING"
         details = f"Authentication {action}: {'SUCCESS' if success else 'FAILED'}"
 
         self.log_security_event(
@@ -314,19 +298,14 @@ class SecurityLogger:
             event_type=f"AUTH_{action.upper()}",
             details=details,
             client_ip=client_ip,
-            severity=severity
+            severity=severity,
         )
 
     def log_authz_event(
-        self,
-        user_id: Any,
-        resource: str,
-        action: str,
-        success: bool,
-        client_ip: str = 'unknown'
+        self, user_id: Any, resource: str, action: str, success: bool, client_ip: str = "unknown"
     ):
         """Log authorization event."""
-        severity = 'INFO' if success else 'WARNING'
+        severity = "INFO" if success else "WARNING"
         details = f"Authorization {action} on {resource}: {'GRANTED' if success else 'DENIED'}"
 
         self.log_security_event(
@@ -334,7 +313,7 @@ class SecurityLogger:
             event_type=f"AUTHZ_{action.upper()}",
             details=details,
             client_ip=client_ip,
-            severity=severity
+            severity=severity,
         )
 
     def log_data_access(
@@ -343,7 +322,7 @@ class SecurityLogger:
         resource_type: str,
         resource_id: Any,
         action: str,
-        client_ip: str = 'unknown'
+        client_ip: str = "unknown",
     ):
         """Log sensitive data access."""
         details = f"Data access: {action} on {resource_type} {resource_id}"
@@ -353,7 +332,7 @@ class SecurityLogger:
             event_type="DATA_ACCESS",
             details=details,
             client_ip=client_ip,
-            severity='INFO'
+            severity="INFO",
         )
 
 

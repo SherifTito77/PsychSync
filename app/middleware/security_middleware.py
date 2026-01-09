@@ -16,22 +16,20 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+from datetime import datetime
 import logging
 import time
-import hashlib
-import asyncio
-from typing import Dict, Any, Optional, Set
-from datetime import datetime, timedelta
+from typing import Any
 
-from fastapi import Request, Response, HTTPException, status
+from fastapi import Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from app.core.config import settings
 from app.core.audit_logger import AuditLogger
 
 # Initialize security middleware logger
 security_middleware_logger = logging.getLogger("app.middleware.security")
+
 
 class SecurityEventLogger:
     """Handles security event logging with structured data"""
@@ -39,16 +37,21 @@ class SecurityEventLogger:
     def __init__(self):
         self.logger = AuditLogger()
         self._suspicious_patterns = [
-            'sqlmap', 'nikto', 'nmap', 'masscan', 'dirb', 'gobuster',
-            'sql injection', 'xss', 'csrf', 'lfi', 'rfi'
+            "sqlmap",
+            "nikto",
+            "nmap",
+            "masscan",
+            "dirb",
+            "gobuster",
+            "sql injection",
+            "xss",
+            "csrf",
+            "lfi",
+            "rfi",
         ]
 
     async def log_security_event(
-        self,
-        event_type: str,
-        request: Request,
-        details: Dict[str, Any],
-        severity: str = "medium"
+        self, event_type: str, request: Request, details: dict[str, Any], severity: str = "medium"
     ):
         """Log security event with comprehensive context"""
         try:
@@ -59,33 +62,31 @@ class SecurityEventLogger:
                 "severity": severity,
                 "timestamp": datetime.utcnow().isoformat(),
                 "client": client_info,
-                "details": details
+                "details": details,
             }
 
             await self.logger.log_security_event(
                 event_type=event_type,
                 details=str(details),
                 client_ip=client_info.get("ip", "unknown"),
-                user_agent=client_info.get("user_agent", "unknown")
+                user_agent=client_info.get("user_agent", "unknown"),
             )
 
-            security_middleware_logger.warning(
-                f"Security event: {event_type}",
-                extra=event_data
-            )
+            security_middleware_logger.warning(f"Security event: {event_type}", extra=event_data)
 
         except Exception as e:
             security_middleware_logger.error(f"Error logging security event: {e}")
 
-    def _get_client_info(self, request: Request) -> Dict[str, Any]:
+    def _get_client_info(self, request: Request) -> dict[str, Any]:
         """Extract comprehensive client information"""
         return {
-            "ip": getattr(request, 'client', {}).get('host', 'unknown'),
-            "user_agent": request.headers.get('user-agent', 'unknown'),
+            "ip": getattr(request, "client", {}).get("host", "unknown"),
+            "user_agent": request.headers.get("user-agent", "unknown"),
             "method": request.method,
             "url": str(request.url),
-            "headers": dict(request.headers)
+            "headers": dict(request.headers),
         }
+
 
 class SecurityMiddleware(BaseHTTPMiddleware):
     """
@@ -95,22 +96,24 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
         self.event_logger = SecurityEventLogger()
-        self._blocked_ips: Set[str] = set()
-        self._suspicious_ips: Dict[str, Dict[str, Any]] = {}
+        self._blocked_ips: set[str] = set()
+        self._suspicious_ips: dict[str, dict[str, Any]] = {}
         self._emergency_mode = False
-        self._rate_limit_cache: Dict[str, List[float]] = {}
+        self._rate_limit_cache: dict[str, List[float]] = {}
 
     async def dispatch(self, request: Request, call_next):
         """
         Process request through security pipeline
         """
         start_time = time.time()
-        client_ip = getattr(request, 'client', {}).get('host', 'unknown')
+        client_ip = getattr(request, "client", {}).get("host", "unknown")
 
         try:
             # Security pipeline
             if await self._should_block_request(request):
-                return await self._create_blocked_response(request, "Request blocked by security policy")
+                return await self._create_blocked_response(
+                    request, "Request blocked by security policy"
+                )
 
             # Security monitoring
             await self._monitor_request(request)
@@ -134,8 +137,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
     async def _should_block_request(self, request: Request) -> bool:
         """Determine if request should be blocked"""
-        client_ip = getattr(request, 'client', {}).get('host', 'unknown')
-        user_agent = request.headers.get('user-agent', '').lower()
+        client_ip = getattr(request, "client", {}).get("host", "unknown")
+        user_agent = request.headers.get("user-agent", "").lower()
         url_path = request.url.path.lower()
 
         # Emergency mode
@@ -161,33 +164,43 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     def _is_essential_endpoint(self, path: str) -> bool:
         """Check if endpoint is essential during emergency mode"""
         essential_endpoints = [
-            '/health', '/metrics', '/docs', '/redoc',
-            '/api/v1/auth/login', '/api/v1/auth/refresh'
+            "/health",
+            "/metrics",
+            "/docs",
+            "/redoc",
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
         ]
         return any(endpoint in path for endpoint in essential_endpoints)
 
     async def _detect_suspicious_patterns(self, request: Request) -> bool:
         """Detect suspicious patterns in request"""
-        user_agent = request.headers.get('user-agent', '').lower()
+        user_agent = request.headers.get("user-agent", "").lower()
         url_path = request.url.path.lower()
         query_string = str(request.url.query).lower()
 
         # Check for attack tools in user agent
-        attack_tools = ['sqlmap', 'nikto', 'nmap', 'gobuster', 'dirb']
+        attack_tools = ["sqlmap", "nikto", "nmap", "gobuster", "dirb"]
         if any(tool in user_agent for tool in attack_tools):
             await self.event_logger.log_security_event(
                 "attack_tool_detected",
                 request,
                 {"user_agent": user_agent, "tool": "unknown"},
-                "high"
+                "high",
             )
             return True
 
         # Check for injection patterns
         injection_patterns = [
-            'union select', 'select * from', 'drop table',
-            'exec(', 'system(', 'eval(',
-            '<script>', 'javascript:', 'onerror='
+            "union select",
+            "select * from",
+            "drop table",
+            "exec(",
+            "system(",
+            "eval(",
+            "<script>",
+            "javascript:",
+            "onerror=",
         ]
 
         combined_input = f"{url_path} {query_string}".lower()
@@ -196,7 +209,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 "injection_attempt_detected",
                 request,
                 {"url_path": url_path, "query_string": query_string, "pattern": "unknown"},
-                "high"
+                "high",
             )
             return True
 
@@ -206,7 +219,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 "unusual_request_pattern",
                 request,
                 {"details": "Request deviates from normal patterns"},
-                "medium"
+                "medium",
             )
             return True
 
@@ -220,7 +233,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Suspicious header combinations
         headers = dict(request.headers)
-        if 'x-forwarded-for' in headers and 'user-agent' not in headers:
+        if "x-forwarded-for" in headers and "user-agent" not in headers:
             return True
 
         # Many query parameters
@@ -240,7 +253,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Clean old requests (older than 1 minute)
         self._rate_limit_cache[client_ip] = [
-            req_time for req_time in self._rate_limit_cache[client_ip]
+            req_time
+            for req_time in self._rate_limit_cache[client_ip]
             if current_time - req_time < 60
         ]
 
@@ -266,15 +280,14 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         for ip in list(self._rate_limit_cache.keys()):
             self._rate_limit_cache[ip] = [
-                req_time for req_time in self._rate_limit_cache[ip]
-                if req_time > cutoff_time
+                req_time for req_time in self._rate_limit_cache[ip] if req_time > cutoff_time
             ]
             if not self._rate_limit_cache[ip]:
                 del self._rate_limit_cache[ip]
 
     async def _monitor_request(self, request: Request):
         """Monitor request for security analysis"""
-        client_ip = getattr(request, 'client', {}).get('host', 'unknown')
+        client_ip = getattr(request, "client", {}).get("host", "unknown")
         url_path = request.url.path
 
         # Track suspicious IPs
@@ -282,7 +295,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             if client_ip not in self._suspicious_ips:
                 self._suspicious_ips[client_ip] = {
                     "first_seen": datetime.utcnow(),
-                    "suspicious_count": 0
+                    "suspicious_count": 0,
                 }
 
             self._suspicious_ips[client_ip]["suspicious_count"] += 1
@@ -292,18 +305,20 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             if self._suspicious_ips[client_ip]["suspicious_count"] > 10:
                 self._blocked_ips.add(client_ip)
                 await self.event_logger.log_security_event(
-                    "ip_blocked",
-                    request,
-                    {"reason": "Too many suspicious requests"},
-                    "high"
+                    "ip_blocked", request, {"reason": "Too many suspicious requests"}, "high"
                 )
 
     async def _is_suspicious_request(self, request: Request) -> bool:
         """Check if request appears suspicious"""
         # Check for suspicious URLs
         suspicious_paths = [
-            '/admin', '/wp-admin', '/.git', '/.env',
-            '/config', '/backup', '/database'
+            "/admin",
+            "/wp-admin",
+            "/.git",
+            "/.env",
+            "/config",
+            "/backup",
+            "/database",
         ]
 
         url_path = request.url.path.lower()
@@ -312,12 +327,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Check for suspicious headers
         headers = dict(request.headers)
-        suspicious_headers = ['x-real-ip', 'x-forwarded-for', 'x-originating-ip']
+        suspicious_headers = ["x-real-ip", "x-forwarded-for", "x-originating-ip"]
         if len([h for h in suspicious_headers if h in headers]) > 2:
             return True
 
         # Check request size
-        content_length = request.headers.get('content-length')
+        content_length = request.headers.get("content-length")
         if content_length and int(content_length) > 10 * 1024 * 1024:  # 10MB
             return True
 
@@ -333,9 +348,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
         # Cache control for sensitive endpoints
-        if hasattr(response, 'url') and any(
-            endpoint in str(response.url).lower()
-            for endpoint in ['/auth/', '/admin/', '/user/']
+        if hasattr(response, "url") and any(
+            endpoint in str(response.url).lower() for endpoint in ["/auth/", "/admin/", "/user/"]
         ):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
             response.headers["Pragma"] = "no-cache"
@@ -351,17 +365,17 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 "error": "Request blocked",
                 "message": "Your request has been blocked by our security systems",
                 "reason": reason,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
     async def _log_request_completion(
         self,
         request: Request,
-        response: Optional[Response],
+        response: Response | None,
         processing_time: float,
         status: str,
-        error: Optional[str] = None
+        error: str | None = None,
     ):
         """Log request completion with security context"""
         try:
@@ -374,7 +388,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 "request_method": request.method,
                 "request_path": str(request.url.path),
                 "request_size": len(str(request.url)) + len(str(request.headers)),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
             if response:
@@ -386,14 +400,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
             if status == "success" and processing_time > 5.0:  # Slow requests
                 security_middleware_logger.warning(
-                    f"Slow request detected: {processing_time:.2f}s",
-                    extra=log_data
+                    f"Slow request detected: {processing_time:.2f}s", extra=log_data
                 )
             elif status == "error":
-                security_middleware_logger.error(
-                    f"Request failed: {error}",
-                    extra=log_data
-                )
+                security_middleware_logger.error(f"Request failed: {error}", extra=log_data)
 
         except Exception as e:
             security_middleware_logger.error(f"Error logging request completion: {e}")
@@ -420,11 +430,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             del self._suspicious_ips[ip]
         security_middleware_logger.info(f"IP unblocked: {ip}")
 
-    def get_security_stats(self) -> Dict[str, Any]:
+    def get_security_stats(self) -> dict[str, Any]:
         """Get security statistics"""
         return {
             "blocked_ips_count": len(self._blocked_ips),
             "suspicious_ips_count": len(self._suspicious_ips),
             "emergency_mode": self._emergency_mode,
-            "rate_limit_cache_size": len(self._rate_limit_cache)
+            "rate_limit_cache_size": len(self._rate_limit_cache),
         }

@@ -3,13 +3,15 @@ Security fixes for critical session vulnerabilities
 This module provides secure, simplified versions of authentication functions
 """
 
-import jwt
-import bcrypt
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from fastapi import HTTPException, status
-import secrets
 import hashlib
+import secrets
+from typing import Any
+
+import bcrypt
+from fastapi import HTTPException, status
+import jwt
+
 
 class SecureTokenValidator:
     """Fixed JWT token validation with proper security checks"""
@@ -34,13 +36,13 @@ class SecureTokenValidator:
             "exp": expire,
             "iat": datetime.utcnow(),
             "type": "access",
-            "jti": secrets.token_urlsafe(16)  # JWT ID for blacklist tracking
+            "jti": secrets.token_urlsafe(16),  # JWT ID for blacklist tracking
         }
 
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
 
-    def verify_token(self, token: str) -> Dict[str, Any]:
+    def verify_token(self, token: str) -> dict[str, Any]:
         """Verify JWT token with comprehensive security checks"""
         if not token:
             raise HTTPException(
@@ -76,8 +78,8 @@ class SecureTokenValidator:
                     "require": ["exp", "sub", "iat"],
                     "verify_signature": True,
                     "verify_exp": True,
-                    "verify_iat": True
-                }
+                    "verify_iat": True,
+                },
             )
 
             # Additional security checks
@@ -94,17 +96,17 @@ class SecureTokenValidator:
         except jwt.InvalidTokenError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid token: {str(e)}",
+                detail=f"Invalid token: {e!s}",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        except Exception as e:
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token validation failed",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    def _validate_token_payload(self, payload: Dict[str, Any]):
+    def _validate_token_payload(self, payload: dict[str, Any]):
         """Validate token payload for security"""
         # Check required claims
         required_claims = ["sub", "exp", "iat", "type"]
@@ -153,6 +155,7 @@ class SecureTokenValidator:
             token_hash = hashlib.sha256(token.encode()).hexdigest()
             self.blacklisted_tokens.add(token_hash)
 
+
 class SessionManager:
     """Secure session management with fixation protection"""
 
@@ -163,7 +166,7 @@ class SessionManager:
         """Generate secure session ID"""
         return secrets.token_urlsafe(32)
 
-    def create_session(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_session(self, user_data: dict[str, Any]) -> dict[str, Any]:
         """Create new session with fixation protection"""
         session_id = self.create_session_id()
 
@@ -174,7 +177,7 @@ class SessionManager:
             "created_at": datetime.utcnow().isoformat(),
             "last_activity": datetime.utcnow().isoformat(),
             "csrf_token": secrets.token_urlsafe(32),
-            "is_active": True
+            "is_active": True,
         }
 
         # Store session
@@ -183,10 +186,10 @@ class SessionManager:
         return {
             "session_id": session_id,
             "csrf_token": session_data["csrf_token"],
-            "created_at": session_data["created_at"]
+            "created_at": session_data["created_at"],
         }
 
-    def validate_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def validate_session(self, session_id: str) -> dict[str, Any] | None:
         """Validate session and return session data"""
         if not session_id:
             return None
@@ -210,7 +213,7 @@ class SessionManager:
 
         return session
 
-    def regenerate_session(self, old_session_id: str) -> Optional[str]:
+    def regenerate_session(self, old_session_id: str) -> str | None:
         """Regenerate session ID to prevent fixation"""
         old_session = self.sessions.get(old_session_id)
         if not old_session:
@@ -234,6 +237,7 @@ class SessionManager:
         if session_id in self.sessions:
             del self.sessions[session_id]
 
+
 class RateLimiter:
     """Simple rate limiter for authentication endpoints"""
 
@@ -241,7 +245,9 @@ class RateLimiter:
         # In-memory rate limit store (use Redis in production)
         self.attempts = {}
 
-    def is_rate_limited(self, identifier: str, max_attempts: int = 5, window_minutes: int = 15) -> bool:
+    def is_rate_limited(
+        self, identifier: str, max_attempts: int = 5, window_minutes: int = 15
+    ) -> bool:
         """Check if identifier is rate limited"""
         current_time = datetime.utcnow()
         window_start = current_time - timedelta(minutes=window_minutes)
@@ -251,8 +257,7 @@ class RateLimiter:
 
         # Remove old attempts outside the window
         user_attempts = [
-            attempt_time for attempt_time in user_attempts
-            if attempt_time > window_start
+            attempt_time for attempt_time in user_attempts if attempt_time > window_start
         ]
 
         # Check if rate limit exceeded
@@ -270,10 +275,12 @@ class RateLimiter:
         if identifier in self.attempts:
             del self.attempts[identifier]
 
+
 # Global instances
 token_validator = None
 session_manager = SessionManager()
 rate_limiter = RateLimiter()
+
 
 def initialize_security(secret_key: str):
     """Initialize security components"""
@@ -281,12 +288,12 @@ def initialize_security(secret_key: str):
     token_validator = SecureTokenValidator(secret_key)
     return token_validator
 
-def get_current_user_from_token(token: str) -> Dict[str, Any]:
+
+def get_current_user_from_token(token: str) -> dict[str, Any]:
     """Get current user from token with validation"""
     if not token_validator:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Security not initialized"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Security not initialized"
         )
 
     payload = token_validator.verify_token(token)
@@ -295,27 +302,27 @@ def get_current_user_from_token(token: str) -> Dict[str, Any]:
     return {
         "user_id": payload.get("sub"),
         "token_jti": payload.get("jti"),
-        "expires_at": datetime.utcfromtimestamp(payload["exp"]).isoformat()
+        "expires_at": datetime.utcfromtimestamp(payload["exp"]).isoformat(),
     }
 
-def create_secure_token_for_user(user_id: str, email: str) -> str:
+
+def create_secure_token_for_user(user_id: str, email: str, expires_delta: timedelta = None) -> str:
     """Create secure token for user"""
     if not token_validator:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Security not initialized"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Security not initialized"
         )
 
-    # Create access token
-    expires = timedelta(minutes=30)
-    token = token_validator.create_access_token(
-        subject=user_id,
-        expires_delta=expires
-    )
+    # Create access token with custom or default expiration
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=30)
+
+    token = token_validator.create_access_token(subject=user_id, expires_delta=expires_delta)
 
     return token
 
-def verify_password_strength(password: str) -> Dict[str, Any]:
+
+def verify_password_strength(password: str) -> dict[str, Any]:
     """Verify password strength"""
     errors = []
 
@@ -337,18 +344,20 @@ def verify_password_strength(password: str) -> Dict[str, Any]:
     return {
         "valid": len(errors) == 0,
         "errors": errors,
-        "strength_score": max(0, 100 - len(errors) * 20)
+        "strength_score": max(0, 100 - len(errors) * 20),
     }
+
 
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash"""
     try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
     except:
         return False

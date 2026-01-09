@@ -2,12 +2,13 @@
 Analytics Service for PsychSync
 """
 
-import logging
-from typing import Dict, Any, Optional
 from datetime import datetime
 import json
+import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 class AnalyticsService:
     """
@@ -19,11 +20,11 @@ class AnalyticsService:
 
     async def track_onboarding_event(
         self,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         event_type: str = "",
-        event_data: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        event_data: dict[str, Any] | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
         """
         Track onboarding-related events
 
@@ -42,7 +43,7 @@ class AnalyticsService:
                 "user_id": user_id,
                 "session_id": session_id,
                 "timestamp": datetime.utcnow().isoformat(),
-                "event_data": event_data or {}
+                "event_data": event_data or {},
             }
 
             # Log the event (in production, this would send to analytics backend)
@@ -51,13 +52,9 @@ class AnalyticsService:
             return {
                 "success": True,
                 "event_id": f"evt_{datetime.utcnow().timestamp()}",
-                "timestamp": event["timestamp"]
+                "timestamp": event["timestamp"],
             }
 
         except Exception as e:
             self.logger.error(f"Failed to track onboarding event: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            return {"success": False, "error": str(e), "timestamp": datetime.utcnow().isoformat()}

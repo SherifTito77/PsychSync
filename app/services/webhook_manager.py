@@ -14,20 +14,19 @@ Key Features:
 - Comprehensive delivery analytics
 """
 
-from typing import Dict, List, Optional, Any, Union
+import asyncio
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from enum import Enum
 import hashlib
 import hmac
-import asyncio
-import aiohttp
-import logging
-from enum import Enum
 import json
-from dataclasses import dataclass, field
+import logging
+from typing import Any
+
+import aiohttp
 
 from app.core.cache import redis_client
-from app.db.session import get_db
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -70,18 +69,18 @@ class WebhookSubscription:
     """Webhook subscription configuration."""
     id: str
     user_id: int
-    organization_id: Optional[int] = None
+    organization_id: int | None = None
     url: str
-    events: List[WebhookEvent]
+    events: list[WebhookEvent]
     secret: str
     active: bool = True
-    description: Optional[str] = None
-    headers: Dict[str, str] = field(default_factory=dict)
-    retry_config: Dict[str, Any] = field(default_factory=dict)
-    rate_limit: Optional[Dict[str, int]] = None
+    description: str | None = None
+    headers: dict[str, str] = field(default_factory=dict)
+    retry_config: dict[str, Any] = field(default_factory=dict)
+    rate_limit: dict[str, int] | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
-    last_delivery: Optional[datetime] = None
+    last_delivery: datetime | None = None
     delivery_count: int = 0
     failure_count: int = 0
 
@@ -91,14 +90,14 @@ class WebhookDelivery:
     id: str
     webhook_id: str
     event: WebhookEvent
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     status: WebhookStatus
-    status_code: Optional[int] = None
-    response_body: Optional[str] = None
+    status_code: int | None = None
+    response_body: str | None = None
     attempt_number: int = 1
-    delivered_at: Optional[datetime] = None
-    next_retry_at: Optional[datetime] = None
-    error_message: Optional[str] = None
+    delivered_at: datetime | None = None
+    next_retry_at: datetime | None = None
+    error_message: str | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 @dataclass
@@ -127,12 +126,12 @@ class WebhookManager:
         self,
         user_id: int,
         url: str,
-        events: List[Union[str, WebhookEvent]],
-        description: Optional[str] = None,
-        organization_id: Optional[int] = None,
-        headers: Optional[Dict[str, str]] = None,
-        rate_limit: Optional[Dict[str, int]] = None,
-        custom_secret: Optional[str] = None
+        events: list[str | WebhookEvent],
+        description: str | None = None,
+        organization_id: int | None = None,
+        headers: dict[str, str] | None = None,
+        rate_limit: dict[str, int] | None = None,
+        custom_secret: str | None = None
     ) -> WebhookSubscription:
         """
         Create a new webhook subscription.
@@ -178,8 +177,8 @@ class WebhookManager:
             headers=headers or {},
             rate_limit=rate_limit,
             retry_config={
-                'max_retries': self.max_retries,
-                'retry_delays': self.default_retry_delays
+                "max_retries": self.max_retries,
+                "retry_delays": self.default_retry_delays
             }
         )
 
@@ -192,8 +191,8 @@ class WebhookManager:
     async def update_webhook_subscription(
         self,
         webhook_id: str,
-        updates: Dict[str, Any]
-    ) -> Optional[WebhookSubscription]:
+        updates: dict[str, Any]
+    ) -> WebhookSubscription | None:
         """
         Update existing webhook subscription.
 
@@ -238,14 +237,14 @@ class WebhookManager:
 
     async def send_webhook(
         self,
-        event: Union[str, WebhookEvent],
-        payload: Dict[str, Any],
-        webhook_ids: Optional[List[str]] = None,
-        organization_id: Optional[int] = None,
-        user_id: Optional[int] = None,
+        event: str | WebhookEvent,
+        payload: dict[str, Any],
+        webhook_ids: list[str] | None = None,
+        organization_id: int | None = None,
+        user_id: int | None = None,
         priority: WebhookPriority = WebhookPriority.NORMAL,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Send webhook event to subscribed endpoints.
 
@@ -273,10 +272,10 @@ class WebhookManager:
 
             if not webhooks:
                 return {
-                    'success': True,
-                    'message': 'No matching webhook subscriptions found',
-                    'delivered_count': 0,
-                    'failed_count': 0
+                    "success": True,
+                    "message": "No matching webhook subscriptions found",
+                    "delivered_count": 0,
+                    "failed_count": 0
                 }
 
             # Prepare webhook payload
@@ -291,29 +290,29 @@ class WebhookManager:
             await self._update_delivery_stats(delivery_results)
 
             return {
-                'success': True,
-                'event': event.value,
-                'delivered_count': len([r for r in delivery_results if r['status'] == WebhookStatus.DELIVERED]),
-                'failed_count': len([r for r in delivery_results if r['status'] == WebhookStatus.FAILED]),
-                'results': delivery_results,
-                'webhook_count': len(webhooks)
+                "success": True,
+                "event": event.value,
+                "delivered_count": len([r for r in delivery_results if r["status"] == WebhookStatus.DELIVERED]),
+                "failed_count": len([r for r in delivery_results if r["status"] == WebhookStatus.FAILED]),
+                "results": delivery_results,
+                "webhook_count": len(webhooks)
             }
 
         except Exception as e:
-            logger.error(f"Error sending webhook: {str(e)}")
+            logger.error(f"Error sending webhook: {e!s}")
             return {
-                'success': False,
-                'error': str(e),
-                'delivered_count': 0,
-                'failed_count': 0
+                "success": False,
+                "error": str(e),
+                "delivered_count": 0,
+                "failed_count": 0
             }
 
     async def _send_webhooks_batch(
         self,
-        webhooks: List[WebhookSubscription],
-        payload: Dict[str, Any],
+        webhooks: list[WebhookSubscription],
+        payload: dict[str, Any],
         priority: WebhookPriority = WebhookPriority.NORMAL
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Send webhooks in batches for efficiency.
 
@@ -349,11 +348,11 @@ class WebhookManager:
                     if isinstance(result, Exception):
                         error_message = str(result)
                         delivery_results.append({
-                            'webhook_id': batch[i].id,
-                            'url': batch[i].url,
-                            'status': WebhookStatus.FAILED,
-                            'error_message': error_message,
-                            'attempt_number': 1
+                            "webhook_id": batch[i].id,
+                            "url": batch[i].url,
+                            "status": WebhookStatus.FAILED,
+                            "error_message": error_message,
+                            "attempt_number": 1
                         })
                         logger.error(f"Webhook delivery failed: {error_message}")
                     else:
@@ -364,8 +363,8 @@ class WebhookManager:
     async def _deliver_webhook(
         self,
         webhook: WebhookSubscription,
-        payload: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        payload: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Deliver webhook to specific endpoint.
 
@@ -386,69 +385,68 @@ class WebhookManager:
 
             # Prepare headers
             headers = {
-                'Content-Type': 'application/json',
-                'User-Agent': 'PsychSync-Webhooks/1.0',
-                'X-Webhook-Event': payload['event'],
-                'X-Webhook-ID': delivery_id,
-                'X-Webhook-Signature': signature,
+                "Content-Type": "application/json",
+                "User-Agent": "PsychSync-Webhooks/1.0",
+                "X-Webhook-Event": payload["event"],
+                "X-Webhook-ID": delivery_id,
+                "X-Webhook-Signature": signature,
                 **webhook.headers
             }
 
             # Make HTTP request
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    webhook.url,
-                    json=payload,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=self.timeout)
-                ) as response:
-                    response_text = await response.text()
-                    status_code = response.status
+            async with aiohttp.ClientSession() as session, session.post(
+                webhook.url,
+                json=payload,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=self.timeout)
+            ) as response:
+                response_text = await response.text()
+                status_code = response.status
 
-                    # Determine delivery status
-                    if 200 <= status_code < 300:
-                        status = WebhookStatus.DELIVERED
-                        delivered_at = datetime.utcnow()
+                # Determine delivery status
+                if 200 <= status_code < 300:
+                    status = WebhookStatus.DELIVERED
+                    delivered_at = datetime.utcnow()
 
-                        # Update webhook statistics
-                        webhook.last_delivery = delivered_at
-                        webhook.delivery_count += 1
-                        webhook.failure_count = 0
-                    else:
-                        status = WebhookStatus.FAILED
-                        webhook.failure_count += 1
+                    # Update webhook statistics
+                    webhook.last_delivery = delivered_at
+                    webhook.delivery_count += 1
+                    webhook.failure_count = 0
+                else:
+                    status = WebhookStatus.FAILED
+                    webhook.failure_count += 1
 
-                    # Log delivery
-                    await self._log_webhook_delivery(
-                        delivery_id, webhook, payload['event'], status, response_text
-                    )
+                # Log delivery
+                await self._log_webhook_delivery(
+                    delivery_id, webhook, payload["event"], status, response_text
+                )
 
-                    # Store delivery record
-                    delivery = WebhookDelivery(
-                        id=delivery_id,
-                        webhook_id=webhook.id,
-                        event=WebhookEvent(payload['event']),
-                        payload=payload,
-                        status=status,
-                        status_code=status_code,
-                        response_body=response_text[:1000],  # Truncate long responses
-                        attempt_number=attempt_number,
-                        delivered_at=delivered_at
-                    )
+                # Store delivery record
+                delivery = WebhookDelivery(
+                    id=delivery_id,
+                    webhook_id=webhook.id,
+                    event=WebhookEvent(payload["event"]),
+                    payload=payload,
+                    status=status,
+                    status_code=status_code,
+                    response_body=response_text[:1000],  # Truncate long responses
+                    attempt_number=attempt_number,
+                    delivered_at=delivered_at
+                )
 
-                    await self._store_delivery_record(delivery)
-                    await self._store_webhook_subscription(webhook)
+                await self._store_delivery_record(delivery)
+                await self._store_webhook_subscription(webhook)
 
-                    return {
-                        'webhook_id': webhook.id,
-                        'url': webhook.url,
-                        'status': status,
-                        'status_code': status_code,
-                        'attempt_number': attempt_number,
-                        'delivered_at': delivered_at.isoformat() if delivered_at else None
-                    }
+                return {
+                    "webhook_id": webhook.id,
+                    "url": webhook.url,
+                    "status": status,
+                    "status_code": status_code,
+                    "attempt_number": attempt_number,
+                    "delivered_at": delivered_at.isoformat() if delivered_at else None
+                }
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             error_message = "Request timeout"
             status = WebhookStatus.RETRYING
             next_retry_at = self._calculate_next_retry(webhook, attempt_number)
@@ -463,7 +461,7 @@ class WebhookManager:
             delivery = WebhookDelivery(
                 id=delivery_id,
                 webhook_id=webhook.id,
-                event=WebhookEvent(payload['event']),
+                event=WebhookEvent(payload["event"]),
                 payload=payload,
                 status=status,
                 attempt_number=attempt_number,
@@ -475,12 +473,12 @@ class WebhookManager:
             await self._store_webhook_subscription(webhook)
 
             return {
-                'webhook_id': webhook.id,
-                'url': webhook.url,
-                'status': status,
-                'error_message': error_message,
-                'attempt_number': attempt_number,
-                'next_retry_at': next_retry_at.isoformat() if next_retry_at else None
+                "webhook_id": webhook.id,
+                "url": webhook.url,
+                "status": status,
+                "error_message": error_message,
+                "attempt_number": attempt_number,
+                "next_retry_at": next_retry_at.isoformat() if next_retry_at else None
             }
 
     async def verify_webhook_signature(
@@ -502,27 +500,27 @@ class WebhookManager:
         """
         try:
             # Remove "sha256=" prefix if present
-            if signature.startswith('sha256='):
+            if signature.startswith("sha256="):
                 signature = signature[7:]
 
             expected_signature = hmac.new(
-                secret.encode('utf-8'),
-                payload.encode('utf-8'),
+                secret.encode("utf-8"),
+                payload.encode("utf-8"),
                 hashlib.sha256
             ).hexdigest()
 
             return hmac.compare_digest(signature, expected_signature)
 
         except Exception as e:
-            logger.error(f"Error verifying webhook signature: {str(e)}")
+            logger.error(f"Error verifying webhook signature: {e!s}")
             return False
 
     async def get_webhook_delivery_history(
         self,
         webhook_id: str,
         limit: int = 50,
-        status: Optional[WebhookStatus] = None
-    ) -> List[Dict[str, Any]]:
+        status: WebhookStatus | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get webhook delivery history.
 
@@ -550,19 +548,19 @@ class WebhookManager:
 
                     # Convert string fields back to proper types
                     for key, value in delivery.items():
-                        if key in ['created_at', 'delivered_at', 'next_retry_at'] and value:
+                        if key in ["created_at", "delivered_at", "next_retry_at"] and value:
                             try:
                                 delivery[key] = datetime.fromisoformat(value)
                             except:
                                 pass
 
-                    if status is None or delivery.get('status') == status.value:
+                    if status is None or delivery.get("status") == status.value:
                         deliveries.append(delivery)
 
             return deliveries
 
         except Exception as e:
-            logger.error(f"Error getting webhook delivery history: {str(e)}")
+            logger.error(f"Error getting webhook delivery history: {e!s}")
             return []
 
     async def get_webhook_stats(self, webhook_id: str) -> WebhookDeliveryStats:
@@ -583,24 +581,24 @@ class WebhookManager:
                 return WebhookDeliveryStats()
 
             return WebhookDeliveryStats(
-                total_deliveries=int(stats_data.get('total_deliveries', 0)),
-                successful_deliveries=int(stats_data.get('successful_deliveries', 0)),
-                failed_deliveries=int(stats_data.get('failed_deliveries', 0)),
-                average_delivery_time=float(stats_data.get('average_delivery_time', 0.0)),
-                last_24h_deliveries=int(stats_data.get('last_24h_deliveries', 0)),
-                last_7d_deliveries=int(stats_data.get('last_7d_deliveries', 0))
+                total_deliveries=int(stats_data.get("total_deliveries", 0)),
+                successful_deliveries=int(stats_data.get("successful_deliveries", 0)),
+                failed_deliveries=int(stats_data.get("failed_deliveries", 0)),
+                average_delivery_time=float(stats_data.get("average_delivery_time", 0.0)),
+                last_24h_deliveries=int(stats_data.get("last_24h_deliveries", 0)),
+                last_7d_deliveries=int(stats_data.get("last_7d_deliveries", 0))
             )
 
         except Exception as e:
-            logger.error(f"Error getting webhook stats: {str(e)}")
+            logger.error(f"Error getting webhook stats: {e!s}")
             return WebhookDeliveryStats()
 
     async def list_webhook_subscriptions(
         self,
-        user_id: Optional[int] = None,
-        organization_id: Optional[int] = None,
+        user_id: int | None = None,
+        organization_id: int | None = None,
         active_only: bool = True
-    ) -> List[WebhookSubscription]:
+    ) -> list[WebhookSubscription]:
         """
         List webhook subscriptions.
 
@@ -618,30 +616,30 @@ class WebhookManager:
             return []
 
         except Exception as e:
-            logger.error(f"Error listing webhook subscriptions: {str(e)}")
+            logger.error(f"Error listing webhook subscriptions: {e!s}")
             return []
 
     def _prepare_webhook_payload(
         self,
         event: WebhookEvent,
-        data: Dict[str, Any],
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        data: dict[str, Any],
+        metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Prepare webhook payload with standard format."""
         return {
-            'id': str(uuid.uuid4()),
-            'event': event.value,
-            'created': datetime.utcnow().isoformat(),
-            'data': data,
-            'metadata': metadata or {}
+            "id": str(uuid.uuid4()),
+            "event": event.value,
+            "created": datetime.utcnow().isoformat(),
+            "data": data,
+            "metadata": metadata or {}
         }
 
-    def _sign_payload(self, payload: Dict[str, Any], secret: str) -> str:
+    def _sign_payload(self, payload: dict[str, Any], secret: str) -> str:
         """Sign webhook payload with HMAC-SHA256."""
         payload_string = json.dumps(payload, sort_keys=True)
         signature = hmac.new(
-            secret.encode('utf-8'),
-            payload_string.encode('utf-8'),
+            secret.encode("utf-8"),
+            payload_string.encode("utf-8"),
             hashlib.sha256
         ).hexdigest()
 
@@ -651,12 +649,12 @@ class WebhookManager:
         self,
         webhook: WebhookSubscription,
         attempt_number: int
-    ) -> Optional[datetime]:
+    ) -> datetime | None:
         """Calculate next retry time using exponential backoff."""
-        if attempt_number > len(webhook.retry_config.get('retry_delays', self.default_retry_delays)):
+        if attempt_number > len(webhook.retry_config.get("retry_delays", self.default_retry_delays)):
             return None
 
-        retry_delays = webhook.retry_config.get('retry_delays', self.default_retry_delays)
+        retry_delays = webhook.retry_config.get("retry_delays", self.default_retry_delays)
 
         if attempt_number <= len(retry_delays):
             delay_seconds = retry_delays[attempt_number - 1]
@@ -669,27 +667,27 @@ class WebhookManager:
         # In production, this would store in the database
         webhook_key = f"webhook:{webhook.id}"
         webhook_data = {
-            'id': webhook.id,
-            'user_id': webhook.user_id,
-            'organization_id': webhook.organization_id,
-            'url': webhook.url,
-            'events': [e.value for e in webhook.events],
-            'secret': webhook.secret,
-            'active': webhook.active,
-            'description': webhook.description,
-            'headers': json.dumps(webhook.headers),
-            'rate_limit': json.dumps(webhook.rate_limit),
-            'created_at': webhook.created_at.isoformat(),
-            'updated_at': webhook.updated_at.isoformat(),
-            'last_delivery': webhook.last_delivery.isoformat() if webhook.last_delivery else None,
-            'delivery_count': webhook.delivery_count,
-            'failure_count': webhook.failure_count
+            "id": webhook.id,
+            "user_id": webhook.user_id,
+            "organization_id": webhook.organization_id,
+            "url": webhook.url,
+            "events": [e.value for e in webhook.events],
+            "secret": webhook.secret,
+            "active": webhook.active,
+            "description": webhook.description,
+            "headers": json.dumps(webhook.headers),
+            "rate_limit": json.dumps(webhook.rate_limit),
+            "created_at": webhook.created_at.isoformat(),
+            "updated_at": webhook.updated_at.isoformat(),
+            "last_delivery": webhook.last_delivery.isoformat() if webhook.last_delivery else None,
+            "delivery_count": webhook.delivery_count,
+            "failure_count": webhook.failure_count
         }
 
         await self.redis.hset(webhook_key, webhook_data)
         await self.redis.expire(webhook_key, timedelta(days=365))
 
-    async def _get_webhook_subscription(self, webhook_id: str) -> Optional[WebhookSubscription]:
+    async def _get_webhook_subscription(self, webhook_id: str) -> WebhookSubscription | None:
         """Get webhook subscription by ID."""
         try:
             webhook_key = f"webhook:{webhook_id}"
@@ -699,19 +697,19 @@ class WebhookManager:
                 return None
 
             # Convert string fields back to proper types
-            webhook_data['created_at'] = datetime.fromisoformat(webhook_data['created_at'])
-            webhook_data['updated_at'] = datetime.fromisoformat(webhook_data['updated_at'])
-            webhook_data['events'] = [WebhookEvent(e) for e in webhook_data['events']]
-            webhook_data['headers'] = json.loads(webhook_data['headers'])
-            webhook_data['rate_limit'] = json.loads(webhook_data['rate_limit']) if webhook_data['rate_limit'] else {}
+            webhook_data["created_at"] = datetime.fromisoformat(webhook_data["created_at"])
+            webhook_data["updated_at"] = datetime.fromisoformat(webhook_data["updated_at"])
+            webhook_data["events"] = [WebhookEvent(e) for e in webhook_data["events"]]
+            webhook_data["headers"] = json.loads(webhook_data["headers"])
+            webhook_data["rate_limit"] = json.loads(webhook_data["rate_limit"]) if webhook_data["rate_limit"] else {}
 
-            if webhook_data['last_delivery']:
-                webhook_data['last_delivery'] = datetime.fromisoformat(webhook_data['last_delivery'])
+            if webhook_data["last_delivery"]:
+                webhook_data["last_delivery"] = datetime.fromisoformat(webhook_data["last_delivery"])
 
             return WebhookSubscription(**webhook_data)
 
         except Exception as e:
-            logger.error(f"Error getting webhook subscription: {str(e)}")
+            logger.error(f"Error getting webhook subscription: {e!s}")
             return None
 
     async def _delete_webhook_subscription(self, webhook_id: str) -> bool:
@@ -722,16 +720,16 @@ class WebhookManager:
             return result
 
         except Exception as e:
-            logger.error(f"Error deleting webhook subscription: {str(e)}")
+            logger.error(f"Error deleting webhook subscription: {e!s}")
             return False
 
     async def _find_matching_webhooks(
         self,
         event: WebhookEvent,
-        webhook_ids: Optional[List[str]],
-        organization_id: Optional[int],
-        user_id: Optional[int]
-    ) -> List[WebhookSubscription]:
+        webhook_ids: list[str] | None,
+        organization_id: int | None,
+        user_id: int | None
+    ) -> list[WebhookSubscription]:
         """Find webhooks that match the event criteria."""
         # This would query the database in production
         # For now, return empty list
@@ -742,25 +740,25 @@ class WebhookManager:
         try:
             delivery_key = f"delivery:{delivery.id}"
             delivery_data = {
-                'id': delivery.id,
-                'webhook_id': delivery.webhook_id,
-                'event': delivery.event.value,
-                'payload': json.dumps(delivery.payload),
-                'status': delivery.status.value,
-                'status_code': delivery.status_code,
-                'response_body': delivery.response_body,
-                'attempt_number': delivery.attempt_number,
-                'delivered_at': delivery.delivered_at.isoformat() if delivery.delivered_at else None,
-                'next_retry_at': delivery.next_retry_at.isoformat() if delivery.next_retry_at else None,
-                'error_message': delivery.error_message,
-                'created_at': delivery.created_at.isoformat()
+                "id": delivery.id,
+                "webhook_id": delivery.webhook_id,
+                "event": delivery.event.value,
+                "payload": json.dumps(delivery.payload),
+                "status": delivery.status.value,
+                "status_code": delivery.status_code,
+                "response_body": delivery.response_body,
+                "attempt_number": delivery.attempt_number,
+                "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None,
+                "next_retry_at": delivery.next_retry_at.isoformat() if delivery.next_retry_at else None,
+                "error_message": delivery.error_message,
+                "created_at": delivery.created_at.isoformat()
             }
 
             await self.redis.hset(delivery_key, delivery_data)
             await self.redis.expire(delivery_key, timedelta(days=30))
 
         except Exception as e:
-            logger.error(f"Error storing delivery record: {str(e)}")
+            logger.error(f"Error storing delivery record: {e!s}")
 
     async def _log_webhook_delivery(
         self,
@@ -772,13 +770,13 @@ class WebhookManager:
     ):
         """Log webhook delivery attempt."""
         log_entry = {
-            'delivery_id': delivery_id,
-            'webhook_id': webhook.id,
-            'webhook_url': webhook.url,
-            'event': event,
-            'status': status.value,
-            'response_body': response_body[:500],  # Truncate long responses
-            'timestamp': datetime.utcnow().isoformat()
+            "delivery_id": delivery_id,
+            "webhook_id": webhook.id,
+            "webhook_url": webhook.url,
+            "event": event,
+            "status": status.value,
+            "response_body": response_body[:500],  # Truncate long responses
+            "timestamp": datetime.utcnow().isoformat()
         }
 
         # Store in Redis for recent history
@@ -787,54 +785,54 @@ class WebhookManager:
         await self.redis.ltrim(log_key, 0, 99)  # Keep last 100 logs
         await self.redis.expire(log_key, timedelta(days=30))
 
-    async def _update_delivery_stats(self, delivery_results: List[Dict[str, Any]]):
+    async def _update_delivery_stats(self, delivery_results: list[dict[str, Any]]):
         """Update delivery statistics."""
         stats = {}
 
         for result in delivery_results:
-            webhook_id = result['webhook_id']
+            webhook_id = result["webhook_id"]
 
             if webhook_id not in stats:
                 stats[webhook_id] = {
-                    'total': 0,
-                    'successful': 0,
-                    'failed': 0,
-                    'response_times': []
+                    "total": 0,
+                    "successful": 0,
+                    "failed": 0,
+                    "response_times": []
                 }
 
-            stats[webhook_id]['total'] += 1
+            stats[webhook_id]["total"] += 1
 
-            if result['status'] == WebhookStatus.DELIVERED:
-                stats[webhook_id]['successful'] += 1
+            if result["status"] == WebhookStatus.DELIVERED:
+                stats[webhook_id]["successful"] += 1
             else:
-                stats[webhook_id]['failed'] += 1
+                stats[webhook_id]["failed"] += 1
 
         # Update stats in Redis for each webhook
         for webhook_id, webhook_stats in stats.items():
             await self._update_webhook_stats(webhook_id, webhook_stats)
 
-    async def _update_webhook_stats(self, webhook_id: str, stats: Dict[str, Any]):
+    async def _update_webhook_stats(self, webhook_id: str, stats: dict[str, Any]):
         """Update webhook statistics."""
         try:
             stats_key = f"webhook_stats:{webhook_id}"
 
             # Calculate average response time if we have timing data
-            if stats['response_times']:
-                stats['average_delivery_time'] = sum(stats['response_times']) / len(stats['response_times'])
+            if stats["response_times"]:
+                stats["average_delivery_time"] = sum(stats["response_times"]) / len(stats["response_times"])
 
             # Store stats
             await self.redis.hset(stats_key, {
-                'total_deliveries': stats['total'],
-                'successful_deliveries': stats['successful'],
-                'failed_deliveries': stats['failed'],
-                'average_delivery_time': str(stats.get('average_delivery_time', 0)),
-                'last_24h_deliveries': str(stats.get('last_24h_deliveries', 0)),
-                'last_7d_deliveries': str(stats.get('last_7d_deliveries', 0))
+                "total_deliveries": stats["total"],
+                "successful_deliveries": stats["successful"],
+                "failed_deliveries": stats["failed"],
+                "average_delivery_time": str(stats.get("average_delivery_time", 0)),
+                "last_24h_deliveries": str(stats.get("last_24h_deliveries", 0)),
+                "last_7d_deliveries": str(stats.get("last_7d_deliveries", 0))
             })
             await self.redis.expire(stats_key, timedelta(days=365))
 
         except Exception as e:
-            logger.error(f"Error updating webhook stats: {str(e)}")
+            logger.error(f"Error updating webhook stats: {e!s}")
 
     def _generate_webhook_secret(self) -> str:
         """Generate a secure webhook secret."""
@@ -849,7 +847,7 @@ class WebhookManager:
             logger.info(f"Cleaning up webhook deliveries older than {days} days")
 
         except Exception as e:
-            logger.error(f"Error cleaning up old deliveries: {str(e)}")
+            logger.error(f"Error cleaning up old deliveries: {e!s}")
 
     async def retry_failed_webhooks(self):
         """Retry webhooks that failed and are scheduled for retry."""
@@ -871,8 +869,8 @@ class WebhookManager:
 
                 for delivery in failed_deliveries:
                     # Check if it's time to retry
-                    if delivery['next_retry_at']:
-                        next_retry = datetime.fromisoformat(delivery['next_retry_at'])
+                    if delivery["next_retry_at"]:
+                        next_retry = datetime.fromisoformat(delivery["next_retry_at"])
 
                         if now >= next_retry:
                             # Retry the delivery
@@ -882,47 +880,47 @@ class WebhookManager:
             logger.info(f"Retried {retry_count} failed webhook deliveries")
 
         except Exception as e:
-            logger.error(f"Error retrying failed webhooks: {str(e)}")
+            logger.error(f"Error retrying failed webhooks: {e!s}")
 
     async def _retry_webhook_delivery(
         self,
         webhook: WebhookSubscription,
-        delivery: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        delivery: dict[str, Any]
+    ) -> dict[str, Any]:
         """Retry a failed webhook delivery."""
         try:
             # Get the original payload
-            payload = json.loads(delivery['payload'])
+            payload = json.loads(delivery["payload"])
 
             # Increment attempt number
-            attempt_number = delivery['attempt_number'] + 1
+            attempt_number = delivery["attempt_number"] + 1
 
             # Check if we've exceeded max retries
-            max_retries = webhook.retry_config.get('max_retries', self.max_retries)
+            max_retries = webhook.retry_config.get("max_retries", self.max_retries)
             if attempt_number > max_retries:
                 # Mark as permanently failed
-                delivery['status'] = WebhookStatus.FAILED
-                delivery['error_message'] = f"Exceeded maximum retries ({max_retries})"
+                delivery["status"] = WebhookStatus.FAILED
+                delivery["error_message"] = f"Exceeded maximum retries ({max_retries})"
                 await self._store_delivery_record(WebhookDelivery(**delivery))
-                return {'status': 'permanently_failed', 'attempts': attempt_number}
+                return {"status": "permanently_failed", "attempts": attempt_number}
 
             # Retry the delivery
             result = await self._deliver_webhook(webhook, payload)
 
             # Update the original delivery record
-            delivery['status'] = result['status']
-            delivery['attempt_number'] = attempt_number
-            delivery['delivered_at'] = datetime.utcnow().isoformat() if result['status'] == WebhookStatus.DELIVERED else None
-            delivery['next_retry_at'] = result.get('next_retry_at')
+            delivery["status"] = result["status"]
+            delivery["attempt_number"] = attempt_number
+            delivery["delivered_at"] = datetime.utcnow().isoformat() if result["status"] == WebhookStatus.DELIVERED else None
+            delivery["next_retry_at"] = result.get("next_retry_at")
 
             await self._store_delivery_record(WebhookDelivery(**delivery))
 
             return {
-                'status': result['status'],
-                'attempts': attempt_number,
-                'delivered_at': delivery['delivered_at']
+                "status": result["status"],
+                "attempts": attempt_number,
+                "delivered_at": delivery["delivered_at"]
             }
 
         except Exception as e:
-            logger.error(f"Error retrying webhook delivery: {str(e)}")
-            return {'status': 'error', 'error': str(e)}
+            logger.error(f"Error retrying webhook delivery: {e!s}")
+            return {"status": "error", "error": str(e)}

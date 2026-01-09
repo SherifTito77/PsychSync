@@ -1,9 +1,8 @@
+from jose import JWTError, jwt
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
-from jose import jwt, JWTError
-from app.core.config import settings
 
+from app.core.config import settings
 
 # class TokenDecodeMiddleware(BaseHTTPMiddleware):
 #     async def dispatch(self, request: Request, call_next):

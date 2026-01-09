@@ -3,11 +3,12 @@
 Team Schemas - Fixed to use UUID instead of int
 Includes all backward compatibility aliases
 """
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
+
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TeamRole(str, Enum):
@@ -19,7 +20,7 @@ class TeamRole(str, Enum):
 # Base Team Schema
 class TeamBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
 
 
 # Team Create Schema
@@ -29,8 +30,8 @@ class TeamCreate(TeamBase):
 
 # Team Update Schema
 class TeamUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
 
 
 # Team Member Base
@@ -53,7 +54,7 @@ class TeamMemberUpdate(BaseModel):
 class TeamMemberResponse(TeamMemberBase):
     id: UUID
     team_id: UUID
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -61,8 +62,8 @@ class TeamMemberResponse(TeamMemberBase):
 class UserInfo(BaseModel):
     id: UUID
     email: str
-    full_name: Optional[str] = None
-    
+    full_name: str | None = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -72,8 +73,8 @@ class TeamMemberWithUser(BaseModel):
     team_id: UUID
     user_id: UUID
     role: TeamRole
-    user: Optional[UserInfo] = None
-    
+    user: UserInfo | None = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -83,21 +84,21 @@ class TeamResponse(TeamBase):
     created_by_id: UUID
     organization_id: UUID
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    
+    updated_at: datetime | None = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
 # Team with Members
 class TeamWithMembers(TeamResponse):
-    members: List[TeamMemberWithUser] = []
-    
+    members: list[TeamMemberWithUser] = []
+
     model_config = ConfigDict(from_attributes=True)
 
 
 # Team List Response
 class TeamListResponse(BaseModel):
-    teams: List[TeamResponse]
+    teams: list[TeamResponse]
     total: int
 
 
@@ -121,17 +122,14 @@ TeamListSchema = TeamListResponse
 __all__ = [
     # Enums
     "TeamRole",
-    
     # Base classes
     "TeamBase",
     "TeamMemberBase",
-    
     # Create/Update
     "TeamCreate",
     "TeamUpdate",
     "TeamMemberCreate",
     "TeamMemberUpdate",
-    
     # Responses
     "TeamResponse",
     "TeamMemberResponse",
@@ -139,7 +137,6 @@ __all__ = [
     "TeamMemberWithUser",
     "TeamListResponse",
     "UserInfo",
-    
     # Aliases (for backward compatibility)
     "Team",
     "TeamSchema",

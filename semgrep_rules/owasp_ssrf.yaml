@@ -1,0 +1,511 @@
+rules:
+  # RULE 1: Detect aiohttp/requests/httpx with user-provided URLs
+  - id: owasp-ssrf-user-provided-url
+    languages: [python]
+    message: |
+      Potential SSRF vulnerability: User-controlled URL passed directly to HTTP library.
+      This allows attackers to make requests to internal services, cloud metadata endpoints,
+      or perform network scanning.
+
+      Risk: SSRF (CWE-918)
+      Impact: CRITICAL - Internal network access, credential theft, data exfiltration
+
+      Attack Examples:
+      - Internal network scanning: http://192.168.1.1
+      - Cloud metadata theft: http://169.254.169.254/latest/meta-data/
+      - Localhost access: http://127.0.0.1:8080
+
+      Fix:
+      1. Validate URL against SSRF protection rules
+      2. Block internal IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8)
+      3. Block cloud metadata endpoints (169.254.169.254, metadata.google.internal)
+      4. Use allowlist for permitted domains
+      5. Implement DNS rebinding protection
+
+      Example secure code:
+      ```python
+      # Validate URL first
+      from app.security import validate_webhook_url
+
+      is_valid, error = validate_webhook_url(user_url)
+      if not is_valid:
+          raise ValueError(f"Invalid URL: {error}")
+
+      # Then make request
+      async with aiohttp.ClientSession() as session:
+          async with session.get(validated_url) as response:
+              return await response.text()
+      ```
+    severity: ERROR
+    pattern-regex: 'async with (aiohttp|requests|httpx)\.(ClientSession|get|post|put|delete|patch)\([^)]*user[^)]*\)|session\.(get|post|put|delete|patch)\([^)]*user[^)]*\)'
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      technology:
+        - python
+        - aiohttp
+        - requests
+        - httpx
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+    # Check that URL is NOT validated before use
+    patterns-logic:
+      - pattern-regex: (aiohttp|requests|httpx)\.(ClientSession|get|post|put|delete|patch)
+      - not-pattern: validate_webhook_url(...)
+      - not-pattern: validate_url(...)
+      - not-pattern: ssrf_protection.validate(...)
+
+  # RULE 2: Detect URL parameters in webhooks without validation
+  - id: owasp-ssrf-webhook-url-validation
+    languages: [python]
+    message: |
+      SSRF Risk: Webhook URL from user input without validation.
+
+      Webhook URLs must be validated to prevent SSRF attacks before being stored
+      or used for HTTP requests.
+
+      Risk: SSRF (CWE-918)
+      Fix: Validate webhook URL with SSRF protection
+
+      Example secure code:
+      ```python
+      async def create_webhook(url: str):
+          # ✅ Validate URL
+          is_valid, error = SSRFProtection.validate_webhook_url(url)
+          if not is_valid:
+              raise ValueError(f"Invalid webhook URL: {error}")
+
+          # Store webhook
+          webhooks.append(url)
+      ```
+    severity: ERROR
+    pattern: |
+      async def create_webhook(..., url: str, ...):
+          ...
+          $WEBHOOK.url = url
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: async def create_webhook(..., url: str, ...):
+      - not-pattern: validate_webhook_url(...)
+
+  # RULE 3: Detect urllib/urllib2 usage with user input
+  - id: owasp-ssrf-urllib-usage
+    languages: [python]
+    message: |
+      SSRF Risk: urllib/urllib2 with user-controlled URL.
+
+      Risk: SSRF (CWE-918)
+      Fix: Use SSRF-safe HTTP client with validation
+    severity: ERROR
+    pattern-either:
+      - pattern: urllib.request.urlopen($USER_INPUT)
+      - pattern: urllib2.urlopen($USER_INPUT)
+      - pattern: urllib.request.Request($USER_INPUT)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 4: Detect missing internal IP validation
+  - id: owasp-ssrf-missing-ip-validation
+    languages: [python]
+    message: |
+      SSRF Risk: URL used without IP address validation.
+
+      URLs must be validated to ensure they don't resolve to internal IP addresses.
+
+      Risk: SSRF (CWE-918)
+      Fix: Implement IP address validation after DNS resolution
+
+      Example secure code:
+      ```python
+      import socket
+      import ipaddress
+
+      hostname = urlparse(url).hostname
+      # Resolve to IP
+      ips = socket.getaddrinfo(hostname, None)
+      for ip_info in ips:
+          ip_addr = ipaddress.ip_address(ip_info[4][0])
+          # Check if private IP
+          if ip_addr.is_private:
+              raise ValueError("Internal IP addresses not allowed")
+      ```
+    severity: ERROR
+    pattern: |
+      $HTTP_CLIENT.$METHOD($URL)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: $HTTP_CLIENT.$METHOD($URL)
+      - not-pattern: validate_ip_address(...)
+      - not-pattern: ip_address.is_private
+
+  # RULE 5: Detect missing metadata endpoint blocking
+  - id: owasp-ssrf-missing-metadata-blocking
+    languages: [python]
+    message: |
+      SSRF Risk: Cloud metadata endpoints not explicitly blocked.
+
+      Applications MUST block access to:
+      - AWS: 169.254.169.254
+      - GCP: metadata.google.internal
+      - Azure: 169.254.169.254/metadata/
+
+      Risk: SSRF (CWE-918)
+      Impact: CRITICAL - Cloud credential theft
+
+      Fix:
+      ```python
+      BLOCKED_HOSTS = [
+          '169.254.169.254',
+          'metadata.google.internal',
+      ]
+
+      hostname = urlparse(url).hostname
+      if hostname in BLOCKED_HOSTS:
+          raise ValueError("Cloud metadata endpoints not allowed")
+      ```
+    severity: ERROR
+    pattern: |
+      def create_webhook(..., url: str):
+          ...
+          $PARSED = urlparse(url)
+          # No check for blocked hosts
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: def create_webhook(...):
+      - not-pattern: BLOCKED_HOSTS
+      - not-pattern: 169.254.169.254
+
+  # RULE 6: Detect missing localhost protection
+  - id: owasp-ssrf-missing-localhost-protection
+    languages: [python]
+    message: |
+      SSRF Risk: localhost/127.0.0.1 not explicitly blocked.
+
+      Localhost access allows attackers to access internal services.
+
+      Risk: SSRF (CWE-918)
+      Fix: Block localhost, 127.0.0.0/8, and ::1
+    severity: ERROR
+    pattern: |
+      session.post($URL)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: session.post($URL)
+      - not-pattern: is_localhost(...)
+      - not-pattern: block_localhost(...)
+
+  # RULE 7: Detect unsafe URL concatenation
+  - id: owasp-ssrf-unsafe-url-concatenation
+    languages: [python]
+    message: |
+      SSRF Risk: URL constructed from user input without validation.
+
+      Risk: SSRF (CWE-918)
+      Fix: Validate complete URL before use
+    severity: WARNING
+    pattern: |
+      base_url + user_input
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/api/**/*.py
+        - app/services/**/*.py
+
+  # RULE 8: Detect missing rate limiting on webhook creation
+  - id: owasp-ssrf-missing-webhook-rate-limit
+    languages: [python]
+    message: |
+      DoS Risk: Webhook creation without rate limiting.
+
+      Allows attackers to create unlimited webhooks for DoS or attacks.
+
+      Risk: DoS (CWE-770)
+      Fix: Add rate limiting:
+      ```python
+      @check_rate_limit(
+          identifier=lambda user: f"webhook:create:{user.id}",
+          limit=10,
+          window=3600
+      )
+      ```
+    severity: WARNING
+    pattern: |
+      @router.post("/webhooks")
+      async def create_webhook(...):
+          ...
+    metadata:
+      category: security
+      owasp: "A04:2021 - Insecure Design"
+      cwe: "CWE-770"
+    paths:
+      include:
+        - app/api/**/*.py
+    patterns-logic:
+      - pattern: @router.post("/webhooks")
+      - not-pattern: @check_rate_limit(...)
+
+  # RULE 9: Detect missing audit logging for webhooks
+  - id: owasp-ssrf-missing-webhook-audit-log
+    languages: [python]
+    message: |
+      Security Monitoring Gap: Webhook operations not audited.
+
+      Webhook creation and delivery must be logged to detect SSRF attempts.
+
+      Risk: Security Monitoring Gap (CWE-778)
+      Fix: Add audit logging for all webhook operations
+    severity: WARNING
+    pattern: |
+      async def create_webhook(...):
+          ...
+          return webhook
+    metadata:
+      category: security
+      owasp: "A09:2021 - Security Logging and Monitoring Failures"
+      cwe: "CWE-778"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: async def create_webhook(...):
+      - not-pattern: audit_logger.log_event(...)
+      - not-pattern: log_security_event(...)
+
+  # RULE 10: Detect OAuth state parameter not validated (CSRF)
+  - id: owasp-oauth-csrf-missing-state-validation
+    languages: [python]
+    message: |
+      CSRF Risk: OAuth state parameter not validated.
+
+      OAuth callbacks must validate the state parameter to prevent CSRF attacks.
+
+      Risk: CSRF (CWE-352)
+      Impact: HIGH - OAuth code interception
+
+      Fix:
+      ```python
+      @router.get("/oauth/callback")
+      async def oauth_callback(code: str, state: str):
+          # ✅ Validate state parameter
+          if not validate_oauth_state(state, user_id):
+              raise HTTPException(400, "Invalid state parameter")
+
+          # Continue with OAuth flow
+      ```
+    severity: ERROR
+    pattern: |
+      @router.get("/oauth/callback")
+      async def oauth_callback(..., state: str, ...):
+          # No state validation
+          $OAUTH_FLOW(...)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-352: Cross-Site Request Forgery (CSRF)"
+    paths:
+      include:
+        - app/api/v1/endpoints/slack.py
+        - app/api/v1/endpoints/*oauth*.py
+    patterns-logic:
+      - pattern: async def oauth_callback(..., state: str, ...):
+      - not-pattern: validate_state(...)
+
+  # RULE 11: Detect webhooks without signature verification
+  - id: owasp-webhook-missing-signature-verification
+    languages: [python]
+    message: |
+      Webhook Security: Webhook endpoint without signature verification.
+
+      Webhook endpoints must verify HMAC signatures to ensure authenticity.
+
+      Risk: Webhook Spoofing
+      Fix: Implement signature verification
+
+      Example:
+      ```python
+      @router.post("/webhooks/incoming")
+      async def handle_webhook(request: Request):
+          # Verify signature
+          signature = request.headers.get("X-Webhook-Signature")
+          if not verify_webhook_signature(await request.body(), signature):
+              raise HTTPException(401, "Invalid signature")
+      ```
+    severity: WARNING
+    pattern: |
+      @router.post("/webhooks/incoming")
+      async def handle_webhook(...):
+          # No signature verification
+          pass
+    metadata:
+      category: security
+      owasp: "A02:2021 - Cryptographic Failures"
+      cwe: "CWE-345: Insufficient Verification of Data Authenticity"
+    paths:
+      include:
+        - app/api/**/*.py
+    patterns-logic:
+      - pattern: @router.post("/webhooks/incoming")
+      - not-pattern: verify_signature(...)
+      - not-pattern: verify_hmac(...)
+
+  # RULE 12: Detect missing timeout on HTTP requests
+  - id: owasp-ssrf-missing-request-timeout
+    languages: [python]
+    message: |
+      DoS Risk: HTTP request without timeout.
+
+      Requests without timeouts can hang indefinitely, causing DoS.
+
+      Risk: DoS (CWE-400)
+      Fix: Always set timeouts on HTTP requests
+
+      Example:
+      ```python
+      async with aiohttp.ClientSession() as session:
+          async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as response:
+              return await response.text()
+      ```
+    severity: WARNING
+    pattern-either:
+      - pattern: session.get($URL)
+      - pattern: session.post($URL)
+      - pattern: requests.get($URL)
+      - pattern: requests.post($URL)
+    metadata:
+      category: security
+      owasp: "A07:2021 - Identification and Authentication Failures"
+      cwe: "CWE-400: Uncontrolled Resource Consumption"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern-either:
+          - pattern: session.get($URL)
+          - pattern: session.post($URL)
+      - not-pattern: timeout=...
+
+  # RULE 13: Detect missing Host header validation
+  - id: owasp-ssrf-missing-host-header-validation
+    languages: [python]
+    message: |
+      SSRF Risk: HTTP request without Host header validation.
+
+      Host headers can be manipulated for SSRF attacks.
+
+      Risk: SSRF (CWE-918)
+      Fix: Validate Host header before making requests
+    severity: WARNING
+    pattern: |
+      session.get($URL, headers=$HEADERS)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: session.get($URL, headers=$HEADERS)
+      - not-pattern: validate_host_header(...)
+
+  # RULE 14: Detect redirects followed blindly
+  - id: owasp-ssrf-unsafe-redirects
+    languages: [python]
+    message: |
+      SSRF Risk: HTTP redirects followed without validation.
+
+      Attackers can use redirects to bypass SSRF protections.
+
+      Risk: SSRF (CWE-918)
+      Fix: Disable automatic redirects or validate redirect URLs
+
+      Example:
+      ```python
+      async with aiohttp.ClientSession() as session:
+          async with session.get(url, allow_redirects=False) as response:
+              if 300 <= response.status < 400:
+                  redirect_url = response.headers.get("Location")
+                  # Validate redirect URL
+                  if is_valid_url(redirect_url):
+                      return await session.get(redirect_url)
+      ```
+    severity: WARNING
+    pattern: |
+      session.get($URL)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: session.get($URL)
+      - not-pattern: allow_redirects=False
+
+  # RULE 15: Detect file:// URLs not blocked
+  - id: owasp-ssrf-file-url-not-blocked
+    languages: [python]
+    message: |
+      SSRF Risk: file:// URLs not blocked.
+
+      file:// URLs allow reading arbitrary files from the filesystem.
+
+      Risk: SSRF + File Disclosure (CWE-22, CWE-918)
+      Fix: Block file:// protocol
+
+      Example:
+      ```python
+      parsed = urlparse(url)
+      if parsed.scheme == "file":
+          raise ValueError("file:// URLs not allowed")
+      ```
+    severity: ERROR
+    pattern: |
+      session.get($URL)
+    metadata:
+      category: security
+      owasp: "A01:2021 - Broken Access Control"
+      cwe: "CWE-918"
+    paths:
+      include:
+        - app/services/**/*.py
+    patterns-logic:
+      - pattern: session.get($URL)
+      - not-pattern: parsed.scheme not in ["file", ""]

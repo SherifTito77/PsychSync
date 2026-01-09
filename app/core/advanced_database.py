@@ -10,13 +10,13 @@ This module provides enterprise-grade database connection management with:
 """
 
 import asyncio
-import time
-import logging
-from typing import Optional, Dict, Any, List
 from contextlib import asynccontextmanager
-import asyncpg
 from dataclasses import dataclass
 from enum import Enum
+import logging
+import time
+
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ class DatabaseRole(Enum):
 @dataclass
 class DatabaseConfig:
     """Database connection configuration"""
+
     host: str
     port: int
     database: str
@@ -39,12 +40,13 @@ class DatabaseConfig:
     min_connections: int = 5
     max_connections: int = 50
     command_timeout: int = 30
-    server_settings: Optional[Dict[str, str]] = None
+    server_settings: dict[str, str] | None = None
 
 
 @dataclass
 class PoolMetrics:
     """Database pool performance metrics"""
+
     active_connections: int
     idle_connections: int
     total_connections: int
@@ -53,7 +55,7 @@ class PoolMetrics:
     query_count: int
     avg_query_time_ms: float
     error_count: int
-    last_error_time: Optional[float]
+    last_error_time: float | None
 
 
 class CircuitBreaker:
@@ -101,14 +103,14 @@ class AdvancedDatabaseManager:
     """Enterprise-grade database connection manager"""
 
     def __init__(self):
-        self.pools: Dict[DatabaseRole, asyncpg.Pool] = {}
-        self.configs: Dict[DatabaseRole, DatabaseConfig] = {}
-        self.metrics: Dict[DatabaseRole, PoolMetrics] = {}
-        self.circuit_breakers: Dict[DatabaseRole, CircuitBreaker] = {}
-        self.health_checks: Dict[DatabaseRole, bool] = {}
+        self.pools: dict[DatabaseRole, asyncpg.Pool] = {}
+        self.configs: dict[DatabaseRole, DatabaseConfig] = {}
+        self.metrics: dict[DatabaseRole, PoolMetrics] = {}
+        self.circuit_breakers: dict[DatabaseRole, CircuitBreaker] = {}
+        self.health_checks: dict[DatabaseRole, bool] = {}
         self.initialized = False
 
-    async def initialize(self, configs: List[DatabaseConfig]):
+    async def initialize(self, configs: list[DatabaseConfig]):
         """Initialize database connection pools"""
         logger.info("Initializing advanced database manager...")
 
@@ -132,7 +134,7 @@ class AdvancedDatabaseManager:
                     query_count=0,
                     avg_query_time_ms=0.0,
                     error_count=0,
-                    last_error_time=None
+                    last_error_time=None,
                 )
 
                 # Perform initial health check
@@ -150,10 +152,10 @@ class AdvancedDatabaseManager:
     async def _create_pool(self, config: DatabaseConfig) -> asyncpg.Pool:
         """Create optimized connection pool"""
         server_settings = config.server_settings or {
-            'application_name': 'psychsync',
-            'timezone': 'UTC',
-            'search_path': 'public',
-            'jit': 'off',  # Disable JIT for production stability
+            "application_name": "psychsync",
+            "timezone": "UTC",
+            "search_path": "public",
+            "jit": "off",  # Disable JIT for production stability
         }
 
         pool = await asyncpg.create_pool(
@@ -253,7 +255,7 @@ class AdvancedDatabaseManager:
 
             return result
 
-        except Exception as e:
+        except Exception:
             # Update error metrics
             self._update_metrics(role, (time.time() - start_time) * 1000, error=True)
             raise
@@ -272,7 +274,7 @@ class AdvancedDatabaseManager:
 
             return result
 
-        except Exception as e:
+        except Exception:
             # Update error metrics
             self._update_metrics(role, (time.time() - start_time) * 1000, error=True)
             raise
@@ -291,8 +293,7 @@ class AdvancedDatabaseManager:
 
         # Update average query time (exponential moving average)
         alpha = 0.1  # Smoothing factor
-        metrics.avg_query_time_ms = (alpha * query_time_ms +
-                                   (1 - alpha) * metrics.avg_query_time_ms)
+        metrics.avg_query_time_ms = alpha * query_time_ms + (1 - alpha) * metrics.avg_query_time_ms
 
     async def get_pool_metrics(self, role: DatabaseRole) -> PoolMetrics:
         """Get current pool metrics"""
@@ -310,7 +311,7 @@ class AdvancedDatabaseManager:
 
         return metrics
 
-    async def get_all_metrics(self) -> Dict[DatabaseRole, PoolMetrics]:
+    async def get_all_metrics(self) -> dict[DatabaseRole, PoolMetrics]:
         """Get metrics for all pools"""
         metrics = {}
         for role in DatabaseRole:
@@ -336,7 +337,9 @@ class AdvancedDatabaseManager:
 class EnhancedConnection:
     """Enhanced database connection with automatic resource management"""
 
-    def __init__(self, connection: asyncpg.Connection, role: DatabaseRole, manager: AdvancedDatabaseManager):
+    def __init__(
+        self, connection: asyncpg.Connection, role: DatabaseRole, manager: AdvancedDatabaseManager
+    ):
         self.conn = connection
         self.role = role
         self.manager = manager
@@ -409,7 +412,7 @@ async def get_database_transaction(role: DatabaseRole = DatabaseRole.PRIMARY):
 
 
 # Database initialization functions
-async def initialize_databases(configs: List[DatabaseConfig]):
+async def initialize_databases(configs: list[DatabaseConfig]):
     """Initialize all database connections"""
     await db_manager.initialize(configs)
 

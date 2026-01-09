@@ -3,14 +3,14 @@ Comprehensive Security Audit Logging Service
 Logs security-relevant events for compliance, monitoring, and incident response
 """
 
-import logging
-import json
-from datetime import datetime
-from typing import Any, Dict, Optional, List
-from enum import Enum
-from pydantic import BaseModel, Field
 import asyncio
+from datetime import datetime
+from enum import Enum
+import logging
 from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -78,16 +78,16 @@ class SecurityEvent(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
 
     # Actor information
-    user_id: Optional[str] = Field(None, description="User ID who triggered the event")
-    username: Optional[str] = Field(None, description="Username (if available)")
-    session_id: Optional[str] = Field(None, description="Session ID")
+    user_id: str | None = Field(None, description="User ID who triggered the event")
+    username: str | None = Field(None, description="Username (if available)")
+    session_id: str | None = Field(None, description="Session ID")
 
     # Request information
-    ip_address: Optional[str] = Field(None, description="Client IP address")
-    user_agent: Optional[str] = Field(None, description="Client user agent")
-    request_id: Optional[str] = Field(None, description="Request ID for tracing")
-    endpoint: Optional[str] = Field(None, description="API endpoint")
-    method: Optional[str] = Field(None, description="HTTP method")
+    ip_address: str | None = Field(None, description="Client IP address")
+    user_agent: str | None = Field(None, description="Client user agent")
+    request_id: str | None = Field(None, description="Request ID for tracing")
+    endpoint: str | None = Field(None, description="API endpoint")
+    method: str | None = Field(None, description="HTTP method")
 
     # Event details
     severity: str = Field(default="info", description="Event severity: debug, info, warning, error, critical")
@@ -95,15 +95,15 @@ class SecurityEvent(BaseModel):
     description: str = Field(..., description="Human-readable description")
 
     # Additional context
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional event metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional event metadata")
 
     # PII/PHI indicators
     involves_pii: bool = Field(default=False, description="Event involves PII data")
     involves_phi: bool = Field(default=False, description="Event involves PHI (health) data")
 
     # Organization context
-    organization_id: Optional[str] = Field(None, description="Organization ID")
-    team_id: Optional[str] = Field(None, description="Team ID")
+    organization_id: str | None = Field(None, description="Organization ID")
+    team_id: str | None = Field(None, description="Team ID")
 
     class Config:
         json_encoders = {
@@ -132,7 +132,7 @@ class SecurityAuditLogger:
         backup_count: int = 30,
         enable_console: bool = True,
         enable_file: bool = True,
-        siem_endpoint: Optional[str] = None,
+        siem_endpoint: str | None = None,
     ):
         self.log_file = Path(log_file)
         self.max_file_size = max_file_size
@@ -159,7 +159,7 @@ class SecurityAuditLogger:
 
         # Formatter: JSON format for machine parsing
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
 
         # Console handler
@@ -216,7 +216,6 @@ class SecurityAuditLogger:
         """Send event to SIEM system (Splunk, Elasticsearch, etc.)."""
         # Implementation depends on SIEM system
         # Example: Send to Elasticsearch, Splunk HEC, etc.
-        pass
 
     def _trigger_alert(self, event: SecurityEvent):
         """Trigger alert for critical security events."""
@@ -249,7 +248,7 @@ class SecurityAuditLogger:
         username: str,
         ip_address: str,
         reason: str = "invalid_credentials",
-        user_id: Optional[str] = None
+        user_id: str | None = None
     ):
         """Log failed authentication attempt."""
         event = SecurityEvent(
@@ -268,7 +267,7 @@ class SecurityAuditLogger:
         self,
         ip_address: str,
         endpoint: str,
-        user_id: Optional[str] = None
+        user_id: str | None = None
     ):
         """Log rate limit violation."""
         event = SecurityEvent(
@@ -330,7 +329,7 @@ class SecurityAuditLogger:
         ip_address: str,
         endpoint: str,
         payload: str,
-        user_id: Optional[str] = None
+        user_id: str | None = None
     ):
         """Log SQL injection attempt (blocked)."""
         event = SecurityEvent(

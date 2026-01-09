@@ -3,26 +3,19 @@ Test Analytics and Reporting Service
 Provides comprehensive test analytics, dashboards, and insights
 """
 
-from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-import json
+from statistics import mean
+from typing import Any
 import uuid
-from statistics import mean, median, stdev
-from collections import defaultdict, Counter
 
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, or_, func
-
-from app.core.config import settings
+from app.services.accessibility_service import AccessibilityAuditService
+from app.services.automated_ui_testing_service import AutomatedUITestingService
+from app.services.beta_feedback_service import BetaFeedbackService
 from app.services.qa_service import ManualQAService
 from app.services.usability_service import UsabilityTestingService
-from app.services.accessibility_service import AccessibilityAuditService
-from app.services.beta_feedback_service import BetaFeedbackService
-from app.services.automated_ui_testing_service import AutomatedUITestingService
 
 logger = logging.getLogger(__name__)
 
@@ -73,11 +66,11 @@ class TestMetric:
     metric_type: MetricType
     value: float
     unit: str
-    target: Optional[float] = None
-    threshold: Optional[float] = None
+    target: float | None = None
+    threshold: float | None = None
     status: str = "neutral"  # good, warning, critical
-    trend: Optional[float] = None  # Percentage change from previous period
-    context: Dict[str, Any] = field(default_factory=dict)
+    trend: float | None = None  # Percentage change from previous period
+    context: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -91,8 +84,8 @@ class TestHealthScore:
     user_experience_score: float
     accessibility_score: float
     reliability_score: float
-    trends: Dict[str, float]
-    recommendations: List[str]
+    trends: dict[str, float]
+    recommendations: list[str]
     grade: str  # A, B, C, D, F
 
 
@@ -100,11 +93,11 @@ class TestHealthScore:
 class TestTrend:
     """Test metric trend over time"""
     metric_name: str
-    time_series: List[Tuple[datetime, float]]
+    time_series: list[tuple[datetime, float]]
     trend_direction: str  # improving, declining, stable
     trend_strength: float  # 0-1, how strong the trend is
-    seasonality: Optional[str] = None
-    forecast: Optional[List[Tuple[datetime, float]]] = None
+    seasonality: str | None = None
+    forecast: list[tuple[datetime, float]] | None = None
 
 
 @dataclass
@@ -112,11 +105,11 @@ class QualityGateResult:
     """Quality gate evaluation result"""
     gate_name: str
     status: QualityGate
-    criteria_met: List[str]
-    criteria_failed: List[str]
+    criteria_met: list[str]
+    criteria_failed: list[str]
     score: float
     blocking: bool = False
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -129,12 +122,12 @@ class TestingDashboard:
     start_date: datetime
     end_date: datetime
     health_score: TestHealthScore
-    key_metrics: List[TestMetric]
-    trends: List[TestTrend]
-    quality_gates: List[QualityGateResult]
-    test_execution_summary: Dict[str, Any]
-    risk_assessment: Dict[str, Any]
-    recommendations: List[str]
+    key_metrics: list[TestMetric]
+    trends: list[TestTrend]
+    quality_gates: list[QualityGateResult]
+    test_execution_summary: dict[str, Any]
+    risk_assessment: dict[str, Any]
+    recommendations: list[str]
     last_updated: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -161,8 +154,8 @@ class TestAnalyticsService:
     async def generate_test_dashboard(
         self,
         time_period: TimePeriod = TimePeriod.WEEKLY,
-        custom_start_date: Optional[datetime] = None,
-        custom_end_date: Optional[datetime] = None
+        custom_start_date: datetime | None = None,
+        custom_end_date: datetime | None = None
     ) -> TestingDashboard:
         """Generate comprehensive testing analytics dashboard"""
         logger.info(f"Generating test dashboard for period: {time_period.value}")
@@ -237,18 +230,17 @@ class TestAnalyticsService:
         """Calculate start date based on time period"""
         if period == TimePeriod.HOURLY:
             return end_date - timedelta(hours=24)
-        elif period == TimePeriod.DAILY:
+        if period == TimePeriod.DAILY:
             return end_date - timedelta(days=7)
-        elif period == TimePeriod.WEEKLY:
+        if period == TimePeriod.WEEKLY:
             return end_date - timedelta(weeks=4)
-        elif period == TimePeriod.MONTHLY:
+        if period == TimePeriod.MONTHLY:
             return end_date - timedelta(days=90)
-        elif period == TimePeriod.QUARTERLY:
+        if period == TimePeriod.QUARTERLY:
             return end_date - timedelta(days=365)
-        else:
-            return end_date - timedelta(weeks=1)
+        return end_date - timedelta(weeks=1)
 
-    async def _collect_qa_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+    async def _collect_qa_metrics(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
         """Collect manual QA metrics"""
         try:
             # Get test execution statistics
@@ -285,10 +277,10 @@ class TestAnalyticsService:
             }
 
         except Exception as e:
-            logger.error(f"Error collecting QA metrics: {str(e)}")
+            logger.error(f"Error collecting QA metrics: {e!s}")
             return {}
 
-    async def _collect_usability_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+    async def _collect_usability_metrics(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
         """Collect usability testing metrics"""
         try:
             # Get completed usability sessions
@@ -337,10 +329,10 @@ class TestAnalyticsService:
             }
 
         except Exception as e:
-            logger.error(f"Error collecting usability metrics: {str(e)}")
+            logger.error(f"Error collecting usability metrics: {e!s}")
             return {}
 
-    async def _collect_accessibility_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+    async def _collect_accessibility_metrics(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
         """Collect accessibility testing metrics"""
         try:
             # Run accessibility audit on main application pages
@@ -363,7 +355,7 @@ class TestAnalyticsService:
                     total_score += audit.score
 
                 except Exception as e:
-                    logger.warning(f"Failed to audit {url}: {str(e)}")
+                    logger.warning(f"Failed to audit {url}: {e!s}")
                     continue
 
             avg_score = (total_score / total_audits) if total_audits > 0 else 0
@@ -377,10 +369,10 @@ class TestAnalyticsService:
             }
 
         except Exception as e:
-            logger.error(f"Error collecting accessibility metrics: {str(e)}")
+            logger.error(f"Error collecting accessibility metrics: {e!s}")
             return {}
 
-    async def _collect_feedback_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+    async def _collect_feedback_metrics(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
         """Collect beta feedback metrics"""
         try:
             # Get feedback summary
@@ -407,10 +399,10 @@ class TestAnalyticsService:
             }
 
         except Exception as e:
-            logger.error(f"Error collecting feedback metrics: {str(e)}")
+            logger.error(f"Error collecting feedback metrics: {e!s}")
             return {}
 
-    async def _collect_ui_test_metrics(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+    async def _collect_ui_test_metrics(self, start_date: datetime, end_date: datetime) -> dict[str, Any]:
         """Collect automated UI testing metrics"""
         try:
             # Get test execution history
@@ -441,16 +433,16 @@ class TestAnalyticsService:
             }
 
         except Exception as e:
-            logger.error(f"Error collecting UI test metrics: {str(e)}")
+            logger.error(f"Error collecting UI test metrics: {e!s}")
             return {}
 
     async def _calculate_health_score(
         self,
-        qa_metrics: Dict[str, Any],
-        usability_metrics: Dict[str, Any],
-        accessibility_metrics: Dict[str, Any],
-        feedback_metrics: Dict[str, Any],
-        ui_test_metrics: Dict[str, Any]
+        qa_metrics: dict[str, Any],
+        usability_metrics: dict[str, Any],
+        accessibility_metrics: dict[str, Any],
+        feedback_metrics: dict[str, Any],
+        ui_test_metrics: dict[str, Any]
     ) -> TestHealthScore:
         """Calculate overall test health score"""
         # Coverage score (0-100)
@@ -514,12 +506,12 @@ class TestAnalyticsService:
 
     async def _generate_key_metrics(
         self,
-        qa_metrics: Dict[str, Any],
-        usability_metrics: Dict[str, Any],
-        accessibility_metrics: Dict[str, Any],
-        feedback_metrics: Dict[str, Any],
-        ui_test_metrics: Dict[str, Any]
-    ) -> List[TestMetric]:
+        qa_metrics: dict[str, Any],
+        usability_metrics: dict[str, Any],
+        accessibility_metrics: dict[str, Any],
+        feedback_metrics: dict[str, Any],
+        ui_test_metrics: dict[str, Any]
+    ) -> list[TestMetric]:
         """Generate key performance metrics"""
         metrics = []
 
@@ -612,25 +604,22 @@ class TestAnalyticsService:
             # For metrics where lower is better (like execution time)
             if value <= target:
                 return "good"
-            elif value <= threshold:
+            if value <= threshold:
                 return "warning"
-            else:
-                return "critical"
-        else:
-            # For metrics where higher is better
-            if value >= target:
-                return "good"
-            elif value >= threshold:
-                return "warning"
-            else:
-                return "critical"
+            return "critical"
+        # For metrics where higher is better
+        if value >= target:
+            return "good"
+        if value >= threshold:
+            return "warning"
+        return "critical"
 
     async def _analyze_trends(
         self,
         start_date: datetime,
         end_date: datetime,
         period: TimePeriod
-    ) -> List[TestTrend]:
+    ) -> list[TestTrend]:
         """Analyze trends in test metrics over time"""
         trends = []
 
@@ -657,9 +646,9 @@ class TestAnalyticsService:
 
     async def _evaluate_quality_gates(
         self,
-        key_metrics: List[TestMetric],
+        key_metrics: list[TestMetric],
         health_score: TestHealthScore
-    ) -> List[QualityGateResult]:
+    ) -> list[QualityGateResult]:
         """Evaluate quality gates against metrics"""
         gates = []
 
@@ -727,12 +716,12 @@ class TestAnalyticsService:
 
     async def _generate_execution_summary(
         self,
-        qa_metrics: Dict[str, Any],
-        usability_metrics: Dict[str, Any],
-        accessibility_metrics: Dict[str, Any],
-        feedback_metrics: Dict[str, Any],
-        ui_test_metrics: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        qa_metrics: dict[str, Any],
+        usability_metrics: dict[str, Any],
+        accessibility_metrics: dict[str, Any],
+        feedback_metrics: dict[str, Any],
+        ui_test_metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         """Generate comprehensive test execution summary"""
         return {
             "manual_testing": {
@@ -770,11 +759,11 @@ class TestAnalyticsService:
 
     async def _assess_risks(
         self,
-        key_metrics: List[TestMetric],
+        key_metrics: list[TestMetric],
         health_score: TestHealthScore,
-        trends: List[TestTrend],
-        quality_gates: List[QualityGateResult]
-    ) -> Dict[str, Any]:
+        trends: list[TestTrend],
+        quality_gates: list[QualityGateResult]
+    ) -> dict[str, Any]:
         """Assess testing risks and issues"""
         risks = {
             "high_risk": [],
@@ -813,11 +802,11 @@ class TestAnalyticsService:
     async def _generate_recommendations(
         self,
         health_score: TestHealthScore,
-        key_metrics: List[TestMetric],
-        trends: List[TestTrend],
-        quality_gates: List[QualityGateResult],
-        risk_assessment: Dict[str, Any]
-    ) -> List[str]:
+        key_metrics: list[TestMetric],
+        trends: list[TestTrend],
+        quality_gates: list[QualityGateResult],
+        risk_assessment: dict[str, Any]
+    ) -> list[str]:
         """Generate actionable recommendations"""
         recommendations = []
 
@@ -875,7 +864,7 @@ class TestAnalyticsService:
         # For now, returning placeholder
         return f"Dashboard {dashboard_id} exported as {format}"
 
-    async def get_real_time_metrics(self) -> Dict[str, Any]:
+    async def get_real_time_metrics(self) -> dict[str, Any]:
         """Get real-time testing metrics"""
         return {
             "currently_running_tests": 0,  # Would check active test executions

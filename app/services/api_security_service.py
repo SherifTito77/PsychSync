@@ -4,18 +4,19 @@ Comprehensive security utilities for API protection
 Security improvement: 85% reduction in security vulnerabilities
 """
 
-from typing import Dict, Any, Optional, List, Tuple, Union
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 import hashlib
 import hmac
-import secrets
-import json
-import re
 import ipaddress
-from dataclasses import dataclass
-import bleach
+import json
 import logging
+import re
+import secrets
+from typing import Any
+
+import bleach
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,8 @@ class SecurityEvent:
     user_agent: str
     endpoint: str
     method: str
-    user_id: Optional[str] = None
-    details: Dict[str, Any] = None
+    user_id: str | None = None
+    details: dict[str, Any] = None
     severity: str = "medium"
 
 @dataclass
@@ -52,12 +53,12 @@ class APIKey:
     key_id: str
     key_hash: str
     name: str
-    permissions: List[str]
+    permissions: list[str]
     rate_limit_tier: str
     created_at: datetime
-    expires_at: Optional[datetime] = None
+    expires_at: datetime | None = None
     is_active: bool = True
-    last_used_at: Optional[datetime] = None
+    last_used_at: datetime | None = None
 
 class APISecurityService:
     """
@@ -90,57 +91,57 @@ class APISecurityService:
 
         # Suspicious patterns for detection
         self.suspicious_patterns = {
-            'sql_injection': [
-                r'(\bunion\b.*\bselect\b)',
-                r'(\bselect\b.*\bfrom\b)',
-                r'(\binsert\b.*\binto\b)',
-                r'(\bdelete\b.*\bfrom\b)',
-                r'(\bdrop\b.*\btable\b)',
-                r'(\bexec\b|\bexecute\b)',
-                r'(\'\s*;\s*\w+)',
-                r'(--|\#)',
-                r'(/\*.*\*/)'
+            "sql_injection": [
+                r"(\bunion\b.*\bselect\b)",
+                r"(\bselect\b.*\bfrom\b)",
+                r"(\binsert\b.*\binto\b)",
+                r"(\bdelete\b.*\bfrom\b)",
+                r"(\bdrop\b.*\btable\b)",
+                r"(\bexec\b|\bexecute\b)",
+                r"(\'\s*;\s*\w+)",
+                r"(--|\#)",
+                r"(/\*.*\*/)"
             ],
-            'xss': [
-                r'(<script[^>]*>.*?</script>)',
-                r'(javascript\s*:)',
-                r'(on\w+\s*=)',
-                r'(eval\s*\()',
-                r'(document\.(cookie|location|write))',
-                r'(window\.(location|open))'
+            "xss": [
+                r"(<script[^>]*>.*?</script>)",
+                r"(javascript\s*:)",
+                r"(on\w+\s*=)",
+                r"(eval\s*\()",
+                r"(document\.(cookie|location|write))",
+                r"(window\.(location|open))"
             ],
-            'path_traversal': [
-                r'(\.\./|\.\.\\)',
-                r'(%2e%2e%2f|%2e%2e%5c)',
-                r'(/etc/passwd|/etc/shadow)',
-                r'(c:\\windows\\system32)',
-                r'(\.\.\/\.\.\/)'
+            "path_traversal": [
+                r"(\.\./|\.\.\\)",
+                r"(%2e%2e%2f|%2e%2e%5c)",
+                r"(/etc/passwd|/etc/shadow)",
+                r"(c:\\windows\\system32)",
+                r"(\.\.\/\.\.\/)"
             ],
-            'command_injection': [
-                r'(\|\||&&)',
-                r'(;|\|&)',
-                r'(wget\s|curl\s|nc\s)',
-                r'(/bin/|/usr/bin/)',
-                r'(\${.*})'
+            "command_injection": [
+                r"(\|\||&&)",
+                r"(;|\|&)",
+                r"(wget\s|curl\s|nc\s)",
+                r"(/bin/|/usr/bin/)",
+                r"(\${.*})"
             ]
         }
 
         # API key storage (in production, use database)
-        self._api_keys: Dict[str, APIKey] = {}
+        self._api_keys: dict[str, APIKey] = {}
 
         # Security event storage
-        self._security_events: List[SecurityEvent] = []
+        self._security_events: list[SecurityEvent] = []
 
         # Rate limiting for security events
-        self._security_event_counts: Dict[str, int] = {}
+        self._security_event_counts: dict[str, int] = {}
 
     def generate_api_key(
         self,
         name: str,
-        permissions: List[str],
+        permissions: list[str],
         rate_limit_tier: str = "basic",
-        expires_in_days: Optional[int] = None
-    ) -> Tuple[str, str]:
+        expires_in_days: int | None = None
+    ) -> tuple[str, str]:
         """
         Generate a new API key
 
@@ -181,7 +182,7 @@ class APISecurityService:
         logger.info(f"Generated new API key: {key_id} with {len(permissions)} permissions")
         return api_key, key_id
 
-    def validate_api_key(self, api_key: str) -> Optional[APIKey]:
+    def validate_api_key(self, api_key: str) -> APIKey | None:
         """
         Validate an API key
 
@@ -196,8 +197,8 @@ class APISecurityService:
 
         try:
             # Extract key_id from API key format: psync_<key>_<key_id>
-            parts = api_key.split('_')
-            if len(parts) != 3 or parts[0] != 'psync':
+            parts = api_key.split("_")
+            if len(parts) != 3 or parts[0] != "psync":
                 return None
 
             key_id = parts[2]
@@ -255,7 +256,7 @@ class APISecurityService:
             if not signature.startswith(f"{algorithm}="):
                 return False
 
-            expected_signature = signature.split('=', 1)[1]
+            expected_signature = signature.split("=", 1)[1]
 
             # Calculate expected signature
             if algorithm == "sha256":
@@ -277,10 +278,10 @@ class APISecurityService:
 
     def sanitize_input(
         self,
-        input_data: Union[str, Dict[str, Any], List[Any]],
-        allowed_tags: List[str] = None,
-        allowed_attributes: Dict[str, List[str]] = None
-    ) -> Union[str, Dict[str, Any], List[Any]]:
+        input_data: str | dict[str, Any] | list[Any],
+        allowed_tags: list[str] = None,
+        allowed_attributes: dict[str, list[str]] = None
+    ) -> str | dict[str, Any] | list[Any]:
         """
         Comprehensive input sanitization
 
@@ -298,20 +299,19 @@ class APISecurityService:
         try:
             if isinstance(input_data, str):
                 return self._sanitize_string(input_data, allowed_tags, allowed_attributes)
-            elif isinstance(input_data, dict):
+            if isinstance(input_data, dict):
                 return {
                     self._sanitize_key(str(key)): self.sanitize_input(
                         value, allowed_tags, allowed_attributes
                     )
                     for key, value in input_data.items()
                 }
-            elif isinstance(input_data, list):
+            if isinstance(input_data, list):
                 return [
                     self.sanitize_input(item, allowed_tags, allowed_attributes)
                     for item in input_data
                 ]
-            else:
-                return input_data
+            return input_data
 
         except Exception as e:
             logger.error(f"Error sanitizing input: {e}")
@@ -329,13 +329,13 @@ class APISecurityService:
             Sanitized key
         """
         # Remove any dangerous characters from keys
-        return re.sub(r'[^\w\-_]', '', key)[:100]
+        return re.sub(r"[^\w\-_]", "", key)[:100]
 
     def _sanitize_string(
         self,
         input_string: str,
-        allowed_tags: List[str] = None,
-        allowed_attributes: Dict[str, List[str]] = None
+        allowed_tags: list[str] = None,
+        allowed_attributes: dict[str, list[str]] = None
     ) -> str:
         """
         Sanitize string input
@@ -364,8 +364,8 @@ class APISecurityService:
         )
 
         # Additional security measures
-        sanitized = sanitized.encode('ascii', errors='ignore').decode()
-        sanitized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', sanitized)
+        sanitized = sanitized.encode("ascii", errors="ignore").decode()
+        sanitized = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", sanitized)
         sanitized = sanitized.strip()
 
         # Length limit to prevent DoS
@@ -380,7 +380,7 @@ class APISecurityService:
         source_ip: str,
         user_agent: str,
         endpoint: str
-    ) -> List[SecurityEvent]:
+    ) -> list[SecurityEvent]:
         """
         Detect potential security threats in request data
 
@@ -510,7 +510,7 @@ class APISecurityService:
         """
         return content_length <= self.max_request_size
 
-    def add_security_headers(self, headers: Dict[str, str]) -> Dict[str, str]:
+    def add_security_headers(self, headers: dict[str, str]) -> dict[str, str]:
         """
         Add security headers to response
 
@@ -568,6 +568,7 @@ class APISecurityService:
             # Store in Redis for persistence
             try:
                 import redis.asyncio as redis
+
                 from app.core.config import settings
 
                 client = redis.from_url(
@@ -596,7 +597,7 @@ class APISecurityService:
         except Exception as e:
             logger.error(f"Failed to log security event: {e}")
 
-    def get_security_summary(self, hours: int = 24) -> Dict[str, Any]:
+    def get_security_summary(self, hours: int = 24) -> dict[str, Any]:
         """
         Get security summary for the specified time period
 
@@ -693,7 +694,7 @@ class APISecurityService:
 api_security_service = APISecurityService()
 
 # Decorators for easy use
-def require_api_key(permissions: List[str] = None):
+def require_api_key(permissions: list[str] = None):
     """
     Decorator for requiring API key authentication
 

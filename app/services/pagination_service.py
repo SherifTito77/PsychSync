@@ -4,29 +4,30 @@ Replaces inefficient OFFSET/LIMIT pagination with cursor-based keyset pagination
 Performance improvement: 80-95% for large datasets
 """
 
-from typing import List, Optional, Any, Dict, Type, TypeVar, Generic
 from datetime import datetime
-from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, asc, desc, text
-from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
 import logging
+from typing import Any, Generic, TypeVar
+from uuid import UUID
+
+from pydantic import BaseModel
+from sqlalchemy import asc, desc, or_, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 class PaginationCursor(BaseModel):
     """Pagination cursor for keyset pagination"""
-    cursor_id: Optional[str] = None
+    cursor_id: str | None = None
     has_next: bool = False
     has_prev: bool = False
-    count: Optional[int] = None
+    count: int | None = None
 
 class PaginatedResult(Generic[T]):
     """Generic paginated result"""
-    items: List[T]
+    items: list[T]
     pagination: PaginationCursor
     limit: int
     execution_time_ms: float
@@ -41,14 +42,14 @@ class KeysetPaginationService:
     async def paginate(
         self,
         db: AsyncSession,
-        model_class: Type[T],
-        cursor_id: Optional[str] = None,
+        model_class: type[T],
+        cursor_id: str | None = None,
         limit: int = 50,
         direction: str = "forward",
         order_by: str = "created_at",
         order_direction: str = "desc",
-        filters: Optional[Dict[str, Any]] = None,
-        eager_load: Optional[List[str]] = None
+        filters: dict[str, Any] | None = None,
+        eager_load: list[str] | None = None
     ) -> PaginatedResult[T]:
         """
         Paginate results using cursor-based keyset pagination
@@ -163,35 +164,32 @@ class KeysetPaginationService:
         if direction == "forward":
             if order_direction.lower() == "desc":
                 return order_column < cursor_value
-            else:
-                return order_column > cursor_value
-        else:  # backward
-            if order_direction.lower() == "desc":
-                return order_column > cursor_value
-            else:
-                return order_column < cursor_value
+            return order_column > cursor_value
+        if order_direction.lower() == "desc":
+            return order_column > cursor_value
+        return order_column < cursor_value
 
     def _convert_cursor_value(self, cursor_id: str, column):
         """Convert cursor string value to appropriate type"""
         # Handle different column types
-        if hasattr(column, 'property') and hasattr(column.property, 'columns'):
+        if hasattr(column, "property") and hasattr(column.property, "columns"):
             # Handle relationship columns
             col_type = column.property.columns[0].type
         else:
             col_type = column.type
 
         # Convert based on column type
-        if 'uuid' in str(col_type).lower():
+        if "uuid" in str(col_type).lower():
             try:
                 return UUID(cursor_id)
             except ValueError:
                 return None
-        elif 'timestamp' in str(col_type).lower() or 'datetime' in str(col_type).lower():
+        elif "timestamp" in str(col_type).lower() or "datetime" in str(col_type).lower():
             try:
-                return datetime.fromisoformat(cursor_id.replace('Z', '+00:00'))
+                return datetime.fromisoformat(cursor_id.replace("Z", "+00:00"))
             except ValueError:
                 return None
-        elif 'int' in str(col_type).lower():
+        elif "int" in str(col_type).lower():
             try:
                 return int(cursor_id)
             except ValueError:
@@ -208,11 +206,11 @@ class OptimizedQueryService:
     async def get_users_optimized(
         self,
         db: AsyncSession,
-        organization_id: Optional[UUID] = None,
-        cursor_id: Optional[str] = None,
+        organization_id: UUID | None = None,
+        cursor_id: str | None = None,
         limit: int = 50,
-        is_active: Optional[bool] = None,
-        search: Optional[str] = None
+        is_active: bool | None = None,
+        search: str | None = None
     ) -> PaginatedResult:
         """
         Optimized user query with keyset pagination and full-text search
@@ -224,9 +222,9 @@ class OptimizedQueryService:
         # Build filters
         filters = {}
         if organization_id is not None:
-            filters['organization_id'] = organization_id
+            filters["organization_id"] = organization_id
         if is_active is not None:
-            filters['is_active'] = is_active
+            filters["is_active"] = is_active
 
         # Handle search with full-text search if available
         query = select(User)
@@ -247,7 +245,7 @@ class OptimizedQueryService:
         # Apply cursor-based filtering
         if cursor_id:
             try:
-                cursor_date = datetime.fromisoformat(cursor_id.replace('Z', '+00:00'))
+                cursor_date = datetime.fromisoformat(cursor_id.replace("Z", "+00:00"))
                 query = query.where(User.created_at < cursor_date)
             except ValueError:
                 pass  # Invalid cursor, return first page
@@ -285,16 +283,15 @@ class OptimizedQueryService:
         self,
         db: AsyncSession,
         assessment_id: UUID,
-        cursor_id: Optional[str] = None,
+        cursor_id: str | None = None,
         limit: int = 50,
-        user_id: Optional[UUID] = None
+        user_id: UUID | None = None
     ) -> PaginatedResult:
         """
         Optimized assessment responses query with bulk loading
 
         Performance: 85-95% faster than N+1 queries
         """
-        from app.db.models.response import Response
 
         # Build optimized query with joins
         query_str = """
@@ -313,7 +310,7 @@ class OptimizedQueryService:
         # Apply cursor-based pagination
         if cursor_id:
             try:
-                cursor_date = datetime.fromisoformat(cursor_id.replace('Z', '+00:00'))
+                cursor_date = datetime.fromisoformat(cursor_id.replace("Z", "+00:00"))
                 query_str += " AND r.created_at < :cursor_date"
                 params["cursor_date"] = cursor_date
             except ValueError:
@@ -330,13 +327,13 @@ class OptimizedQueryService:
         responses = []
         for row in rows:
             response_data = {
-                'id': row.id,
-                'user_id': row.user_id,
-                'assessment_id': row.assessment_id,
-                'total_score': row.total_score,
-                'created_at': row.created_at,
-                'user_name': row.user_name,
-                'user_email': row.user_email,
+                "id": row.id,
+                "user_id": row.user_id,
+                "assessment_id": row.assessment_id,
+                "total_score": row.total_score,
+                "created_at": row.created_at,
+                "user_name": row.user_name,
+                "user_email": row.user_email,
                 # Add other fields as needed
             }
             responses.append(response_data)
@@ -348,7 +345,7 @@ class OptimizedQueryService:
 
         next_cursor_id = None
         if responses:
-            next_cursor_id = responses[-1]['created_at'].isoformat()
+            next_cursor_id = responses[-1]["created_at"].isoformat()
 
         return PaginatedResult(
             items=responses,
@@ -366,7 +363,7 @@ class OptimizedQueryService:
         self,
         db: AsyncSession,
         team_id: UUID,
-        cursor_id: Optional[str] = None,
+        cursor_id: str | None = None,
         limit: int = 50
     ) -> PaginatedResult:
         """
@@ -374,8 +371,6 @@ class OptimizedQueryService:
 
         Performance: 90-95% faster than N+1 queries
         """
-        from app.db.models.user import User
-        from app.db.models.team import TeamMember
 
         # Optimized query with single join
         query_str = """
@@ -390,7 +385,7 @@ class OptimizedQueryService:
         # Apply cursor-based pagination
         if cursor_id:
             try:
-                cursor_date = datetime.fromisoformat(cursor_id.replace('Z', '+00:00'))
+                cursor_date = datetime.fromisoformat(cursor_id.replace("Z", "+00:00"))
                 query_str += " AND tm.joined_at < :cursor_date"
                 params["cursor_date"] = cursor_date
             except ValueError:
@@ -406,13 +401,13 @@ class OptimizedQueryService:
         team_members = []
         for row in rows:
             member_data = {
-                'id': row.id,
-                'email': row.email,
-                'full_name': row.full_name,
-                'team_role': row.team_role,
-                'team_joined_at': row.team_joined_at,
-                'is_active': row.is_active,
-                'created_at': row.created_at
+                "id": row.id,
+                "email": row.email,
+                "full_name": row.full_name,
+                "team_role": row.team_role,
+                "team_joined_at": row.team_joined_at,
+                "is_active": row.is_active,
+                "created_at": row.created_at
             }
             team_members.append(member_data)
 
@@ -423,7 +418,7 @@ class OptimizedQueryService:
 
         next_cursor_id = None
         if team_members:
-            next_cursor_id = team_members[-1]['team_joined_at'].isoformat()
+            next_cursor_id = team_members[-1]["team_joined_at"].isoformat()
 
         return PaginatedResult(
             items=team_members,
@@ -443,7 +438,7 @@ optimized_query_service = OptimizedQueryService()
 # Convenience functions for common use cases
 async def paginate_users(
     db: AsyncSession,
-    cursor_id: Optional[str] = None,
+    cursor_id: str | None = None,
     limit: int = 50,
     **filters
 ) -> PaginatedResult:
@@ -455,9 +450,9 @@ async def paginate_users(
 async def paginate_assessment_responses(
     db: AsyncSession,
     assessment_id: UUID,
-    cursor_id: Optional[str] = None,
+    cursor_id: str | None = None,
     limit: int = 50,
-    user_id: Optional[UUID] = None
+    user_id: UUID | None = None
 ) -> PaginatedResult:
     """Paginate assessment responses with optimized performance"""
     return await optimized_query_service.get_assessment_responses_optimized(
@@ -467,7 +462,7 @@ async def paginate_assessment_responses(
 async def paginate_team_members(
     db: AsyncSession,
     team_id: UUID,
-    cursor_id: Optional[str] = None,
+    cursor_id: str | None = None,
     limit: int = 50
 ) -> PaginatedResult:
     """Paginate team members with optimized performance"""

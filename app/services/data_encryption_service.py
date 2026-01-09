@@ -4,17 +4,17 @@ GDPR and HIPAA compliant encryption utilities for PsychSync
 """
 
 import base64
+from datetime import datetime, timedelta
 import hashlib
-import secrets
 import json
 import logging
-from typing import Any, Dict, Optional, List
-from datetime import datetime, timedelta
+import secrets
+from typing import Any
+
 from cryptography.fernet import Fernet
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.backends import default_backend
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -22,20 +22,22 @@ logger = logging.getLogger(__name__)
 
 class EncryptionKey(BaseModel):
     """Encryption key metadata."""
+
     key_id: str = Field(..., description="Unique key identifier")
     algorithm: str = Field(default="AES-256-GCM", description="Encryption algorithm")
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    expires_at: Optional[datetime] = Field(None, description="Key expiration date")
+    expires_at: datetime | None = Field(None, description="Key expiration date")
     status: str = Field(default="active", description="Key status: active, revoked, expired")
     purpose: str = Field(..., description="Key purpose: pii, phi, general")
 
 
 class EncryptionResult(BaseModel):
     """Encrypted data result."""
+
     encrypted_data: str = Field(..., description="Base64-encoded encrypted data")
     key_id: str = Field(..., description="Key ID used for encryption")
     algorithm: str = Field(default="AES-256-GCM")
-    nonce: Optional[str] = Field(None, description="Nonce for GCM mode")
+    nonce: str | None = Field(None, description="Nonce for GCM mode")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -60,7 +62,7 @@ class DataEncryptionService:
 
     def __init__(
         self,
-        master_key: Optional[str] = None,
+        master_key: str | None = None,
         key_rotation_days: int = 90,
         enable_key_rotation: bool = True,
     ):
@@ -85,15 +87,16 @@ class DataEncryptionService:
             raise ValueError("Master key must be provided or set in ENCRYPTION_MASTER_KEY env var")
 
         # Initialize key storage
-        self.keys: Dict[str, EncryptionKey] = {}
-        self.key_derivations: Dict[str, Fernet] = {}
+        self.keys: dict[str, EncryptionKey] = {}
+        self.key_derivations: dict[str, Fernet] = {}
 
         # Create default keys
         self._create_default_keys()
 
-    def _get_master_key_from_env(self) -> Optional[bytes]:
+    def _get_master_key_from_env(self) -> bytes | None:
         """Get master key from environment variable."""
         import os
+
         key_hex = os.getenv("PSYCHSYNC_ENCRYPTION_KEY")
         if key_hex:
             return bytes.fromhex(key_hex)
@@ -105,9 +108,9 @@ class DataEncryptionService:
             kdf = PBKDF2HMAC(
                 algorithm=hashes.SHA256(),
                 length=32,
-                salt=b'psychsync_encryption_salt',
+                salt=b"psychsync_encryption_salt",
                 iterations=100000,
-                backend=default_backend()
+                backend=default_backend(),
             )
             return kdf.derive(system_secret.encode())
 
@@ -122,7 +125,9 @@ class DataEncryptionService:
             key = EncryptionKey(
                 key_id=key_id,
                 purpose=purpose,
-                expires_at=datetime.utcnow() + timedelta(days=self.key_rotation_days) if self.enable_key_rotation else None
+                expires_at=datetime.utcnow() + timedelta(days=self.key_rotation_days)
+                if self.enable_key_rotation
+                else None,
             )
             self.keys[key_id] = key
 
@@ -145,16 +150,13 @@ class DataEncryptionService:
             length=32,
             salt=key_id.encode(),
             iterations=100000,
-            backend=default_backend()
+            backend=default_backend(),
         )
         key = kdf.derive(self.master_key)
         return Fernet(base64.urlsafe_b64encode(key))
 
     def encrypt_pii(
-        self,
-        data: Any,
-        key_id: str = "pii_key_v1",
-        retain_format: bool = False
+        self, data: Any, key_id: str = "pii_key_v1", retain_format: bool = False
     ) -> EncryptionResult:
         """
         Encrypt PII (Personally Identifiable Information).
@@ -188,14 +190,12 @@ class DataEncryptionService:
         return EncryptionResult(
             encrypted_data=base64.b64encode(encrypted).decode(),
             key_id=key_id,
-            nonce=base64.b64encode(cipher.timestamp).decode() if hasattr(cipher, 'timestamp') else None
+            nonce=base64.b64encode(cipher.timestamp).decode()
+            if hasattr(cipher, "timestamp")
+            else None,
         )
 
-    def decrypt_pii(
-        self,
-        encrypted_data: str,
-        key_id: str = "pii_key_v1"
-    ) -> Any:
+    def decrypt_pii(self, encrypted_data: str, key_id: str = "pii_key_v1") -> Any:
         """
         Decrypt PII data.
 
@@ -222,10 +222,7 @@ class DataEncryptionService:
             return decrypted.decode()
 
     def encrypt_phi(
-        self,
-        data: Any,
-        key_id: str = "phi_key_v1",
-        metadata: Optional[Dict[str, Any]] = None
+        self, data: Any, key_id: str = "phi_key_v1", metadata: dict[str, Any] | None = None
     ) -> EncryptionResult:
         """
         Encrypt PHI (Protected Health Information).
@@ -253,7 +250,7 @@ class DataEncryptionService:
         self,
         encrypted_data: str,
         key_id: str = "phi_key_v1",
-        access_reason: str = "business_operations"
+        access_reason: str = "business_operations",
     ) -> Any:
         """
         Decrypt PHI data with access logging.
@@ -274,12 +271,7 @@ class DataEncryptionService:
 
         return self.decrypt_pii(encrypted_data, key_id)
 
-    def encrypt_field(
-        self,
-        value: str,
-        field_name: str,
-        record_type: str = "user_profile"
-    ) -> str:
+    def encrypt_field(self, value: str, field_name: str, record_type: str = "user_profile") -> str:
         """
         Encrypt a single field value.
 
@@ -303,10 +295,7 @@ class DataEncryptionService:
         return result.encrypted_data
 
     def decrypt_field(
-        self,
-        encrypted_value: str,
-        field_name: str,
-        record_type: str = "user_profile"
+        self, encrypted_value: str, field_name: str, record_type: str = "user_profile"
     ) -> str:
         """
         Decrypt a single field value.
@@ -329,11 +318,7 @@ class DataEncryptionService:
 
         return self.decrypt_pii(encrypted_value, key_id)
 
-    def hash_identifier(
-        self,
-        identifier: str,
-        salt: Optional[str] = None
-    ) -> str:
+    def hash_identifier(self, identifier: str, salt: str | None = None) -> str:
         """
         Hash an identifier (email, phone, etc.) for consistent anonymization.
 
@@ -351,20 +336,13 @@ class DataEncryptionService:
             salt = "psychsync_default_salt"
 
         # Use SHA-256 for hashing
-        kdf = hashlib.pbkdf2_hmac(
-            'sha256',
-            identifier.encode(),
-            salt.encode(),
-            100000
-        )
+        kdf = hashlib.pbkdf2_hmac("sha256", identifier.encode(), salt.encode(), 100000)
 
         return kdf.hexdigest()
 
     def anonymize_data(
-        self,
-        data: Dict[str, Any],
-        fields_to_anonymize: List[str]
-    ) -> Dict[str, Any]:
+        self, data: dict[str, Any], fields_to_anonymize: list[str]
+    ) -> dict[str, Any]:
         """
         Anonymize specified fields in data dictionary.
 
@@ -410,7 +388,7 @@ class DataEncryptionService:
         new_key = EncryptionKey(
             key_id=new_key_id,
             purpose=purpose,
-            expires_at=datetime.utcnow() + timedelta(days=self.key_rotation_days)
+            expires_at=datetime.utcnow() + timedelta(days=self.key_rotation_days),
         )
 
         self.keys[new_key_id] = new_key
@@ -420,7 +398,7 @@ class DataEncryptionService:
 
         return new_key
 
-    def get_active_keys(self) -> List[EncryptionKey]:
+    def get_active_keys(self) -> list[EncryptionKey]:
         """Get all active encryption keys."""
         return [key for key in self.keys.values() if key.status == "active"]
 
@@ -436,7 +414,7 @@ class SecureTokenizer:
     - Session tokens
     """
 
-    def __init__(self, secret_key: Optional[str] = None):
+    def __init__(self, secret_key: str | None = None):
         """
         Initialize token generator.
 
@@ -447,13 +425,11 @@ class SecureTokenizer:
             self.secret_key = secret_key
         else:
             import os
+
             self.secret_key = os.getenv("SECRET_KEY", secrets.token_hex(32))
 
     def generate_token(
-        self,
-        purpose: str,
-        user_id: Optional[str] = None,
-        expiry_hours: int = 24
+        self, purpose: str, user_id: str | None = None, expiry_hours: int = 24
     ) -> str:
         """
         Generate a secure token.
@@ -472,26 +448,20 @@ class SecureTokenizer:
             "user_id": user_id,
             "timestamp": datetime.utcnow().isoformat(),
             "expiry": (datetime.utcnow() + timedelta(hours=expiry_hours)).isoformat(),
-            "nonce": secrets.token_hex(16)
+            "nonce": secrets.token_hex(16),
         }
 
         # Sign token
         payload_json = json.dumps(payload)
         signature = hmac.new(
-            self.secret_key.encode(),
-            payload_json.encode(),
-            hashlib.sha256
+            self.secret_key.encode(), payload_json.encode(), hashlib.sha256
         ).hexdigest()
 
         # Combine payload and signature
         token_data = f"{payload_json}.{signature}"
         return base64.urlsafe_b64encode(token_data.encode()).decode()
 
-    def validate_token(
-        self,
-        token: str,
-        purpose: str
-    ) -> bool:
+    def validate_token(self, token: str, purpose: str) -> bool:
         """
         Validate a token.
 
@@ -516,9 +486,7 @@ class SecureTokenizer:
 
             # Verify signature
             expected_signature = hmac.new(
-                self.secret_key.encode(),
-                payload_json.encode(),
-                hashlib.sha256
+                self.secret_key.encode(), payload_json.encode(), hashlib.sha256
             ).hexdigest()
 
             if not secrets.compare_digest(signature, expected_signature):
@@ -540,7 +508,6 @@ class SecureTokenizer:
 
 
 import hmac
-
 
 # Global encryption service instance
 encryption_service = DataEncryptionService()

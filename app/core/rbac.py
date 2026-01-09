@@ -16,13 +16,14 @@ Author: Security Team
 Version: 2.0 Enterprise
 """
 
-import enum
-import logging
-from typing import List, Set, Dict, Optional, Callable, Any
-from functools import wraps
+from collections.abc import Callable
 from dataclasses import dataclass
-from fastapi import HTTPException, status, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+import enum
+from functools import wraps
+import logging
+from typing import Any
+
+from fastapi import HTTPException, status
 
 from app.db.models.user import User, UserRole
 
@@ -105,21 +106,21 @@ class Permission(enum.Enum):
 @dataclass
 class RoleDefinition:
     """Role definition with permissions"""
+
     name: str
-    permissions: Set[Permission]
+    permissions: set[Permission]
     description: str
-    inherits_from: Optional[Set[str]] = None
+    inherits_from: set[str] | None = None
 
 
 # Role Definitions with Inheritance
-ROLE_DEFINITIONS: Dict[str, RoleDefinition] = {
+ROLE_DEFINITIONS: dict[str, RoleDefinition] = {
     # Super Admin - All permissions
     "super_admin": RoleDefinition(
         name="super_admin",
         permissions=set(Permission),  # ALL permissions
-        description="Full system access"
+        description="Full system access",
     ),
-
     # Organization Admin - Org-level management
     "org_admin": RoleDefinition(
         name="org_admin",
@@ -129,45 +130,38 @@ ROLE_DEFINITIONS: Dict[str, RoleDefinition] = {
             Permission.USER_READ,
             Permission.USER_UPDATE,
             Permission.ORG_MANAGE_MEMBERS,
-
             # Organization Management
             Permission.ORG_READ,
             Permission.ORG_UPDATE,
-
             # Team Management
             Permission.TEAM_CREATE,
             Permission.TEAM_READ,
             Permission.TEAM_UPDATE,
             Permission.TEAM_DELETE,
             Permission.TEAM_MANAGE_MEMBERS,
-
             # Assessment Management
             Permission.ASSESSMENT_CREATE,
             Permission.ASSESSMENT_READ,
             Permission.ASSESSMENT_UPDATE,
             Permission.ASSESSMENT_DELETE,
             Permission.ASSESSMENT_PUBLISH,
-
             # Response Management
             Permission.RESPONSE_READ,
             Permission.RESPONSE_UPDATE,
             Permission.RESPONSE_EXPORT,
-
             # Template Management
             Permission.TEMPLATE_CREATE,
             Permission.TEMPLATE_READ,
             Permission.TEMPLATE_UPDATE,
             Permission.TEMPLATE_DELETE,
-
             # Analytics
             Permission.ANALYTICS_VIEW,
             Permission.ANALYTICS_EXPORT,
             Permission.REPORTING_CREATE,
             Permission.REPORTING_VIEW,
         },
-        description="Organization administrator"
+        description="Organization administrator",
     ),
-
     # Team Lead - Team-level management
     "team_lead": RoleDefinition(
         name="team_lead",
@@ -176,24 +170,20 @@ ROLE_DEFINITIONS: Dict[str, RoleDefinition] = {
             Permission.TEAM_READ,
             Permission.TEAM_UPDATE,
             Permission.TEAM_MANAGE_MEMBERS,
-
             # Assessment Management
             Permission.ASSESSMENT_CREATE,
             Permission.ASSESSMENT_READ,
             Permission.ASSESSMENT_UPDATE,
-
             # Response Management
             Permission.RESPONSE_CREATE,
             Permission.RESPONSE_READ,
             Permission.RESPONSE_UPDATE,
-
             # Analytics
             Permission.ANALYTICS_VIEW,
             Permission.REPORTING_VIEW,
         },
-        description="Team lead with team-scoped access"
+        description="Team lead with team-scoped access",
     ),
-
     # Standard User - Basic access
     "user": RoleDefinition(
         name="user",
@@ -202,19 +192,16 @@ ROLE_DEFINITIONS: Dict[str, RoleDefinition] = {
             Permission.USER_READ,
             Permission.ORG_READ,
             Permission.TEAM_READ,
-
             # Assessment participation
             Permission.ASSESSMENT_READ,
             Permission.RESPONSE_CREATE,
             Permission.RESPONSE_READ,
             Permission.RESPONSE_UPDATE,  # Own responses only
-
             # Templates
             Permission.TEMPLATE_READ,
         },
-        description="Standard user"
+        description="Standard user",
     ),
-
     # Analyst - Read-only analytics access
     "analyst": RoleDefinition(
         name="analyst",
@@ -230,9 +217,8 @@ ROLE_DEFINITIONS: Dict[str, RoleDefinition] = {
             Permission.REPORTING_CREATE,
             Permission.REPORTING_VIEW,
         },
-        description="Analytics and reporting access"
+        description="Analytics and reporting access",
     ),
-
     # Clinician - Clinical data access
     "clinician": RoleDefinition(
         name="clinician",
@@ -246,7 +232,7 @@ ROLE_DEFINITIONS: Dict[str, RoleDefinition] = {
             Permission.ASSESSMENT_READ,
             Permission.RESPONSE_READ,
         },
-        description="Clinical practitioner access"
+        description="Clinical practitioner access",
     ),
 }
 
@@ -266,7 +252,7 @@ class RBACService:
         """Initialize RBAC service"""
         self.role_definitions = ROLE_DEFINITIONS
 
-    def get_user_permissions(self, user: User) -> Set[Permission]:
+    def get_user_permissions(self, user: User) -> set[Permission]:
         """
         Get all permissions for a user based on role
 
@@ -277,7 +263,7 @@ class RBACService:
             Set of permissions
         """
         # Get user's role
-        role = user.role.value if hasattr(user.role, 'value') else user.role
+        role = user.role.value if hasattr(user.role, "value") else user.role
 
         # Get role definition
         role_def = self.role_definitions.get(role)
@@ -302,11 +288,7 @@ class RBACService:
 
         return permissions
 
-    def has_permission(
-        self,
-        user: User,
-        required_permission: Permission
-    ) -> bool:
+    def has_permission(self, user: User, required_permission: Permission) -> bool:
         """
         Check if user has specific permission
 
@@ -328,11 +310,7 @@ class RBACService:
 
         return has_perm
 
-    def has_all_permissions(
-        self,
-        user: User,
-        required_permissions: List[Permission]
-    ) -> bool:
+    def has_all_permissions(self, user: User, required_permissions: list[Permission]) -> bool:
         """
         Check if user has ALL specified permissions
 
@@ -343,16 +321,9 @@ class RBACService:
         Returns:
             True if user has all permissions
         """
-        return all(
-            self.has_permission(user, perm)
-            for perm in required_permissions
-        )
+        return all(self.has_permission(user, perm) for perm in required_permissions)
 
-    def has_any_permission(
-        self,
-        user: User,
-        required_permissions: List[Permission]
-    ) -> bool:
+    def has_any_permission(self, user: User, required_permissions: list[Permission]) -> bool:
         """
         Check if user has ANY of the specified permissions
 
@@ -363,16 +334,9 @@ class RBACService:
         Returns:
             True if user has any permission
         """
-        return any(
-            self.has_permission(user, perm)
-            for perm in required_permissions
-        )
+        return any(self.has_permission(user, perm) for perm in required_permissions)
 
-    def check_ownership(
-        self,
-        user: User,
-        resource_user_id: str
-    ) -> bool:
+    def check_ownership(self, user: User, resource_user_id: str) -> bool:
         """
         Check if user owns a resource
 
@@ -393,11 +357,7 @@ class RBACService:
 
         return False
 
-    def can_modify_user(
-        self,
-        current_user: User,
-        target_user: User
-    ) -> bool:
+    def can_modify_user(self, current_user: User, target_user: User) -> bool:
         """
         Check if current user can modify target user
 
@@ -423,11 +383,7 @@ class RBACService:
         # Users can only modify themselves
         return current_user.id == target_user.id
 
-    def get_accessible_resources(
-        self,
-        user: User,
-        resource_type: str
-    ) -> Dict[str, Any]:
+    def get_accessible_resources(self, user: User, resource_type: str) -> dict[str, Any]:
         """
         Get list of resources user can access based on role
 
@@ -457,31 +413,32 @@ def require_permission(permission: Permission):
         async def create_user(...):
             ...
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Extract current_user from kwargs
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             if not rbac_service.has_permission(current_user, permission):
                 logger.warning(
                     f"Access denied: user {current_user.id} lacks {permission.value}",
-                    extra={"user_id": str(current_user.id), "permission": permission.value}
+                    extra={"user_id": str(current_user.id), "permission": permission.value},
                 )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Permission required: {permission.value}"
+                    detail=f"Permission required: {permission.value}",
                 )
 
             return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -494,34 +451,34 @@ def require_all_permissions(*permissions: Permission):
         async def create_and_read_user(...):
             ...
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             if not rbac_service.has_all_permissions(current_user, list(permissions)):
                 missing = [
-                    p.value for p in permissions
-                    if not rbac_service.has_permission(current_user, p)
+                    p.value for p in permissions if not rbac_service.has_permission(current_user, p)
                 ]
                 logger.warning(
                     f"Access denied: user {current_user.id} lacks permissions {missing}",
-                    extra={"user_id": str(current_user.id), "missing": missing}
+                    extra={"user_id": str(current_user.id), "missing": missing},
                 )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Permissions required: {', '.join(missing)}"
+                    detail=f"Permissions required: {', '.join(missing)}",
                 )
 
             return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator
 
 
@@ -534,15 +491,15 @@ def require_role(*roles: UserRole):
         async def admin_only_function(...):
             ...
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            current_user = kwargs.get('current_user')
+            current_user = kwargs.get("current_user")
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
                 )
 
             # Superuser bypasses role checks
@@ -554,14 +511,15 @@ def require_role(*roles: UserRole):
                 logger.warning(
                     f"Access denied: user {current_user.id} has role {user_role}, "
                     f"required one of {[r.value for r in roles]}",
-                    extra={"user_id": str(current_user.id), "user_role": user_role.value}
+                    extra={"user_id": str(current_user.id), "user_role": user_role.value},
                 )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Role required: one of {', '.join([r.value for r in roles])}"
+                    detail=f"Role required: one of {', '.join([r.value for r in roles])}",
                 )
 
             return await func(*args, **kwargs)
 
         return wrapper
+
     return decorator

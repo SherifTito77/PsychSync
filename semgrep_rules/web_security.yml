@@ -1,0 +1,633 @@
+rules:
+  # ==================== SQL Injection Prevention ====================
+
+  - id: sql-injection-string-concat
+    pattern-either:
+      - pattern: execute("$SQL(...)", ...)
+      - pattern: execute(f"$SQL(...)", ...)
+      - pattern: exec("$SQL(...)", ...)
+      - pattern: exec(f"$SQL(...)", ...)
+      - pattern: $SESSION.execute("$SQL(...)", ...)
+      - pattern: $SESSION.execute(text("$SQL(...)"), ...)
+      - pattern: $ENGINE.execute("$SQL(...)", ...)
+    message: "SQL injection risk: String concatenation in SQL query. Use parameterized queries instead."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-89: SQL Injection"
+      technology:
+        - sqlalchemy
+        - databases
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A03_2021-Injection"
+        - "https://docs.sqlalchemy.org/en/20/core/connections.html#sqlalchemy.engine.Connection.execute"
+
+  - id: sql-injection-f-string
+    pattern: f"SELECT ... { $USER_INPUT } ..."
+    message: "SQL injection risk: f-string in SQL query. Use :parameter style instead."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-89"
+
+  - id: sql-injection-format
+    pattern: "SELECT ...".format(...)
+    message: "SQL injection risk: .format() in SQL query. Use parameterized queries."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-89"
+
+  - id: sql-injection-percent
+    pattern: "SELECT ... % ..."
+    message: "SQL injection risk: % formatting in SQL query. Use parameterized queries."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-89"
+
+  # ==================== Command Injection Prevention ====================
+
+  - id: command-injection-shell-true
+    pattern: subprocess.$CALL(..., shell=True, ...)
+    message: "Command injection risk: shell=True enables shell injection. Use list of arguments instead."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-78: OS Command Injection"
+      references:
+        - "https://docs.python.org/3/library/subprocess.html#security-considerations"
+
+  - id: command-injection-os-system
+    pattern: os.system(...)
+    message: "Command injection risk: os.system() is dangerous. Use subprocess with list of arguments."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-78"
+
+  - id: command-injection-popen
+    pattern: os.popen(...)
+    message: "Command injection risk: os.popen() is dangerous. Use subprocess instead."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-78"
+
+  # ==================== XSS Prevention ====================
+
+  - id: xss-direct-html-concatenation
+    pattern: f"<...> { $USER_INPUT } </...>"
+    message: "XSS risk: Direct concatenation of user input into HTML. Use output encoding."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection (XSS)"
+      cwe: "CWE-79: Cross-site Scripting"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A03_2021-Injection"
+        - "https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"
+
+  - id: xss-unsafe-marklify
+    pattern: marklify($USER_INPUT)
+    message: "XSS risk: marklify() without sanitization can allow XSS. Sanitize input first."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A03: Injection (XSS)"
+      cwe: "CWE-79"
+
+  - id: xss-django-safe-string
+    pattern: mark_safe($USER_INPUT)
+    message: "XSS risk: mark_safe() on user input bypasses Django auto-escaping."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection (XSS)"
+      cwe: "CWE-79"
+
+  # ==================== Path Traversal Prevention ====================
+
+  - id: path-traversal-open
+    pattern: open($USER_INPUT, ...)
+    message: "Path traversal risk: User input in file path. Validate and sanitize first."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-22: Path Traversal"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control"
+
+  - id: path-traversal-path-join
+    pattern: os.path.join(..., $USER_INPUT)
+    message: "Path traversal risk: User input in os.path.join(). Validate for '..' and absolute paths."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-22"
+
+  - id: path-traversal-codecs-open
+    pattern: codecs.open($USER_INPUT, ...)
+    message: "Path traversal risk: User input in file path."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-22"
+
+  # ==================== Insecure Deserialization ====================
+
+  - id: insecure-deserialization-pickle
+    pattern: pickle.loads(...)
+    message: "Insecure deserialization: pickle.loads() can execute arbitrary code. Use JSON or safe formats."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A08: Software and Data Integrity Failures"
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A08_2021-Software_and_Data_Integrity_Failures"
+
+  - id: insecure-deserialization-shelve
+    pattern: shelve.open(...)
+    message: "Insecure deserialization: shelve uses pickle. Use a secure format like JSON."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A08: Software and Data Integrity Failures"
+      cwe: "CWE-502"
+
+  - id: insecure-deserialization-marshal
+    pattern: marshal.loads(...)
+    message: "Insecure deserialization: marshal.loads() can execute arbitrary code."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A08: Software and Data Integrity Failures"
+      cwe: "CWE-502"
+
+  # ==================== Cryptographic Failures ====================
+
+  - id: weak-cryptography-md5
+    pattern: hashlib.md5(...)
+    message: "Weak cryptography: MD5 is broken for security purposes. Use SHA256 or SHA3."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A02: Cryptographic Failures"
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A02_2021-Cryptographic_Failures"
+
+  - id: weak-cryptography-sha1
+    pattern: hashlib.sha1(...)
+    message: "Weak cryptography: SHA1 is broken for security purposes. Use SHA256 or SHA3."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A02: Cryptographic Failures"
+      cwe: "CWE-327"
+
+  - id: insecure-password-hash
+    pattern: hashlib.sha256($PASSWORD)
+    message: "Weak password hashing: SHA256 is not a proper password hash. Use Argon2, bcrypt, or scrypt."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A02: Cryptographic Failures"
+      cwe: "CWE-522: Insufficiently Protected Credentials"
+      references:
+        - "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"
+
+  # ==================== Sensitive Data Exposure ====================
+
+  - id: sensitive-data-log
+    pattern: logging.$LEVEL($USER_INPUT, ...)
+    message: "Sensitive data exposure: Logging user input may expose sensitive data. Sanitize first."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-532: Insertion of Sensitive Information into Log File"
+      references:
+        - "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+
+  - id: sensitive-data-log-password
+    pattern: logging.$LEVEL(..., password=$PASSWORD)
+    message: "Sensitive data exposure: Never log passwords!"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-532"
+
+  - id: sensitive-data-log-credit-card
+    pattern: logging.$LEVEL(..., credit_card=$CREDIT_CARD)
+    message: "Sensitive data exposure: Never log credit card numbers!"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-532"
+
+  - id: sensitive-data-log-token
+    pattern: logging.$LEVEL(..., token=$TOKEN)
+    message: "Sensitive data exposure: Never log authentication tokens!"
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-532"
+
+  # ==================== SSRF Prevention ====================
+
+  - id: ssrf-user-input-url
+    pattern: requests.$METHOD($USER_INPUT, ...)
+    message: "SSRF risk: User input directly in URL request. Validate and allowlist domains first."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A10: Server-Side Request Forgery"
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A10_2021-Server-Side_Request_Forgery_(SSRF)"
+        - "https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html"
+
+  - id: ssrf-user-input-urlopen
+    pattern: urllib.request.urlopen($USER_INPUT)
+    message: "SSRF risk: User input in urllib request. Validate URL first."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A10: Server-Side Request Forgery"
+      cwe: "CWE-918"
+
+  # ==================== File Upload Security ====================
+
+  - id: file-upload-no-validation
+    pattern: |
+        def $FUNC(request: UploadFile, ...):
+            $CONTENT = request.file.read()
+            ...
+            open($PATH, "wb").write($CONTENT)
+    message: "File upload with no validation: File content is written without security checks. Validate MIME type, size, and filename."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection (File Upload)"
+      cwe: "CWE-434: Unrestricted Upload of File with Dangerous Type"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A03_2021-Injection"
+
+  - id: file-upload-uses-original-filename
+    pattern: |
+        $PATH = os.path.join($UPLOAD_DIR, upload.filename)
+        ...
+        with open($PATH, "wb") as f:
+            ...
+    message: "File upload uses original filename: May contain path traversal sequences. Validate and sanitize filename."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-22"
+
+  # ==================== Session Management ====================
+
+  - id: insecure-session-cookie
+    pattern: |
+        @app.route(...)
+        def $FUNC(...):
+            session = $SESSION_ID
+            return set_cookie("session", session, httponly=False)
+    message: "Insecure session cookie: httponly=False allows XSS to steal cookies. Always set httponly=True."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A07: Identification and Authentication Failures"
+      cwe: "CWE-1004: Sensitive Cookie Without 'HttpOnly' Flag"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A07_2021-Identification_and_Authentication_Failures"
+
+  - id: insecure-session-no-secure-flag
+    pattern: set_cookie(..., secure=False)
+    message: "Insecure cookie: secure=False allows cookie transmission over HTTP. Use secure=True."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A07: Identification and Authentication Failures"
+      cwe: "CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute"
+
+  - id: insecure-session-no-samesite
+    pattern: set_cookie(..., samesite="none" or samesite=None or samesite=False)
+    message: "Weak CSRF protection: samesite=None allows CSRF. Use samesite='lax' or samesite='strict'."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A07: Identification and Authentication Failures"
+      cwe: "CWE-352: Cross-Site Request Forgery (CSRF)"
+
+  # ==================== Access Control ====================
+
+  - id: missing-auth-decorator
+    pattern-either:
+      - pattern: |
+          @app.route("/admin/...")
+          def $FUNC(...):
+              ...
+      - pattern: |
+          @app.get("/admin/...")
+          def $FUNC(...):
+              ...
+    message: "Missing authentication: Admin endpoint without @login_required or auth check."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-306: Missing Authentication for Critical Function"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control"
+
+  - id: missing-authorization-check
+    pattern: |
+        @app.route("/resource/<int:id>")
+        def $FUNC(id):
+            resource = get_resource(id)
+            return resource
+    message: "Missing authorization: No check if user owns the resource before returning it."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-285: Improper Authorization"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A01_2021-Broken_Access_Control"
+
+  # ==================== Hardcoded Secrets ====================
+
+  - id: hardcoded-password
+    pattern-regex: password\s*=\s*["'](?![\w\s]*\{)[^"'\n]{8,})["']
+    message: "Hardcoded password detected. Use environment variables."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A07: Identification and Authentication Failures"
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      references:
+        - "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+
+  - id: hardcoded-api-key
+    pattern-regex: api_key\s*=\s*["'][^"'\n]{20,}["']
+    message: "Hardcoded API key detected. Use environment variables."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A07: Identification and Authentication Failures"
+      cwe: "CWE-798"
+
+  - id: hardcoded-secret-key
+    pattern-regex: secret_key\s*=\s*["'][^"'\n]{20,}["']
+    message: "Hardcoded secret key detected. Use environment variables."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A07: Identification and Authentication Failures"
+      cwe: "CWE-798"
+
+  # ==================== TLS/SSL Issues ====================
+
+  - id: tls-verify-disabled
+    pattern: requests.$METHOD(..., verify=False)
+    message: "TLS verification disabled: verify=False allows MITM attacks. Never disable in production."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A02: Cryptographic Failures"
+      cwe: "CWE-295: Improper Certificate Validation"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A02_2021-Cryptographic_Failures"
+
+  - id: tls-ssl-context-no-verify
+    pattern: ssl._create_unverified_context(...)
+    message: "Insecure SSL context: Unverified context allows MITM attacks."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A02: Cryptographic Failures"
+      cwe: "CWE-295"
+
+  # ==================== Random Number Generation ====================
+
+  - id: weak-random-generation
+    pattern: random.random(...)
+    message: "Weak random number generation: random.random() is not cryptographically secure. Use secrets module instead."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A02: Cryptographic Failures"
+      cwe: "CWE-338: Use of Cryptographically Weak PRNG"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A02_2021-Cryptographic_Failures"
+
+  - id: insecure-token-generation
+    pattern: uuid.uuid4(...).hex
+    message: "Weak token: UUID4 may not be suitable for security tokens. Use secrets.token_urlsafe() instead."
+    languages: [python]
+    severity: INFO
+    metadata:
+      category: security
+      owasp: "A02: Cryptographic Failures"
+      cwe: "CWE-338"
+
+  # ==================== Eval and Code Execution ====================
+
+  - id: dangerous-eval
+    pattern: eval(...)
+    message: "Dangerous eval(): Can execute arbitrary code. Never use with user input."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-95: Eval Injection"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A03_2021-Injection"
+
+  - id: dangerous-exec
+    pattern: exec(...)
+    message: "Dangerous exec(): Can execute arbitrary code. Never use with user input."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-95"
+
+  - id: dangerous-compile
+    pattern: compile(...) + eval(...)
+    message: "Dangerous compile() + eval(): Can execute arbitrary code."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-95"
+
+  # ==================== Temporary File Security ====================
+
+  - id: insecure-temp-file
+    pattern: open("/tmp/" + $NAME, ...)
+    message: "Insecure temporary file: Predictable filename in /tmp. Use tempfile module instead."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-377: Insecure Temporary File"
+      references:
+        - "https://docs.python.org/3/library/tempfile.html"
+
+  - id: insecure-temp-file-mkstemp
+    pattern: os.open("/tmp/$NAME" + ..., ...)
+    message: "Insecure temporary file: Use tempfile.mkstemp() instead."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A01: Broken Access Control"
+      cwe: "CWE-377"
+
+  # ==================== Debug Information Exposure ====================
+
+  - id: debug-in-production
+    pattern: app.run(debug=True)
+    message: "Debug mode in production: debug=True exposes sensitive information."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A05: Security Misconfiguration"
+      cwe: "CWE-215: Information Exposure Through Debug Information"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration"
+
+  - id: flask-debug-true
+    pattern: $FLASK_APP.run(debug=True)
+    message: "Flask debug mode in production."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A05: Security Misconfiguration"
+      cwe: "CWE-215"
+
+  - id: traceback-exposure
+    pattern: |
+        except Exception as e:
+            traceback.print_exc()
+    message: "Traceback exposure: Printing traceback may expose sensitive information."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A05: Security Misconfiguration"
+      cwe: "CWE-209"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration"
+
+  # ==================== CORS Misconfiguration ====================
+
+  - id: cors-wildcard-origin
+    pattern: CORS(origins="*")
+    message: "CORS wildcard: origins='*' allows requests from any domain. Restrict to specific domains."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A05: Security Misconfiguration"
+      cwe: "CWE-942: Permissive Cross-domain Policy"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration"
+
+  - id: cors-allow-credentials-wildcard
+    pattern-either:
+      - pattern: CORS(origins="*", allow_credentials=True)
+      - pattern: CORS(origins="*", supports_credentials=True)
+    message: "Dangerous CORS: Wildcard origin with credentials allows any domain to read user data."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A05: Security Misconfiguration"
+      cwe: "CWE-942"
+
+  # ==================== YAML/JSON Parsing ====================
+
+  - id: unsafe-yaml-load
+    pattern: yaml.load(...)
+    message: "Unsafe YAML parsing: yaml.load() can execute arbitrary code. Use yaml.safe_load() instead."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      references:
+        - "https://owasp.org/www-project-top-ten/2021/A08_2021-Software_and_Data_Integrity_Failures"
+
+  - id: insecure-json-loads
+    pattern: json.loads($USER_INPUT, ...)
+    message: "Potential JSON injection: Validate JSON structure before parsing."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: security
+      owasp: "A03: Injection"
+      cwe: "CWE-502"

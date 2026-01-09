@@ -11,20 +11,17 @@ This module provides enterprise-grade feature flag management with:
 - Performance optimization with caching
 """
 
-import asyncio
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from functools import wraps
+import hashlib
 import json
 import logging
 import time
-from enum import Enum
-from typing import Dict, Any, Optional, List, Union, Callable
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
-import hashlib
-import random
-from functools import wraps
+from typing import Any
 
 import aioredis
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +45,7 @@ class RolloutStrategy(Enum):
 @dataclass
 class FeatureFlag:
     """Feature flag definition"""
+
     key: str
     flag_type: FlagType
     description: str
@@ -55,26 +53,28 @@ class FeatureFlag:
     value: Any = None
     rollout_strategy: RolloutStrategy = RolloutStrategy.IMMEDIATE
     rollout_percentage: float = 0.0
-    conditions: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    conditions: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     version: int = 1
 
 
 @dataclass
 class UserContext:
     """User context for flag evaluation"""
+
     user_id: str
     organization_id: str
     email: str
     role: str
-    attributes: Optional[Dict[str, Any]] = None
+    attributes: dict[str, Any] | None = None
 
 
 @dataclass
 class FlagEvaluationResult:
     """Result of feature flag evaluation"""
+
     flag_key: str
     enabled: bool
     value: Any
@@ -97,7 +97,7 @@ class FeatureFlagCache:
         """Initialize Redis connection"""
         self.redis = await aioredis.from_url(self.redis_url, decode_responses=True)
 
-    async def get_flag(self, key: str) -> Optional[Dict[str, Any]]:
+    async def get_flag(self, key: str) -> dict[str, Any] | None:
         """Get flag from cache"""
         try:
             cached = await self.redis.get(f"flag:{key}")
@@ -107,18 +107,14 @@ class FeatureFlagCache:
             logger.warning(f"Cache get error for {key}: {e}")
         return None
 
-    async def set_flag(self, key: str, flag_data: Dict[str, Any]):
+    async def set_flag(self, key: str, flag_data: dict[str, Any]):
         """Set flag in cache"""
         try:
-            await self.redis.setex(
-                f"flag:{key}",
-                self.ttl,
-                json.dumps(flag_data, default=str)
-            )
+            await self.redis.setex(f"flag:{key}", self.ttl, json.dumps(flag_data, default=str))
         except Exception as e:
             logger.warning(f"Cache set error for {key}: {e}")
 
-    async def get_evaluation_result(self, key: str, user_id: str) -> Optional[Dict[str, Any]]:
+    async def get_evaluation_result(self, key: str, user_id: str) -> dict[str, Any] | None:
         """Get cached evaluation result"""
         try:
             cache_key = f"eval:{key}:{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
@@ -129,7 +125,7 @@ class FeatureFlagCache:
             logger.warning(f"Evaluation cache get error: {e}")
         return None
 
-    async def set_evaluation_result(self, key: str, user_id: str, result: Dict[str, Any]):
+    async def set_evaluation_result(self, key: str, user_id: str, result: dict[str, Any]):
         """Cache evaluation result"""
         try:
             cache_key = f"eval:{key}:{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
@@ -155,11 +151,11 @@ class FeatureFlagManager:
 
     def __init__(self, redis_url: str):
         self.cache = FeatureFlagCache(redis_url)
-        self.flags: Dict[str, FeatureFlag] = {}
-        self.default_flags: Dict[str, FeatureFlag] = {}
+        self.flags: dict[str, FeatureFlag] = {}
+        self.default_flags: dict[str, FeatureFlag] = {}
         self.initialized = False
 
-    async def initialize(self, default_flags: Dict[str, FeatureFlag] = None):
+    async def initialize(self, default_flags: dict[str, FeatureFlag] = None):
         """Initialize feature flag manager"""
         await self.cache.initialize()
 
@@ -182,16 +178,17 @@ class FeatureFlagManager:
             if cached_flag:
                 # Update with cached data
                 flag_dict = cached_flag
-                flag.enabled = flag_dict.get('enabled', flag.enabled)
-                flag.value = flag_dict.get('value', flag.value)
-                flag.rollout_percentage = flag_dict.get('rollout_percentage', flag.rollout_percentage)
-                flag.updated_at = datetime.fromisoformat(flag_dict.get('updated_at', datetime.now().isoformat()))
+                flag.enabled = flag_dict.get("enabled", flag.enabled)
+                flag.value = flag_dict.get("value", flag.value)
+                flag.rollout_percentage = flag_dict.get(
+                    "rollout_percentage", flag.rollout_percentage
+                )
+                flag.updated_at = datetime.fromisoformat(
+                    flag_dict.get("updated_at", datetime.now().isoformat())
+                )
 
     async def evaluate_flag(
-        self,
-        flag_key: str,
-        user_context: UserContext,
-        use_cache: bool = True
+        self, flag_key: str, user_context: UserContext, use_cache: bool = True
     ) -> FlagEvaluationResult:
         """Evaluate feature flag for user"""
         start_time = time.time()
@@ -218,12 +215,14 @@ class FeatureFlagManager:
                 rollout_percentage=0.0,
                 cache_hit=cache_hit,
                 evaluation_time_ms=(time.time() - start_time) * 1000,
-                user_id=user_context.user_id
+                user_id=user_context.user_id,
             )
 
             # Cache result
             if use_cache:
-                await self.cache.set_evaluation_result(flag_key, user_context.user_id, asdict(result))
+                await self.cache.set_evaluation_result(
+                    flag_key, user_context.user_id, asdict(result)
+                )
 
             return result
 
@@ -239,7 +238,7 @@ class FeatureFlagManager:
             rollout_percentage=flag.rollout_percentage,
             cache_hit=cache_hit,
             evaluation_time_ms=evaluation_time,
-            user_id=user_context.user_id
+            user_id=user_context.user_id,
         )
 
         # Cache result
@@ -267,45 +266,47 @@ class FeatureFlagManager:
         if flag.rollout_strategy == RolloutStrategy.IMMEDIATE:
             return True, flag.value, "immediate"
 
-        elif flag.rollout_strategy == RolloutStrategy.PERCENTAGE:
+        if flag.rollout_strategy == RolloutStrategy.PERCENTAGE:
             return self._evaluate_percentage_rollout(flag, user_context)
 
-        elif flag.rollout_strategy == RolloutStrategy.GRADUAL:
+        if flag.rollout_strategy == RolloutStrategy.GRADUAL:
             return self._evaluate_gradual_rollout(flag, user_context)
 
-        elif flag.rollout_strategy == RolloutStrategy.A_B_TEST:
+        if flag.rollout_strategy == RolloutStrategy.A_B_TEST:
             return self._evaluate_ab_test(flag, user_context)
 
-        elif flag.rollout_strategy == RolloutStrategy.CANARY:
+        if flag.rollout_strategy == RolloutStrategy.CANARY:
             return self._evaluate_canary(flag, user_context)
 
-        elif flag.rollout_strategy == RolloutStrategy.TIME_BASED:
+        if flag.rollout_strategy == RolloutStrategy.TIME_BASED:
             return self._evaluate_time_based(flag, user_context)
 
         return True, flag.value, "default"
 
-    def _evaluate_conditions(self, conditions: Dict[str, Any], user_context: UserContext) -> bool:
+    def _evaluate_conditions(self, conditions: dict[str, Any], user_context: UserContext) -> bool:
         """Evaluate flag conditions"""
 
         # User-based conditions
-        if 'users' in conditions:
-            if user_context.user_id not in conditions['users']:
+        if "users" in conditions:
+            if user_context.user_id not in conditions["users"]:
                 return False
 
         # Organization-based conditions
-        if 'organizations' in conditions:
-            if user_context.organization_id not in conditions['organizations']:
+        if "organizations" in conditions:
+            if user_context.organization_id not in conditions["organizations"]:
                 return False
 
         # Role-based conditions
-        if 'roles' in conditions:
-            if user_context.role not in conditions['roles']:
+        if "roles" in conditions:
+            if user_context.role not in conditions["roles"]:
                 return False
 
         # Attribute-based conditions
-        if 'attributes' in conditions:
-            for attr_key, expected_value in conditions['attributes'].items():
-                user_attr_value = user_context.attributes.get(attr_key) if user_context.attributes else None
+        if "attributes" in conditions:
+            for attr_key, expected_value in conditions["attributes"].items():
+                user_attr_value = (
+                    user_context.attributes.get(attr_key) if user_context.attributes else None
+                )
                 if user_attr_value != expected_value:
                     return False
 
@@ -320,15 +321,14 @@ class FeatureFlagManager:
 
         if user_percentage < flag.rollout_percentage:
             return True, flag.value, f"percentage_rollout_{flag.rollout_percentage}%"
-        else:
-            return False, flag.value, f"percentage_rollout_{flag.rollout_percentage}%"
+        return False, flag.value, f"percentage_rollout_{flag.rollout_percentage}%"
 
     def _evaluate_gradual_rollout(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
         """Evaluate gradual rollout based on time"""
         if not flag.created_at:
             return False, flag.value, "no_created_date"
 
-        hours_since_creation = (datetime.now(timezone.utc) - flag.created_at).total_seconds() / 3600
+        hours_since_creation = (datetime.now(UTC) - flag.created_at).total_seconds() / 3600
 
         # Gradual rollout over 24 hours
         max_hours = 24.0
@@ -343,8 +343,7 @@ class FeatureFlagManager:
 
         if user_percentage < gradual_percentage:
             return True, flag.value, f"gradual_rollout_{gradual_percentage:.1f}%"
-        else:
-            return False, flag.value, f"gradual_rollout_{gradual_percentage:.1f}%"
+        return False, flag.value, f"gradual_rollout_{gradual_percentage:.1f}%"
 
     def _evaluate_ab_test(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
         """Evaluate A/B test"""
@@ -355,13 +354,12 @@ class FeatureFlagManager:
 
         if variant < flag.rollout_percentage:
             return True, flag.value, "ab_test_variant_a"
-        else:
-            return False, flag.value, "ab_test_variant_b"
+        return False, flag.value, "ab_test_variant_b"
 
     def _evaluate_canary(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
         """Evaluate canary rollout (early adopters)"""
         # Check if user is an early adopter based on creation date or specific attributes
-        if user_context.attributes and user_context.attributes.get('early_adopter'):
+        if user_context.attributes and user_context.attributes.get("early_adopter"):
             return True, flag.value, "canary_early_adopter"
 
         # Hash-based canary selection
@@ -371,37 +369,35 @@ class FeatureFlagManager:
 
         if user_percentage < flag.rollout_percentage:
             return True, flag.value, "canary_rollout"
-        else:
-            return False, flag.value, "not_in_canary"
+        return False, flag.value, "not_in_canary"
 
     def _evaluate_time_based(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
         """Evaluate time-based rollout"""
-        if not flag.conditions or 'time_window' not in flag.conditions:
+        if not flag.conditions or "time_window" not in flag.conditions:
             return False, flag.value, "no_time_window"
 
-        time_window = flag.conditions['time_window']
-        now = datetime.now(timezone.utc)
+        time_window = flag.conditions["time_window"]
+        now = datetime.now(UTC)
 
         # Check if current time is within the allowed window
-        start_time = datetime.fromisoformat(time_window['start']).replace(tzinfo=timezone.utc)
-        end_time = datetime.fromisoformat(time_window['end']).replace(tzinfo=timezone.utc)
+        start_time = datetime.fromisoformat(time_window["start"]).replace(tzinfo=UTC)
+        end_time = datetime.fromisoformat(time_window["end"]).replace(tzinfo=UTC)
 
         if start_time <= now <= end_time:
             return True, flag.value, "time_window_active"
-        else:
-            return False, flag.value, "time_window_inactive"
+        return False, flag.value, "time_window_inactive"
 
     async def _log_evaluation(self, result: FlagEvaluationResult, user_context: UserContext):
         """Log flag evaluation for analytics"""
         try:
             log_data = {
-                'flag_key': result.flag_key,
-                'user_id': user_context.user_id,
-                'organization_id': user_context.organization_id,
-                'enabled': result.enabled,
-                'reason': result.reason,
-                'evaluation_time_ms': result.evaluation_time_ms,
-                'timestamp': datetime.now(timezone.utc).isoformat()
+                "flag_key": result.flag_key,
+                "user_id": user_context.user_id,
+                "organization_id": user_context.organization_id,
+                "enabled": result.enabled,
+                "reason": result.reason,
+                "evaluation_time_ms": result.evaluation_time_ms,
+                "timestamp": datetime.now(UTC).isoformat(),
             }
 
             # In production, send to analytics system
@@ -410,7 +406,7 @@ class FeatureFlagManager:
         except Exception as e:
             logger.warning(f"Failed to log flag evaluation: {e}")
 
-    async def update_flag(self, flag_key: str, updates: Dict[str, Any]) -> bool:
+    async def update_flag(self, flag_key: str, updates: dict[str, Any]) -> bool:
         """Update feature flag"""
         flag = self.flags.get(flag_key)
         if not flag:
@@ -421,7 +417,7 @@ class FeatureFlagManager:
             if hasattr(flag, key):
                 setattr(flag, key, value)
 
-        flag.updated_at = datetime.now(timezone.utc)
+        flag.updated_at = datetime.now(UTC)
         flag.version += 1
 
         # Update cache
@@ -438,8 +434,8 @@ class FeatureFlagManager:
         if flag_key in self.flags:
             return False
 
-        flag.created_at = datetime.now(timezone.utc)
-        flag.updated_at = datetime.now(timezone.utc)
+        flag.created_at = datetime.now(UTC)
+        flag.updated_at = datetime.now(UTC)
 
         self.flags[flag_key] = flag
 
@@ -462,11 +458,11 @@ class FeatureFlagManager:
         logger.info(f"Deleted feature flag {flag_key}")
         return True
 
-    def get_flag(self, flag_key: str) -> Optional[FeatureFlag]:
+    def get_flag(self, flag_key: str) -> FeatureFlag | None:
         """Get feature flag definition"""
         return self.flags.get(flag_key)
 
-    def get_all_flags(self) -> Dict[str, FeatureFlag]:
+    def get_all_flags(self) -> dict[str, FeatureFlag]:
         """Get all feature flags"""
         return self.flags.copy()
 
@@ -476,11 +472,12 @@ class FeatureFlagManager:
 
 
 # Global feature flag manager
-feature_flag_manager: Optional[FeatureFlagManager] = None
+feature_flag_manager: FeatureFlagManager | None = None
 
 
 def is_enabled(flag_key: str, user_context: UserContext = None, default: bool = False):
     """Decorator to check if feature is enabled"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -495,12 +492,15 @@ def is_enabled(flag_key: str, user_context: UserContext = None, default: bool = 
 
             # Raise exception or return None
             raise ValueError(f"Feature {flag_key} is not enabled")
+
         return wrapper
+
     return decorator
 
 
 def get_flag_value(flag_key: str, default_value: Any = None):
     """Decorator to get feature flag value"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -510,7 +510,9 @@ def get_flag_value(flag_key: str, default_value: Any = None):
                     return flag.value
 
             return default_value
+
         return wrapper
+
     return decorator
 
 
@@ -521,7 +523,7 @@ DEFAULT_FEATURE_FLAGS = {
         flag_type=FlagType.BOOLEAN,
         description="Enable advanced analytics dashboard",
         enabled=True,
-        rollout_strategy=RolloutStrategy.IMMEDIATE
+        rollout_strategy=RolloutStrategy.IMMEDIATE,
     ),
     "beta_features": FeatureFlag(
         key="beta_features",
@@ -530,11 +532,7 @@ DEFAULT_FEATURE_FLAGS = {
         enabled=True,
         rollout_strategy=RolloutStrategy.PERCENTAGE,
         rollout_percentage=20.0,
-        conditions={
-            "attributes": {
-                "early_adopter": True
-            }
-        }
+        conditions={"attributes": {"early_adopter": True}},
     ),
     "new_ui_theme": FeatureFlag(
         key="new_ui_theme",
@@ -543,7 +541,7 @@ DEFAULT_FEATURE_FLAGS = {
         enabled=True,
         rollout_strategy=RolloutStrategy.GRADUAL,
         rollout_percentage=50.0,
-        created_at=datetime.now(timezone.utc)
+        created_at=datetime.now(UTC),
     ),
     "ai_insights": FeatureFlag(
         key="ai_insights",
@@ -551,7 +549,7 @@ DEFAULT_FEATURE_FLAGS = {
         description="AI-powered insights and recommendations",
         enabled=True,
         rollout_strategy=RolloutStrategy.CANARY,
-        rollout_percentage=10.0
+        rollout_percentage=10.0,
     ),
     "enhanced_search": FeatureFlag(
         key="enhanced_search",
@@ -559,8 +557,8 @@ DEFAULT_FEATURE_FLAGS = {
         description="Enhanced search with natural language processing",
         enabled=True,
         rollout_strategy=RolloutStrategy.A_B_TEST,
-        rollout_percentage=50.0
-    )
+        rollout_percentage=50.0,
+    ),
 }
 
 

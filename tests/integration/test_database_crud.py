@@ -3,19 +3,20 @@ Database CRUD Integration Tests
 Tests all database operations, relationships, and data consistency
 """
 
-import pytest
 import asyncio
 from datetime import datetime, timedelta
+
+import pytest
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, update
 from sqlalchemy.orm import selectinload
 
-from app.db.models.user import User
-from app.db.models.assessment import Assessment, UserAssessment, AssessmentQuestion
-from app.db.models.team import Team, TeamMember, TeamInvitation
-from app.db.models.response import Response, ResponseScore
-from app.core.security import get_password_hash, create_access_token
 from app.core.database import get_db
+from app.core.security import get_password_hash
+from app.db.models.assessment import Assessment, UserAssessment
+from app.db.models.response import Response, ResponseScore
+from app.db.models.team import Team, TeamMember
+from app.db.models.user import User
 
 
 @pytest.mark.integration
@@ -40,7 +41,7 @@ class TestUserCRUD:
             "email_verified": True,
             "phone": "+1234567890",
             "department": "Engineering",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
     @pytest.fixture
@@ -91,7 +92,7 @@ class TestUserCRUD:
         update_data = {
             "full_name": "Updated Name",
             "phone": "+9876543210",
-            "department": "Marketing"
+            "department": "Marketing",
         }
 
         stmt = update(User).where(User.id == created_user.id).values(**update_data)
@@ -121,10 +122,7 @@ class TestUserCRUD:
     @pytest.mark.asyncio
     async def test_user_soft_delete(self, test_db: AsyncSession, created_user: User):
         """Test soft deletion of user"""
-        update_data = {
-            "is_active": False,
-            "deleted_at": datetime.utcnow()
-        }
+        update_data = {"is_active": False, "deleted_at": datetime.utcnow()}
 
         stmt = update(User).where(User.id == created_user.id).values(**update_data)
         await test_db.execute(stmt)
@@ -162,7 +160,7 @@ class TestUserCRUD:
             "role": "user",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         duplicate_user = User(**duplicate_user_data)
@@ -193,7 +191,7 @@ class TestAssessmentCRUD:
             "estimated_duration": 15,
             "instructions": "Answer honestly based on how you typically behave",
             "scoring_algorithm": "weighted_average",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
     @pytest.fixture
@@ -238,10 +236,12 @@ class TestAssessmentCRUD:
         update_data = {
             "title": "Updated Assessment Title",
             "estimated_duration": 20,
-            "is_active": False
+            "is_active": False,
         }
 
-        stmt = update(Assessment).where(Assessment.id == created_assessment.id).values(**update_data)
+        stmt = (
+            update(Assessment).where(Assessment.id == created_assessment.id).values(**update_data)
+        )
         await test_db.execute(stmt)
         await test_db.commit()
 
@@ -285,7 +285,7 @@ class TestTeamCRUD:
             "role": "user",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         user = User(**user_data)
@@ -302,7 +302,7 @@ class TestTeamCRUD:
             "description": "Software development team",
             "department": "Engineering",
             "created_by": sample_user.id,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
     @pytest.fixture
@@ -328,13 +328,15 @@ class TestTeamCRUD:
         assert team.created_by == sample_team_data["created_by"]
 
     @pytest.mark.asyncio
-    async def test_add_team_member(self, test_db: AsyncSession, created_team: Team, sample_user: User):
+    async def test_add_team_member(
+        self, test_db: AsyncSession, created_team: Team, sample_user: User
+    ):
         """Test adding member to team"""
         team_member_data = {
             "team_id": created_team.id,
             "user_id": sample_user.id,
             "role": "member",
-            "joined_at": datetime.utcnow()
+            "joined_at": datetime.utcnow(),
         }
 
         team_member = TeamMember(**team_member_data)
@@ -348,23 +350,23 @@ class TestTeamCRUD:
         assert team_member.role == "member"
 
     @pytest.mark.asyncio
-    async def test_team_member_relationships(self, test_db: AsyncSession, created_team: Team, sample_user: User):
+    async def test_team_member_relationships(
+        self, test_db: AsyncSession, created_team: Team, sample_user: User
+    ):
         """Test team member relationships"""
         # Add user to team
         team_member = TeamMember(
             team_id=created_team.id,
             user_id=sample_user.id,
             role="member",
-            joined_at=datetime.utcnow()
+            joined_at=datetime.utcnow(),
         )
         test_db.add(team_member)
         await test_db.commit()
 
         # Test relationship loading
         result = await test_db.execute(
-            select(Team)
-            .options(selectinload(Team.members))
-            .where(Team.id == created_team.id)
+            select(Team).options(selectinload(Team.members)).where(Team.id == created_team.id)
         )
         team = result.scalar_one()
 
@@ -372,14 +374,16 @@ class TestTeamCRUD:
         assert team.members[0].user_id == sample_user.id
 
     @pytest.mark.asyncio
-    async def test_remove_team_member(self, test_db: AsyncSession, created_team: Team, sample_user: User):
+    async def test_remove_team_member(
+        self, test_db: AsyncSession, created_team: Team, sample_user: User
+    ):
         """Test removing member from team"""
         # Add member first
         team_member = TeamMember(
             team_id=created_team.id,
             user_id=sample_user.id,
             role="member",
-            joined_at=datetime.utcnow()
+            joined_at=datetime.utcnow(),
         )
         test_db.add(team_member)
         await test_db.commit()
@@ -419,7 +423,7 @@ class TestUserAssessmentCRUD:
             "role": "user",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         user = User(**user_data)
@@ -437,7 +441,7 @@ class TestUserAssessmentCRUD:
             "type": "test_type",
             "is_active": True,
             "estimated_duration": 10,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         assessment = Assessment(**assessment_data)
@@ -447,14 +451,16 @@ class TestUserAssessmentCRUD:
         return assessment
 
     @pytest.mark.asyncio
-    async def test_start_user_assessment(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment):
+    async def test_start_user_assessment(
+        self, test_db: AsyncSession, test_user: User, test_assessment: Assessment
+    ):
         """Test starting a user assessment"""
         user_assessment_data = {
             "user_id": test_user.id,
             "assessment_id": test_assessment.id,
             "status": "in_progress",
             "started_at": datetime.utcnow(),
-            "session_token": "session_" + str(test_user.id) + "_" + str(test_assessment.id)
+            "session_token": "session_" + str(test_user.id) + "_" + str(test_assessment.id),
         }
 
         user_assessment = UserAssessment(**user_assessment_data)
@@ -468,7 +474,9 @@ class TestUserAssessmentCRUD:
         assert user_assessment.status == "in_progress"
 
     @pytest.mark.asyncio
-    async def test_complete_user_assessment(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment):
+    async def test_complete_user_assessment(
+        self, test_db: AsyncSession, test_user: User, test_assessment: Assessment
+    ):
         """Test completing a user assessment"""
         # Start assessment
         user_assessment = UserAssessment(
@@ -476,7 +484,7 @@ class TestUserAssessmentCRUD:
             assessment_id=test_assessment.id,
             status="in_progress",
             started_at=datetime.utcnow(),
-            session_token="session_token"
+            session_token="session_token",
         )
         test_db.add(user_assessment)
         await test_db.commit()
@@ -486,10 +494,14 @@ class TestUserAssessmentCRUD:
         update_data = {
             "status": "completed",
             "completed_at": datetime.utcnow(),
-            "total_time_seconds": 900  # 15 minutes
+            "total_time_seconds": 900,  # 15 minutes
         }
 
-        stmt = update(UserAssessment).where(UserAssessment.id == user_assessment.id).values(**update_data)
+        stmt = (
+            update(UserAssessment)
+            .where(UserAssessment.id == user_assessment.id)
+            .values(**update_data)
+        )
         await test_db.execute(stmt)
         await test_db.commit()
 
@@ -500,7 +512,9 @@ class TestUserAssessmentCRUD:
         assert user_assessment.total_time_seconds == 900
 
     @pytest.mark.asyncio
-    async def test_user_assessment_history(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment):
+    async def test_user_assessment_history(
+        self, test_db: AsyncSession, test_user: User, test_assessment: Assessment
+    ):
         """Test user assessment history"""
         # Create multiple assessments for user
         assessments = []
@@ -511,7 +525,7 @@ class TestUserAssessmentCRUD:
                 status="completed",
                 started_at=datetime.utcnow() - timedelta(days=i),
                 completed_at=datetime.utcnow() - timedelta(days=i) + timedelta(minutes=15),
-                total_time_seconds=900
+                total_time_seconds=900,
             )
             assessments.append(user_assessment)
             test_db.add(user_assessment)
@@ -549,7 +563,7 @@ class TestResponseCRUD:
             "role": "user",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         user = User(**user_data)
@@ -567,7 +581,7 @@ class TestResponseCRUD:
             "type": "test",
             "is_active": True,
             "estimated_duration": 10,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         assessment = Assessment(**assessment_data)
@@ -577,7 +591,9 @@ class TestResponseCRUD:
         return assessment
 
     @pytest.fixture
-    async def test_user_assessment(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment):
+    async def test_user_assessment(
+        self, test_db: AsyncSession, test_user: User, test_assessment: Assessment
+    ):
         """Create test user assessment"""
         user_assessment_data = {
             "user_id": test_user.id,
@@ -585,7 +601,7 @@ class TestResponseCRUD:
             "status": "completed",
             "started_at": datetime.utcnow(),
             "completed_at": datetime.utcnow() + timedelta(minutes=10),
-            "session_token": "test_session_token"
+            "session_token": "test_session_token",
         }
 
         user_assessment = UserAssessment(**user_assessment_data)
@@ -595,7 +611,13 @@ class TestResponseCRUD:
         return user_assessment
 
     @pytest.mark.asyncio
-    async def test_create_response(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment, test_user_assessment: UserAssessment):
+    async def test_create_response(
+        self,
+        test_db: AsyncSession,
+        test_user: User,
+        test_assessment: Assessment,
+        test_user_assessment: UserAssessment,
+    ):
         """Test creating response data"""
         response_data = {
             "user_id": test_user.id,
@@ -604,7 +626,7 @@ class TestResponseCRUD:
             "question_id": "q_001",
             "response": 4,
             "response_time_ms": 1500,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         response = Response(**response_data)
@@ -619,7 +641,13 @@ class TestResponseCRUD:
         assert response.response == 4
 
     @pytest.mark.asyncio
-    async def test_batch_response_creation(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment, test_user_assessment: UserAssessment):
+    async def test_batch_response_creation(
+        self,
+        test_db: AsyncSession,
+        test_user: User,
+        test_assessment: Assessment,
+        test_user_assessment: UserAssessment,
+    ):
         """Test creating multiple responses in batch"""
         responses_data = []
         for i in range(10):
@@ -630,7 +658,7 @@ class TestResponseCRUD:
                 "question_id": f"q_{i:03d}",
                 "response": (i % 5) + 1,  # Responses 1-5
                 "response_time_ms": 1000 + (i * 100),
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
             }
             responses_data.append(Response(**response_data))
 
@@ -639,8 +667,7 @@ class TestResponseCRUD:
 
         # Verify all responses were created
         result = await test_db.execute(
-            select(Response)
-            .where(Response.user_assessment_id == test_user_assessment.id)
+            select(Response).where(Response.user_assessment_id == test_user_assessment.id)
         )
         saved_responses = result.scalars().all()
 
@@ -648,17 +675,23 @@ class TestResponseCRUD:
         assert all(r.user_id == test_user.id for r in saved_responses)
 
     @pytest.mark.asyncio
-    async def test_response_scoring(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment, test_user_assessment: UserAssessment):
+    async def test_response_scoring(
+        self,
+        test_db: AsyncSession,
+        test_user: User,
+        test_assessment: Assessment,
+        test_user_assessment: UserAssessment,
+    ):
         """Test response scoring and score calculation"""
         # Create response
         response = Response(
             user_id=test_user.id,
             assessment_id=test_assessment.id,
             user_assessment_id=test_user_assessment.id,
-            question_id": "q_001",
+            question_id="q_001",
             response=4,
             response_time_ms=1500,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         test_db.add(response)
         await test_db.commit()
@@ -670,7 +703,7 @@ class TestResponseCRUD:
             "dimension": "openness",  # Big Five dimension
             "score": 0.8,  # Normalized score
             "weight": 1.0,
-            "calculated_at": datetime.utcnow()
+            "calculated_at": datetime.utcnow(),
         }
 
         score = ResponseScore(**score_data)
@@ -684,7 +717,13 @@ class TestResponseCRUD:
         assert score.score == 0.8
 
     @pytest.mark.asyncio
-    async def test_response_query_performance(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment, test_user_assessment: UserAssessment):
+    async def test_response_query_performance(
+        self,
+        test_db: AsyncSession,
+        test_user: User,
+        test_assessment: Assessment,
+        test_user_assessment: UserAssessment,
+    ):
         """Test response query performance with large datasets"""
         # Create many responses to test performance
         responses = []
@@ -696,7 +735,7 @@ class TestResponseCRUD:
                 question_id=f"q_{i:04d}",
                 response=(i % 5) + 1,
                 response_time_ms=1000 + (i % 500),
-                created_at=datetime.utcnow() - timedelta(minutes=i)
+                created_at=datetime.utcnow() - timedelta(minutes=i),
             )
             responses.append(response)
 
@@ -720,7 +759,9 @@ class TestResponseCRUD:
         assert query_time < 1.0  # Should complete in under 1 second
 
     @pytest.mark.asyncio
-    async def test_response_data_integrity(self, test_db: AsyncSession, test_user: User, test_assessment: Assessment):
+    async def test_response_data_integrity(
+        self, test_db: AsyncSession, test_user: User, test_assessment: Assessment
+    ):
         """Test response data integrity and constraints"""
         # Try to create response without user_assessment_id (should fail if foreign key constraint exists)
         response_data = {
@@ -730,7 +771,7 @@ class TestResponseCRUD:
             "question_id": "q_test",
             "response": 3,
             "response_time_ms": 1000,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         response = Response(**response_data)
@@ -761,7 +802,7 @@ class TestDatabaseTransactions:
             "role": "user",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         user = User(**user_data)
@@ -798,7 +839,7 @@ class TestDatabaseTransactions:
             "role": "user",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         user = User(**user_data)
@@ -813,7 +854,7 @@ class TestDatabaseTransactions:
             "type": "test",
             "is_active": True,
             "estimated_duration": 10,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         assessment = Assessment(**assessment_data)
@@ -828,13 +869,15 @@ class TestDatabaseTransactions:
             status="completed",
             started_at=datetime.utcnow(),
             completed_at=datetime.utcnow(),
-            session_token="nested_session_token"
+            session_token="nested_session_token",
         )
         test_db.add(user_assessment)
         await test_db.commit()
 
         # Verify all data was committed correctly
-        result = await test_db.execute(select(UserAssessment).where(UserAssessment.user_id == user.id))
+        result = await test_db.execute(
+            select(UserAssessment).where(UserAssessment.user_id == user.id)
+        )
         saved_assessment = result.scalar_one()
         assert saved_assessment.assessment_id == assessment.id
 
@@ -860,7 +903,7 @@ class TestDatabasePerformance:
                 "role": "user",
                 "is_active": True,
                 "email_verified": True,
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
             }
             users.append(User(**user_data))
 
@@ -888,7 +931,7 @@ class TestDatabasePerformance:
                 "role": "user" if i % 2 == 0 else "admin",
                 "is_active": i % 3 != 0,
                 "email_verified": i % 2 == 0,
-                "created_at": datetime.utcnow() - timedelta(days=i)
+                "created_at": datetime.utcnow() - timedelta(days=i),
             }
             users.append(User(**user_data))
 
@@ -915,6 +958,7 @@ class TestDatabasePerformance:
     @pytest.mark.asyncio
     async def test_connection_pool_behavior(self, test_db: AsyncSession):
         """Test connection pool behavior under load"""
+
         async def make_query():
             result = await test_db.execute(select(User).limit(1))
             return result.scalar_one_or_none()

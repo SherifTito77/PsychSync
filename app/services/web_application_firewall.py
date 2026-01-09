@@ -15,12 +15,11 @@ Author: Security Team
 Date: 2025-12-24
 """
 
-import re
 import json
-from typing import Dict, List, Tuple, Optional
-from fastapi import Request, HTTPException, status
-from starlette.responses import JSONResponse
+import re
 
+from fastapi import Request, status
+from starlette.responses import JSONResponse
 
 # =============================================================================
 # WAF Rules Engine
@@ -40,7 +39,7 @@ class WAFViolation:
     rule_name: str
     severity: str
     matched_pattern: str
-    request_details: Dict
+    request_details: dict
     timestamp: str
 
 
@@ -63,17 +62,17 @@ class WebApplicationFirewall:
 
     def __init__(self):
         self.rules = self._initialize_rules()
-        self.violations_log: List[WAFViolation] = []
+        self.violations_log: list[WAFViolation] = []
 
         # Statistics
         self.stats = {
-            'total_requests_checked': 0,
-            'requests_blocked': 0,
-            'violations_by_severity': {
-                'low': 0,
-                'medium': 0,
-                'high': 0,
-                'critical': 0
+            "total_requests_checked": 0,
+            "requests_blocked": 0,
+            "violations_by_severity": {
+                "low": 0,
+                "medium": 0,
+                "high": 0,
+                "critical": 0
             }
         }
 
@@ -81,7 +80,7 @@ class WebApplicationFirewall:
     # Rule Definitions
     # ========================================================================
 
-    def _initialize_rules(self) -> List[WAFRule]:
+    def _initialize_rules(self) -> list[WAFRule]:
         """Initialize all WAF rules"""
 
         return [
@@ -178,14 +177,14 @@ class WebApplicationFirewall:
     # Request Inspection
     # ========================================================================
 
-    async def check_request(self, request: Request, body: Optional[bytes] = None) -> Tuple[bool, Optional[WAFViolation]]:
+    async def check_request(self, request: Request, body: bytes | None = None) -> tuple[bool, WAFViolation | None]:
         """
         Check request against all WAF rules
 
         Returns: (is_clean, violation)
         """
 
-        self.stats['total_requests_checked'] += 1
+        self.stats["total_requests_checked"] += 1
 
         # Parse request
         request_data = await self._parse_request(request, body)
@@ -233,27 +232,27 @@ class WebApplicationFirewall:
         # All checks passed
         return True, None
 
-    async def _parse_request(self, request: Request, body: Optional[bytes] = None) -> Dict:
+    async def _parse_request(self, request: Request, body: bytes | None = None) -> dict:
         """Parse request into structured data"""
 
         data = {
-            'method': request.method,
-            'url': str(request.url),
-            'path': request.url.path,
-            'query_params': dict(request.query_params),
-            'headers': dict(request.headers),
-            'body': body.decode('utf-8', errors='ignore') if body else '',
-            'cookies': dict(request.cookies),
-            'client': {
-                'host': request.client.host if request.client else 'unknown',
-                'port': request.client.port if request.client else None
+            "method": request.method,
+            "url": str(request.url),
+            "path": request.url.path,
+            "query_params": dict(request.query_params),
+            "headers": dict(request.headers),
+            "body": body.decode("utf-8", errors="ignore") if body else "",
+            "cookies": dict(request.cookies),
+            "client": {
+                "host": request.client.host if request.client else "unknown",
+                "port": request.client.port if request.client else None
             }
         }
 
         # Try to parse JSON body
-        if body and request.headers.get('content-type', '').startswith('application/json'):
+        if body and request.headers.get("content-type", "").startswith("application/json"):
             try:
-                data['json'] = json.loads(data['body'])
+                data["json"] = json.loads(data["body"])
             except:
                 pass
 
@@ -263,7 +262,7 @@ class WebApplicationFirewall:
     # Attack Detection Methods
     # ========================================================================
 
-    def _check_sql_injection(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_sql_injection(self, data: dict) -> WAFViolation | None:
         """Check for SQL injection patterns"""
 
         # SQL Injection Patterns
@@ -304,15 +303,15 @@ class WebApplicationFirewall:
         ]
 
         # Combine all patterns
-        combined_pattern = '|'.join(f'(?:{pattern})' for pattern in sqli_patterns)
+        combined_pattern = "|".join(f"(?:{pattern})" for pattern in sqli_patterns)
 
         # Check all string fields
         fields_to_check = [
-            data.get('query', ''),
-            data.get('path', ''),
-            data.get('body', ''),
-            str(data.get('json', {})),
-            str(data.get('headers', {})),
+            data.get("query", ""),
+            data.get("path", ""),
+            data.get("body", ""),
+            str(data.get("json", {})),
+            str(data.get("headers", {})),
         ]
 
         for field in fields_to_check:
@@ -326,12 +325,12 @@ class WebApplicationFirewall:
                         request_data=data,
                         timestamp=datetime.utcnow().isoformat()
                     )
-                    self.stats['violations_by_severity']['critical'] += 1
+                    self.stats["violations_by_severity"]["critical"] += 1
                     return violation
 
         return None
 
-    def _check_xss(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_xss(self, data: dict) -> WAFViolation | None:
         """Check for XSS patterns"""
 
         xss_patterns = [
@@ -362,13 +361,13 @@ class WebApplicationFirewall:
             r"\\.eval\\(",
         ]
 
-        combined_pattern = '|'.join(f'(?:{pattern})' for pattern in xss_patterns)
+        combined_pattern = "|".join(f"(?:{pattern})" for pattern in xss_patterns)
 
         # Check fields
         fields_to_check = [
-            data.get('query', ''),
-            data.get('body', ''),
-            str(data.get('json', {})),
+            data.get("query", ""),
+            data.get("body", ""),
+            str(data.get("json", {})),
         ]
 
         for field in fields_to_check:
@@ -382,12 +381,12 @@ class WebApplicationFirewall:
                         request_data=data,
                         timestamp=datetime.utcnow().isoformat()
                     )
-                    self.stats['violations_by_severity']['high'] += 1
+                    self.stats["violations_by_severity"]["high"] += 1
                     return violation
 
         return None
 
-    def _check_path_traversal(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_path_traversal(self, data: dict) -> WAFViolation | None:
         """Check for path traversal patterns"""
 
         path_traversal_patterns = [
@@ -405,12 +404,12 @@ class WebApplicationFirewall:
             r"web\.config",
         ]
 
-        combined_pattern = '|'.join(f'(?:{pattern})' for pattern in path_traversal_patterns)
+        combined_pattern = "|".join(f"(?:{pattern})" for pattern in path_traversal_patterns)
 
         fields_to_check = [
-            data.get('path', ''),
-            data.get('query', ''),
-            str(data.get('json', {})),
+            data.get("path", ""),
+            data.get("query", ""),
+            str(data.get("json", {})),
         ]
 
         for field in fields_to_check:
@@ -424,12 +423,12 @@ class WebApplicationFirewall:
                         request_data=data,
                         timestamp=datetime.utcnow().isoformat()
                     )
-                    self.stats['violations_by_severity']['high'] += 1
+                    self.stats["violations_by_severity"]["high"] += 1
                     return violation
 
         return None
 
-    def _check_command_injection(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_command_injection(self, data: dict) -> WAFViolation | None:
         """Check for command injection patterns"""
 
         cmd_injection_patterns = [
@@ -451,12 +450,12 @@ class WebApplicationFirewall:
             r"\$[^$]+",
         ]
 
-        combined_pattern = '|'.join(f'(?:{pattern})' for pattern in cmd_injection_patterns)
+        combined_pattern = "|".join(f"(?:{pattern})" for pattern in cmd_injection_patterns)
 
         fields_to_check = [
-            data.get('path', ''),
-            data.get('query', ''),
-            data.get('body', ''),
+            data.get("path", ""),
+            data.get("query", ""),
+            data.get("body", ""),
         ]
 
         for field in fields_to_check:
@@ -470,12 +469,12 @@ class WebApplicationFirewall:
                         request_data=data,
                         timestamp=datetime.utcnow().isoformat()
                     )
-                    self.stats['violations_by_severity']['critical'] += 1
+                    self.stats["violations_by_severity"]["critical"] += 1
                     return violation
 
         return None
 
-    def _check_ssrf(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_ssrf(self, data: dict) -> WAFViolation | None:
         """Check for Server-Side Request Forgery patterns"""
 
         ssrf_patterns = [
@@ -491,12 +490,12 @@ class WebApplicationFirewall:
             r"https?://127\.0\.0\.1",
         ]
 
-        combined_pattern = '|'.join(f'(?:{pattern})' for pattern in ssrf_patterns)
+        combined_pattern = "|".join(f"(?:{pattern})" for pattern in ssrf_patterns)
 
         fields_to_check = [
-            data.get('query', ''),
-            data.get('body', ''),
-            str(data.get('json', {})),
+            data.get("query", ""),
+            data.get("body", ""),
+            str(data.get("json", {})),
         ]
 
         for field in fields_to_check:
@@ -510,21 +509,21 @@ class WebApplicationFirewall:
                         request_data=data,
                         timestamp=datetime.utcnow().isoformat()
                     )
-                    self.stats['violations_by_severity']['high'] += 1
+                    self.stats["violations_by_severity"]["high"] += 1
                     return violation
 
         return None
 
-    def _check_request_size(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_request_size(self, data: dict) -> WAFViolation | None:
         """Check request size limits"""
 
         MAX_BODY_SIZE = 10 * 1024 * 1024  # 10MB
         MAX_QUERY_SIZE = 2048  # 2KB
         MAX_HEADER_SIZE = 8192  # 8KB
 
-        body_size = len(data.get('body', ''))
-        query_size = len(str(data.get('query_params', {})))
-        header_size = len(str(data.get('headers', {})))
+        body_size = len(data.get("body", ""))
+        query_size = len(str(data.get("query_params", {})))
+        header_size = len(str(data.get("headers", {})))
 
         if body_size > MAX_BODY_SIZE:
             violation = WAFViolation(
@@ -534,7 +533,7 @@ class WebApplicationFirewall:
                 request_data=data,
                 timestamp=datetime.utcnow().isoformat()
             )
-            self.stats['violations_by_severity']['medium'] += 1
+            self.stats["violations_by_severity"]["medium"] += 1
             return violation
 
         if query_size > MAX_QUERY_SIZE:
@@ -545,7 +544,7 @@ class WebApplicationFirewall:
                 request_data=data,
                 timestamp=datetime.utcnow().isoformat()
             )
-            self.stats['violations_by_severity']['low'] += 1
+            self.stats["violations_by_severity"]["low"] += 1
             return violation
 
         if header_size > MAX_HEADER_SIZE:
@@ -556,17 +555,17 @@ class WebApplicationFirewall:
                 request_data=data,
                 timestamp=datetime.utcnow().isoformat()
             )
-            self.stats['violations_by_severity']['low'] += 1
+            self.stats["violations_by_severity"]["low"] += 1
             return violation
 
         return None
 
-    def _check_http_method(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_http_method(self, data: dict) -> WAFViolation | None:
         """Validate HTTP method"""
 
-        allowed_methods = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'}
+        allowed_methods = {"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 
-        method = data.get('method', '').upper()
+        method = data.get("method", "").upper()
 
         if method not in allowed_methods:
             violation = WAFViolation(
@@ -576,28 +575,28 @@ class WebApplicationFirewall:
                 request_data=data,
                 timestamp=datetime.utcnow().isoformat()
             )
-            self.stats['violations_by_severity']['medium'] += 1
+            self.stats["violations_by_severity"]["medium"] += 1
             return violation
 
         return None
 
-    def _check_content_type(self, data: Dict) -> Optional[WAFViolation]:
+    def _check_content_type(self, data: dict) -> WAFViolation | None:
         """Validate Content-Type for POST/PUT/PATCH"""
 
-        method = data.get('method', '').upper()
+        method = data.get("method", "").upper()
 
-        if method in {'POST', 'PUT', 'PATCH'}:
-            content_type = data.get('headers', {}).get('content-type', '')
+        if method in {"POST", "PUT", "PATCH"}:
+            content_type = data.get("headers", {}).get("content-type", "")
 
             allowed_content_types = {
-                'application/json',
-                'application/x-www-form-urlencoded',
-                'multipart/form-data',
-                'text/plain',
+                "application/json",
+                "application/x-www-form-urlencoded",
+                "multipart/form-data",
+                "text/plain",
             }
 
             # Extract base content type (before ;)
-            base_content_type = content_type.split(';')[0].strip().lower()
+            base_content_type = content_type.split(";")[0].strip().lower()
 
             if base_content_type and base_content_type not in allowed_content_types:
                 violation = WAFViolation(
@@ -607,7 +606,7 @@ class WebApplicationFirewall:
                     request_data=data,
                     timestamp=datetime.utcnow().isoformat()
                 )
-                self.stats['violations_by_severity']['low'] += 1
+                self.stats["violations_by_severity"]["low"] += 1
                 return violation
 
         return None
@@ -616,18 +615,18 @@ class WebApplicationFirewall:
     # Statistics & Monitoring
     # ========================================================================
 
-    def get_statistics(self) -> Dict:
+    def get_statistics(self) -> dict:
         """Get WAF statistics"""
         return {
-            'total_requests_checked': self.stats['total_requests_checked'],
-            'requests_blocked': self.stats['requests_blocked'],
-            'block_rate': (
-                self.stats['requests_blocked'] / self.stats['total_requests_checked']
-                if self.stats['total_requests_checked'] > 0 else 0
+            "total_requests_checked": self.stats["total_requests_checked"],
+            "requests_blocked": self.stats["requests_blocked"],
+            "block_rate": (
+                self.stats["requests_blocked"] / self.stats["total_requests_checked"]
+                if self.stats["total_requests_checked"] > 0 else 0
             ),
-            'violations_by_severity': self.stats['violations_by_severity'],
-            'active_rules': len([r for r in self.rules if r.enabled]),
-            'total_rules': len(self.rules)
+            "violations_by_severity": self.stats["violations_by_severity"],
+            "active_rules": len([r for r in self.rules if r.enabled]),
+            "total_rules": len(self.rules)
         }
 
 
@@ -659,7 +658,7 @@ async def waf_middleware(request: Request, call_next):
 
     if not is_clean and violation:
         # Log violation
-        waf.stats['requests_blocked'] += 1
+        waf.stats["requests_blocked"] += 1
         waf.violations_log.append(violation)
 
         # Print to logs (in production, send to logging system)

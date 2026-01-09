@@ -1,4 +1,3 @@
-
 # app/main.py - FastAPI Application Entry Point
 # ENTERPRISE-GRADE SECURITY IMPLEMENTATION
 # Advanced Performance Optimizer Pattern #41 Implementation
@@ -19,49 +18,46 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import os
-import sys
-import logging
-import redis
-import secrets
-import hashlib
-import time
-import asyncio
-from redis import asyncio as redis_async
+from collections.abc import Callable
 from contextlib import asynccontextmanager
-from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass
 
 # Standard library imports
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
+import logging
+import os
+import secrets
+import time
+from typing import Any
+
+# Third-party imports
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from redis import asyncio as redis_async
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+import uvicorn
+
+from app.core.cors import configure_cors
 
 # Security imports
 from app.core.ssl_config import ssl_config
 
-# Third-party imports
-from dotenv import load_dotenv
-from fastapi import FastAPI, Request, HTTPException, status, Response
-from app.core.cors import configure_cors
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import Response as StarletteResponse
-from sqlalchemy.exc import SQLAlchemyError
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-import uvicorn
-
 # Initialize application security logger
 app_security_logger = logging.getLogger("app.security.main")
+
 
 # Security configuration
 @dataclass
 class SecurityConfig:
     """Centralized security configuration"""
+
     max_request_size: int = 10 * 1024 * 1024  # 10MB
     request_timeout: int = 300  # 5 minutes
     max_concurrent_requests: int = 1000
@@ -72,41 +68,38 @@ class SecurityConfig:
     enable_cors_protection: bool = True
     enable_monitoring: bool = True
 
+
 security_config = SecurityConfig()
 
 # Local application imports
-from app.core.cache import cache_set
+from app.core.account_lockout import get_lockout_manager, init_lockout_manager
+
+# ENTERPRISE SECURITY MODULES (Phase 3 - Comprehensive Security Transformation)
+from app.core.advanced_rate_limiter import get_rate_limiter, init_rate_limiter
 from app.core.config import settings
-from app.core.logging_config import setup_logging
-from app.core.constants import AppInfo, HttpStatus, Security, API, CORS_ORIGINS
-from app.core.exceptions import PsychSyncException, create_error_response
-from app.core.handlers import (
-    psychsync_exception_handler,
-    http_exception_handler,
-    validation_exception_handler,
-    sqlalchemy_exception_handler,
-    general_exception_handler
-)
-from app.core.security_middleware import SecurityMiddleware
-from app.middleware.security_headers import SecurityHeadersMiddleware
-from app.middleware.logging import StructuredLoggingMiddleware
-from app.core.api_rate_limiter import RateLimitMiddleware
+from app.core.constants import AppInfo
 from app.core.csrf import CSRFMiddleware
+from app.core.exceptions import PsychSyncException
+from app.core.handlers import (
+    general_exception_handler,
+    http_exception_handler,
+    psychsync_exception_handler,
+    sqlalchemy_exception_handler,
+    validation_exception_handler,
+)
+from app.core.logging_config import setup_logging
+from app.core.secure_logging import configure_secure_logging, security_logger
+from app.core.security_middleware import SecurityMiddleware
 
 # NEW COMPREHENSIVE SECURITY MIDDLEWARE (Phase 2 Security Implementation)
 from app.middleware.comprehensive_security_headers import ComprehensiveSecurityHeadersMiddleware
-from app.middleware.input_validation_middleware import SecurityValidationMiddleware
 from app.middleware.csrf_xss_protection import (
+    ContentSecurityPolicyMiddleware,
     CSRFProtectionMiddleware,
     XSSProtectionMiddleware,
-    ContentSecurityPolicyMiddleware
 )
-
-# ENTERPRISE SECURITY MODULES (Phase 3 - Comprehensive Security Transformation)
-from app.core.password_validator import password_validator
-from app.core.advanced_rate_limiter import AdvancedRateLimiter, init_rate_limiter, get_rate_limiter
-from app.core.account_lockout import AccountLockoutManager, init_lockout_manager, get_lockout_manager
-from app.core.secure_logging import configure_secure_logging, security_logger, log_context
+from app.middleware.input_validation_middleware import SecurityValidationMiddleware
+from app.middleware.logging import StructuredLoggingMiddleware
 
 # PERFORMANCE OPTIMIZATION IMPORTS
 # ================================
@@ -123,22 +116,20 @@ invalidation_service = None
 memory_service = None
 performance_monitoring_service = None
 QueryOptimizer = None
-from app.middleware.response_compression import (
-    ResponseCompressionMiddleware,
-    ResponseOptimizationMiddleware,
-    RequestTrackingMiddleware
-)
+# Sentry and other initializations
+import sentry_sdk
 
 # Import the consolidated router from our clean API file
 from app.api.v1.api import api_router
+from app.middleware.response_compression import (
+    RequestTrackingMiddleware,
+    ResponseCompressionMiddleware,
+    ResponseOptimizationMiddleware,
+)
 
-# Sentry and other initializations
-import sentry_sdk
 if settings.SENTRY_DSN:
     sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        traces_sample_rate=1.0,
-        environment=settings.ENVIRONMENT
+        dsn=settings.SENTRY_DSN, traces_sample_rate=1.0, environment=settings.ENVIRONMENT
     )
 
 # --- Initial Setup ---
@@ -149,14 +140,14 @@ logger = logging.getLogger(__name__)
 # --- Rate Limiting Setup ---
 # Basic rate limiting for backward compatibility
 limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"]
+    key_func=get_remote_address, default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"]
 )
 
 # Advanced tier-based rate limiting (ENTERPRISE MODULE - initialized in lifespan)
 # Note: The new AdvancedRateLimiter from app.core.advanced_rate_limiter is initialized
 # in the lifespan function with Redis backing. This is kept for compatibility.
 advanced_rate_limiter = None  # Will be initialized in lifespan
+
 
 class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
     """
@@ -204,14 +195,14 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     "user_agent": user_agent,
                     "processing_time": processing_time,
                     "error_type": type(e).__name__,
-                    "event_type": "middleware_error"
-                }
+                    "event_type": "middleware_error",
+                },
             )
 
             # Return generic error for security
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"detail": "Internal server error"}
+                content={"detail": "Internal server error"},
             )
 
     def _get_client_ip(self, request: Request) -> str:
@@ -230,7 +221,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         return request.client.host if request.client else "unknown"
 
-    async def _pre_request_security_check(self, request: Request, client_ip: str, user_agent: str) -> None:
+    async def _pre_request_security_check(
+        self, request: Request, client_ip: str, user_agent: str
+    ) -> None:
         """
         Perform pre-request security validations
         """
@@ -243,12 +236,12 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     "client_ip": client_ip,
                     "content_length": content_length,
                     "max_allowed": security_config.max_request_size,
-                    "event_type": "oversized_request"
-                }
+                    "event_type": "oversized_request",
+                },
             )
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="Request entity too large"
+                detail="Request entity too large",
             )
 
         # 2. Suspicious pattern detection
@@ -258,7 +251,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         if security_config.enable_rate_limiting:
             await self._check_rate_limit(request, client_ip)
 
-    async def _detect_suspicious_patterns(self, request: Request, client_ip: str, user_agent: str) -> None:
+    async def _detect_suspicious_patterns(
+        self, request: Request, client_ip: str, user_agent: str
+    ) -> None:
         """
         Detect suspicious request patterns
         """
@@ -267,8 +262,16 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check user agent
         suspicious_agents = [
-            "sqlmap", "nikto", "nmap", "masscan", "python-requests",
-            "curl", "wget", "bot", "crawler", "scanner"
+            "sqlmap",
+            "nikto",
+            "nmap",
+            "masscan",
+            "python-requests",
+            "curl",
+            "wget",
+            "bot",
+            "crawler",
+            "scanner",
         ]
 
         if any(agent in user_agent.lower() for agent in suspicious_agents):
@@ -277,8 +280,15 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check URL path for suspicious patterns
         suspicious_paths = [
-            "/admin", "/wp-admin", "/.env", "/config", "/backup",
-            "/test", "/debug", "/phpinfo", "/.git"
+            "/admin",
+            "/wp-admin",
+            "/.env",
+            "/config",
+            "/backup",
+            "/test",
+            "/debug",
+            "/phpinfo",
+            "/.git",
         ]
 
         if any(pattern in request.url.path.lower() for pattern in suspicious_paths):
@@ -306,15 +316,15 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     "method": request.method,
                     "risk_score": risk_score,
                     "reasons": reasons,
-                    "event_type": "high_risk_request"
-                }
+                    "event_type": "high_risk_request",
+                },
             )
 
             # Block very high risk requests
             if risk_score >= 0.9:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Request blocked for security reasons"
+                    detail="Request blocked for security reasons",
                 )
 
     async def _check_rate_limit(self, request: Request, client_ip: str) -> None:
@@ -334,12 +344,11 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     extra={
                         "client_ip": client_ip,
                         "current_count": current_count,
-                        "event_type": "rate_limit_exceeded"
-                    }
+                        "event_type": "rate_limit_exceeded",
+                    },
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail="Rate limit exceeded"
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded"
                 )
 
             # Increment counter
@@ -349,8 +358,12 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             app_security_logger.error(f"Rate limiting error: {e}")
 
     async def _post_request_security_processing(
-        self, request: Request, response: Response,
-        start_time: float, client_ip: str, user_agent: str
+        self,
+        request: Request,
+        response: Response,
+        start_time: float,
+        client_ip: str,
+        user_agent: str,
     ) -> None:
         """
         Perform post-request security processing
@@ -381,15 +394,19 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             "Cross-Origin-Opener-Policy": "same-origin",
             "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
             "X-CSRF-Protection": "1; mode=strict",
-            "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174 https:; frame-ancestors 'none';"
+            "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174 https:; frame-ancestors 'none';",
         }
 
         for header, value in security_headers.items():
             response.headers[header] = value
 
     async def _log_security_metrics(
-        self, request: Request, response: Response,
-        processing_time: float, client_ip: str, user_agent: str
+        self,
+        request: Request,
+        response: Response,
+        processing_time: float,
+        client_ip: str,
+        user_agent: str,
     ) -> None:
         """
         Log security and performance metrics
@@ -405,7 +422,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                 "processing_time": processing_time,
                 "client_ip": client_ip,
                 "user_agent": user_agent,
-                "request_id": getattr(request.state, "request_id", "unknown")
+                "request_id": getattr(request.state, "request_id", "unknown"),
             }
 
             # Store metrics for monitoring
@@ -423,12 +440,13 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                         "method": request.method,
                         "path": request.url.path,
                         "processing_time": processing_time,
-                        "event_type": "slow_request"
-                    }
+                        "event_type": "slow_request",
+                    },
                 )
 
         except Exception as e:
             app_security_logger.error(f"Failed to log security metrics: {e}")
+
 
 # --- Enhanced Application Lifespan Management ---
 @asynccontextmanager
@@ -445,10 +463,7 @@ async def lifespan(app: FastAPI):
 
         # 1. Initialize secure logging with automatic redaction
         app_security_logger.info("Configuring secure logging system...")
-        configure_secure_logging(
-            log_level="INFO",
-            log_file="logs/app.log"
-        )
+        configure_secure_logging(log_level="INFO", log_file="logs/app.log")
         app_security_logger.info("✅ Secure logging configured with auto-redaction")
 
         # 2. Initialize Redis-backed security modules
@@ -459,7 +474,9 @@ async def lifespan(app: FastAPI):
                 # Initialize advanced rate limiter
                 app_security_logger.info("Initializing advanced rate limiter...")
                 await init_rate_limiter(redis_url)
-                app_security_logger.info("✅ 4-layer rate limiting active (IP + Username + Device + Geo)")
+                app_security_logger.info(
+                    "✅ 4-layer rate limiting active (IP + Username + Device + Geo)"
+                )
 
                 # Initialize account lockout manager
                 app_security_logger.info("Initializing account lockout manager...")
@@ -472,7 +489,9 @@ async def lifespan(app: FastAPI):
 
         # 3. Validate security configuration
         if settings.ENVIRONMENT == "production":
-            app_security_logger.info("Production environment detected - applying enhanced security policies")
+            app_security_logger.info(
+                "Production environment detected - applying enhanced security policies"
+            )
 
             # Validate critical security settings
             if not settings.SECRET_KEY or len(settings.SECRET_KEY) < 128:
@@ -482,22 +501,21 @@ async def lifespan(app: FastAPI):
         # 4. Initialize cache and connections with security validation
         if not os.getenv("TESTING"):
             try:
-                from app.core.cache import cache_set
                 # This is not in an async context, so we'll skip caching here
                 # cache_set("security:init", datetime.utcnow().isoformat(), expire=3600)
-                app_security_logger.info("✅ Security cache initialization successful (cache skipped)")
+                app_security_logger.info(
+                    "✅ Security cache initialization successful (cache skipped)"
+                )
             except Exception as e:
                 app_security_logger.error(f"❌ Security cache initialization failed: {e}")
 
         # 5. Database security validation
         try:
             from app.core.database import check_db_health
+
             if await check_db_health():
                 security_logger.log_auth_event(
-                    user_id="system",
-                    action="database_check",
-                    success=True,
-                    client_ip="localhost"
+                    user_id="system", action="database_check", success=True, client_ip="localhost"
                 )
                 app_security_logger.info("✅ Database security validation passed")
             else:
@@ -512,7 +530,9 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             app_security_logger.warning(f"⚠️ Performance security initialization failed: {e}")
 
-        app_security_logger.info("🎯 PsychSync AI security initialization complete - All systems operational")
+        app_security_logger.info(
+            "🎯 PsychSync AI security initialization complete - All systems operational"
+        )
 
         yield
 
@@ -543,6 +563,7 @@ async def lifespan(app: FastAPI):
 
         app_security_logger.info("✅ PsychSync AI shutdown complete")
 
+
 # --- FastAPI Application Instance (DI-ENABLED) ---
 from app.core.application_factory import create_application_for_environment
 
@@ -552,7 +573,9 @@ app = create_application_for_environment(
         "clientId": "psychsync-client",
         "appName": "PsychSync API",
         "usePkceWithAuthorizationCodeGrant": True,
-    } if settings.DEBUG else None,
+    }
+    if settings.DEBUG
+    else None,
 )
 
 # --- ENTERPRISE SECURITY MIDDLEWARE CONFIGURATION ---
@@ -562,8 +585,11 @@ app.add_middleware(EnterpriseSecurityMiddleware)
 
 # 2. Add Host header validation middleware (prevents DNS rebinding attacks)
 try:
-    from app.middleware.host_validation import HostValidationMiddleware, StrictHostValidationMiddleware
     from app.core.config import settings as app_settings
+    from app.middleware.host_validation import (
+        HostValidationMiddleware,
+        StrictHostValidationMiddleware,
+    )
 
     # Use strict validation in production
     use_strict = app_settings.ENVIRONMENT == "production"
@@ -618,19 +644,18 @@ try:
     app.add_middleware(
         SecurityValidationMiddleware,
         enable_strict_validation=True,  # Enable strict validation for all inputs
-        max_request_size=10 * 1024 * 1024  # 10MB max request size
+        max_request_size=10 * 1024 * 1024,  # 10MB max request size
     )
-    app_security_logger.info("✅ Security input validation middleware enabled (SQLi, XSS, Command Injection)")
+    app_security_logger.info(
+        "✅ Security input validation middleware enabled (SQLi, XSS, Command Injection)"
+    )
 except Exception as e:
     app_security_logger.warning(f"Failed to enable input validation middleware: {e}")
 
 # 5.3. XSS Protection Middleware (Fourth layer - sanitizes inputs)
 try:
     app.add_middleware(
-        XSSProtectionMiddleware,
-        enable_sanitization=True,
-        strip_tags=True,
-        escape_html=True
+        XSSProtectionMiddleware, enable_sanitization=True, strip_tags=True, escape_html=True
     )
     app_security_logger.info("✅ XSS protection middleware enabled")
 except Exception as e:
@@ -658,9 +683,11 @@ try:
     app.add_middleware(
         ContentSecurityPolicyMiddleware,
         csp_directives=csp_directives,
-        report_only=False  # Set to True for testing, False for enforcement
+        report_only=False,  # Set to True for testing, False for enforcement
     )
-    app_security_logger.info("✅ Content Security Policy middleware enabled (ENHANCED - no unsafe-inline/unsafe-eval)")
+    app_security_logger.info(
+        "✅ Content Security Policy middleware enabled (ENHANCED - no unsafe-inline/unsafe-eval)"
+    )
 except Exception as e:
     app_security_logger.warning(f"Failed to enable CSP middleware: {e}")
 
@@ -673,6 +700,7 @@ try:
         "/docs",
         "/redoc",
         "/openapi.json",
+        # Old auth endpoints (with /auth prefix)
         "/api/v1/auth/login",
         "/api/v1/auth/register",
         "/api/v1/auth/token",
@@ -680,6 +708,15 @@ try:
         "/api/v1/auth/logout",
         "/api/v1/auth/token-fixed",
         "/api/v1/auth/me-fixed",
+        # New unified auth endpoints (without /auth prefix)
+        "/api/v1/login",
+        "/api/v1/register",
+        "/api/v1/verify-email",
+        "/api/v1/resend-verification",
+        "/api/v1/login/mfa/verify",  # MFA verification endpoint
+        "/api/v1/mfa/setup",  # MFA setup
+        "/api/v1/mfa/verify",  # MFA verification
+        "/api/v1/mfa/disable",  # MFA disable
     ]
 
     app.add_middleware(
@@ -692,7 +729,7 @@ try:
         secure=True,  # True in production (HTTPS)
         httponly=False,  # Allow JavaScript access
         samesite="lax",
-        exclude_paths=csrf_exclude_paths
+        exclude_paths=csrf_exclude_paths,
     )
     app_security_logger.info("✅ CSRF protection middleware enabled (double-submit cookie pattern)")
 except Exception as e:
@@ -717,21 +754,19 @@ try:
             "/openapi.json",
             "/static",
             "/favicon.ico",
-
             # Auth endpoints (use our cookie-based CSRF instead)
             "/api/v1/auth/token-fixed",
             "/api/v1/auth/register",
             "/api/v1/auth/login",
             "/api/v1/auth/logout",
             "/api/v1/auth/me-fixed",
-
             # Legacy endpoints for backward compatibility
             "/api/v1/token",
             "/api/v1/auth/token",
             "/api/v1/auth/refresh",
         ],
         token_expire_seconds=3600,  # 1 hour
-        header_name="X-CSRF-Token"
+        header_name="X-CSRF-Token",
     )
     app_security_logger.info("✅ CSRF middleware enabled - token-based CSRF protection active")
 except Exception as e:
@@ -745,7 +780,7 @@ try:
         exclude_paths=["/health", "/metrics", "/favicon.ico"],
         log_headers=True,
         log_body=False,  # Set to True for debugging only
-        max_body_size=10000
+        max_body_size=10000,
     )
     app_security_logger.info("Structured logging middleware configured")
 except Exception as e:
@@ -765,7 +800,7 @@ app_security_logger.info("Enterprise security middleware chain configured succes
 redis_client = redis_async.from_url(
     settings.REDIS_URL,
     password=settings.REDIS_PASSWORD if settings.REDIS_PASSWORD else None,
-    decode_responses=True
+    decode_responses=True,
 )
 
 # Add structured logging middleware (add first for maximum coverage)
@@ -774,7 +809,7 @@ app.add_middleware(
     exclude_paths=["/health", "/metrics", "/docs", "/openapi.json", "/favicon.ico"],
     log_headers=True,
     log_body=False,  # Set to True for debugging only
-    max_body_size=10000
+    max_body_size=10000,
 )
 
 # Add advanced rate limiting middleware (add early for maximum coverage)
@@ -783,6 +818,7 @@ app.add_middleware(
 
 # Add security headers middleware (temporarily disabled for testing)
 # app.add_middleware(SecurityHeadersMiddleware)
+
 
 # Security Headers Middleware (after CSRF for additional protection)
 @app.middleware("http")
@@ -811,12 +847,15 @@ async def add_additional_security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=()"
 
     # Add CSP header that allows frontend-backend communication (ENHANCED - no unsafe-inline/unsafe-eval)
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script';"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script';"
+    )
 
     # Add CSRF protection header
     response.headers["X-CSRF-Protection"] = "1; mode=strict"
 
     return response
+
 
 # Add advanced security middleware
 app.add_middleware(
@@ -824,7 +863,7 @@ app.add_middleware(
     redis_client=redis_client,
     enable_rate_limiting=True,
     enable_request_validation=True,
-    enable_ip_whitelist=False  # Set to True to enable IP whitelist
+    enable_ip_whitelist=False,  # Set to True to enable IP whitelist
 )
 
 # PERFORMANCE OPTIMIZATION MIDDLEWARE
@@ -844,8 +883,8 @@ app.add_middleware(
         "application/json",
         "application/vnd.api+json",
         "text/html",
-        "text/plain"
-    ]
+        "text/plain",
+    ],
 )
 
 # 3. Response Optimization Middleware (add after compression)
@@ -857,19 +896,21 @@ logger.info("✅ Performance optimization middleware configured.")
 # Include the main API router (this already has /api/v1 prefix from routes.py)
 app.include_router(api_router)
 
+
 # --- Root and Health Check Endpoints ---
 @app.get("/")
-def read_root() -> Dict[str, str]:
+def read_root() -> dict[str, str]:
     """API root endpoint"""
     return {
         "message": f"{AppInfo.API_TITLE} is running!",
         "version": AppInfo.VERSION,
         "docs": AppInfo.DOCS_URL,
-        "redoc": AppInfo.REDOC_URL
+        "redoc": AppInfo.REDOC_URL,
     }
 
+
 @app.get("/health")
-async def health_check_main() -> Dict[str, Any]:
+async def health_check_main() -> dict[str, Any]:
     """Enhanced health check endpoint with performance metrics"""
     redis_status = "disconnected"
     try:
@@ -881,6 +922,7 @@ async def health_check_main() -> Dict[str, Any]:
     # Check database health
     try:
         from app.core.database import check_db_health
+
         db_status = "connected" if await check_db_health() else "disconnected"
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
@@ -890,20 +932,17 @@ async def health_check_main() -> Dict[str, Any]:
         "status": "healthy",
         "version": AppInfo.VERSION,
         "timestamp": datetime.utcnow().isoformat(),
-        "services": {
-            "database": db_status,
-            "redis": redis_status,
-            "ai_engine": "ready"
-        },
+        "services": {"database": db_status, "redis": redis_status, "ai_engine": "ready"},
         "performance": {
             "cache_healthy": not cache_service.circuit_breaker_open,
             "memory_monitoring": memory_service.monitoring_enabled,
-            "performance_monitoring": performance_monitoring_service.monitoring_status.value
-        }
+            "performance_monitoring": performance_monitoring_service.monitoring_status.value,
+        },
     }
 
+
 @app.get("/metrics/performance")
-async def get_performance_metrics() -> Dict[str, Any]:
+async def get_performance_metrics() -> dict[str, Any]:
     """
     Comprehensive performance metrics endpoint
     Advanced Performance Optimizer Pattern #41
@@ -924,16 +963,13 @@ async def get_performance_metrics() -> Dict[str, Any]:
             "system": system_stats,
             "cache": cache_metrics,
             "memory": memory_metrics,
-            "status": "healthy"
+            "status": "healthy",
         }
 
     except Exception as e:
         logger.error(f"Performance metrics collection failed: {e}")
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e),
-            "status": "error"
-        }
+        return {"timestamp": datetime.utcnow().isoformat(), "error": str(e), "status": "error"}
+
 
 # --- Uvicorn Runner ---
 if __name__ == "__main__":
@@ -956,20 +992,11 @@ if __name__ == "__main__":
             ssl_ciphers=ssl_settings["ssl_ciphers"],
             reload=False,  # Disable reload in production with SSL
             log_level="info",
-            access_log=True
+            access_log=True,
         )
     else:
         logger.warning("⚠️  SSL certificates not valid - falling back to HTTP development mode")
         logger.warning(f"SSL Issues: {ssl_verification.get('issues', 'Unknown')}")
 
         # Development configuration (HTTP only)
-        uvicorn.run(
-            "app.main:app",
-            host="0.0.0.0",
-            port=8000,
-            reload=True,
-            log_level="info"
-        )
-
-
-
+        uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")

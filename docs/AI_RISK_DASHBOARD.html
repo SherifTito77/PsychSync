@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Risk Dashboard - PsychSync</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .last-updated {
+            font-size: 0.9em;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+        .content {
+            padding: 30px;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h3 {
+            font-size: 0.9em;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .card .trend {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .trend.up { color: #10b981; }
+        .trend.down { color: #ef4444; }
+        .trend.stable { color: #f59e0b; }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .chart-container h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .risk-table-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .risk-table-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        tr:hover {
+            background: #f9fafb;
+        }
+        .risk-critical { border-left: 4px solid #ef4444; }
+        .risk-high { border-left: 4px solid #f59e0b; }
+        .risk-medium { border-left: 4px solid #10b981; }
+        .risk-low { border-left: 4px solid #6b7280; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .status-open { background: #fef3c7; color: #92400e; }
+        .status-progress { background: #dbeafe; color: #1e40af; }
+        .status-closed { background: #d1fae5; color: #065f46; }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s;
+        }
+
+        .nist-progress {
+            margin-bottom: 30px;
+        }
+        .nist-item {
+            margin-bottom: 15px;
+        }
+        .nist-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .kpis-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .kpi-card h4 {
+            margin-bottom: 8px;
+            color: #667eea;
+        }
+        .kpi-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .kpi-target {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .timeline-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .timeline-item {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 20px;
+            border-left: 2px solid #e5e7eb;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #667eea;
+        }
+        .timeline-date {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .timeline-title {
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>🔐 AI Risk Dashboard</h1>
+            <p>PsychSync Artificial Intelligence Risk Management</p>
+            <div class="last-updated">Last Updated: January 2025 | Next Review: February 2025</div>
+        </div>
+
+        <div class="content">
+            <!-- Summary Cards -->
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Risks</h3>
+                    <div class="value">52</div>
+                    <div class="trend stable">52 identified risks</div>
+                </div>
+                <div class="card">
+                    <h3>Critical Risks</h3>
+                    <div class="value">11</div>
+                    <div class="trend down">↓ 2 from last month</div>
+                </div>
+                <div class="card">
+                    <h3>Risk Score</h3>
+                    <div class="value">70%</div>
+                    <div class="trend up">↑ 5% improvement</div>
+                </div>
+                <div class="card">
+                    <h3>NIST Compliance</h3>
+                    <div class="value">70%</div>
+                    <div class="trend up">↑ 10% this quarter</div>
+                </div>
+            </div>
+
+            <!-- NIST Progress -->
+            <div class="risk-table-section">
+                <h2>NIST AI RMF Progress</h2>
+                <div class="nist-progress">
+                    <div class="nist-item">
+                        <div class="nist-label">
+                            <span>Govern</span>
+                            <span>40%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 40%"></div>
+                        </div>
+                    </div>
+                    <div class="nist-item">
+                        <div class="nist-label">
+                            <span>Map</span>
+                            <span>40%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 40%"></div>
+                        </div>
+                    </div>
+                    <div class="nist-item">
+                        <div class="nist-label">
+                            <span>Measure</span>
+                            <span>20%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 20%"></div>
+                        </div>
+                    </div>
+                    <div class="nist-item">
+                        <div class="nist-label">
+                            <span>Manage</span>
+                            <span>80%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 80%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3>Risk Distribution by Category</h3>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Risk Score Distribution</h3>
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3>OWASP LLM Top 10 Coverage</h3>
+                    <canvas id="owaspChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Risks by NIST Function</h3>
+                    <canvas id="nistChart"></canvas>
+                </div>
+            </div>
+
+            <!-- KPIs -->
+            <div class="risk-table-section">
+                <h2>Key Performance Indicators (KPIs)</h2>
+                <div class="kpis-section">
+                    <div class="kpi-card">
+                        <h4>Injection Attempts Blocked</h4>
+                        <div class="kpi-value">0%</div>
+                        <div class="kpi-target">Target: >95%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <h4>Mean Time to Respond</h4>
+                        <div class="kpi-value">N/A</div>
+                        <div class="kpi-target">Target: <4 hours</div>
+                    </div>
+                    <div class="kpi-card">
+                        <h4>Guardrail Bypass Rate</h4>
+                        <div class="kpi-value">Unknown</div>
+                        <div class="kpi-target">Target: <1%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <h4>Models Risk-Assessed</h4>
+                        <div class="kpi-value">20%</div>
+                        <div class="kpi-target">Target: 100%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <h4>Staff Trained</h4>
+                        <div class="kpi-value">10%</div>
+                        <div class="kpi-target">Target: 100%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <h4>Incidents/Month</h4>
+                        <div class="kpi-value">Baseline</div>
+                        <div class="kpi-target">Target: <5</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top 5 Critical Risks Table -->
+            <div class="risk-table-section">
+                <h2>🚨 Top 5 Critical Risks</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Risk ID</th>
+                            <th>Risk Name</th>
+                            <th>Owner</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Timeline</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="risk-critical">
+                            <td><strong>MANA-001</strong></td>
+                            <td>Prompt Injection Vulnerabilities</td>
+                            <td>Security Lead</td>
+                            <td><strong>25/25</strong></td>
+                            <td><span class="status-badge status-progress">In Progress</span></td>
+                            <td>Q1 2025</td>
+                        </tr>
+                        <tr class="risk-critical">
+                            <td><strong>MANA-002</strong></td>
+                            <td>Sensitive Information Disclosure</td>
+                            <td>Security Lead</td>
+                            <td><strong>25/25</strong></td>
+                            <td><span class="status-badge status-open">Open</span></td>
+                            <td>Q1 2025</td>
+                        </tr>
+                        <tr class="risk-critical">
+                            <td><strong>MANA-003</strong></td>
+                            <td>Excessive Agency</td>
+                            <td>Security Lead</td>
+                            <td><strong>25/25</strong></td>
+                            <td><span class="status-badge status-open">Open</span></td>
+                            <td>Q1 2025</td>
+                        </tr>
+                        <tr class="risk-critical">
+                            <td><strong>GOV-002</strong></td>
+                            <td>Undefined Model Acceptance Criteria</td>
+                            <td>CTO</td>
+                            <td><strong>25/25</strong></td>
+                            <td><span class="status-badge status-open">Open</span></td>
+                            <td>Q1 2025</td>
+                        </tr>
+                        <tr class="risk-critical">
+                            <td><strong>MEAS-005</strong></td>
+                            <td>No Adversarial Testing</td>
+                            <td>Security Lead</td>
+                            <td><strong>25/25</strong></td>
+                            <td><span class="status-badge status-open">Open</span></td>
+                            <td>Q2 2025</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Timeline -->
+            <div class="timeline-section">
+                <h2>📅 Q1 2025 Timeline</h2>
+                <div class="timeline-item">
+                    <div class="timeline-date">Week 1-2: January</div>
+                    <div class="timeline-title">Establish AI Governance Committee</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Week 3-4: January</div>
+                    <div class="timeline-title">Deploy Advanced Injection Detection</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Week 5-6: February</div>
+                    <div class="timeline-title">Launch Model Monitoring Dashboard</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Week 7-8: February</div>
+                    <div class="timeline-title">Complete Model Acceptance Framework</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Week 9-10: March</div>
+                    <div class="timeline-title">Implement Tool Governance & Sandbox</div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">Week 11-12: March</div>
+                    <div class="timeline-title">Conduct Adversarial Testing Campaign</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Risk Distribution by Category
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Model Management', 'Governance', 'Risk Mapping', 'Measure', 'Technical', 'Human Factors', 'Privacy', 'Compliance', 'Operational'],
+                datasets: [{
+                    data: [15, 4, 4, 6, 4, 4, 3, 2, 2],
+                    backgroundColor: [
+                        '#667eea', '#764ba2', '#10b981', '#f59e0b',
+                        '#ef4444', '#6366f1', '#8b5cf6', '#ec4899', '#14b8a6'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+
+        // Risk Score Distribution
+        new Chart(document.getElementById('scoreChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Critical (20-25)', 'High (15-19)', 'Medium (9-14)', 'Low (1-8)'],
+                datasets: [{
+                    label: 'Number of Risks',
+                    data: [11, 28, 12, 1],
+                    backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#6b7280']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // OWASP LLM Top 10 Coverage
+        new Chart(document.getElementById('owaspChart'), {
+            type: 'bar',
+            data: {
+                labels: ['LLM01\nPrompt Injection', 'LLM02\nSensitive Disclosure', 'LLM03\nTraining Poisoning', 'LLM06\nExcessive Agency', 'LLM07\nInsecure Training', 'LLM09\nOutput Handling', 'LLM10\nModel DoS'],
+                datasets: [{
+                    label: 'Coverage Status',
+                    data: [80, 70, 60, 50, 60, 70, 80],
+                    backgroundColor: ['#667eea']
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+
+        // NIST Function Distribution
+        new Chart(document.getElementById('nistChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Manage (38)', 'Measure (6)', 'Govern (4)', 'Map (4)'],
+                datasets: [{
+                    data: [38, 6, 4, 4],
+                    backgroundColor: ['#764ba2', '#667eea', '#10b981', '#f59e0b']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

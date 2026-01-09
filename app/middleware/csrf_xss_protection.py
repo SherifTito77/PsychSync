@@ -65,7 +65,9 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Check if path is excluded from CSRF validation
+        logger.debug(f"CSRF Check: Path={request.url.path}, ExcludePaths={self.exclude_paths}")
         if request.url.path in self.exclude_paths:
+            logger.debug(f"CSRF: Path {request.url.path} is exempted")
             return await call_next(request)
 
         # Validate CSRF token for unsafe methods
@@ -99,20 +101,14 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
 
         if not token:
             logger.warning(f"CSRF token missing from {request.url.path}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="CSRF token missing"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token missing")
 
         # Validate token signature and expiration
         try:
             self.serializer.loads(token, max_age=self.max_age)
         except BadSignature:
             logger.warning(f"Invalid CSRF token from {request.url.path}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid CSRF token"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
 
     def _set_csrf_cookie(self, response: Response):
         """Set CSRF cookie in response."""
@@ -198,6 +194,7 @@ class XSSProtectionMiddleware(BaseHTTPMiddleware):
 
         # HTML escape
         import html
+
         value = html.escape(value)
 
         # Remove null bytes
@@ -212,6 +209,7 @@ class XSSProtectionMiddleware(BaseHTTPMiddleware):
     def _strip_tags(self, value: str) -> str:
         """Strip HTML tags from string."""
         import re
+
         # Basic tag stripping (for production, use bleach or nh3)
         value = re.sub(r"<script[^>]*>.*?</script>", "", value, flags=re.IGNORECASE | re.DOTALL)
         value = re.sub(r"<[^>]+>", "", value)
@@ -264,7 +262,9 @@ class ContentSecurityPolicyMiddleware(BaseHTTPMiddleware):
         csp_string = self._build_csp_string()
 
         # Add CSP header
-        header_name = "Content-Security-Policy-Report-Only" if self.report_only else "Content-Security-Policy"
+        header_name = (
+            "Content-Security-Policy-Report-Only" if self.report_only else "Content-Security-Policy"
+        )
         response.headers[header_name] = csp_string
 
         return response
@@ -347,6 +347,7 @@ def validate_content_security_policy(response_content: str) -> bool:
 
 # Utility functions for XSS prevention
 
+
 def escape_js_string(value: str) -> str:
     """Escape string for safe use in JavaScript."""
     value = value.replace("\\", "\\\\")
@@ -384,24 +385,41 @@ def sanitize_html(unsafe_html: str) -> str:
 
         # Allowed tags and attributes
         allowed_tags = [
-            "p", "br", "strong", "em", "u", "a", "ul", "ol", "li",
-            "h1", "h2", "h3", "h4", "h5", "h6",
-            "table", "thead", "tbody", "tr", "th", "td",
-            "div", "span", "img"
+            "p",
+            "br",
+            "strong",
+            "em",
+            "u",
+            "a",
+            "ul",
+            "ol",
+            "li",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "table",
+            "thead",
+            "tbody",
+            "tr",
+            "th",
+            "td",
+            "div",
+            "span",
+            "img",
         ]
 
         allowed_attributes = {
             "a": ["href", "title", "target"],
             "img": ["src", "alt", "title", "width", "height"],
-            "*": ["class", "id"]
+            "*": ["class", "id"],
         }
 
         # Sanitize
         safe_html = bleach.clean(
-            unsafe_html,
-            tags=allowed_tags,
-            attributes=allowed_attributes,
-            strip=True
+            unsafe_html, tags=allowed_tags, attributes=allowed_attributes, strip=True
         )
 
         return safe_html

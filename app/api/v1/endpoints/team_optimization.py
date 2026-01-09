@@ -27,27 +27,27 @@ class TeamOptimizationRequest(BaseModel):
     """Request model for team optimization"""
     team_name: str = Field(..., min_length=1, max_length=200)
     team_id: Optional[int] = None
-    
+
     # Size requirements
     min_size: int = Field(3, ge=1, le=50)
     max_size: int = Field(10, ge=1, le=50)
     target_size: int = Field(5, ge=1, le=50)
-    
+
     # Role and skill requirements
     required_roles: dict = Field(default_factory=dict)
     optional_roles: dict = Field(default_factory=dict)
     required_skills: dict = Field(default_factory=dict)
     desired_skills: dict = Field(default_factory=dict)
-    
+
     # Diversity settings
     min_personality_diversity: float = Field(0.3, ge=0, le=1)
     max_personality_similarity: float = Field(0.7, ge=0, le=1)
     max_same_department: Optional[int] = None
-    
+
     # Candidate pool
     candidate_user_ids: Optional[List[int]] = None
     include_existing_members: bool = False
-    
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -70,7 +70,7 @@ class MemberProfileResponse(BaseModel):
     availability: float
     skills: dict
     personality_traits: dict
-    
+
     class Config:
         from_attributes = True
 
@@ -80,18 +80,18 @@ class OptimizedTeamResponse(BaseModel):
     team_id: int
     team_name: str
     members: List[MemberProfileResponse]
-    
+
     # Scores
     overall_score: float
     compatibility_score: float
     skill_coverage_score: float
     diversity_score: float
     balance_score: float
-    
+
     # Statistics
     avg_performance: float
     avg_collaboration: float
-    
+
     # Analysis
     role_distribution: dict
     skill_coverage: dict
@@ -128,7 +128,7 @@ class CompatibilityResponse(BaseModel):
 # =================================================================
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/optimize", response_model=OptimizedTeamResponse, status_code=status.HTTP_200_OK)
 async def optimize_team(
     request: TeamOptimizationRequest,
@@ -137,23 +137,23 @@ async def optimize_team(
 ):
     """
     Optimize team composition based on requirements
-    
+
     This endpoint analyzes available candidates and creates an optimal team
     based on:
     - Personality compatibility
     - Skill requirements
     - Role distribution
     - Diversity metrics
-    
+
     **Returns:** Optimized team with detailed analysis
     """
     try:
         logger.info(
             f"User {current_user.id} requesting team optimization: {request.team_name}"
         )
-        
+
         service = TeamOptimizationService()
-        
+
         # Build requirements dict
         requirements = {
             'team_id': request.team_id or 0,
@@ -169,7 +169,7 @@ async def optimize_team(
             'max_personality_similarity': request.max_personality_similarity,
             'max_same_department': request.max_same_department
         }
-        
+
         # Run optimization
         optimized_team = await service.optimize_team_composition(
             db=db,
@@ -177,7 +177,7 @@ async def optimize_team(
             organization_id=current_user.organization_id,
             existing_team_id=request.team_id
         )
-        
+
         # Convert to response model
         members_response = [
             MemberProfileResponse(
@@ -198,7 +198,7 @@ async def optimize_team(
             )
             for m in optimized_team.members
         ]
-        
+
         response = OptimizedTeamResponse(
             team_id=optimized_team.team_id,
             team_name=optimized_team.team_name,
@@ -217,14 +217,14 @@ async def optimize_team(
             gaps=optimized_team.gaps,
             recommendations=optimized_team.recommendations
         )
-        
+
         logger.info(
             f"Team optimization complete: {len(members_response)} members, "
             f"score: {response.overall_score:.2f}"
         )
-        
+
         return response
-        
+
     except ValueError as e:
         logger.error(f"Validation error: {str(e)}")
         raise HTTPException(
@@ -235,8 +235,8 @@ async def optimize_team(
         logger.error(f"Error optimizing team: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-     
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
        detail="Failed to optimize team composition"
         )
 
@@ -249,36 +249,36 @@ async def analyze_team(
 ):
     """
     Analyze existing team composition
-    
+
     Provides detailed analysis of current team including:
     - Compatibility scores
     - Skill coverage
     - Diversity metrics
     - Strengths and gaps
     - Recommendations for improvement
-    
+
     **Returns:** Comprehensive team analysis
     """
     try:
         logger.info(
             f"User {current_user.id} analyzing team {request.team_id}"
         )
-        
+
         service = TeamOptimizationService()
-        
+
         analysis = await service.analyze_team(
             db=db,
             team_id=request.team_id,
             organization_id=current_user.organization_id
         )
-        
+
         logger.info(
             f"Team analysis complete: {analysis['team_name']}, "
             f"score: {analysis['overall_score']:.2f}"
         )
-        
+
         return analysis
-        
+
     except ValueError as e:
         logger.error(f"Team not found: {str(e)}")
         raise HTTPException(
@@ -288,7 +288,7 @@ async def analyze_team(
     except Exception as e:
         logger.error(f"Error analyzing team: {str(e)}", exc_info=True)
         raise HTTPEx
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ception(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze team"
@@ -303,28 +303,28 @@ async def check_compatibility(
 ):
     """
     Check compatibility between two team members
-    
+
     Analyzes personality compatibility and provides recommendations
     for effective collaboration.
-    
+
     **Returns:** Compatibility score and collaboration tips
     """
     try:
         logger.info(
             f"Checking compatibility: {request.user_id_1} <-> {request.user_id_2}"
         )
-        
+
         service = TeamOptimizationService()
-        
+
         result = await service.check_member_compatibility(
             db=db,
             user_id_1=request.user_id_1,
             user_id_2=request.user_id_2,
             organization_id=current_user.organization_id
         )
-        
+
         return CompatibilityResponse(**result)
-        
+
     except ValueError as e:
         logger.error(f"User not found: {str(e)}")
         raise HTTPException(
@@ -350,22 +350,22 @@ async def get_candidates(
 ):
     """
     Get list of candidates available for team optimization
-    
+
     **Query Parameters:**
     - min_availability: Minimum availability percentage
     - department: Filter by department
     - skills: Comma-separated list of required skills
     - limit: Maximum number of results
-    
+
     **Returns:** List of candidate profiles
     """
     try:
         logger.info(
             f"Fetching candidates for user {current_user.id}"
         )
-        
+
         service = TeamOptimizationService()
-        
+
         # Build filters
         filters = {
             'min_availability': min_availability
@@ -374,13 +374,13 @@ async def get_candidates(
             filters['department'] = department
         if skills:
             filters['skills'] = skills.split(',')
-        
+
         candidates = await service.get_candidate_pool(
             db=db,
             organization_id=current_user.organization_id,
             filters=filters
         )
-        
+
         # Convert to response model
         response = [
             MemberProfileResponse(
@@ -395,11 +395,11 @@ async def get_candidates(
             )
             for c in candidates[:limit]
         ]
-        
+
         logger.info(f"Found {len(response)} eligible candidates")
-        
+
         return response
-        
+
     except Exception as e:
         logger.error(f"Error fetching candidates: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -416,18 +416,18 @@ async def get_team_recommendations(
 ):
     """
     Get improvement recommendations for a team
-    
+
     **Returns:** List of actionable recommendations
     """
     try:
         service = TeamOptimizationService()
-        
+
         analysis = await service.analyze_team(
             db=db,
             team_id=team_id,
             organization_id=current_user.organization_id
         )
-        
+
         return {
             'team_id': team_id,
             'team_name': analysis['team_name'],
@@ -435,7 +435,7 @@ async def get_team_recommendations(
             'gaps': analysis['gaps'],
             'priority_actions': analysis['recommendations'][:3]  # Top 3
         }
-        
+
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -459,24 +459,24 @@ async def simulate_team_change(
 ):
     """
     Simulate impact of adding/removing team members
-    
+
     **Parameters:**
     - team_id: Team to simulate changes for
     - add_user_ids: Users to add (simulation only)
     - remove_user_ids: Users to remove (simulation only)
-    
+
     **Returns:** Comparison of current vs. simulated team scores
     """
     try:
         # This would simulate team changes and show impact
         # Implementation would fetch current team, modify it, and re-analyze
-        
+
         return {
             'team_id': team_id,
             'simulation': 'not_implemented',
             'message': 'Feature coming soon'
         }
-        
+
     except Exception as e:
         logger.error(f"Error simulating team change: {str(e)}", exc_info=True)
         raise HTTPException(

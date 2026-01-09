@@ -15,21 +15,21 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+from collections.abc import Callable
 import logging
-from typing import Callable, Any, Optional, List, TypeVar, Type
-import inspect
+from typing import Any, TypeVar
 
-from fastapi import Depends
-from starlette.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
-from app.dependency_injection.container import container, container
 from app.core.database import get_async_db
+from app.dependency_injection.container import container
 
 # Initialize adapter logger
 adapter_logger = logging.getLogger("app.di.fastapi_adapter")
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class FastAPIAdapter:
     """
@@ -39,8 +39,9 @@ class FastAPIAdapter:
     def __init__(self):
         self.container = container
 
-    def get_provider(self, service_type: Type[T]) -> Callable[[], T]:
+    def get_provider(self, service_type: type[T]) -> Callable[[], T]:
         """Create FastAPI dependency provider for service type"""
+
         def provider() -> T:
             return self.container.resolve_sync(service_type)
 
@@ -50,8 +51,9 @@ class FastAPIAdapter:
 
         return provider
 
-    def get_scoped_provider(self, service_type: Type[T]) -> Callable[[], T]:
+    def get_scoped_provider(self, service_type: type[T]) -> Callable[[], T]:
         """Create FastAPI dependency provider for scoped service"""
+
         def provider(request: Request = None) -> T:
             # For scoped services, we could implement request-specific logic
             # For now, delegates to regular provider
@@ -62,8 +64,9 @@ class FastAPIAdapter:
 
         return provider
 
-    def get_async_provider(self, service_type: Type[T]) -> Callable[[], T]:
+    def get_async_provider(self, service_type: type[T]) -> Callable[[], T]:
         """Create FastAPI dependency provider for async service"""
+
         async def provider() -> T:
             return await self.container.resolve(service_type)
 
@@ -74,6 +77,7 @@ class FastAPIAdapter:
 
     def get_database_provider(self) -> Callable[[], AsyncSession]:
         """Create database session provider"""
+
         def provider() -> AsyncSession:
             return get_async_db()
 
@@ -81,6 +85,7 @@ class FastAPIAdapter:
 
     def get_configuration_provider(self, key: str, default: Any = None):
         """Create configuration provider"""
+
         def provider() -> Any:
             return self.container.resolve_configuration(key, default)
 
@@ -91,53 +96,64 @@ class FastAPIAdapter:
         # This could be used to automatically register common dependencies
         adapter_logger.info("Dependency injection configured for FastAPI")
 
-    def create_dependency_function(self, service_type: Type[T]) -> Callable[[], T]:
+    def create_dependency_function(self, service_type: type[T]) -> Callable[[], T]:
         """Create a dependency function that can be used in route handlers"""
+
         def dependency_function() -> T:
             return self.container.resolve_sync(service_type)
 
         dependency_function.__di_service_type__ = service_type
         return dependency_function
 
-    def create_async_dependency_function(self, service_type: Type[T]) -> Callable[[], T]:
+    def create_async_dependency_function(self, service_type: type[T]) -> Callable[[], T]:
         """Create an async dependency function for async contexts"""
+
         async def dependency_function() -> T:
             return await self.container.resolve(service_type)
 
         dependency_function.__di_service_type__ = service_type
         return dependency_function
 
+
 # Global adapter instance
 adapter = FastAPIAdapter()
 
+
 # Convenience functions that match FastAPI's Depends pattern
-def get_service(service_type: Type[T]) -> Callable[[], T]:
+def get_service(service_type: type[T]) -> Callable[[], T]:
     """Get dependency provider for service"""
     return adapter.get_provider(service_type)
 
-def get_scoped_service(service_type: Type[T]) -> Callable[[Request], T]:
+
+def get_scoped_service(service_type: type[T]) -> Callable[[Request], T]:
     """Get scoped dependency provider for service"""
     return adapter.get_scoped_provider(service_type)
 
-def get_async_service(service_type: Type[T]) -> Callable[[], T]:
+
+def get_async_service(service_type: type[T]) -> Callable[[], T]:
     """Get async dependency provider for service"""
     return adapter.get_async_provider(service_type)
+
 
 def get_db() -> Callable[[], AsyncSession]:
     """Get database session dependency"""
     return adapter.get_database_provider()
 
+
 def get_config(key: str, default: Any = None):
     """Get configuration dependency"""
     return adapter.get_configuration_provider(key, default)
 
-def inject(service_type: Type[T]) -> T:
+
+def inject(service_type: type[T]) -> T:
     """Inject service directly (for non-FastAPI contexts)"""
     return adapter.container.resolve_sync(service_type)
 
-async def inject_async(service_type: Type[T]) -> T:
+
+async def inject_async(service_type: type[T]) -> T:
     """Inject service asynchronously"""
     return await adapter.container.resolve(service_type)
+
 
 # Example of how to use in a FastAPI route:
 #
@@ -150,6 +166,7 @@ async def inject_async(service_type: Type[T]) -> T:
 #     user_service: UserService = get_service(UserService)
 # ):
 #     return await user_service.get_user_by_id(user_id)
+
 
 def auto_register_services():
     """Auto-register common services"""

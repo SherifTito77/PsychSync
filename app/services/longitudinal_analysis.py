@@ -13,96 +13,111 @@ Key Features:
 - Predictive modeling for churn and engagement
 """
 
-from typing import List, Dict, Any, Optional, Tuple, Union
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+import logging
+from typing import Any
+import warnings
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta, timezone
-from dataclasses import dataclass, field
-from enum import Enum
-import json
-import logging
 from scipy import stats
-from scipy.signal import find_peaks
-from scipy.stats import linregress, ttest_ind, mannwhitneyu
-import warnings
-warnings.filterwarnings('ignore')
+from scipy.stats import linregress, ttest_ind
+
+warnings.filterwarnings("ignore")
 
 # Time series and change detection libraries
 try:
     import ruptures as rpt
+
     RUPTURES_AVAILABLE = True
 except ImportError:
     RUPTURES_AVAILABLE = False
 
 try:
+    from statsmodels.stats.weightstats import ztest
     from statsmodels.tsa.seasonal import seasonal_decompose
     from statsmodels.tsa.stattools import adfuller
-    from statsmodels.stats.weightstats import ztest
+
     STATSMODELS_AVAILABLE = True
 except ImportError:
     STATSMODELS_AVAILABLE = False
 
-from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc
 import redis.asyncio as redis
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+
 class MetricType(Enum):
     """Types of behavioral metrics for longitudinal analysis."""
-    COUNT = "count"           # Event counts (logins, actions, etc.)
-    RATE = "rate"            # Rates and percentages (success rate, engagement rate)
-    DURATION = "duration"     # Time-based metrics (session duration, response time)
-    SCORE = "score"          # Score-based metrics (assessment scores, performance)
-    FREQUENCY = "frequency"   # Frequency metrics (events per time period)
-    RATIO = "ratio"          # Ratio metrics (conversion ratios, efficiency ratios)
+
+    COUNT = "count"  # Event counts (logins, actions, etc.)
+    RATE = "rate"  # Rates and percentages (success rate, engagement rate)
+    DURATION = "duration"  # Time-based metrics (session duration, response time)
+    SCORE = "score"  # Score-based metrics (assessment scores, performance)
+    FREQUENCY = "frequency"  # Frequency metrics (events per time period)
+    RATIO = "ratio"  # Ratio metrics (conversion ratios, efficiency ratios)
+
 
 class ChangeType(Enum):
     """Types of changes that can be detected."""
-    LEVEL_SHIFT = "level_shift"      # Sudden change in mean value
-    TREND_CHANGE = "trend_change"    # Change in trend direction or slope
+
+    LEVEL_SHIFT = "level_shift"  # Sudden change in mean value
+    TREND_CHANGE = "trend_change"  # Change in trend direction or slope
     VARIANCE_CHANGE = "variance_change"  # Change in variability
     SEASONAL_CHANGE = "seasonal_change"  # Change in seasonal patterns
-    PATTERN_CHANGE = "pattern_change"    # Change in behavioral patterns
-    SPIKE_DROP = "spike_drop"         # Sudden spikes or drops
+    PATTERN_CHANGE = "pattern_change"  # Change in behavioral patterns
+    SPIKE_DROP = "spike_drop"  # Sudden spikes or drops
+
 
 class DetectionMethod(Enum):
     """Methods for change detection."""
-    CUSUM = "cusum"                    # Cumulative Sum Control Chart
-    E_DIVISIVE = "e_divisive"          # E-Divisive with means
-    BAYESIAN = "bayesian"              # Bayesian change point detection
-    ML_BASED = "ml_based"              # Machine learning based detection
-    STATISTICAL = "statistical"        # Statistical tests (t-test, etc.)
-    WINDOW_BASED = "window_based"      # Window-based comparison
-    ENSEMBLE = "ensemble"              # Ensemble of multiple methods
+
+    CUSUM = "cusum"  # Cumulative Sum Control Chart
+    E_DIVISIVE = "e_divisive"  # E-Divisive with means
+    BAYESIAN = "bayesian"  # Bayesian change point detection
+    ML_BASED = "ml_based"  # Machine learning based detection
+    STATISTICAL = "statistical"  # Statistical tests (t-test, etc.)
+    WINDOW_BASED = "window_based"  # Window-based comparison
+    ENSEMBLE = "ensemble"  # Ensemble of multiple methods
+
 
 class TrendDirection(Enum):
     """Directions of trends."""
+
     INCREASING = "increasing"
     DECREASING = "decreasing"
     STABLE = "stable"
     VOLATILE = "volatile"
 
+
 class ImpactLevel(Enum):
     """Impact levels for detected changes."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
+
 @dataclass
 class TimeSeriesPoint:
     """Single point in time series data."""
+
     timestamp: datetime
     value: float
     metric_name: str
     user_id: str
     bucket_size: str  # hour, day, week, month
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class ChangePoint:
     """Detected change point in time series."""
+
     id: str
     user_id: str
     metric_name: str
@@ -116,16 +131,18 @@ class ChangePoint:
     post_change_mean: float
     change_magnitude: float
     confidence_score: float
-    statistic_value: Optional[float] = None
-    p_value: Optional[float] = None
+    statistic_value: float | None = None
+    p_value: float | None = None
     significance_level: float = 0.05
-    description: Optional[str] = None
+    description: str | None = None
     impact_level: ImpactLevel = ImpactLevel.MEDIUM
     requires_attention: bool = False
+
 
 @dataclass
 class TrendAnalysis:
     """Results of trend analysis."""
+
     id: str
     user_id: str
     metric_name: str
@@ -137,16 +154,18 @@ class TrendAnalysis:
     r_squared: float
     p_value: float
     seasonal_component: bool
-    seasonal_period: Optional[int]
-    seasonal_strength: Optional[float]
+    seasonal_period: int | None
+    seasonal_strength: float | None
     confidence_level: float
-    forecast_next_period: Optional[float] = None
-    forecast_confidence_lower: Optional[float] = None
-    forecast_confidence_upper: Optional[float] = None
+    forecast_next_period: float | None = None
+    forecast_confidence_lower: float | None = None
+    forecast_confidence_upper: float | None = None
+
 
 @dataclass
 class BehavioralBaseline:
     """Calculated behavioral baseline for comparison."""
+
     id: str
     user_id: str
     metric_name: str
@@ -165,6 +184,7 @@ class BehavioralBaseline:
     margin_of_error: float
     is_active: bool
 
+
 @dataclass
 class LongitudinalConfig:
     """Configuration for longitudinal analysis."""
@@ -179,11 +199,13 @@ class LongitudinalConfig:
     significance_level: float = 0.05
     min_change_magnitude: float = 0.1  # 10% minimum change
     confidence_threshold: float = 0.8
-    detection_methods: List[DetectionMethod] = field(default_factory=lambda: [
-        DetectionMethod.CUSUM,
-        DetectionMethod.E_DIVISIVE,
-        DetectionMethod.WINDOW_BASED
-    ])
+    detection_methods: list[DetectionMethod] = field(
+        default_factory=lambda: [
+            DetectionMethod.CUSUM,
+            DetectionMethod.E_DIVISIVE,
+            DetectionMethod.WINDOW_BASED,
+        ]
+    )
 
     # Trend analysis settings
     trend_detection_window: int = 30  # days
@@ -205,22 +227,25 @@ class LongitudinalConfig:
     # Redis configuration
     redis_url: str = "redis://localhost:6379/8"
 
+
 class LongitudinalAnalyzer:
     """
     Advanced longitudinal analysis engine for behavioral pattern tracking.
     """
 
-    def __init__(self, db_session: Session, config: Optional[LongitudinalConfig] = None):
+    def __init__(self, db_session: Session, config: LongitudinalConfig | None = None):
         self.db = db_session
         self.config = config or LongitudinalConfig()
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
         self._init_redis()
 
         # Initialize detection methods availability
         self.ruptures_available = RUPTURES_AVAILABLE
         self.statsmodels_available = STATSMODELS_AVAILABLE
 
-        logger.info(f"Longitudinal analyzer initialized - Ruptures: {self.ruptures_available}, Statsmodels: {self.statsmodels_available}")
+        logger.info(
+            f"Longitudinal analyzer initialized - Ruptures: {self.ruptures_available}, Statsmodels: {self.statsmodels_available}"
+        )
 
     def _init_redis(self) -> None:
         """Initialize Redis connection for caching."""
@@ -230,7 +255,7 @@ class LongitudinalAnalyzer:
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_timeout=True
+                retry_on_timeout=True,
             )
             logger.info("Longitudinal analyzer Redis connection established")
         except Exception as e:
@@ -243,8 +268,8 @@ class LongitudinalAnalyzer:
         metric_name: str,
         start_time: datetime,
         end_time: datetime,
-        bucket_size: str = "day"
-    ) -> List[TimeSeriesPoint]:
+        bucket_size: str = "day",
+    ) -> list[TimeSeriesPoint]:
         """
         Aggregate behavioral data into time series buckets.
 
@@ -280,7 +305,7 @@ class LongitudinalAnalyzer:
                     metric_name=metric_name,
                     user_id=user_id,
                     bucket_size=bucket_size,
-                    context={'generated': True}
+                    context={"generated": True},
                 )
                 time_series_data.append(point)
 
@@ -297,9 +322,9 @@ class LongitudinalAnalyzer:
         self,
         user_id: str,
         metric_name: str,
-        time_series_data: List[TimeSeriesPoint],
-        methods: Optional[List[DetectionMethod]] = None
-    ) -> List[ChangePoint]:
+        time_series_data: list[TimeSeriesPoint],
+        methods: list[DetectionMethod] | None = None,
+    ) -> list[ChangePoint]:
         """
         Detect change points in time series data using multiple methods.
 
@@ -314,7 +339,9 @@ class LongitudinalAnalyzer:
         """
         try:
             if len(time_series_data) < self.config.min_data_points:
-                logger.warning(f"Insufficient data points for change detection: {len(time_series_data)}")
+                logger.warning(
+                    f"Insufficient data points for change detection: {len(time_series_data)}"
+                )
                 return []
 
             methods = methods or self.config.detection_methods
@@ -336,12 +363,17 @@ class LongitudinalAnalyzer:
             # Calculate impact levels and attention requirements
             for change in consolidated_changes:
                 change.impact_level = self._calculate_impact_level(change)
-                change.requires_attention = change.impact_level in [ImpactLevel.HIGH, ImpactLevel.CRITICAL]
+                change.requires_attention = change.impact_level in [
+                    ImpactLevel.HIGH,
+                    ImpactLevel.CRITICAL,
+                ]
 
             # Store detected changes
             await self._store_change_points(consolidated_changes)
 
-            logger.info(f"Detected {len(consolidated_changes)} change points for user {user_id}, metric {metric_name}")
+            logger.info(
+                f"Detected {len(consolidated_changes)} change points for user {user_id}, metric {metric_name}"
+            )
             return consolidated_changes
 
         except Exception as e:
@@ -349,11 +381,8 @@ class LongitudinalAnalyzer:
             return []
 
     async def analyze_trends(
-        self,
-        user_id: str,
-        metric_name: str,
-        time_series_data: List[TimeSeriesPoint]
-    ) -> Optional[TrendAnalysis]:
+        self, user_id: str, metric_name: str, time_series_data: list[TimeSeriesPoint]
+    ) -> TrendAnalysis | None:
         """
         Analyze trends in time series data including seasonal decomposition.
 
@@ -367,7 +396,9 @@ class LongitudinalAnalyzer:
         """
         try:
             if len(time_series_data) < self.config.min_data_points:
-                logger.warning(f"Insufficient data points for trend analysis: {len(time_series_data)}")
+                logger.warning(
+                    f"Insufficient data points for trend analysis: {len(time_series_data)}"
+                )
                 return None
 
             # Extract values and timestamps
@@ -396,9 +427,9 @@ class LongitudinalAnalyzer:
 
             if self.config.seasonal_detection_enabled and len(values) >= 14:  # At least 2 weeks
                 seasonal_info = await self._detect_seasonality(values, timestamps)
-                seasonal_component = seasonal_info['has_seasonality']
-                seasonal_period = seasonal_info['period']
-                seasonal_strength = seasonal_info['strength']
+                seasonal_component = seasonal_info["has_seasonality"]
+                seasonal_period = seasonal_info["period"]
+                seasonal_strength = seasonal_info["strength"]
 
             # Generate forecasts if enough data
             forecast_next = None
@@ -407,9 +438,9 @@ class LongitudinalAnalyzer:
 
             if len(values) >= self.config.trend_detection_window:
                 forecasts = await self._generate_forecast(values, slope, intercept, std_err)
-                forecast_next = forecasts['next_value']
-                forecast_lower = forecasts['confidence_lower']
-                forecast_upper = forecasts['confidence_upper']
+                forecast_next = forecasts["next_value"]
+                forecast_lower = forecasts["confidence_lower"]
+                forecast_upper = forecasts["confidence_upper"]
 
             # Create trend analysis object
             trend_analysis = TrendAnalysis(
@@ -421,7 +452,7 @@ class LongitudinalAnalyzer:
                 trend_direction=trend_direction,
                 trend_slope=slope,
                 trend_intercept=intercept,
-                r_squared=r_value ** 2,
+                r_squared=r_value**2,
                 p_value=p_value,
                 seasonal_component=seasonal_component,
                 seasonal_period=seasonal_period,
@@ -429,7 +460,7 @@ class LongitudinalAnalyzer:
                 confidence_level=1.0 - self.config.significance_level,
                 forecast_next_period=forecast_next,
                 forecast_confidence_lower=forecast_lower,
-                forecast_confidence_upper=forecast_upper
+                forecast_confidence_upper=forecast_upper,
             )
 
             # Store trend analysis
@@ -446,8 +477,8 @@ class LongitudinalAnalyzer:
         user_id: str,
         metric_name: str,
         baseline_type: str = "personal",
-        baseline_period_days: Optional[int] = None
-    ) -> Optional[BehavioralBaseline]:
+        baseline_period_days: int | None = None,
+    ) -> BehavioralBaseline | None:
         """
         Calculate behavioral baseline for comparison.
 
@@ -476,7 +507,9 @@ class LongitudinalAnalyzer:
                 raise ValueError(f"Unknown baseline type: {baseline_type}")
 
             if not data or len(data) < self.config.baseline_sample_size:
-                logger.warning(f"Insufficient data for baseline calculation: {len(data) if data else 0}")
+                logger.warning(
+                    f"Insufficient data for baseline calculation: {len(data) if data else 0}"
+                )
                 return None
 
             values = np.array(data)
@@ -493,7 +526,9 @@ class LongitudinalAnalyzer:
             # Calculate confidence interval
             confidence_level = self.config.baseline_confidence_level
             alpha = 1.0 - confidence_level
-            margin_of_error = stats.t.ppf(1 - alpha/2, len(values) - 1) * (std_deviation / np.sqrt(len(values)))
+            margin_of_error = stats.t.ppf(1 - alpha / 2, len(values) - 1) * (
+                std_deviation / np.sqrt(len(values))
+            )
 
             baseline = BehavioralBaseline(
                 id=f"baseline_{user_id}_{metric_name}_{baseline_type}_{datetime.utcnow().timestamp()}",
@@ -512,7 +547,7 @@ class LongitudinalAnalyzer:
                 sample_size=len(values),
                 confidence_level=confidence_level,
                 margin_of_error=margin_of_error,
-                is_active=True
+                is_active=True,
             )
 
             # Store baseline
@@ -525,11 +560,8 @@ class LongitudinalAnalyzer:
             return None
 
     async def analyze_user_progression(
-        self,
-        user_id: str,
-        metrics: List[str],
-        time_range_days: int = 90
-    ) -> Dict[str, Any]:
+        self, user_id: str, metrics: list[str], time_range_days: int = 90
+    ) -> dict[str, Any]:
         """
         Comprehensive analysis of user's behavioral progression over time.
 
@@ -546,22 +578,24 @@ class LongitudinalAnalyzer:
             start_time = end_time - timedelta(days=time_range_days)
 
             progression_analysis = {
-                'user_id': user_id,
-                'analysis_period': {
-                    'start': start_time.isoformat(),
-                    'end': end_time.isoformat(),
-                    'days': time_range_days
+                "user_id": user_id,
+                "analysis_period": {
+                    "start": start_time.isoformat(),
+                    "end": end_time.isoformat(),
+                    "days": time_range_days,
                 },
-                'metrics_analysis': {},
-                'overall_insights': [],
-                'recommendations': [],
-                'risk_indicators': []
+                "metrics_analysis": {},
+                "overall_insights": [],
+                "recommendations": [],
+                "risk_indicators": [],
             }
 
             # Analyze each metric
             for metric in metrics:
                 # Get time series data
-                time_series_data = await self.get_time_series_data(user_id, metric, start_time, end_time)
+                time_series_data = await self.get_time_series_data(
+                    user_id, metric, start_time, end_time
+                )
 
                 if not time_series_data:
                     continue
@@ -576,34 +610,41 @@ class LongitudinalAnalyzer:
                 current_baseline = await self.calculate_baseline(user_id, metric)
 
                 # Store metric analysis
-                progression_analysis['metrics_analysis'][metric] = {
-                    'trend': trend_analysis.__dict__ if trend_analysis else None,
-                    'change_points': [cp.__dict__ for cp in change_points],
-                    'baseline': current_baseline.__dict__ if current_baseline else None,
-                    'current_value': time_series_data[-1].value if time_series_data else None,
-                    'data_points': len(time_series_data)
+                progression_analysis["metrics_analysis"][metric] = {
+                    "trend": trend_analysis.__dict__ if trend_analysis else None,
+                    "change_points": [cp.__dict__ for cp in change_points],
+                    "baseline": current_baseline.__dict__ if current_baseline else None,
+                    "current_value": time_series_data[-1].value if time_series_data else None,
+                    "data_points": len(time_series_data),
                 }
 
                 # Generate metric-specific insights
                 if change_points:
-                    high_impact_changes = [cp for cp in change_points if cp.impact_level in [ImpactLevel.HIGH, ImpactLevel.CRITICAL]]
+                    high_impact_changes = [
+                        cp
+                        for cp in change_points
+                        if cp.impact_level in [ImpactLevel.HIGH, ImpactLevel.CRITICAL]
+                    ]
                     if high_impact_changes:
-                        progression_analysis['risk_indicators'].append({
-                            'metric': metric,
-                            'type': 'high_impact_changes',
-                            'count': len(high_impact_changes),
-                            'description': f"Detected {len(high_impact_changes)} high-impact changes in {metric}"
-                        })
+                        progression_analysis["risk_indicators"].append(
+                            {
+                                "metric": metric,
+                                "type": "high_impact_changes",
+                                "count": len(high_impact_changes),
+                                "description": f"Detected {len(high_impact_changes)} high-impact changes in {metric}",
+                            }
+                        )
 
             # Generate overall insights
-            progression_analysis['overall_insights'] = await self._generate_progression_insights(
-                progression_analysis['metrics_analysis']
+            progression_analysis["overall_insights"] = await self._generate_progression_insights(
+                progression_analysis["metrics_analysis"]
             )
 
             # Generate recommendations
-            progression_analysis['recommendations'] = await self._generate_progression_recommendations(
-                progression_analysis['metrics_analysis'],
-                progression_analysis['overall_insights']
+            progression_analysis[
+                "recommendations"
+            ] = await self._generate_progression_recommendations(
+                progression_analysis["metrics_analysis"], progression_analysis["overall_insights"]
             )
 
             return progression_analysis
@@ -613,11 +654,8 @@ class LongitudinalAnalyzer:
             return {}
 
     def _generate_time_buckets(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        bucket_size: str
-    ) -> List[datetime]:
+        self, start_time: datetime, end_time: datetime, bucket_size: str
+    ) -> list[datetime]:
         """Generate time buckets for aggregation."""
         buckets = []
         current_time = start_time
@@ -645,35 +683,30 @@ class LongitudinalAnalyzer:
         method: DetectionMethod,
         user_id: str,
         metric_name: str,
-        time_series_data: List[TimeSeriesPoint]
-    ) -> List[ChangePoint]:
+        time_series_data: list[TimeSeriesPoint],
+    ) -> list[ChangePoint]:
         """Detect changes using a specific method."""
         values = [point.value for point in time_series_data]
         timestamps = [point.timestamp for point in time_series_data]
 
         if method == DetectionMethod.CUSUM:
             return await self._cusum_detection(user_id, metric_name, timestamps, values)
-        elif method == DetectionMethod.E_DIVISIVE:
+        if method == DetectionMethod.E_DIVISIVE:
             return await self._edivisive_detection(user_id, metric_name, timestamps, values)
-        elif method == DetectionMethod.BAYESIAN:
+        if method == DetectionMethod.BAYESIAN:
             return await self._bayesian_detection(user_id, metric_name, timestamps, values)
-        elif method == DetectionMethod.STATISTICAL:
+        if method == DetectionMethod.STATISTICAL:
             return await self._statistical_detection(user_id, metric_name, timestamps, values)
-        elif method == DetectionMethod.WINDOW_BASED:
+        if method == DetectionMethod.WINDOW_BASED:
             return await self._window_based_detection(user_id, metric_name, timestamps, values)
-        elif method == DetectionMethod.ML_BASED:
+        if method == DetectionMethod.ML_BASED:
             return await self._ml_based_detection(user_id, metric_name, timestamps, values)
-        else:
-            logger.warning(f"Unknown change detection method: {method}")
-            return []
+        logger.warning(f"Unknown change detection method: {method}")
+        return []
 
     async def _cusum_detection(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangePoint]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangePoint]:
         """CUSUM (Cumulative Sum) change detection."""
         try:
             if not values:
@@ -708,8 +741,14 @@ class LongitudinalAnalyzer:
                     change_idx = i
                     if change_idx < len(timestamps):
                         change_point = await self._create_change_point(
-                            user_id, metric_name, timestamps, values, change_idx,
-                            ChangeType.LEVEL_SHIFT, DetectionMethod.CUSUM, ChangeType.LEVEL_SHIFT
+                            user_id,
+                            metric_name,
+                            timestamps,
+                            values,
+                            change_idx,
+                            ChangeType.LEVEL_SHIFT,
+                            DetectionMethod.CUSUM,
+                            ChangeType.LEVEL_SHIFT,
                         )
                         if change_point:
                             change_points.append(change_point)
@@ -719,8 +758,14 @@ class LongitudinalAnalyzer:
                     change_idx = i
                     if change_idx < len(timestamps):
                         change_point = await self._create_change_point(
-                            user_id, metric_name, timestamps, values, change_idx,
-                            ChangeType.LEVEL_SHIFT, DetectionMethod.CUSUM, ChangeType.LEVEL_SHIFT
+                            user_id,
+                            metric_name,
+                            timestamps,
+                            values,
+                            change_idx,
+                            ChangeType.LEVEL_SHIFT,
+                            DetectionMethod.CUSUM,
+                            ChangeType.LEVEL_SHIFT,
                         )
                         if change_point:
                             change_points.append(change_point)
@@ -732,12 +777,8 @@ class LongitudinalAnalyzer:
             return []
 
     async def _edivisive_detection(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangePoint]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangePoint]:
         """E-Divisive change detection using ruptures library."""
         try:
             if not self.ruptures_available or len(values) < 20:
@@ -759,8 +800,14 @@ class LongitudinalAnalyzer:
             for change_idx in change_indices:
                 if change_idx < len(timestamps):
                     change_point = await self._create_change_point(
-                        user_id, metric_name, timestamps, values, change_idx,
-                        ChangeType.LEVEL_SHIFT, DetectionMethod.E_DIVISIVE, ChangeType.LEVEL_SHIFT
+                        user_id,
+                        metric_name,
+                        timestamps,
+                        values,
+                        change_idx,
+                        ChangeType.LEVEL_SHIFT,
+                        DetectionMethod.E_DIVISIVE,
+                        ChangeType.LEVEL_SHIFT,
                     )
                     if change_point:
                         change_points.append(change_point)
@@ -772,12 +819,8 @@ class LongitudinalAnalyzer:
             return []
 
     async def _bayesian_detection(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangePoint]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangePoint]:
         """Bayesian change point detection."""
         try:
             if len(values) < 20:
@@ -789,8 +832,8 @@ class LongitudinalAnalyzer:
 
             for i in range(window_size, len(values) - window_size):
                 # Compare before and after windows
-                before_window = values[i-window_size:i]
-                after_window = values[i:i+window_size]
+                before_window = values[i - window_size : i]
+                after_window = values[i : i + window_size]
 
                 # Bayesian inference (simplified)
                 # Using likelihood ratio test
@@ -802,15 +845,23 @@ class LongitudinalAnalyzer:
                 # Calculate likelihood ratio
                 if std_before > 0 and std_after > 0:
                     # Simplified Bayesian change detection
-                    se = np.sqrt(std_before**2/len(before_window) + std_after**2/len(after_window))
+                    se = np.sqrt(
+                        std_before**2 / len(before_window) + std_after**2 / len(after_window)
+                    )
                     if se > 0:
                         z_score = abs(mean_after - mean_before) / se
                         p_value = 2 * (1 - stats.norm.cdf(z_score))
 
                         if p_value < self.config.significance_level:
                             change_point = await self._create_change_point(
-                                user_id, metric_name, timestamps, values, i,
-                                ChangeType.LEVEL_SHIFT, DetectionMethod.BAYESIAN, ChangeType.LEVEL_SHIFT
+                                user_id,
+                                metric_name,
+                                timestamps,
+                                values,
+                                i,
+                                ChangeType.LEVEL_SHIFT,
+                                DetectionMethod.BAYESIAN,
+                                ChangeType.LEVEL_SHIFT,
                             )
                             if change_point:
                                 change_points.append(change_point)
@@ -822,12 +873,8 @@ class LongitudinalAnalyzer:
             return []
 
     async def _statistical_detection(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangePoint]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangePoint]:
         """Statistical change detection using t-tests."""
         try:
             if len(values) < 30:
@@ -837,17 +884,21 @@ class LongitudinalAnalyzer:
             change_points = []
 
             for i in range(window_size, len(values) - window_size):
-                before_window = values[i-window_size:i]
-                after_window = values[i:i+window_size]
+                before_window = values[i - window_size : i]
+                after_window = values[i : i + window_size]
 
                 # Perform t-test
                 t_stat, p_value = ttest_ind(before_window, after_window)
 
                 if p_value < self.config.significance_level:
                     # Calculate effect size (Cohen's d)
-                    pooled_std = np.sqrt(((len(before_window) - 1) * np.var(before_window) +
-                                         (len(after_window) - 1) * np.var(after_window)) /
-                                        (len(before_window) + len(after_window) - 2))
+                    pooled_std = np.sqrt(
+                        (
+                            (len(before_window) - 1) * np.var(before_window)
+                            + (len(after_window) - 1) * np.var(after_window)
+                        )
+                        / (len(before_window) + len(after_window) - 2)
+                    )
 
                     if pooled_std > 0:
                         effect_size = (np.mean(after_window) - np.mean(before_window)) / pooled_std
@@ -857,8 +908,14 @@ class LongitudinalAnalyzer:
                     # Only consider significant changes
                     if abs(effect_size) > self.config.min_change_magnitude:
                         change_point = await self._create_change_point(
-                            user_id, metric_name, timestamps, values, i,
-                            ChangeType.LEVEL_SHIFT, DetectionMethod.STATISTICAL, ChangeType.LEVEL_SHIFT
+                            user_id,
+                            metric_name,
+                            timestamps,
+                            values,
+                            i,
+                            ChangeType.LEVEL_SHIFT,
+                            DetectionMethod.STATISTICAL,
+                            ChangeType.LEVEL_SHIFT,
                         )
                         if change_point:
                             change_point.statistic_value = float(t_stat)
@@ -872,12 +929,8 @@ class LongitudinalAnalyzer:
             return []
 
     async def _window_based_detection(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangePoint]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangePoint]:
         """Window-based change detection comparing adjacent windows."""
         try:
             if len(values) < 20:
@@ -887,8 +940,8 @@ class LongitudinalAnalyzer:
             change_points = []
 
             for i in range(window_size, len(values) - window_size, window_size // 2):
-                before_window = values[i-window_size:i]
-                after_window = values[i:i+window_size]
+                before_window = values[i - window_size : i]
+                after_window = values[i : i + window_size]
 
                 # Compare means
                 mean_before = np.mean(before_window)
@@ -905,15 +958,23 @@ class LongitudinalAnalyzer:
                 if relative_change > self.config.min_change_magnitude:
                     # Statistical significance test
                     if std_before > 0 and std_after > 0:
-                        se = np.sqrt(std_before**2/len(before_window) + std_after**2/len(after_window))
+                        se = np.sqrt(
+                            std_before**2 / len(before_window) + std_after**2 / len(after_window)
+                        )
                         if se > 0:
                             z_score = abs(mean_after - mean_before) / se
                             p_value = 2 * (1 - stats.norm.cdf(z_score))
 
                             if p_value < self.config.significance_level:
                                 change_point = await self._create_change_point(
-                                    user_id, metric_name, timestamps, values, i,
-                                    ChangeType.LEVEL_SHIFT, DetectionMethod.WINDOW_BASED, ChangeType.LEVEL_SHIFT
+                                    user_id,
+                                    metric_name,
+                                    timestamps,
+                                    values,
+                                    i,
+                                    ChangeType.LEVEL_SHIFT,
+                                    DetectionMethod.WINDOW_BASED,
+                                    ChangeType.LEVEL_SHIFT,
                                 )
                                 if change_point:
                                     change_point.statistic_value = float(z_score)
@@ -927,12 +988,8 @@ class LongitudinalAnalyzer:
             return []
 
     async def _ml_based_detection(
-        self,
-        user_id: str,
-        metric_name: str,
-        timestamps: List[datetime],
-        values: List[float]
-    ) -> List[ChangePoint]:
+        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+    ) -> list[ChangePoint]:
         """Machine learning based change detection."""
         try:
             if len(values) < 50:
@@ -967,8 +1024,14 @@ class LongitudinalAnalyzer:
             # If we found significant consecutive anomalies, mark as change point
             if max_consecutive >= 3 and max_consecutive_idx < len(timestamps):
                 change_point = await self._create_change_point(
-                    user_id, metric_name, timestamps, values, max_consecutive_idx,
-                    ChangeType.PATTERN_CHANGE, DetectionMethod.ML_BASED, ChangeType.PATTERN_CHANGE
+                    user_id,
+                    metric_name,
+                    timestamps,
+                    values,
+                    max_consecutive_idx,
+                    ChangeType.PATTERN_CHANGE,
+                    DetectionMethod.ML_BASED,
+                    ChangeType.PATTERN_CHANGE,
                 )
                 if change_point:
                     change_point.statistic_value = float(anomaly_scores[max_consecutive_idx])
@@ -987,13 +1050,13 @@ class LongitudinalAnalyzer:
         self,
         user_id: str,
         metric_name: str,
-        timestamps: List[datetime],
-        values: List[float],
+        timestamps: list[datetime],
+        values: list[float],
         change_idx: int,
         change_type: ChangeType,
         detection_method: DetectionMethod,
-        category: str
-    ) -> Optional[ChangePoint]:
+        category: str,
+    ) -> ChangePoint | None:
         """Create a ChangePoint object from detection results."""
         try:
             if change_idx >= len(timestamps) or change_idx < len(values):
@@ -1006,8 +1069,8 @@ class LongitudinalAnalyzer:
             if baseline_size < 3 or post_change_size < 3:
                 return None
 
-            baseline_values = values[change_idx - baseline_size:change_idx]
-            post_change_values = values[change_idx:change_idx + post_change_size]
+            baseline_values = values[change_idx - baseline_size : change_idx]
+            post_change_values = values[change_idx : change_idx + post_change_size]
 
             baseline_mean = np.mean(baseline_values)
             post_change_mean = np.mean(post_change_values)
@@ -1031,7 +1094,7 @@ class LongitudinalAnalyzer:
                 change_magnitude=float(change_magnitude),
                 confidence_score=float(confidence_score),
                 significance_level=self.config.significance_level,
-                description=f"{category.replace('_', ' ').title()} detected in {metric_name}"
+                description=f"{category.replace('_', ' ').title()} detected in {metric_name}",
             )
 
             return change_point
@@ -1041,18 +1104,16 @@ class LongitudinalAnalyzer:
             return None
 
     async def _detect_seasonality(
-        self,
-        values: List[float],
-        timestamps: List[datetime]
-    ) -> Dict[str, Any]:
+        self, values: list[float], timestamps: list[datetime]
+    ) -> dict[str, Any]:
         """Detect seasonal patterns in time series data."""
         try:
             if not self.statsmodels_available:
-                return {'has_seasonality': False, 'period': None, 'strength': 0.0}
+                return {"has_seasonality": False, "period": None, "strength": 0.0}
 
             # Convert to pandas series with datetime index
             if len(values) < 14:  # Need at least 2 weeks for weekly seasonality
-                return {'has_seasonality': False, 'period': None, 'strength': 0.0}
+                return {"has_seasonality": False, "period": None, "strength": 0.0}
 
             # Try different seasonal periods
             periods_to_test = [7, 30, 365]  # weekly, monthly, yearly
@@ -1064,14 +1125,16 @@ class LongitudinalAnalyzer:
                     try:
                         # Perform seasonal decomposition
                         series = pd.Series(values, index=pd.to_datetime(timestamps))
-                        decomposition = seasonal_decompose(series, model='additive', period=period)
+                        decomposition = seasonal_decompose(series, model="additive", period=period)
 
                         # Calculate seasonal strength
                         seasonal_var = np.var(decomposition.seasonal.dropna())
                         total_var = np.var(series)
                         strength = seasonal_var / total_var if total_var > 0 else 0.0
 
-                        if strength > best_strength and strength > 0.1:  # Minimum strength threshold
+                        if (
+                            strength > best_strength and strength > 0.1
+                        ):  # Minimum strength threshold
                             best_strength = strength
                             best_period = period
 
@@ -1080,22 +1143,18 @@ class LongitudinalAnalyzer:
                         continue
 
             return {
-                'has_seasonality': best_period is not None,
-                'period': best_period,
-                'strength': best_strength
+                "has_seasonality": best_period is not None,
+                "period": best_period,
+                "strength": best_strength,
             }
 
         except Exception as e:
             logger.error(f"Error detecting seasonality: {e}")
-            return {'has_seasonality': False, 'period': None, 'strength': 0.0}
+            return {"has_seasonality": False, "period": None, "strength": 0.0}
 
     async def _generate_forecast(
-        self,
-        values: List[float],
-        slope: float,
-        intercept: float,
-        std_err: float
-    ) -> Dict[str, Optional[float]]:
+        self, values: list[float], slope: float, intercept: float, std_err: float
+    ) -> dict[str, float | None]:
         """Generate simple forecast based on linear trend."""
         try:
             next_x = len(values)
@@ -1104,23 +1163,27 @@ class LongitudinalAnalyzer:
             # Calculate confidence interval
             confidence_level = 0.95
             alpha = 1 - confidence_level
-            t_value = stats.t.ppf(1 - alpha/2, len(values) - 2)
+            t_value = stats.t.ppf(1 - alpha / 2, len(values) - 2)
 
             # Prediction interval
-            se_prediction = std_err * np.sqrt(1 + 1/len(values) + (next_x - np.mean(range(len(values))))**2 /
-                                      np.sum([(x - np.mean(range(len(values))))**2 for x in range(len(values))]))
+            se_prediction = std_err * np.sqrt(
+                1
+                + 1 / len(values)
+                + (next_x - np.mean(range(len(values)))) ** 2
+                / np.sum([(x - np.mean(range(len(values)))) ** 2 for x in range(len(values))])
+            )
 
             margin = t_value * se_prediction
 
             return {
-                'next_value': float(next_value),
-                'confidence_lower': float(next_value - margin),
-                'confidence_upper': float(next_value + margin)
+                "next_value": float(next_value),
+                "confidence_lower": float(next_value - margin),
+                "confidence_upper": float(next_value + margin),
             }
 
         except Exception as e:
             logger.error(f"Error generating forecast: {e}")
-            return {'next_value': None, 'confidence_lower': None, 'confidence_upper': None}
+            return {"next_value": None, "confidence_lower": None, "confidence_upper": None}
 
     def _calculate_impact_level(self, change: ChangePoint) -> ImpactLevel:
         """Calculate impact level based on change characteristics."""
@@ -1150,32 +1213,27 @@ class LongitudinalAnalyzer:
             # Determine impact level
             if impact_score >= 0.8:
                 return ImpactLevel.CRITICAL
-            elif impact_score >= 0.6:
+            if impact_score >= 0.6:
                 return ImpactLevel.HIGH
-            elif impact_score >= 0.4:
+            if impact_score >= 0.4:
                 return ImpactLevel.MEDIUM
-            else:
-                return ImpactLevel.LOW
+            return ImpactLevel.LOW
 
         except Exception:
             return ImpactLevel.MEDIUM
 
     # TODO(human): Implement remaining private methods for database operations
-    async def _store_time_series_data(self, data: List[TimeSeriesPoint]) -> None:
+    async def _store_time_series_data(self, data: list[TimeSeriesPoint]) -> None:
         """Store time series data in database."""
-        pass
 
-    async def _store_change_points(self, change_points: List[ChangePoint]) -> None:
+    async def _store_change_points(self, change_points: list[ChangePoint]) -> None:
         """Store detected change points in database."""
-        pass
 
     async def _store_trend_analysis(self, trend_analysis: TrendAnalysis) -> None:
         """Store trend analysis results in database."""
-        pass
 
     async def _store_baseline(self, baseline: BehavioralBaseline) -> None:
         """Store behavioral baseline in database."""
-        pass
 
     async def get_time_series_data(
         self,
@@ -1183,46 +1241,39 @@ class LongitudinalAnalyzer:
         metric_name: str,
         start_time: datetime,
         end_time: datetime,
-        bucket_size: str = "day"
-    ) -> List[TimeSeriesPoint]:
+        bucket_size: str = "day",
+    ) -> list[TimeSeriesPoint]:
         """Retrieve time series data from database."""
         # TODO(human): Implement actual database retrieval
         # For now, return mock data
-        return await self.aggregate_time_series_data(user_id, metric_name, start_time, end_time, bucket_size)
+        return await self.aggregate_time_series_data(
+            user_id, metric_name, start_time, end_time, bucket_size
+        )
 
     async def _get_user_metric_data(
-        self,
-        user_id: str,
-        metric_name: str,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[float]:
+        self, user_id: str, metric_name: str, start_time: datetime, end_time: datetime
+    ) -> list[float]:
         """Get user's metric data for baseline calculation."""
         # TODO(human): Implement database retrieval
         return []
 
     async def _get_peer_group_data(
-        self,
-        user_id: str,
-        metric_name: str,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[float]:
+        self, user_id: str, metric_name: str, start_time: datetime, end_time: datetime
+    ) -> list[float]:
         """Get peer group metric data for baseline calculation."""
         # TODO(human): Implement database retrieval
         return []
 
     async def _get_organizational_data(
-        self,
-        metric_name: str,
-        start_time: datetime,
-        end_time: datetime
-    ) -> List[float]:
+        self, metric_name: str, start_time: datetime, end_time: datetime
+    ) -> list[float]:
         """Get organizational metric data for baseline calculation."""
         # TODO(human): Implement database retrieval
         return []
 
-    async def _consolidate_change_points(self, change_points: List[ChangePoint]) -> List[ChangePoint]:
+    async def _consolidate_change_points(
+        self, change_points: list[ChangePoint]
+    ) -> list[ChangePoint]:
         """Consolidate duplicate or nearby change points."""
         if not change_points:
             return []
@@ -1250,7 +1301,7 @@ class LongitudinalAnalyzer:
 
         return consolidated
 
-    def _merge_change_points(self, change_points: List[ChangePoint]) -> ChangePoint:
+    def _merge_change_points(self, change_points: list[ChangePoint]) -> ChangePoint:
         """Merge multiple change points into one."""
         if not change_points:
             raise ValueError("Cannot merge empty change points list")
@@ -1276,67 +1327,77 @@ class LongitudinalAnalyzer:
         return base_cp
 
     async def _generate_progression_insights(
-        self,
-        metrics_analysis: Dict[str, Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, metrics_analysis: dict[str, dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Generate insights from progression analysis."""
         insights = []
 
         for metric, analysis in metrics_analysis.items():
             # Trend insights
-            if analysis.get('trend'):
-                trend = analysis['trend']
-                if trend['trend_direction'] == 'increasing' and trend['r_squared'] > 0.7:
-                    insights.append({
-                        'type': 'positive_trend',
-                        'metric': metric,
-                        'description': f"Strong increasing trend in {metric} detected",
-                        'confidence': trend['r_squared']
-                    })
-                elif trend['trend_direction'] == 'decreasing' and trend['r_squared'] > 0.7:
-                    insights.append({
-                        'type': 'negative_trend',
-                        'metric': metric,
-                        'description': f"Concerning decreasing trend in {metric} detected",
-                        'confidence': trend['r_squared']
-                    })
+            if analysis.get("trend"):
+                trend = analysis["trend"]
+                if trend["trend_direction"] == "increasing" and trend["r_squared"] > 0.7:
+                    insights.append(
+                        {
+                            "type": "positive_trend",
+                            "metric": metric,
+                            "description": f"Strong increasing trend in {metric} detected",
+                            "confidence": trend["r_squared"],
+                        }
+                    )
+                elif trend["trend_direction"] == "decreasing" and trend["r_squared"] > 0.7:
+                    insights.append(
+                        {
+                            "type": "negative_trend",
+                            "metric": metric,
+                            "description": f"Concerning decreasing trend in {metric} detected",
+                            "confidence": trend["r_squared"],
+                        }
+                    )
 
             # Change point insights
-            if analysis.get('change_points'):
-                high_impact_changes = [cp for cp in analysis['change_points']
-                                     if cp.get('impact_level') in ['high', 'critical']]
+            if analysis.get("change_points"):
+                high_impact_changes = [
+                    cp
+                    for cp in analysis["change_points"]
+                    if cp.get("impact_level") in ["high", "critical"]
+                ]
                 if high_impact_changes:
-                    insights.append({
-                        'type': 'significant_changes',
-                        'metric': metric,
-                        'description': f"{len(high_impact_changes)} significant changes detected in {metric}",
-                        'count': len(high_impact_changes)
-                    })
+                    insights.append(
+                        {
+                            "type": "significant_changes",
+                            "metric": metric,
+                            "description": f"{len(high_impact_changes)} significant changes detected in {metric}",
+                            "count": len(high_impact_changes),
+                        }
+                    )
 
         return insights
 
     async def _generate_progression_recommendations(
-        self,
-        metrics_analysis: Dict[str, Dict[str, Any]],
-        insights: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, metrics_analysis: dict[str, dict[str, Any]], insights: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate recommendations based on progression analysis."""
         recommendations = []
 
         # Trend-based recommendations
-        negative_trends = [insight for insight in insights if insight['type'] == 'negative_trend']
+        negative_trends = [insight for insight in insights if insight["type"] == "negative_trend"]
         if negative_trends:
             recommendations.append("Investigate decreasing trends in behavioral metrics")
 
         # Change-based recommendations
-        significant_changes = [insight for insight in insights if insight['type'] == 'significant_changes']
+        significant_changes = [
+            insight for insight in insights if insight["type"] == "significant_changes"
+        ]
         if significant_changes:
             recommendations.append("Review recent significant behavioral changes")
 
         # General recommendations
-        recommendations.extend([
-            "Monitor trends regularly for early intervention opportunities",
-            "Consider seasonal factors in behavioral analysis"
-        ])
+        recommendations.extend(
+            [
+                "Monitor trends regularly for early intervention opportunities",
+                "Consider seasonal factors in behavioral analysis",
+            ]
+        )
 
         return recommendations[:10]  # Limit to top 10

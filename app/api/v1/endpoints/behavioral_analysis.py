@@ -38,7 +38,7 @@ anomaly_service = AnomalyDetectionService()
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/patterns/analyze", response_model=BehavioralPatternResponse)
 async def analyze_behavioral_patterns(
     request: BehavioralPatternRequest,
@@ -91,8 +91,8 @@ async def analyze_behavioral_patterns(
         logger.error(f"Behavioral pattern analysis failed: {str(e)}")
         raise HTTPException(
             status_code=500,
-    
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
         detail="Behavioral pattern analysis failed"
         )
 
@@ -157,7 +157,7 @@ async def detect_behavioral_anomalies(
 
     except Exception as e:
         logger.error(f"Anomaly detection failed:
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
  {str(e)}")
         raise HTTPException(
             status_code=500,

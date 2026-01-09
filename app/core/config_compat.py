@@ -11,20 +11,21 @@ Version: 2.0 Enterprise Security
 """
 
 # Import everything from the new modular configuration
-from .config import Settings, settings, get_settings, reload_settings
-from .config.settings import *
+from .config import Settings, get_settings, reload_settings, settings
 from .config.application import *
-from .config.security import *
 from .config.database import *
+from .config.security import *
+from .config.settings import *
 
 # Re-export for backward compatibility
 __all__ = [
     "Settings",
-    "settings",
     "get_settings",
     "reload_settings",
+    "settings",
     # Add other commonly imported items as needed
 ]
+
 
 # Maintain backward compatibility for direct attribute access
 class CompatibilityWrapper:
@@ -43,11 +44,13 @@ class CompatibilityWrapper:
                 return getattr(self._settings, "MIN_PASSWORD_LENGTH", None)
             raise
 
+
 # Create compatibility wrapper
 compat_settings = CompatibilityWrapper(settings)
 
 # For even better backward compatibility, expose settings at module level
 import sys
-sys.modules['app.core.config'] = sys.modules[__name__]
+
+sys.modules["app.core.config"] = sys.modules[__name__]
 
 print("✅ Configuration backward compatibility layer initialized")

@@ -15,12 +15,8 @@ Setup:
 4. Set SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET in .env
 """
 
+from .bot import SlackBotHandler
 from .client import SlackClient
 from .notifications import SlackNotificationService
-from .bot import SlackBotHandler
 
-__all__ = [
-    'SlackClient',
-    'SlackNotificationService', 
-    'SlackBotHandler'
-]
+__all__ = ["SlackBotHandler", "SlackClient", "SlackNotificationService"]

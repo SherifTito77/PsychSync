@@ -16,25 +16,26 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import logging
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+import logging
 
-from app.domain.entities.user import User, UserRole, UserStatus, EmailAddress, UserPreferences
+from app.domain.entities.user import EmailAddress, User, UserPreferences, UserRole, UserStatus
+from app.domain.events.user_events import UserRegisteredEvent
 from app.domain.repositories.user_repository import UserRepository
 from app.domain.services.email_service import EmailService
-from app.domain.events.user_events import UserRegisteredEvent
 from app.domain.value_objects.registration_request import RegistrationRequest
 
 # Initialize use case logger
 use_case_logger = logging.getLogger("app.use_cases.register_user")
 
+
 @dataclass
 class RegistrationResult:
     """Result of user registration use case"""
+
     success: bool
-    user: Optional[User] = None
-    verification_token: Optional[str] = None
+    user: User | None = None
+    verification_token: str | None = None
     errors: list = None
     warnings: list = None
 
@@ -43,6 +44,7 @@ class RegistrationResult:
             self.errors = []
         if self.warnings is None:
             self.warnings = []
+
 
 class RegisterUserUseCase:
     """
@@ -56,11 +58,7 @@ class RegisterUserUseCase:
     - Event publishing
     """
 
-    def __init__(
-        self,
-        user_repository: UserRepository,
-        email_service: EmailService
-    ):
+    def __init__(self, user_repository: UserRepository, email_service: EmailService):
         self.user_repository = user_repository
         self.email_service = email_service
 
@@ -80,10 +78,7 @@ class RegisterUserUseCase:
             # Step 1: Validate business rules
             validation_result = await self._validate_registration_rules(registration_request)
             if not validation_result.is_valid:
-                return RegistrationResult(
-                    success=False,
-                    errors=validation_result.errors
-                )
+                return RegistrationResult(success=False, errors=validation_result.errors)
 
             # Step 2: Create domain entity
             user = await self._create_user_entity(registration_request)
@@ -106,14 +101,13 @@ class RegisterUserUseCase:
                 success=True,
                 user=persisted_user,
                 verification_token=verification_token,
-                warnings=[f"Email notification sent: {email_sent}"]
+                warnings=[f"Email notification sent: {email_sent}"],
             )
 
         except Exception as e:
             use_case_logger.error(f"Registration failed: {e}", exc_info=True)
             return RegistrationResult(
-                success=False,
-                errors=["Registration failed due to an unexpected error"]
+                success=False, errors=["Registration failed due to an unexpected error"]
             )
 
     async def _validate_registration_rules(self, request: RegistrationRequest):
@@ -150,19 +144,20 @@ class RegisterUserUseCase:
             phone=registration_request.phone,
             preferences=UserPreferences(
                 timezone=registration_request.timezone or "UTC",
-                language=registration_request.language or "en"
+                language=registration_request.language or "en",
             ),
             metadata={
                 "registration_source": registration_request.source,
                 "client_ip": registration_request.client_ip,
                 "user_agent": registration_request.user_agent,
-                "referral_code": registration_request.referral_code
-            }
+                "referral_code": registration_request.referral_code,
+            },
         )
 
         # Set password (would be hashed by domain service)
         if registration_request.password:
             from app.domain.services.password_service import PasswordService
+
             password_service = PasswordService()
             user.password_hash = await password_service.hash_password(registration_request.password)
 
@@ -181,6 +176,7 @@ class RegisterUserUseCase:
     async def _generate_verification_token(self, user: User) -> str:
         """Generate email verification token"""
         import secrets
+
         token = secrets.token_urlsafe(32)
 
         # Store token (in production, this would be stored securely)
@@ -196,7 +192,7 @@ class RegisterUserUseCase:
             await self.email_service.send_verification_email(
                 to_email=user.email.value,
                 full_name=user.full_name,
-                verification_url=verification_url
+                verification_url=verification_url,
             )
 
             return True
@@ -204,7 +200,9 @@ class RegisterUserUseCase:
             use_case_logger.warning(f"Failed to send verification email: {e}")
             return False
 
-    async def _publish_user_registered_event(self, user: User, registration_request: RegistrationRequest):
+    async def _publish_user_registered_event(
+        self, user: User, registration_request: RegistrationRequest
+    ):
         """Publish user registered domain event"""
         try:
             event = UserRegisteredEvent(
@@ -213,7 +211,7 @@ class RegisterUserUseCase:
                 registration_time=user.created_at,
                 registration_source=registration_request.source,
                 client_ip=registration_request.client_ip,
-                organization_id=registration_request.organization_id
+                organization_id=registration_request.organization_id,
             )
 
             # In production, this would publish to an event bus
@@ -222,10 +220,10 @@ class RegisterUserUseCase:
         except Exception as e:
             use_case_logger.warning(f"Failed to publish event: {e}")
 
+
 # Factory function for creating use case
 def create_register_user_use_case(
-    user_repository: UserRepository,
-    email_service: EmailService
+    user_repository: UserRepository, email_service: EmailService
 ) -> RegisterUserUseCase:
     """Factory function to create RegisterUserUseCase"""
     return RegisterUserUseCase(user_repository, email_service)

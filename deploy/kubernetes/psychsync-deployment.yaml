@@ -1,0 +1,500 @@
+#!/usr/bin/env kubernetes
+# =============================================================================
+# PsychSync Production Kubernetes Deployment
+# =============================================================================
+#
+# Complete production deployment with supply chain security verification.
+#
+# Features:
+# - Namespace isolation
+# - Image verification before deployment (Cosign)
+# - HorizontalPodAutoscaler
+# - PodDisruptionBudget
+# - NetworkPolicy for security
+# - Probes for health monitoring
+# - Resource limits
+#
+# Usage:
+#   kubectl apply -f deploy/kubernetes/
+#
+# Author: DevOps Team
+# Version: 2.0
+# Date: 2025-12-27
+# =============================================================================
+
+# =============================================================================
+# Namespace
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: psychsync
+  labels:
+    name: psychsync
+    environment: production
+---
+# =============================================================================
+# ConfigMap: Verification Scripts
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: verification-scripts
+  namespace: psychsync
+data:
+  verify.sh: |
+    #!/bin/sh
+    set -e
+
+    IMAGE="${1}"
+
+    echo "🔍 Verifying image signature..."
+
+    # Verify using Cosign
+    /bin/cosign verify \
+      --certificate-identity "https://github.com/your-org/psychsync/.github/workflows/slsa-sign.yaml@refs/tags/${IMAGE_TAG}" \
+      --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+      "$IMAGE"
+
+    if [ $? -eq 0 ]; then
+      echo "✅ Image verified successfully"
+      exit 0
+    else
+      echo "❌ Image verification failed"
+      exit 1
+    fi
+---
+# =============================================================================
+# ConfigMap: Application Configuration
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: psychsync-config
+  namespace: psychsync
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  DATABASE_URL: "postgresql://postgres:5432/psychsync"
+  REDIS_URL: "redis://redis:6379/0"
+  SECRET_KEY: "${SECRET_KEY}"
+  ALLOWED_HOSTS: "psychsync.ai,api.psychsync.ai"
+  CORS_ORIGINS: "https://psychsync.ai,https://api.psychsync.ai"
+
+  # Security settings
+  SECURITY_MIDDLEWARE_ENABLED: "true"
+  SSL_ENABLED: "true"
+  RATE_LIMIT_ENABLED: "true"
+
+  # AI/ML settings
+  AI_MODEL_PATH: "/models"
+  AI_CACHE_ENABLED: "true"
+
+  # Feature flags
+  ENABLE_ASSESSMENTS: "true"
+  ENABLE_ANALYTICS: "true"
+  ENABLE_TEAMS: "true"
+---
+# =============================================================================
+# Secret: Application Secrets (External)
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: psychsync-secrets
+  namespace: psychsync
+type: Opaque
+data:
+  # These should be populated by external secret management (e.g., Vault, AWS Secrets Manager)
+  # Example: kubectl create secret generic psychsync-secrets --from-literal=SECRET_KEY=<value>
+  SECRET_KEY: "CHANGE_ME_IN_PRODUCTION"
+  DATABASE_PASSWORD: "CHANGE_ME_IN_PRODUCTION"
+  REDIS_PASSWORD: "CHANGE_ME_IN_PRODUCTION"
+  AI_API_KEY: "CHANGE_ME_IN_PRODUCTION"
+---
+# =============================================================================
+# Deployment with Image Verification
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: psychsync
+  namespace: psychsync
+  labels:
+    app: psychsync
+    version: v2
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: psychsync
+  template:
+    metadata:
+      labels:
+        app: psychsync
+        version: v2
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Init container to verify image signature
+      initContainers:
+      - name: verify-image
+        image: ghcr.io/sigstore/cosign:v2.2.3
+        command: ["/bin/sh", "/scripts/verify.sh"]
+        args: ["${IMAGE}"]
+        env:
+        - name: IMAGE
+          value: "ghcr.io/your-org/psychsync:v1.0.0"
+        - name: IMAGE_TAG
+          value: "v1.0.0"
+        volumeMounts:
+        - name: verification-scripts
+          mountPath: /scripts
+        - name: docker-socket
+          mountPath: /var/run/docker.sock
+          readOnly: true
+      containers:
+      - name: psychsync
+        image: ghcr.io/your-org/psychsync:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: psychsync-config
+              key: ENVIRONMENT
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: psychsync-secrets
+              key: DATABASE_URL
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: psychsync-secrets
+              key: REDIS_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: psychsync-secrets
+              key: SECRET_KEY
+        - name: AI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: psychsync-secrets
+              key: AI_API_KEY
+        envFrom:
+        - configMapRefRef:
+            name: psychsync-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /app/tmp
+        - name: logs
+          mountPath: /app/logs
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - NET_BIND_SERVICE
+      volumes:
+      - name: verification-scripts
+        configMap:
+          name: verification-scripts
+          defaultMode: 0755
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+      - name: tmp
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: psychsync
+            topologyKey: kubernetes.io/hostname
+---
+# =============================================================================
+# Service
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: psychsync
+  namespace: psychsync
+  labels:
+    app: psychsync
+spec:
+  type: ClusterIP
+  selector:
+    app: psychsync
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8000
+    targetPort: 8000
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+---
+# =============================================================================
+# Ingress
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: psychsync-ingress
+  namespace: psychsync
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  tls:
+  - hosts:
+    - psychsync.ai
+    - api.psychsync.ai
+    secretName: psychsync-tls
+  rules:
+  - host: psychsync.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: psychsync
+            port:
+              number: 8000
+  - host: api.psychsync.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: psychsync
+            port:
+              number: 8000
+---
+# =============================================================================
+# HorizontalPodAutoscaler
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: psychsync-hpa
+  namespace: psychsync
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: psychsync
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+---
+# =============================================================================
+# PodDisruptionBudget
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: psychsync-pdb
+  namespace: psychsync
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: psychsync
+---
+# =============================================================================
+# NetworkPolicy
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: psychsync-network-policy
+  namespace: psychsync
+spec:
+  podSelector:
+    matchLabels:
+      app: psychsync
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: psychsync
+    ports:
+    - protocol: TCP
+      port: 8000
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: database
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: cache
+    ports:
+    - protocol: TCP
+      port: 6379
+---
+# =============================================================================
+# ServiceMonitor (for Prometheus Operator)
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: psychsync
+  namespace: psychsync
+  labels:
+    app: psychsync
+spec:
+  selector:
+    matchLabels:
+      app: psychsync
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+# =============================================================================
+# VerticalPodAutoscaler (optional)
+# =============================================================================
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: psychsync-vpa
+  namespace: psychsync
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: psychsync
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: psychsync
+      mode: Auto
+      minAllowed:
+        cpu: "100m"
+        memory: "256Mi"
+      maxAllowed:
+        cpu: "2000m"
+        memory: "2Gi"
+      controlledResources: ["cpu", "memory"]
+---
+# =============================================================================
+# PodResourcePolicy (for OPA Gatekeeper)
+# =============================================================================
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: PodResourcePolicy
+metadata:
+  name: psychsync-resource-policy
+  namespace: psychsync
+spec:
+  selector:
+    matchLabels:
+      app: psychsync
+  container:
+    psychsync:
+      min:
+        cpu: "250m"
+        memory: "256Mi"
+      max:
+        cpu: "1000m"
+        memory: "1Gi"

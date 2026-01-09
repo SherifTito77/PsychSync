@@ -18,20 +18,20 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+import logging
 import ssl
 import time
-import asyncio
-import hashlib
-from contextlib import asynccontextmanager
-from typing import Optional, Dict, Any, AsyncGenerator
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from typing import Any
+
+from fastapi import HTTPException
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import StaticPool
-from sqlalchemy import event, text
-from sqlalchemy.engine import Engine
-import logging
 
-from app.core.config import settings, get_database_url
+from app.core.config import get_database_url, settings
 
 # Initialize database security logger
 db_security_logger = logging.getLogger("app.security.database")
@@ -44,14 +44,15 @@ SLOW_QUERY_THRESHOLD = 5.0  # seconds
 MAX_QUERY_RESULT_SIZE = 10000  # rows
 POOL_TIMEOUT = 30  # seconds
 
+
 class Base(DeclarativeBase):
     """
     ENTERPRISE-GRADE BASE MODEL
     Base class for all SQLAlchemy models with security enhancements
     """
-    pass
 
-def create_secure_ssl_context() -> Optional[ssl.SSLContext]:
+
+def create_secure_ssl_context() -> ssl.SSLContext | None:
     """
     Create a secure SSL context for database connections
     """
@@ -68,14 +69,17 @@ def create_secure_ssl_context() -> Optional[ssl.SSLContext]:
         ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
 
         # Disable weak ciphers
-        ssl_context.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS')
+        ssl_context.set_ciphers(
+            "ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS"
+        )
 
         db_security_logger.info("Secure SSL context created for database connections")
         return ssl_context
 
     except Exception as e:
         db_security_logger.error(f"Failed to create SSL context: {e}")
-        raise RuntimeError("Failed to create secure SSL context for database")
+        raise RuntimeError("Failed to create secure SSL context for database") from e
+
 
 def create_database_url_with_security() -> str:
     """
@@ -89,7 +93,7 @@ def create_database_url_with_security() -> str:
         security_params = [
             "application_name=psychsync_secure",
             "connect_timeout=30",
-            "statement_timeout=300000"  # 5 minutes
+            "statement_timeout=300000",  # 5 minutes
         ]
 
         # Add security parameters to URL
@@ -99,6 +103,7 @@ def create_database_url_with_security() -> str:
             database_url += "?" + "&".join([p for p in security_params if "=" in p])
 
     return database_url
+
 
 # Create simplified async database engine to avoid temp_file_limit issues
 if settings.TESTING:
@@ -115,25 +120,22 @@ else:
     # Production PostgreSQL configuration
     async_engine = create_async_engine(
         get_database_url(async_driver=True, test_mode=False),
-
         # Async-compatible pool settings
         pool_size=20,
         max_overflow=30,
         pool_timeout=30,
         pool_recycle=3600,
         pool_pre_ping=True,
-
         # Settings
         echo=settings.DB_ECHO and settings.DEBUG,
         future=True,
-
         # PostgreSQL-specific connect_args
         connect_args={
             "server_settings": {
                 "application_name": "psychsync",
                 "timezone": "UTC",
             }
-        }
+        },
     )
 
 # Create async session factory with enhanced security
@@ -143,8 +145,9 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,  # Security: prevent accidental commits
     autoflush=False,  # Security: explicit control over flushing
     autocommit=False,
-    join_transaction_mode="create_savepoint"  # Security: nested transactions
+    join_transaction_mode="create_savepoint",  # Security: nested transactions
 )
+
 
 @asynccontextmanager
 async def get_async_db_with_retry(max_attempts: int = 3) -> AsyncGenerator[AsyncSession, None]:
@@ -157,18 +160,22 @@ async def get_async_db_with_retry(max_attempts: int = 3) -> AsyncGenerator[Async
         await session.execute(text("SELECT 1"))  # Test connection
         yield session
     except Exception as e:
+        # Re-raise HTTPException without wrapping (e.g., 401 auth errors)
+        if isinstance(e, HTTPException):
+            raise
         if session:
             try:
                 await session.close()
             except:
                 pass
-        raise RuntimeError(f"Database connection failed: {e}")
+        raise RuntimeError(f"Database connection failed: {e}") from e
     finally:
         if session:
             try:
                 await session.close()
             except:
                 pass
+
 
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -181,19 +188,17 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception as e:
             db_security_logger.error(
                 f"Database session error: {type(e).__name__}",
-                extra={
-                    "error_type": type(e).__name__,
-                    "event_type": "db_session_error"
-                }
+                extra={"error_type": type(e).__name__, "event_type": "db_session_error"},
             )
             await session.rollback()
             raise
 
+
 async def execute_query_with_security(
     session: AsyncSession,
     query: str,
-    params: Optional[Dict[str, Any]] = None,
-    timeout: int = QUERY_TIMEOUT
+    params: dict[str, Any] | None = None,
+    timeout: int = QUERY_TIMEOUT,
 ) -> Any:
     """
     Execute database query with comprehensive security checks
@@ -210,9 +215,20 @@ async def execute_query_with_security(
 
     # Basic SQL injection detection
     dangerous_patterns = [
-        "DROP TABLE", "DELETE FROM", "TRUNCATE", "ALTER TABLE",
-        "INSERT INTO", "UPDATE SET", "CREATE TABLE", "--", "/*", "*/",
-        "EXEC(", "EXECUTE", "sp_executesql", "xp_cmdshell"
+        "DROP TABLE",
+        "DELETE FROM",
+        "TRUNCATE",
+        "ALTER TABLE",
+        "INSERT INTO",
+        "UPDATE SET",
+        "CREATE TABLE",
+        "--",
+        "/*",
+        "*/",
+        "EXEC(",
+        "EXECUTE",
+        "sp_executesql",
+        "xp_cmdshell",
     ]
 
     query_upper = query.upper()
@@ -223,8 +239,8 @@ async def execute_query_with_security(
                 extra={
                     "query_snippet": query[:100],
                     "pattern_detected": pattern,
-                    "event_type": "sql_injection_attempt"
-                }
+                    "event_type": "sql_injection_attempt",
+                },
             )
             raise RuntimeError(f"Potentially dangerous SQL pattern detected: {pattern}")
 
@@ -245,29 +261,29 @@ async def execute_query_with_security(
                     "query_snippet": query[:100],
                     "execution_time": execution_time,
                     "threshold": SLOW_QUERY_THRESHOLD,
-                    "event_type": "slow_query"
-                }
+                    "event_type": "slow_query",
+                },
             )
 
         # Check result size
-        if hasattr(result, 'rowcount') and result.rowcount > MAX_QUERY_RESULT_SIZE:
+        if hasattr(result, "rowcount") and result.rowcount > MAX_QUERY_RESULT_SIZE:
             db_security_logger.warning(
                 f"Large result set: {result.rowcount} rows",
                 extra={
                     "row_count": result.rowcount,
                     "max_allowed": MAX_QUERY_RESULT_SIZE,
                     "query_snippet": query[:100],
-                    "event_type": "large_result_set"
-                }
+                    "event_type": "large_result_set",
+                },
             )
 
         db_security_logger.debug(
-            f"Query executed successfully",
+            "Query executed successfully",
             extra={
                 "execution_time": execution_time,
-                "row_count": getattr(result, 'rowcount', 0),
-                "event_type": "query_success"
-            }
+                "row_count": getattr(result, "rowcount", 0),
+                "event_type": "query_success",
+            },
         )
 
         return result
@@ -281,10 +297,11 @@ async def execute_query_with_security(
                 "error_type": type(e).__name__,
                 "execution_time": execution_time,
                 "query_snippet": query[:100],
-                "event_type": "query_execution_error"
-            }
+                "event_type": "query_execution_error",
+            },
         )
         raise
+
 
 # Legacy compatibility - DEPRECATED
 def get_db():
@@ -297,6 +314,7 @@ def get_db():
         "This function will be removed in the next major version."
     )
 
+
 # Database initialization function
 async def init_db():
     """Initialize database tables"""
@@ -308,17 +326,20 @@ async def init_db():
         logger.error(f"Error creating database tables: {e}")
         raise
 
+
 # Database health check
 async def check_db_health() -> bool:
     """Check database connectivity"""
     try:
         async with async_engine.begin() as conn:
             from sqlalchemy import text
+
             await conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         return False
+
 
 # Database connection close for graceful shutdown
 async def close_db_connections():

@@ -1,0 +1,1145 @@
+---
+# ArgoCD Installation for PsychSync GitOps Deployment
+# Purpose: Install and configure ArgoCD for GitOps-based deployments
+# Date: 2025-12-27
+
+################################################################################
+# Namespace Creation
+################################################################################
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    name: argocd
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: privileged
+
+---
+################################################################################
+# ArgoCD Installation (using Helm)
+################################################################################
+
+# Helm values for ArgoCD installation
+# Save as: deploy/argocd/values.yaml
+
+argo-cd:
+  # Global configuration
+  global:
+    domain: argocd.psychsync.com
+
+  # Redis (HA mode for production)
+  redis:
+    enabled: true
+    ha:
+      enabled: true
+      proxy:
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+
+  # Controller
+  controller:
+    replicas: 2
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2000m"
+        memory: "2Gi"
+    # Enable resource state health checks
+    enableStatefulSet: true
+    # Enable resource state health checks for DaemonSets
+    enableDaemonSet: true
+
+  # API Server
+  server:
+    replicas: 2
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+    # Service configuration
+    service:
+      type: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:us-east-1:123456789012:certificate/abcdef"
+        service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+    # Ingress configuration
+    ingress:
+      enabled: true
+      annotations:
+        kubernetes.io/ingress.class: nginx
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      hosts:
+      - argocd.psychsync.com
+      tls:
+      - secretName: argocd-server-tls
+        hosts:
+        - argocd.psychsync.com
+
+    # Enable RBAC
+    rbacConfig:
+      policy.default: role:none
+      policy.csv: |
+        p, role:org-admin, applications, *, */*, allow
+        p, role:org-admin, clusters, get, *, allow
+        p, role:org-admin, repositories, *, *, allow
+        p, role:org-admin, logs, get, *, allow
+        p, role:org-admin, exec, create, */*, allow
+        g, psychsync-admins, role:org-admin
+        p, role:readonly, applications, get, */*, allow
+        g, psychsync-readonly, role:readonly
+
+    # Config management plugins
+    configManagementPlugins: |
+      - name: kustomize-with-helm
+        init:
+          command: ["/bin/sh", "-c"]
+          args: ["kustomize build . > /tmp/manifest.yaml && helm dependency build"]
+        generate:
+          command: ["/bin/sh", "-c"]
+          args: ["helm template . --values /tmp/values.yaml --include-crds --namespace psychsync > /tmp/manifest.yaml && kustomize build ."]
+
+  # Repo Server
+  repoServer:
+    replicas: 2
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+    # Enable private repository access
+    env:
+    - name: AWS_REGION
+      value: "us-east-1"
+    - name: AWS_SECRET_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: argocd-repo-s3
+          key: accessKeyId
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: argocd-repo-s3
+          key: secretAccessKey
+
+    # Volume mount for SSH keys
+    volumeMounts:
+    - mountPath: /app/config/git
+      name: git-ssh-credentials
+    volumes:
+    - name: git-ssh-credentials
+      secret:
+        secretName: argocd-git-ssh-credentials
+        defaultMode: 0400
+
+  # ApplicationSet Controller (for multi-cluster/multi-app deployments)
+  applicationSet:
+    replicas: 1
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+  # Notifications Controller
+  notifications:
+    enabled: true
+    replicas: 1
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+  # Dex (OIDC provider - deprecated in ArgoCD 2.4+)
+  dex:
+    enabled: false
+
+  # SSO Configuration (using OIDC)
+  configs:
+    cm:
+      # OIDC configuration for SSO
+      url: https://argocd.psychsync.com
+      oidc.config: |
+        name: Okta
+        issuer: https://psychsync.okta.com
+        clientId: $argocd-okta-clientId
+        clientSecret: $argocd-okta-clientSecret
+        requestedScopes: ["openid", "profile", "email", "groups"]
+        requestedIDTokenClaims: ["groups"]
+        rootCA: |
+          -----BEGIN CERTIFICATE-----
+          ... (Okta CA cert) ...
+          -----END CERTIFICATE-----
+
+    # Secret with OIDC credentials
+    secret:
+      create: true
+      # OIDC client secret
+      argocd-okta-clientId: "CHANGEME"
+      argocd-okta-clientSecret: "CHANGEME"
+
+    # Parameter for admin password
+    params:
+      server.insecure: "false"
+      server.disable.auth: "false"
+      server.enable.gzip: "true"
+
+    # RBAC policy
+    rbac:
+      policy.csv: |
+        p, role:org-admin, applications, *, */*, allow
+        p, role:org-admin, clusters, get, *, allow
+        p, role:org-admin, repositories, *, *, allow
+        p, role:org-admin, logs, get, *, allow
+        p, role:org-admin, exec, create, */*, allow
+        g, psychsync-admins, role:org-admin
+        p, role:readonly, applications, get, */*, allow
+        g, psychsync-readonly, role:readonly
+      scopes: "[groups]"
+      policy.default: role:none
+
+---
+################################################################################
+# ArgoCD Applications Directory Structure
+################################################################################
+
+# Recommended Git repository structure:
+#
+# gitops-repo/
+# ├── apps/
+# │   ├── psychsync-backend/
+# │   │   ├── base/
+# │   │   │   ├── deployment.yaml
+# │   │   │   ├── service.yaml
+# │   │   │   ├── configmap.yaml
+# │   │   │   └── kustomization.yaml
+# │   │   ├── overlays/
+# │   │   │   ├── production/
+# │   │   │   │   ├── kustomization.yaml
+# │   │   │   │   ├── deployment-patch.yaml
+# │   │   │   │   └── hpa.yaml
+# │   │   │   ├── staging/
+# │   │   │   │   └── kustomization.yaml
+# │   │   │   └── dev/
+# │   │   │       └── kustomization.yaml
+# │   │   └── project.yaml
+# │   ├── postgres/
+# │   ├── redis/
+# │   └── monitoring/
+# ├── projects/
+# │   ├── production.yaml
+# │   ├── staging.yaml
+# │   └── dev.yaml
+# └── clusters/
+#     ├── production/
+#     │   └── cluster-config.yaml
+#     ├── staging/
+#     └── dev/
+
+---
+################################################################################
+# ArgoCD Project Configuration
+################################################################################
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: psychsync-production
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  # Project description
+  description: PsychSync Production Applications
+
+  # Allow manifests to deploy to these namespaces
+  sourceRepos:
+  - https://github.com/psychsync/psychsync-gitops.git
+  - https://github.com/psychsync/psychsync-manifests.git
+
+  # Only allow applications in these namespaces
+  destinations:
+  - namespace: psychsync
+    server: https://kubernetes.default.svc
+  - namespace: monitoring
+    server: https://kubernetes.default.svc
+
+  # Cluster access (only this cluster)
+  clusterResourceWhitelist:
+  - group: ""
+    kind: Namespace
+  - group: "rbac.authorization.k8s.io"
+    kind: Role
+  - group: "rbac.authorization.k8s.io"
+    kind: RoleBinding
+
+  # Deny cluster-scoped resources
+  clusterResourceBlacklist:
+  - group: ""
+    kind: "*"
+  - group: "*"
+    kind: "*"
+
+  # Sync windows (maintenance windows)
+  syncWindows:
+  - kind: allow
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    duration: 2h
+    namespaces:
+    - psychsync
+    - monitoring
+    applications:
+    - psychsync-backend-*
+  - kind: deny
+    schedule: "0 18 * * 6"  # Saturday 6 PM (maintenance window)
+    duration: 6h
+    namespaces:
+    - psychsync
+
+  # Orphaned resource handling
+  orphanedResources:
+    warn: true
+    ignore:
+    - group: "apps"
+      kind: "Deployment"
+      name: "old-deployment"
+
+---
+################################################################################
+# ArgoCD Application - PsychSync Backend
+################################################################################
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: psychsync-backend-production
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  labels:
+    app: psychsync-backend
+    environment: production
+spec:
+  # Project this application belongs to
+  project: psychsync-production
+
+  # Source configuration
+  source:
+    repoURL: https://github.com/psychsync/psychsync-gitops.git
+    targetRevision: main
+    path: apps/psychsync-backend/overlays/production
+    kustomize:
+      # Kustomize images
+      images:
+      - name: psychsync/backend
+        newTag: v1.0.0
+      # Common labels added to all resources
+      commonLabels:
+        app.kubernetes.io/part-of: psychsync
+        app.kubernetes.io/managed-by: argocd
+        app.kubernetes.io/environment: production
+
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: psychsync
+
+  # Sync policy
+  syncPolicy:
+    automated:
+      # Enable automated sync
+      prune: true  # Remove resources that are no longer in Git
+      selfHeal: true  # Reconcile drift
+      allowEmpty: false  # Don't allow empty resources
+    syncOptions:
+    - CreateNamespace=true  # Create namespace if it doesn't exist
+    - PruneLast=true  # Prune resources last
+    - RespectIgnoreDifferences=true
+    # Apply with --server-side option for better CRD handling
+    - ServerSideApply=true
+
+    # Retry configuration
+    retry:
+      limit: 5  # Number of failed sync retries
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+    # Managed namespace modification
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/warn: restricted
+      annotations:
+        description: "PsychSync production namespace"
+
+  # Revision history limit
+  revisionHistoryLimit: 10
+
+  # Ignore differences (for fields that should not be reconciled)
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas  # Allow HPA to manage replicas
+  - group: ""
+    kind: Secret
+    jsonPointers:
+    - /data  # Don't sync external secret changes
+
+---
+# Alternative Application using Helm Chart
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: psychsync-backend-helm
+  namespace: argocd
+spec:
+  project: psychsync-production
+
+  source:
+    repoURL: https://github.com/psychsync/helm-charts.git
+    targetRevision: main
+    path: charts/psychsync-backend
+    helm:
+      # Helm values files
+      valueFiles:
+      - values-prod.yaml
+      # Inline values override
+      values: |
+        image:
+          repository: psychsync/backend
+          tag: v1.0.0
+          pullPolicy: Always
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        env:
+          APP_ENV: production
+          DEBUG: "false"
+        # Enable autoscaling
+        autoscaling:
+          enabled: true
+          minReplicas: 3
+          maxReplicas: 20
+          targetCPUUtilizationPercentage: 70
+          targetMemoryUtilizationPercentage: 80
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: psychsync
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+
+---
+################################################################################
+# ArgoCD ApplicationSet (Multi-Environment)
+################################################################################
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: psychsync-backend-multi-env
+  namespace: argocd
+spec:
+  # Generate applications from this matrix
+  goTemplate: true
+  generators:
+  # Matrix generator: Environments x Components
+  - matrix:
+      generators:
+      # Generator 1: List of environments
+      - git:
+          repoURL: https://github.com/psychsync/psychsync-gitops.git
+          revision: main
+          directories:
+          - path: envs/*
+
+      # Generator 2: List of components
+      - list:
+          elements:
+          - componentName: backend
+            componentPath: apps/psychsync-backend
+          - componentName: postgres
+            componentPath: apps/postgres
+          - componentName: redis
+            componentPath: apps/redis
+
+  # Application template
+  template:
+    metadata:
+      name: "psychsync-{{.componentName}}-{{.path.basename}}"
+      labels:
+        app: "{{.componentName}}"
+        environment: "{{.path.basename}}"
+    spec:
+      project: psychsync-production
+
+      source:
+        repoURL: https://github.com/psychsync/psychsync-gitops.git
+        targetRevision: main
+        path: "{{.componentPath}}/overlays/{{.path.basename}}"
+        kustomize:
+          images:
+          - name: psychsync/{{.componentName}}
+            newTag: v1.0.0
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: psychsync-{{.path.basename}}
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+
+---
+# ApplicationSet with Cluster generator (multi-cluster)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: psychsync-multi-cluster
+  namespace: argocd
+spec:
+  generators:
+  # Generate applications for each cluster
+  - clusters:
+      selector:
+        matchLabels:
+          env: production  # Only production clusters
+
+  # Application template
+  template:
+    metadata:
+      name: "psychsync-backend-{{.name}}"
+    spec:
+      project: psychsync-production
+
+      source:
+        repoURL: https://github.com/psychsync/psychsync-gitops.git
+        targetRevision: main
+        path: apps/psychsync-backend/overlays/production
+
+      destination:
+        server: "{{.server}}"
+        namespace: psychsync
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+
+---
+################################################################################
+# Progressive Deployment Strategies
+################################################################################
+
+---
+# Blue-Green Deployment using ArgoCD
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: psychsync-backend-bluegreen
+  namespace: argocd
+spec:
+  project: psychsync-production
+
+  source:
+    repoURL: https://github.com/psychsync/psychsync-gitops.git
+    targetRevision: main
+    path: apps/psychsync-backend/overlays/production-blue
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: psychsync
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+
+---
+# Canary Deployment using ArgoCD + Argo Rollouts
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: psychsync-backend-canary
+  namespace: argocd
+spec:
+  project: psychsync-production
+
+  source:
+    repoURL: https://github.com/psychsync/psychsync-gitops.git
+    targetRevision: main
+    path: apps/psychsync-backend/overlays/production-canary
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: psychsync
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      # Allow empty for canary analysis runs
+      allowEmpty: true
+    syncOptions:
+    - CreateNamespace=true
+    retry:
+      limit: 2  # Fewer retries for canary
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 1m
+
+---
+# Argo Rollouts AnalysisTemplate for canary analysis
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: psychsync-success-rate
+  namespace: psychsync
+spec:
+  args:
+  - name: service-name
+    value: "psychsync-backend"
+  metrics:
+  - name: success-rate
+    interval: 5m
+    count: 3
+    failureLimit: 1
+    successCondition: result[0] >= 0.95  # 95% success rate
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc:9090
+        query: |
+          sum(rate(http_requests_total{service="{{args.service-name}}",status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{service="{{args.service-name}}"}[5m]))
+
+  - name: error-rate
+    interval: 5m
+    count: 3
+    failureLimit: 1
+    successCondition: result[0] <= 0.01  # Max 1% error rate
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc:9090
+        query: |
+          sum(rate(http_requests_total{service="{{args.service-name}}",status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{service="{{args.service-name}}"}[5m]))
+
+  - name: latency
+    interval: 5m
+    count: 3
+    failureLimit: 1
+    successCondition: result[0] <= 0.5  # P99 latency < 500ms
+    provider:
+      prometheus:
+        address: http://prometheus.monitoring.svc:9090
+        query: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{service="{{args.service-name}}"}[5m])) by (le)
+          )
+
+---
+# Argo Rollouts AnalysisRun for canary
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  name: psychsync-canary-analysis-v1-0-0
+  namespace: psychsync
+spec:
+  serviceName: psychsync-backend
+  analysisTemplateNames:
+  - name: psychsync-success-rate
+    # Custom args for this specific run
+    args:
+    - name: service-name
+      value: "psychsync-backend-canary"
+
+---
+################################################################################
+# Deployment Hooks (Pre/Post Sync)
+################################################################################
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: psychsync-db-migration
+  namespace: psychsync
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      serviceAccountName: db-migration
+      restartPolicy: OnFailure
+      containers:
+      - name: migration
+        image: psychsync/db-migration:v1.0.0
+        command:
+        - /scripts/run-migrations.sh
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: psychsync-database
+              key: DATABASE_URL
+
+---
+# Post-sync hook for smoke tests
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: psychsync-smoke-test
+  namespace: psychsync
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: smoke-test
+        image: psychsync/smoke-tests:v1.0.0
+        command:
+        - /scripts/run-smoke-tests.sh
+        env:
+        - name: BASE_URL
+          value: "https://psychsync.com"
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: smoke-test-creds
+              key: api-key
+
+---
+################################################################################
+# ArgoCD Notifications Configuration
+################################################################################
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # Context for notifications
+  context: |
+    argocdUrl: https://argocd.psychsync.com
+
+  # Service definitions (Slack, email, etc.)
+  service.slack: |
+    token: $slack-token
+    username: ArgoCD
+
+  # Templates for notifications
+  template.on-sync-succeeded.slack: |
+    message: |
+      Application {{.app.metadata.name}} sync succeeded
+      Repository: {{.app.spec.source.repoURL}}
+      Revision: {{.app.status.sync.revision}}
+    slack:
+      attachments: [{
+        text: "Sync succeeded for {{.app.metadata.name}}",
+        color: "#18be52"
+      }]
+
+  template.on-sync-failed.slack: |
+    message: |
+      Application {{.app.metadata.name}} sync failed
+      Error: {{.app.status.operationState.message}}
+    slack:
+      attachments: [{
+        text: "Sync failed for {{.app.metadata.name}}",
+        color: "#ff0000",
+        fields: [{
+          title: "Error",
+          value: "{{.app.status.operationState.message}}",
+          short: false
+        }]
+      }]
+
+  # Triggers
+  trigger.on-sync-succeeded: |
+    - description: Application syncing succeeded
+      send:
+      - on-sync-succeeded.slack
+
+  trigger.on-sync-failed: |
+    - description: Application syncing failed
+      send:
+      - on-sync-failed.slack
+
+---
+# Secret for Slack token
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-notifications-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  slack-token: "xoxb-CHANGEME"
+
+---
+# Subscription for notifications
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: psychsync-notifications
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/psychsync/psychsync-gitops.git
+      revision: main
+      directories:
+      - path: apps/psychsync-*
+
+  template:
+    metadata:
+      name: "{{.path.basename}}"
+    spec:
+      project: psychsync-production
+      source:
+        repoURL: https://github.com/psychsync/psychsync-gitops.git
+        targetRevision: main
+        path: "{{.path.path}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: psychsync
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+      # Enable notifications
+      operation:
+        # Init operation
+        initiatedBy:
+          username: argocd
+        # Retry on failure
+        retry:
+          limit: 5
+      # Notification triggers
+      sync:
+        status:
+        - name: Sync Succeeded
+          triggered:
+            condition: ApplicationSynced
+        - name: Sync Failed
+          triggered:
+            condition: ApplicationOutOfSync
+
+---
+################################################################################
+# GitOps Best Practices & Configuration
+################################################################################
+
+---
+# ConfigMap for ArgoCD best practices
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  # Application instance label key
+  application.instanceLabelKey: argocd.argoproj.io/instance
+
+  # Repositories (private git repositories)
+  # NOTE: Use SSH for better security
+  repo.changegithubtotls: "false"
+
+  # Disable admin user (use OIDC only)
+  admin.enabled: "false"
+
+  # Resource tracking (for prune operations)
+  resourceTrackingMethod: "label"
+
+  # Dry-run settings
+  dryRun.disabled: "false"
+
+  # Diff settings
+  diff.serverSide: "true"
+
+  # Timeout settings
+  timeout.reconciliation: 180s
+  timeout.hard.reconciliation: 600s
+
+  # Health check settings
+  health.ssl.enable: "true"
+
+  # Status settings
+  operation.processors: "16"
+
+  # Controller settings
+  controller.processors.operation: "16"
+  controller.status.processors: "16"
+
+  # Metrics
+  metrics.applicationLabels: "app.kubernetes.io/name,app.kubernetes.io/instance,app.kubernetes.io/version,app.kubernetes.io/component,app.kubernetes.io/part-of,app.kubernetes.io/managed-by,app.kubernetes.io/created-by"
+
+  # Label filters
+  kustomize.buildOptions: "--enable-alpha-plugins"
+
+  # Disable exec to prevent shell access (security)
+  exec.enabled: "false"
+
+  # Resource customization
+  resource.customizations.health: |
+    # Custom health checks for specific resources
+    argoproj.io/Rollout:
+      health.lua: |
+        hs = {}
+        if obj.status ~= nil and obj.status.phase ~= nil then
+          if obj.status.phase == "Running" then
+            return true
+          end
+        end
+        return false
+
+---
+# Secret for SSH access to private git repositories
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-git-ssh-credentials
+  namespace: argocd
+type: Opaque
+stringData:
+  # SSH private key
+  sshPrivateKey: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ... (your SSH private key) ...
+    -----END OPENSSH PRIVATE KEY-----
+
+  # Known hosts
+  known_hosts: |
+    github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCq...
+    gitlab.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCp...
+
+---
+# Secret for AWS S3 private chart repository
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-repo-s3
+  namespace: argocd
+type: Opaque
+stringData:
+  accessKeyId: "AKIAIOSFODNN7EXAMPLE"
+  secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+---
+################################################################################
+# ArgoCD CD Pipeline Configuration
+################################################################################
+
+---
+# Workflow: Deploy to Production via ArgoCD
+
+# Step 1: Developer commits to main branch
+# $ git commit -m "feat: new feature"
+# $ git push origin main
+
+# Step 2: CI builds and tests (GitHub Actions)
+# .github/workflows/build-and-deploy.yaml:
+# name: Build and Deploy
+# on:
+#   push:
+#     branches: [main]
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v3
+#     - name: Build Docker image
+#       run: |
+#         docker build -t psychsync/backend:${{ github.sha }} .
+#     - name: Push to registry
+#       run: |
+#         docker tag psychsync/backend:${{ github.sha }} psychsync/backend:v1.0.0
+#         docker push psychsync/backend:v1.0.0
+#     - name: Update GitOps repo
+#       run: |
+#         git clone https://github.com/psychsync/psychsync-gitops.git
+#         cd psychsync-gitops
+#         # Update image tag in overlay
+#         yq eval '.images[0].newTag = "v1.0.0"' -i apps/psychsync-backend/overlays/production/kustomization.yaml
+#         git commit -am "Update image to v1.0.0"
+#         git push
+
+# Step 3: ArgoCD detects change and syncs
+# - ArgoCD polls git repo every 3 minutes
+# - Detects new commit with updated image tag
+# - Triggers sync automatically (auto-sync enabled)
+
+# Step 4: Pre-sync hooks run
+# - DB migration job runs
+# - Waits for completion
+
+# Step 5: ArgoCD syncs application
+# - Creates new ReplicaSet with new image
+# - Performs rolling update
+# - Waits for health checks
+
+# Step 6: Post-sync hooks run
+# - Smoke tests run
+# - If successful, marks sync as succeeded
+# - If failed, rolls back automatically
+
+# Step 7: Notifications sent
+# - Slack notification sent
+# - Prometheus metrics updated
+# - Incident created on failure
+
+---
+# Example GitHub Actions workflow for GitOps
+name: Build and Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and push Docker image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: psychsync/backend
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+    - name: Run tests
+      run: |
+        docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG pytest
+
+    - name: Update GitOps repository
+      env:
+        GITOPS_REPO: https://github.com/psychsync/psychsync-gitops.git
+        GIT_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+      run: |
+        # Clone GitOps repo
+        git clone https://x-access-token:${GIT_TOKEN}@github.com/psychsync/psychsync-gitops.git
+        cd psychsync-gitops
+
+        # Update image tag using yq
+        yq eval '.images[0].newTag = "${{ github.sha }}"' -i apps/psychsync-backend/overlays/production/kustomization.yaml
+
+        # Commit and push
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git commit -am "Update psychsync-backend image to ${{ github.sha }}"
+        git push
+
+    - name: Notify ArgoCD to sync (optional - auto-sync enabled)
+      env:
+        ARGOCD_SERVER: argocd.psychsync.com
+        ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
+      run: |
+        # Trigger sync (if not using auto-sync)
+        argocd app sync psychsync-backend-production --auth-token $ARGOCD_AUTH_TOKEN --server $ARGOCD_SERVER
+
+---
+################################################################################
+# End of ArgoCD GitOps Configuration
+################################################################################
+
+# Usage:
+#
+# 1. Install ArgoCD:
+#    helm install argocd argo-cd/argo-cd -f values.yaml -n argocd --create-namespace
+#
+# 2. Create projects:
+#    kubectl apply -f project-psychsync-production.yaml
+#
+# 3. Create applications:
+#    kubectl apply -f application-psychsync-backend.yaml
+#
+# 4. Enable auto-sync:
+#    ArgoCD will automatically sync when git changes
+#
+# 5. Monitor deployments:
+#    argocd app list
+#    argocd app get psychsync-backend-production
+#    argocd app logs psychsync-backend-production
+#
+# 6. Rollback if needed:
+#    argocd app rollback psychsync-backend-production
+#
+# 7. Monitor sync status:
+#    kubectl get applications -n argocd
+#    argocd app watch psychsync-backend-production

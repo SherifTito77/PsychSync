@@ -164,7 +164,7 @@ class AnalysisSummaryResponse(BaseModel):
 
 # Core Endpoints
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/interventions", response_model=InterventionResponse)
 async def create_intervention(
     request: InterventionCreateRequest,
@@ -205,7 +205,7 @@ async def create_intervention(
     except Exception as e:
         db.rollback()
         raise HTTPException(statu
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 s_code=500, detail=f"Failed to create intervention: {str(e)}")
 
 @router.get("/interventions", response_model=List[InterventionResponse])
@@ -238,7 +238,7 @@ async def list_interventions(
         interventions = query.order_by(Intervention.created_at.desc()).offset(offset).limit(limit).all()
 
         return [InterventionResponse.from_orm(intervention) for intervention in interventio
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ns]
 
     except Exception as e:

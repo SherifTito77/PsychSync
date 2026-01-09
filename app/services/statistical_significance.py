@@ -6,26 +6,21 @@ multiple comparison corrections, power analysis, and Bayesian inference
 for intervention effectiveness evaluation.
 """
 
-import logging
-import math
-from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass
 from enum import Enum
-import asyncio
-from datetime import datetime
+import logging
+import math
 
 import numpy as np
-import pandas as pd
 from scipy import stats
 from scipy.stats import norm, t
-import mpmath as mp
-
-from app.db.models.intervention_effectiveness import InterventionEffectiveness
 
 logger = logging.getLogger(__name__)
 
+
 class MultipleComparisonCorrection(Enum):
     """Methods for multiple comparison correction"""
+
     BONFERRONI = "bonferroni"
     HOLM_BONFERRONI = "holm_bonferroni"
     BENJAMINI_HOCHBERG = "benjamini_hochberg"
@@ -33,72 +28,87 @@ class MultipleComparisonCorrection(Enum):
     FALSE_DISCOVERY_RATE = "false_discovery_rate"
     PERMUTATION = "permutation"
 
+
 class BayesianMethod(Enum):
     """Bayesian inference methods"""
+
     BAYES_FACTOR = "bayes_factor"
     POSTERIOR_PROBABILITY = "posterior_probability"
     CREDIBLE_INTERVAL = "credible_interval"
     ROPE_ANALYSIS = "rope_analysis"  # Region of Practical Equivalence
 
+
 class TestDirection(Enum):
     """Direction of hypothesis testing"""
+
     TWO_TAILED = "two_tailed"
     LEFT_TAILED = "left_tailed"
     RIGHT_TAILED = "right_tailed"
 
+
 @dataclass
 class TestResult:
     """Result of a statistical test"""
+
     test_name: str
     statistic: float
     p_value: float
-    degrees_of_freedom: Optional[int]
-    confidence_interval: Optional[Tuple[float, float]]
-    effect_size: Optional[float]
+    degrees_of_freedom: int | None
+    confidence_interval: tuple[float, float] | None
+    effect_size: float | None
     test_direction: TestDirection
-    assumptions: Dict[str, bool]
-    notes: Optional[str]
+    assumptions: dict[str, bool]
+    notes: str | None
+
 
 @dataclass
 class CorrectedResult:
     """Result after multiple comparison correction"""
+
     original_result: TestResult
     corrected_p_value: float
     correction_method: MultipleComparisonCorrection
     is_significant: bool
     correction_factor: float
 
+
 @dataclass
 class BayesianResult:
     """Bayesian analysis result"""
+
     method: BayesianMethod
-    bayes_factor: Optional[float] = None
-    posterior_probability: Optional[float] = None
-    credible_interval: Optional[Tuple[float, float]] = None
-    rope_probability: Optional[float] = None
+    bayes_factor: float | None = None
+    posterior_probability: float | None = None
+    credible_interval: tuple[float, float] | None = None
+    rope_probability: float | None = None
     interpretation: str
     strength_of_evidence: str
+
 
 @dataclass
 class PowerAnalysis:
     """Statistical power analysis results"""
+
     observed_power: float
-    required_sample_size: Optional[int]
+    required_sample_size: int | None
     minimum_detectable_effect: float
     alpha: float
     effect_size: float
     power_recommendation: str
 
+
 @dataclass
 class SignificanceTestSuite:
     """Complete significance testing suite"""
-    primary_tests: List[TestResult]
-    corrected_results: List[CorrectedResult]
-    bayesian_results: List[BayesianResult]
+
+    primary_tests: list[TestResult]
+    corrected_results: list[CorrectedResult]
+    bayesian_results: list[BayesianResult]
     power_analysis: PowerAnalysis
     overall_significance: bool
-    recommendations: List[str]
-    limitations: List[str]
+    recommendations: list[str]
+    limitations: list[str]
+
 
 class StatisticalSignificanceTester:
     """Advanced statistical significance testing framework"""
@@ -112,27 +122,25 @@ class StatisticalSignificanceTester:
     async def comprehensive_significance_test(
         self,
         intervention_id: str,
-        pre_values: List[float],
-        post_values: List[float],
+        pre_values: list[float],
+        post_values: list[float],
         test_direction: TestDirection = TestDirection.TWO_TAILED,
-        correction_methods: Optional[List[MultipleComparisonCorrection]] = None,
-        bayesian_methods: Optional[List[BayesianMethod]] = None
+        correction_methods: list[MultipleComparisonCorrection] | None = None,
+        bayesian_methods: list[BayesianMethod] | None = None,
     ) -> SignificanceTestSuite:
         """Perform comprehensive significance testing"""
 
         if not correction_methods:
             correction_methods = [
                 MultipleComparisonCorrection.BONFERRONI,
-                MultipleComparisonCorrection.BENJAMINI_HOCHBERG
+                MultipleComparisonCorrection.BENJAMINI_HOCHBERG,
             ]
 
         if not bayesian_methods:
             bayesian_methods = [BayesianMethod.BAYES_FACTOR]
 
         # Primary statistical tests
-        primary_tests = await self._perform_primary_tests(
-            pre_values, post_values, test_direction
-        )
+        primary_tests = await self._perform_primary_tests(pre_values, post_values, test_direction)
 
         # Multiple comparison corrections
         corrected_results = []
@@ -145,9 +153,7 @@ class StatisticalSignificanceTester:
         # Bayesian analysis
         bayesian_results = []
         for method in bayesian_methods:
-            bayesian = await self._perform_bayesian_analysis(
-                pre_values, post_values, method
-            )
+            bayesian = await self._perform_bayesian_analysis(pre_values, post_values, method)
             if bayesian:
                 bayesian_results.append(bayesian)
 
@@ -178,15 +184,12 @@ class StatisticalSignificanceTester:
             power_analysis=power_analysis,
             overall_significance=overall_significance,
             recommendations=recommendations,
-            limitations=limitations
+            limitations=limitations,
         )
 
     async def _perform_primary_tests(
-        self,
-        pre_values: List[float],
-        post_values: List[float],
-        test_direction: TestDirection
-    ) -> List[TestResult]:
+        self, pre_values: list[float], post_values: list[float], test_direction: TestDirection
+    ) -> list[TestResult]:
         """Perform primary statistical tests"""
 
         results = []
@@ -207,9 +210,7 @@ class StatisticalSignificanceTester:
             sem_diff = stats.sem(diff)
             df = len(pre_values) - 1
 
-            ci_lower, ci_upper = t.interval(
-                0.95, df, loc=mean_diff, scale=sem_diff
-            )
+            ci_lower, ci_upper = t.interval(0.95, df, loc=mean_diff, scale=sem_diff)
 
             # Effect size (Cohen's d)
             pooled_sd = np.sqrt((np.var(pre_values, ddof=1) + np.var(post_values, ddof=1)) / 2)
@@ -224,7 +225,7 @@ class StatisticalSignificanceTester:
                 effect_size=float(cohens_d),
                 test_direction=test_direction,
                 assumptions=self._check_t_test_assumptions(pre_values, post_values),
-                notes="Parametric test assuming normal distribution of differences"
+                notes="Parametric test assuming normal distribution of differences",
             )
             results.append(t_test_result)
 
@@ -233,7 +234,9 @@ class StatisticalSignificanceTester:
 
         try:
             # Wilcoxon signed-rank test
-            wilcoxon_stat, wilcoxon_p_value = stats.wilcoxon(pre_values, post_values, zero_method='wilcox')
+            wilcoxon_stat, wilcoxon_p_value = stats.wilcoxon(
+                pre_values, post_values, zero_method="wilcox"
+            )
 
             # Adjust for one-tailed test
             if test_direction != TestDirection.TWO_TAILED:
@@ -252,7 +255,7 @@ class StatisticalSignificanceTester:
                 effect_size=None,
                 test_direction=test_direction,
                 assumptions=self._check_wilcoxon_assumptions(pre_values, post_values),
-                notes="Non-parametric test for paired data"
+                notes="Non-parametric test for paired data",
             )
             results.append(wilcoxon_result)
 
@@ -267,11 +270,17 @@ class StatisticalSignificanceTester:
 
             if total_signs > 0:
                 if test_direction == TestDirection.TWO_TAILED:
-                    sign_p_value = stats.binom_test(positive_signs, total_signs, p=0.5, alternative='two-sided')
+                    sign_p_value = stats.binom_test(
+                        positive_signs, total_signs, p=0.5, alternative="two-sided"
+                    )
                 elif test_direction == TestDirection.RIGHT_TAILED:
-                    sign_p_value = stats.binom_test(positive_signs, total_signs, p=0.5, alternative='greater')
+                    sign_p_value = stats.binom_test(
+                        positive_signs, total_signs, p=0.5, alternative="greater"
+                    )
                 else:
-                    sign_p_value = stats.binom_test(positive_signs, total_signs, p=0.5, alternative='less')
+                    sign_p_value = stats.binom_test(
+                        positive_signs, total_signs, p=0.5, alternative="less"
+                    )
 
                 sign_test_result = TestResult(
                     test_name="Sign Test",
@@ -282,7 +291,7 @@ class StatisticalSignificanceTester:
                     effect_size=None,
                     test_direction=test_direction,
                     assumptions={"independent_observations": True},
-                    notes="Most conservative non-parametric test"
+                    notes="Most conservative non-parametric test",
                 )
                 results.append(sign_test_result)
 
@@ -304,7 +313,7 @@ class StatisticalSignificanceTester:
                 effect_size=None,
                 test_direction=test_direction,
                 assumptions={"resampling_valid": True},
-                notes="Non-parametric bootstrap analysis"
+                notes="Non-parametric bootstrap analysis",
             )
             results.append(bootstrap_result)
 
@@ -314,10 +323,8 @@ class StatisticalSignificanceTester:
         return results
 
     async def _apply_multiple_comparison_correction(
-        self,
-        test_results: List[TestResult],
-        correction_method: MultipleComparisonCorrection
-    ) -> List[CorrectedResult]:
+        self, test_results: list[TestResult], correction_method: MultipleComparisonCorrection
+    ) -> list[CorrectedResult]:
         """Apply multiple comparison corrections to p-values"""
 
         corrected_results = []
@@ -415,7 +422,7 @@ class StatisticalSignificanceTester:
                         corrected_p_value=corrected_p_values[test_index],
                         correction_method=correction_method,
                         is_significant=corrected_p_values[test_index] < self.alpha,
-                        correction_factor=correction_factor
+                        correction_factor=correction_factor,
                     )
                     corrected_results.append(corrected)
                     test_index += 1
@@ -426,11 +433,8 @@ class StatisticalSignificanceTester:
         return corrected_results
 
     async def _perform_bayesian_analysis(
-        self,
-        pre_values: List[float],
-        post_values: List[float],
-        method: BayesianMethod
-    ) -> Optional[BayesianResult]:
+        self, pre_values: list[float], post_values: list[float], method: BayesianMethod
+    ) -> BayesianResult | None:
         """Perform Bayesian analysis of intervention effects"""
 
         try:
@@ -443,22 +447,24 @@ class StatisticalSignificanceTester:
                     method=method,
                     bayes_factor=bayes_factor,
                     interpretation=interpretation,
-                    strength_of_evidence=strength
+                    strength_of_evidence=strength,
                 )
 
-            elif method == BayesianMethod.POSTERIOR_PROBABILITY:
+            if method == BayesianMethod.POSTERIOR_PROBABILITY:
                 post_prob = await self._calculate_posterior_probability(pre_values, post_values)
                 interpretation = f"Posterior probability of effect: {post_prob:.3f}"
-                strength = "Strong" if post_prob > 0.95 else "Moderate" if post_prob > 0.8 else "Weak"
+                strength = (
+                    "Strong" if post_prob > 0.95 else "Moderate" if post_prob > 0.8 else "Weak"
+                )
 
                 return BayesianResult(
                     method=method,
                     posterior_probability=post_prob,
                     interpretation=interpretation,
-                    strength_of_evidence=strength
+                    strength_of_evidence=strength,
                 )
 
-            elif method == BayesianMethod.CREDIBLE_INTERVAL:
+            if method == BayesianMethod.CREDIBLE_INTERVAL:
                 ci = await self._calculate_credible_interval(pre_values, post_values)
                 interpretation = f"95% credible interval: ({ci[0]:.3f}, {ci[1]:.3f})"
                 strength = "Strong" if 0 not in ci else "Weak"
@@ -467,19 +473,21 @@ class StatisticalSignificanceTester:
                     method=method,
                     credible_interval=ci,
                     interpretation=interpretation,
-                    strength_of_evidence=strength
+                    strength_of_evidence=strength,
                 )
 
-            elif method == BayesianMethod.ROPE_ANALYSIS:
+            if method == BayesianMethod.ROPE_ANALYSIS:
                 rope_prob = await self._calculate_rope_probability(pre_values, post_values)
                 interpretation = f"Probability of negligible effect: {rope_prob:.3f}"
-                strength = "Strong" if rope_prob > 0.95 else "Moderate" if rope_prob > 0.8 else "Weak"
+                strength = (
+                    "Strong" if rope_prob > 0.95 else "Moderate" if rope_prob > 0.8 else "Weak"
+                )
 
                 return BayesianResult(
                     method=method,
                     rope_probability=rope_prob,
                     interpretation=interpretation,
-                    strength_of_evidence=strength
+                    strength_of_evidence=strength,
                 )
 
         except Exception as e:
@@ -488,9 +496,7 @@ class StatisticalSignificanceTester:
         return None
 
     async def _calculate_bayes_factor(
-        self,
-        pre_values: List[float],
-        post_values: List[float]
+        self, pre_values: list[float], post_values: list[float]
     ) -> float:
         """Calculate Bayes factor for paired t-test using BIC approximation"""
 
@@ -503,7 +509,7 @@ class StatisticalSignificanceTester:
         # BF10 = exp((BIC_null - BIC_alternative) / 2)
 
         # Null model (no effect)
-        bic_null = n * np.log(2 * np.pi * std_diff ** 2) + n
+        bic_null = n * np.log(2 * np.pi * std_diff**2) + n
 
         # Alternative model (with effect)
         residual_sum_squares = np.sum((diff - mean_diff) ** 2)
@@ -514,9 +520,7 @@ class StatisticalSignificanceTester:
         return bayes_factor
 
     async def _calculate_posterior_probability(
-        self,
-        pre_values: List[float],
-        post_values: List[float]
+        self, pre_values: list[float], post_values: list[float]
     ) -> float:
         """Calculate posterior probability of effect using conjugate priors"""
 
@@ -540,10 +544,8 @@ class StatisticalSignificanceTester:
         return prob_positive
 
     async def _calculate_credible_interval(
-        self,
-        pre_values: List[float],
-        post_values: List[float]
-    ) -> Tuple[float, float]:
+        self, pre_values: list[float], post_values: list[float]
+    ) -> tuple[float, float]:
         """Calculate 95% credible interval for effect size"""
 
         diff = np.array(post_values) - np.array(pre_values)
@@ -563,9 +565,9 @@ class StatisticalSignificanceTester:
 
     async def _calculate_rope_probability(
         self,
-        pre_values: List[float],
-        post_values: List[float],
-        rope_range: Tuple[float, float] = (-0.1, 0.1)
+        pre_values: list[float],
+        post_values: list[float],
+        rope_range: tuple[float, float] = (-0.1, 0.1),
     ) -> float:
         """Calculate probability that effect falls in Region of Practical Equivalence"""
 
@@ -591,11 +593,11 @@ class StatisticalSignificanceTester:
 
     async def _bootstrap_confidence_interval(
         self,
-        pre_values: List[float],
-        post_values: List[float],
+        pre_values: list[float],
+        post_values: list[float],
         n_bootstrap: int = 10000,
-        confidence_level: float = 0.95
-    ) -> Tuple[float, float]:
+        confidence_level: float = 0.95,
+    ) -> tuple[float, float]:
         """Calculate bootstrap confidence interval for mean difference"""
 
         n = len(pre_values)
@@ -621,10 +623,7 @@ class StatisticalSignificanceTester:
         return (float(ci_lower), float(ci_upper))
 
     async def _perform_comprehensive_power_analysis(
-        self,
-        pre_values: List[float],
-        post_values: List[float],
-        test_results: List[TestResult]
+        self, pre_values: list[float], post_values: list[float], test_results: list[TestResult]
     ) -> PowerAnalysis:
         """Perform comprehensive power analysis"""
 
@@ -642,8 +641,11 @@ class StatisticalSignificanceTester:
 
         try:
             # Power calculation using non-central t-distribution
-            observed_power = 1 - t.cdf(critical_t, n - 1, non_central_param) + \
-                           t.cdf(-critical_t, n - 1, non_central_param)
+            observed_power = (
+                1
+                - t.cdf(critical_t, n - 1, non_central_param)
+                + t.cdf(-critical_t, n - 1, non_central_param)
+            )
             observed_power = max(0, min(1, observed_power))
         except:
             observed_power = 0.5  # Conservative estimate
@@ -670,10 +672,12 @@ class StatisticalSignificanceTester:
             minimum_detectable_effect=min_detectable_effect,
             alpha=self.alpha,
             effect_size=effect_size,
-            power_recommendation=power_recommendation
+            power_recommendation=power_recommendation,
         )
 
-    def _calculate_required_sample_size(self, effect_size: float, alpha: float, power: float) -> int:
+    def _calculate_required_sample_size(
+        self, effect_size: float, alpha: float, power: float
+    ) -> int:
         """Calculate required sample size for given effect size and desired power"""
 
         if abs(effect_size) < 0.01:
@@ -697,7 +701,7 @@ class StatisticalSignificanceTester:
         if n > 0:
             min_effect = (z_alpha + z_beta) * math.sqrt(2 / n)
         else:
-            min_effect = float('inf')
+            min_effect = float("inf")
 
         return min_effect
 
@@ -706,42 +710,42 @@ class StatisticalSignificanceTester:
 
         if bayes_factor > 100:
             return "Extreme evidence for effect"
-        elif bayes_factor > 30:
+        if bayes_factor > 30:
             return "Very strong evidence for effect"
-        elif bayes_factor > 10:
+        if bayes_factor > 10:
             return "Strong evidence for effect"
-        elif bayes_factor > 3:
+        if bayes_factor > 3:
             return "Moderate evidence for effect"
-        elif bayes_factor > 1:
+        if bayes_factor > 1:
             return "Weak evidence for effect"
-        elif bayes_factor > 0.33:
+        if bayes_factor > 0.33:
             return "Weak evidence against effect"
-        elif bayes_factor > 0.1:
+        if bayes_factor > 0.1:
             return "Moderate evidence against effect"
-        elif bayes_factor > 0.03:
+        if bayes_factor > 0.03:
             return "Strong evidence against effect"
-        elif bayes_factor > 0.01:
+        if bayes_factor > 0.01:
             return "Very strong evidence against effect"
-        else:
-            return "Extreme evidence against effect"
+        return "Extreme evidence against effect"
 
     def _classify_bayes_evidence(self, bayes_factor: float) -> str:
         """Classify strength of Bayesian evidence"""
 
         if bayes_factor > 10 or bayes_factor < 0.1:
             return "Strong"
-        elif bayes_factor > 3 or bayes_factor < 0.33:
+        if bayes_factor > 3 or bayes_factor < 0.33:
             return "Moderate"
-        else:
-            return "Weak"
+        return "Weak"
 
-    def _check_t_test_assumptions(self, pre_values: List[float], post_values: List[float]) -> Dict[str, bool]:
+    def _check_t_test_assumptions(
+        self, pre_values: list[float], post_values: list[float]
+    ) -> dict[str, bool]:
         """Check assumptions for paired t-test"""
 
         assumptions = {
             "normality_of_differences": False,
             "continuous_data": True,
-            "independent_observations": True
+            "independent_observations": True,
         }
 
         try:
@@ -754,31 +758,29 @@ class StatisticalSignificanceTester:
 
         return assumptions
 
-    def _check_wilcoxon_assumptions(self, pre_values: List[float], post_values: List[float]) -> Dict[str, bool]:
+    def _check_wilcoxon_assumptions(
+        self, pre_values: list[float], post_values: list[float]
+    ) -> dict[str, bool]:
         """Check assumptions for Wilcoxon signed-rank test"""
 
         return {
             "continuous_data": True,
             "symmetric_distribution": True,  # Assumed for interpretation
-            "independent_observations": True
+            "independent_observations": True,
         }
 
     def _assess_overall_significance(
-        self,
-        corrected_results: List[CorrectedResult],
-        bayesian_results: List[BayesianResult]
+        self, corrected_results: list[CorrectedResult], bayesian_results: list[BayesianResult]
     ) -> bool:
         """Assess overall statistical significance across all methods"""
 
         # Check corrected frequentist results
-        significant_corrected = [
-            result for result in corrected_results
-            if result.is_significant
-        ]
+        significant_corrected = [result for result in corrected_results if result.is_significant]
 
         # Check Bayesian results
         strong_bayesian = [
-            result for result in bayesian_results
+            result
+            for result in bayesian_results
             if result.strength_of_evidence in ["Strong", "Very strong", "Extreme"]
         ]
 
@@ -787,35 +789,39 @@ class StatisticalSignificanceTester:
 
     def _generate_evidence_recommendations(
         self,
-        primary_tests: List[TestResult],
-        corrected_results: List[CorrectedResult],
-        bayesian_results: List[BayesianResult],
-        power_analysis: PowerAnalysis
-    ) -> List[str]:
+        primary_tests: list[TestResult],
+        corrected_results: list[CorrectedResult],
+        bayesian_results: list[BayesianResult],
+        power_analysis: PowerAnalysis,
+    ) -> list[str]:
         """Generate evidence-based recommendations"""
 
         recommendations = []
 
         # Frequentist evidence
-        significant_corrected = [
-            result for result in corrected_results
-            if result.is_significant
-        ]
+        significant_corrected = [result for result in corrected_results if result.is_significant]
 
         if significant_corrected:
-            recommendations.append("Statistical significance maintained after multiple comparison corrections")
+            recommendations.append(
+                "Statistical significance maintained after multiple comparison corrections"
+            )
         else:
-            recommendations.append("No statistically significant effects after correction for multiple testing")
+            recommendations.append(
+                "No statistically significant effects after correction for multiple testing"
+            )
 
         # Bayesian evidence
         if bayesian_results:
             strong_bayesian = [
-                result for result in bayesian_results
+                result
+                for result in bayesian_results
                 if result.strength_of_evidence in ["Strong", "Very strong"]
             ]
 
             if strong_bayesian:
-                recommendations.append("Bayesian analysis provides strong evidence for intervention effectiveness")
+                recommendations.append(
+                    "Bayesian analysis provides strong evidence for intervention effectiveness"
+                )
             else:
                 recommendations.append("Bayesian analysis suggests weak or inconclusive evidence")
 
@@ -823,7 +829,9 @@ class StatisticalSignificanceTester:
         if power_analysis.observed_power >= 0.8:
             recommendations.append("Study adequately powered - results reliable")
         elif power_analysis.observed_power >= 0.6:
-            recommendations.append("Moderate statistical power - consider replication with larger sample")
+            recommendations.append(
+                "Moderate statistical power - consider replication with larger sample"
+            )
         else:
             recommendations.append("Low statistical power - interpret results with caution")
 
@@ -839,10 +847,10 @@ class StatisticalSignificanceTester:
 
     def _identify_statistical_limitations(
         self,
-        primary_tests: List[TestResult],
-        corrected_results: List[CorrectedResult],
-        power_analysis: PowerAnalysis
-    ) -> List[str]:
+        primary_tests: list[TestResult],
+        corrected_results: list[CorrectedResult],
+        power_analysis: PowerAnalysis,
+    ) -> list[str]:
         """Identify statistical limitations of the analysis"""
 
         limitations = []
@@ -855,17 +863,22 @@ class StatisticalSignificanceTester:
         for test in primary_tests:
             if test.assumptions_met:
                 violated_assumptions = [
-                    assumption for assumption, met in test.assumptions_met.items()
-                    if not met
+                    assumption for assumption, met in test.assumptions_met.items() if not met
                 ]
                 if violated_assumptions:
-                    limitations.append(f"{test.test_name} assumptions violated: {', '.join(violated_assumptions)}")
+                    limitations.append(
+                        f"{test.test_name} assumptions violated: {', '.join(violated_assumptions)}"
+                    )
 
         # Multiple testing concerns
         if len(primary_tests) > 3:
-            limitations.append("Multiple testing increases familywise error rate - correction methods applied")
+            limitations.append(
+                "Multiple testing increases familywise error rate - correction methods applied"
+            )
 
         # Study design limitations
-        limitations.append("Pre-post design without control group susceptible to confounding factors")
+        limitations.append(
+            "Pre-post design without control group susceptible to confounding factors"
+        )
 
         return limitations

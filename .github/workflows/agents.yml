@@ -1,0 +1,282 @@
+name: Autonomous Agents
+
+on:
+  # Scheduled workflows
+  schedule:
+    # Daily code quality scan at 2 AM UTC
+    - cron: '0 2 * * *'
+    # Weekly dependency update on Sunday at 3 AM UTC
+    - cron: '0 3 * * 0'
+    # Hourly documentation sync
+    - cron: '0 * * * *'
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Which agent to run'
+        required: true
+        type: choice
+        options:
+          - code-quality
+          - dependency-update
+          - doc-sync
+          - all
+      dry_run:
+        description: 'Dry run (no PR creation)'
+        required: false
+        type: boolean
+        default: false
+
+  # Pull request events for coverage testing
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'app/**/*.py'
+      - 'ai/**/*.py'
+      - 'tests/**/*.py'
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_REPOSITORY: psychsync/psychsync
+  MIN_COVERAGE: 90.0
+  MIN_FILE_COVERAGE: 80.0
+  MAX_UPDATES: 3
+
+jobs:
+  ################################################################################
+  # Code Quality Scanner Job
+  ################################################################################
+  code-quality-scan:
+    name: Code Quality Scan
+    if: github.event_name == 'schedule' && github.event.schedule[0] == '0 2 * * *' || github.event.inputs.agent == 'code-quality' || github.event.inputs.agent == 'all'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint flake8 isort bandit safety autopep8
+          pip install github3.py GitPython
+
+      - name: Run code quality scanner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          python agents/code_quality_scanner.py
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-quality-logs
+          path: agents/logs/code_quality_scanner.log
+          retention-days: 30
+
+  ################################################################################
+  # Dependency Update Job
+  ################################################################################
+  dependency-update:
+    name: Dependency Update
+    if: github.event_name == 'schedule' && github.event.schedule[1] == '0 3 * * 0' || github.event.inputs.agent == 'dependency-update' || github.event.inputs.agent == 'all'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-outdated
+          pip install github3.py GitPython
+
+      - name: Run dependency updater
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_UPDATES: ${{ env.MAX_UPDATES }}
+          REQUIRE_TESTS: true
+        run: |
+          python agents/dependency_updater.py update
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-update-logs
+          path: agents/logs/dependency_updater.log
+          retention-days: 30
+
+  ################################################################################
+  # Documentation Sync Job
+  ################################################################################
+  documentation-sync:
+    name: Documentation Sync
+    if: github.event_name == 'schedule' && github.event.schedule[2] == '0 * * * *' || github.event.inputs.agent == 'doc-sync' || github.event.inputs.agent == 'all'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install github3.py GitPython
+
+      - name: Run documentation syncer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python agents/doc_syncer.py scan
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: doc-sync-logs
+          path: agents/logs/doc_syncer.log
+          retention-days: 30
+
+  ################################################################################
+  # PR Coverage Test Job
+  ################################################################################
+  pr-coverage-test:
+    name: PR Coverage Test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install pytest pytest-cov github3.py
+
+      - name: Run coverage test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MIN_COVERAGE: ${{ env.MIN_COVERAGE }}
+          MIN_FILE_COVERAGE: ${{ env.MIN_FILE_COVERAGE }}
+        run: |
+          python agents/pr_coverage_tester.py ${{ github.event.pull_request.number }}
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            htmlcov/
+            .coverage
+            coverage.xml
+          retention-days: 30
+
+      - name: Comment PR with coverage results
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const coveragePath = 'agents/logs/coverage_report.json';
+
+            if (fs.existsSync(coveragePath)) {
+              const coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'));
+
+              const comment = `## 📊 Test Coverage Report
+
+              **Overall Coverage:** ${coverage.overall_coverage}%
+
+              **Status:** ${coverage.passes ? '✅ PASSED' : '❌ FAILED'}
+
+              ${!coverage.passes ? '**Minimum Required:** 90%' : ''}
+
+              ### Files Changed
+
+              ${coverage.file_coverage.map(f => `- ${f.file}: ${f.coverage}%`).join('\n')}
+
+              ---
+              *Automated coverage check by PR Coverage Tester Agent*`;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+  ################################################################################
+  # Agent Health Check Job
+  ################################################################################
+  agent-health-check:
+    name: Agent Health Check
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    needs: [code-quality-scan, dependency-update, documentation-sync]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check agent logs
+        run: |
+          echo "Checking agent logs for errors..."
+          if grep -r "ERROR" agents/logs/*.log; then
+            echo "Errors found in agent logs!"
+            exit 1
+          else
+            echo "No errors found in agent logs."
+          fi
+
+      - name: Create issue if errors found
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🤖 Agent Health Check Failed',
+              body: 'Agent health check failed. Please review the workflow logs.',
+              labels: ['agents', 'bug']
+            });

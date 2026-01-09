@@ -1,9 +1,10 @@
-#app.api.api_router.py
+# app.api.api_router.py
 
 # app/api/api_router.py
 from fastapi import APIRouter
-from app.api import users, organizations, teams, assessments, predictions, optimization, insights
-from fastapi.middleware.cors import CORSMiddleware
+
+from app.api import assessments, insights, optimization, organizations, predictions, teams, users
+
 api_router = APIRouter()
 
 # Attach all sub-routers here
@@ -14,8 +15,6 @@ api_router.include_router(assessments.router, prefix="/assessments", tags=["asse
 api_router.include_router(predictions.router, prefix="/predictions", tags=["predictions"])
 api_router.include_router(optimization.router, prefix="/optimization", tags=["optimization"])
 api_router.include_router(insights.router, prefix="/insights", tags=["insights"])
-
-
 
 
 # from fastapi import APIRouter

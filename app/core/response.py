@@ -4,15 +4,18 @@ Enhanced Standardized API response formats for consistent client experience
 Includes comprehensive error handling, pagination, and metadata
 """
 
-from typing import Any, Optional, Generic, TypeVar, List, Dict, Union
-from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from enum import Enum
+from typing import Any, Generic, TypeVar
 
-T = TypeVar('T')
+from pydantic import BaseModel, Field, validator
+
+T = TypeVar("T")
+
 
 class ResponseStatus(str, Enum):
     """Standard response status codes"""
+
     SUCCESS = "success"
     ERROR = "error"
     PARTIAL = "partial"
@@ -24,15 +27,19 @@ class ResponseStatus(str, Enum):
     RATE_LIMITED = "rate_limited"
     SERVER_ERROR = "server_error"
 
+
 class ErrorDetail(BaseModel):
     """Detailed error information"""
-    field: Optional[str] = Field(None, description="Field that caused the error")
+
+    field: str | None = Field(None, description="Field that caused the error")
     code: str = Field(description="Error code")
     message: str = Field(description="Human-readable error message")
-    value: Optional[Any] = Field(None, description="Value that caused the error")
+    value: Any | None = Field(None, description="Value that caused the error")
+
 
 class PaginationMeta(BaseModel):
     """Pagination metadata"""
+
     page: int = Field(..., ge=1, description="Current page number")
     size: int = Field(..., ge=1, le=1000, description="Items per page")
     total: int = Field(..., ge=0, description="Total number of items")
@@ -40,75 +47,94 @@ class PaginationMeta(BaseModel):
     has_next: bool = Field(description="Whether next page exists")
     has_prev: bool = Field(description="Whether previous page exists")
 
-    @validator('pages', always=True)
+    @validator("pages", always=True)
     def calculate_pages(cls, v, values):
-        total = values.get('total', 0)
-        size = values.get('size', 10)
+        total = values.get("total", 0)
+        size = values.get("size", 10)
         return (total + size - 1) // size if size > 0 else 0
 
-    @validator('has_next', always=True)
+    @validator("has_next", always=True)
     def calculate_has_next(cls, v, values):
-        page = values.get('page', 1)
-        pages = values.get('pages', 0)
+        page = values.get("page", 1)
+        pages = values.get("pages", 0)
         return page < pages
 
-    @validator('has_prev', always=True)
+    @validator("has_prev", always=True)
     def calculate_has_prev(cls, v, values):
-        page = values.get('page', 1)
+        page = values.get("page", 1)
         return page > 1
+
 
 class FilterMeta(BaseModel):
     """Filtering metadata"""
-    applied_filters: Dict[str, Any] = Field(default_factory=dict)
-    available_filters: Dict[str, Any] = Field(default_factory=dict)
-    sort_by: Optional[str] = Field(None, description="Current sort field")
-    sort_order: Optional[str] = Field(None, description="Current sort order (asc/desc)")
+
+    applied_filters: dict[str, Any] = Field(default_factory=dict)
+    available_filters: dict[str, Any] = Field(default_factory=dict)
+    sort_by: str | None = Field(None, description="Current sort field")
+    sort_order: str | None = Field(None, description="Current sort order (asc/desc)")
+
 
 class ResponseMeta(BaseModel):
     """Response metadata"""
-    request_id: Optional[str] = Field(None, description="Unique request identifier")
+
+    request_id: str | None = Field(None, description="Unique request identifier")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     version: str = Field(default="v1", description="API version")
-    pagination: Optional[PaginationMeta] = None
-    filters: Optional[FilterMeta] = None
-    performance: Optional[Dict[str, Any]] = Field(None, description="Performance metrics")
-    warnings: List[str] = Field(default_factory=list, description="Warning messages")
+    pagination: PaginationMeta | None = None
+    filters: FilterMeta | None = None
+    performance: dict[str, Any] | None = Field(None, description="Performance metrics")
+    warnings: list[str] = Field(default_factory=list, description="Warning messages")
+
 
 class APIResponse(BaseModel, Generic[T]):
     """Enhanced standard API response wrapper"""
+
     success: bool = Field(description="Whether the request was successful")
     status: ResponseStatus = Field(description="Response status")
-    message: Optional[str] = Field(None, description="Human-readable message")
-    data: Optional[T] = Field(None, description="Response data payload")
-    errors: List[ErrorDetail] = Field(default_factory=list, description="Detailed error information")
+    message: str | None = Field(None, description="Human-readable message")
+    data: T | None = Field(None, description="Response data payload")
+    errors: list[ErrorDetail] = Field(
+        default_factory=list, description="Detailed error information"
+    )
     meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Response metadata")
 
     class Config:
         use_enum_values = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
+
 
 class SuccessResponse(APIResponse[T]):
     """Successful response with automatic status"""
 
-    def __init__(self, data: T = None, message: str = "Operation successful",
-                 meta: Optional[ResponseMeta] = None, **kwargs):
+    def __init__(
+        self,
+        data: T = None,
+        message: str = "Operation successful",
+        meta: ResponseMeta | None = None,
+        **kwargs,
+    ):
         super().__init__(
             success=True,
             status=ResponseStatus.SUCCESS,
             data=data,
             message=message,
             meta=meta or ResponseMeta(),
-            **kwargs
+            **kwargs,
         )
+
 
 class ErrorResponse(APIResponse[T]):
     """Error response with detailed error information"""
 
-    def __init__(self, message: str, status: ResponseStatus = ResponseStatus.ERROR,
-                 error_code: str = None, errors: List[ErrorDetail] = None,
-                 meta: Optional[ResponseMeta] = None, **kwargs):
+    def __init__(
+        self,
+        message: str,
+        status: ResponseStatus = ResponseStatus.ERROR,
+        error_code: str = None,
+        errors: list[ErrorDetail] = None,
+        meta: ResponseMeta | None = None,
+        **kwargs,
+    ):
         if not errors:
             errors = [ErrorDetail(code=error_code or "UNKNOWN", message=message)]
 
@@ -118,25 +144,29 @@ class ErrorResponse(APIResponse[T]):
             message=message,
             errors=errors,
             meta=meta or ResponseMeta(),
-            **kwargs
+            **kwargs,
         )
+
 
 class ValidationErrorResponse(ErrorResponse[T]):
     """Validation error response"""
 
-    def __init__(self, errors: List[ErrorDetail], message: str = "Validation failed"):
-        super().__init__(
-            message=message,
-            status=ResponseStatus.VALIDATION_ERROR,
-            errors=errors
-        )
+    def __init__(self, errors: list[ErrorDetail], message: str = "Validation failed"):
+        super().__init__(message=message, status=ResponseStatus.VALIDATION_ERROR, errors=errors)
 
-class PaginatedResponse(APIResponse[List[T]]):
+
+class PaginatedResponse(APIResponse[list[T]]):
     """Enhanced paginated response"""
+
     pagination: PaginationMeta = Field(..., description="Pagination information")
 
-    def __init__(self, data: List[T], pagination: PaginationMeta,
-                 message: str = "Data retrieved successfully", **kwargs):
+    def __init__(
+        self,
+        data: list[T],
+        pagination: PaginationMeta,
+        message: str = "Data retrieved successfully",
+        **kwargs,
+    ):
         meta = ResponseMeta(pagination=pagination)
         super().__init__(
             success=True,
@@ -144,41 +174,38 @@ class PaginatedResponse(APIResponse[List[T]]):
             data=data,
             message=message,
             meta=meta,
-            **kwargs
+            **kwargs,
         )
+
 
 # Response factory functions for easy creation
 def create_success_response(
-    data: T = None,
-    message: str = "Operation successful",
-    meta: Optional[ResponseMeta] = None
+    data: T = None, message: str = "Operation successful", meta: ResponseMeta | None = None
 ) -> SuccessResponse[T]:
     """Create a success response"""
     return SuccessResponse(data=data, message=message, meta=meta)
+
 
 def create_error_response(
     message: str,
     status: ResponseStatus = ResponseStatus.ERROR,
     error_code: str = None,
-    errors: List[ErrorDetail] = None,
-    meta: Optional[ResponseMeta] = None
+    errors: list[ErrorDetail] = None,
+    meta: ResponseMeta | None = None,
 ) -> ErrorResponse[T]:
     """Create an error response"""
     return ErrorResponse(
-        message=message,
-        status=status,
-        error_code=error_code,
-        errors=errors,
-        meta=meta
+        message=message, status=status, error_code=error_code, errors=errors, meta=meta
     )
 
+
 def create_paginated_response(
-    data: List[T],
+    data: list[T],
     page: int,
     size: int,
     total: int,
     message: str = "Data retrieved successfully",
-    filters: Optional[FilterMeta] = None
+    filters: FilterMeta | None = None,
 ) -> PaginatedResponse[T]:
     """Create a paginated response"""
     pagination = PaginationMeta(page=page, size=size, total=total)

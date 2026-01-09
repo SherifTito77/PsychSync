@@ -4,43 +4,48 @@ Team Recommendation Engine
 Provides intelligent team composition recommendations using AI algorithms.
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-import numpy as np
 from dataclasses import dataclass
-import logging
 from datetime import datetime
-import json
+import logging
+from typing import Any
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class TeamMember:
     """Represents a team member with traits and skills"""
+
     id: int
     name: str
     role: str
-    traits: Dict[str, float]
-    skills: List[str]
-    experience_years: Optional[float] = None
+    traits: dict[str, float]
+    skills: list[str]
+    experience_years: float | None = None
     availability: float = 1.0
+
 
 @dataclass
 class TeamComposition:
     """Represents a recommended team composition"""
-    member_ids: List[int]
-    roles_distribution: Dict[str, int]
+
+    member_ids: list[int]
+    roles_distribution: dict[str, int]
     compatibility_score: float
     skill_coverage: float
     diversity_score: float
-    estimated_velocity: Optional[float] = None
-    strengths: List[str] = None
-    risks: List[str] = None
+    estimated_velocity: float | None = None
+    strengths: list[str] = None
+    risks: list[str] = None
 
     def __post_init__(self):
         if self.strengths is None:
             self.strengths = []
         if self.risks is None:
             self.risks = []
+
 
 class RecommendationEngine:
     """
@@ -55,52 +60,54 @@ class RecommendationEngine:
 
     def __init__(self):
         self.compatibility_weights = {
-            'openness_conscientiousness': 0.2,
-            'extraversion_extraversion': 0.3,
-            'agreeableness_neuroticism': 0.25,
-            'skill_complementarity': 0.25
+            "openness_conscientiousness": 0.2,
+            "extraversion_extraversion": 0.3,
+            "agreeableness_neuroticism": 0.25,
+            "skill_complementarity": 0.25,
         }
 
         # Industry-standard compatibility matrices for different roles
         self.role_compatibility = {
-            'developer': {
-                'developer': 0.8,  # Good collaboration
-                'designer': 0.9,   # Excellent collaboration
-                'pm': 0.7,         # Good collaboration
-                'qa': 0.8,         # Good collaboration
-                'devops': 0.9,     # Excellent collaboration
+            "developer": {
+                "developer": 0.8,  # Good collaboration
+                "designer": 0.9,  # Excellent collaboration
+                "pm": 0.7,  # Good collaboration
+                "qa": 0.8,  # Good collaboration
+                "devops": 0.9,  # Excellent collaboration
             },
-            'designer': {
-                'developer': 0.9,
-                'designer': 0.7,   # Creative tension can be good
-                'pm': 0.8,
-                'qa': 0.6,
-                'devops': 0.5,
+            "designer": {
+                "developer": 0.9,
+                "designer": 0.7,  # Creative tension can be good
+                "pm": 0.8,
+                "qa": 0.6,
+                "devops": 0.5,
             },
-            'pm': {
-                'developer': 0.7,
-                'designer': 0.8,
-                'pm': 0.6,         # Too many PMs can conflict
-                'qa': 0.8,
-                'devops': 0.7,
+            "pm": {
+                "developer": 0.7,
+                "designer": 0.8,
+                "pm": 0.6,  # Too many PMs can conflict
+                "qa": 0.8,
+                "devops": 0.7,
             },
-            'qa': {
-                'developer': 0.8,
-                'designer': 0.6,
-                'pm': 0.8,
-                'qa': 0.7,
-                'devops': 0.8,
+            "qa": {
+                "developer": 0.8,
+                "designer": 0.6,
+                "pm": 0.8,
+                "qa": 0.7,
+                "devops": 0.8,
             },
-            'devops': {
-                'developer': 0.9,
-                'designer': 0.5,
-                'pm': 0.7,
-                'qa': 0.8,
-                'devops': 0.8,
-            }
+            "devops": {
+                "developer": 0.9,
+                "designer": 0.5,
+                "pm": 0.7,
+                "qa": 0.8,
+                "devops": 0.8,
+            },
         }
 
-    def recommend_groups(self, members_data: List[Dict], objective: str = "maximize_performance") -> Dict[str, Any]:
+    def recommend_groups(
+        self, members_data: list[dict], objective: str = "maximize_performance"
+    ) -> dict[str, Any]:
         """
         Main entry point for team group recommendations
 
@@ -112,7 +119,9 @@ class RecommendationEngine:
             Dictionary with recommended groups and metadata
         """
         try:
-            logger.info(f"Generating team recommendations for {len(members_data)} members with objective: {objective}")
+            logger.info(
+                f"Generating team recommendations for {len(members_data)} members with objective: {objective}"
+            )
 
             # Convert data to TeamMember objects
             members = [self._dict_to_member(member) for member in members_data]
@@ -136,37 +145,37 @@ class RecommendationEngine:
             insights = self._generate_insights(recommendations, members, compatibility_matrix)
 
             result = {
-                'recommended_groups': [self._composition_to_dict(comp) for comp in recommendations],
-                'overall_score': recommendations[0].compatibility_score if recommendations else 0.0,
-                'insights': insights,
-                'metadata': {
-                    'algorithm': 'multi_objective_optimization',
-                    'total_candidates': len(members),
-                    'optimization_time': datetime.utcnow().isoformat(),
-                    'objective': objective
-                }
+                "recommended_groups": [self._composition_to_dict(comp) for comp in recommendations],
+                "overall_score": recommendations[0].compatibility_score if recommendations else 0.0,
+                "insights": insights,
+                "metadata": {
+                    "algorithm": "multi_objective_optimization",
+                    "total_candidates": len(members),
+                    "optimization_time": datetime.utcnow().isoformat(),
+                    "objective": objective,
+                },
             }
 
             logger.info(f"Generated {len(recommendations)} team recommendations")
             return result
 
         except Exception as e:
-            logger.error(f"Error in recommend_groups: {str(e)}", exc_info=True)
+            logger.error(f"Error in recommend_groups: {e!s}", exc_info=True)
             raise
 
-    def _dict_to_member(self, member_data: Dict) -> TeamMember:
+    def _dict_to_member(self, member_data: dict) -> TeamMember:
         """Convert dictionary to TeamMember object"""
         return TeamMember(
-            id=member_data['id'],
-            name=member_data['name'],
-            role=member_data.get('role', 'developer').lower(),
-            traits=member_data.get('traits', {}),
-            skills=member_data.get('skills', []),
-            experience_years=member_data.get('experience_years'),
-            availability=member_data.get('availability', 1.0)
+            id=member_data["id"],
+            name=member_data["name"],
+            role=member_data.get("role", "developer").lower(),
+            traits=member_data.get("traits", {}),
+            skills=member_data.get("skills", []),
+            experience_years=member_data.get("experience_years"),
+            availability=member_data.get("availability", 1.0),
         )
 
-    def _calculate_compatibility_matrix(self, members: List[TeamMember]) -> np.ndarray:
+    def _calculate_compatibility_matrix(self, members: list[TeamMember]) -> np.ndarray:
         """Calculate pairwise compatibility scores between all members"""
         n = len(members)
         matrix = np.zeros((n, n))
@@ -200,19 +209,25 @@ class RecommendationEngine:
 
         # Weighted combination
         total_score = (
-            personality_score * 0.35 +
-            role_score * 0.30 +
-            skill_score * 0.25 +
-            experience_score * 0.10
+            personality_score * 0.35
+            + role_score * 0.30
+            + skill_score * 0.25
+            + experience_score * 0.10
         )
 
         return min(max(total_score, 0.0), 1.0)
 
-    def _calculate_personality_compatibility(self, traits_a: Dict, traits_b: Dict) -> float:
+    def _calculate_personality_compatibility(self, traits_a: dict, traits_b: dict) -> float:
         """Calculate Big Five personality compatibility"""
 
         # Standard Big Five traits with proper names
-        big_five_traits = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism']
+        big_five_traits = [
+            "openness",
+            "conscientiousness",
+            "extraversion",
+            "agreeableness",
+            "neuroticism",
+        ]
 
         compatibility_score = 0.0
 
@@ -220,7 +235,7 @@ class RecommendationEngine:
             a_val = traits_a.get(trait, 0.5)
             b_val = traits_b.get(trait, 0.5)
 
-            if trait == 'neuroticism':
+            if trait == "neuroticism":
                 # Lower neuroticism is better, inverse relationship
                 compatibility_score += 1.0 - abs(a_val - b_val)
             else:
@@ -239,7 +254,7 @@ class RecommendationEngine:
         """Get predefined role compatibility score"""
         return self.role_compatibility.get(role_a, {}).get(role_b, 0.5)
 
-    def _calculate_skill_complementarity(self, skills_a: List[str], skills_b: List[str]) -> float:
+    def _calculate_skill_complementarity(self, skills_a: list[str], skills_b: list[str]) -> float:
         """Calculate how well skills complement each other"""
 
         if not skills_a or not skills_b:
@@ -270,9 +285,9 @@ class RecommendationEngine:
         else:
             overlap_score = 1.5 - overlap_ratio  # Too similar
 
-        return (overlap_score * 0.6 + unique_ratio * 0.4)
+        return overlap_score * 0.6 + unique_ratio * 0.4
 
-    def _calculate_experience_balance(self, exp_a: Optional[float], exp_b: Optional[float]) -> float:
+    def _calculate_experience_balance(self, exp_a: float | None, exp_b: float | None) -> float:
         """Calculate experience level balance"""
 
         if exp_a is None or exp_b is None:
@@ -283,12 +298,14 @@ class RecommendationEngine:
 
         if diff < 2:  # Similar experience levels
             return 0.7
-        elif diff < 5:  # Good mix
+        if diff < 5:  # Good mix
             return 1.0
-        else:  # Very different experience levels
-            return 0.6
+        # Very different experience levels
+        return 0.6
 
-    def _optimize_for_performance(self, members: List[TeamMember], compatibility_matrix: np.ndarray) -> List[TeamComposition]:
+    def _optimize_for_performance(
+        self, members: list[TeamMember], compatibility_matrix: np.ndarray
+    ) -> list[TeamComposition]:
         """Optimize team composition for maximum performance"""
 
         # For performance, we want high compatibility, good skill coverage, and experience balance
@@ -296,25 +313,30 @@ class RecommendationEngine:
 
         # Try different team sizes (3-8 members)
         for team_size in range(3, min(9, len(members) + 1)):
-            best_teams = self._find_best_teams(members, compatibility_matrix, team_size, 'performance')
+            best_teams = self._find_best_teams(
+                members, compatibility_matrix, team_size, "performance"
+            )
             recommendations.extend(best_teams[:2])  # Top 2 for each size
 
         # Sort by overall performance score
-        recommendations.sort(key=lambda x: (
-            x.compatibility_score * 0.4 +
-            x.skill_coverage * 0.4 +
-            x.diversity_score * 0.2
-        ), reverse=True)
+        recommendations.sort(
+            key=lambda x: (
+                x.compatibility_score * 0.4 + x.skill_coverage * 0.4 + x.diversity_score * 0.2
+            ),
+            reverse=True,
+        )
 
         return recommendations[:5]  # Return top 5 recommendations
 
-    def _optimize_for_harmony(self, members: List[TeamMember], compatibility_matrix: np.ndarray) -> List[TeamComposition]:
+    def _optimize_for_harmony(
+        self, members: list[TeamMember], compatibility_matrix: np.ndarray
+    ) -> list[TeamComposition]:
         """Optimize team composition for minimum conflicts"""
 
         recommendations = []
 
         for team_size in range(3, min(9, len(members) + 1)):
-            best_teams = self._find_best_teams(members, compatibility_matrix, team_size, 'harmony')
+            best_teams = self._find_best_teams(members, compatibility_matrix, team_size, "harmony")
             recommendations.extend(best_teams[:2])
 
         # Sort by compatibility score (highest harmony)
@@ -322,13 +344,17 @@ class RecommendationEngine:
 
         return recommendations[:5]
 
-    def _optimize_for_diversity(self, members: List[TeamMember], compatibility_matrix: np.ndarray) -> List[TeamComposition]:
+    def _optimize_for_diversity(
+        self, members: list[TeamMember], compatibility_matrix: np.ndarray
+    ) -> list[TeamComposition]:
         """Optimize team composition for diversity"""
 
         recommendations = []
 
         for team_size in range(3, min(9, len(members) + 1)):
-            best_teams = self._find_best_teams(members, compatibility_matrix, team_size, 'diversity')
+            best_teams = self._find_best_teams(
+                members, compatibility_matrix, team_size, "diversity"
+            )
             recommendations.extend(best_teams[:2])
 
         # Sort by diversity score
@@ -336,25 +362,37 @@ class RecommendationEngine:
 
         return recommendations[:5]
 
-    def _optimize_for_collaboration(self, members: List[TeamMember], compatibility_matrix: np.ndarray) -> List[TeamComposition]:
+    def _optimize_for_collaboration(
+        self, members: list[TeamMember], compatibility_matrix: np.ndarray
+    ) -> list[TeamComposition]:
         """Optimize team composition for collaboration"""
 
         recommendations = []
 
         for team_size in range(3, min(9, len(members) + 1)):
-            best_teams = self._find_best_teams(members, compatibility_matrix, team_size, 'collaboration')
+            best_teams = self._find_best_teams(
+                members, compatibility_matrix, team_size, "collaboration"
+            )
             recommendations.extend(best_teams[:2])
 
         # Sort by collaboration potential (mix of compatibility and role diversity)
-        recommendations.sort(key=lambda x: (
-            x.compatibility_score * 0.5 +
-            len(set(members[i].role for i in x.member_ids)) * 0.1  # Role diversity bonus
-        ), reverse=True)
+        recommendations.sort(
+            key=lambda x: (
+                x.compatibility_score * 0.5
+                + len(set(members[i].role for i in x.member_ids)) * 0.1  # Role diversity bonus
+            ),
+            reverse=True,
+        )
 
         return recommendations[:5]
 
-    def _find_best_teams(self, members: List[TeamMember], compatibility_matrix: np.ndarray,
-                        team_size: int, optimization_goal: str) -> List[TeamComposition]:
+    def _find_best_teams(
+        self,
+        members: list[TeamMember],
+        compatibility_matrix: np.ndarray,
+        team_size: int,
+        optimization_goal: str,
+    ) -> list[TeamComposition]:
         """Find best team compositions using combinatorial optimization"""
 
         best_teams = []
@@ -383,24 +421,33 @@ class RecommendationEngine:
                 skill_coverage=skill_coverage,
                 diversity_score=diversity,
                 strengths=self._identify_team_strengths(team_members),
-                risks=self._identify_team_risks(team_members)
+                risks=self._identify_team_risks(team_members),
             )
 
             best_teams.append(composition)
 
         # Sort based on optimization goal
-        if optimization_goal == 'performance':
-            best_teams.sort(key=lambda x: (x.compatibility_score * 0.4 + x.skill_coverage * 0.4 + x.diversity_score * 0.2), reverse=True)
-        elif optimization_goal == 'harmony':
+        if optimization_goal == "performance":
+            best_teams.sort(
+                key=lambda x: (
+                    x.compatibility_score * 0.4 + x.skill_coverage * 0.4 + x.diversity_score * 0.2
+                ),
+                reverse=True,
+            )
+        elif optimization_goal == "harmony":
             best_teams.sort(key=lambda x: x.compatibility_score, reverse=True)
-        elif optimization_goal == 'diversity':
+        elif optimization_goal == "diversity":
             best_teams.sort(key=lambda x: x.diversity_score, reverse=True)
         else:  # collaboration
-            best_teams.sort(key=lambda x: (x.compatibility_score * 0.6 + x.diversity_score * 0.4), reverse=True)
+            best_teams.sort(
+                key=lambda x: (x.compatibility_score * 0.6 + x.diversity_score * 0.4), reverse=True
+            )
 
         return best_teams
 
-    def _calculate_team_compatibility(self, member_indices: Tuple, compatibility_matrix: np.ndarray) -> float:
+    def _calculate_team_compatibility(
+        self, member_indices: tuple, compatibility_matrix: np.ndarray
+    ) -> float:
         """Calculate overall team compatibility"""
 
         if len(member_indices) < 2:
@@ -416,7 +463,7 @@ class RecommendationEngine:
 
         return total_compatibility / pair_count if pair_count > 0 else 0.0
 
-    def _calculate_skill_coverage(self, team_members: List[TeamMember]) -> float:
+    def _calculate_skill_coverage(self, team_members: list[TeamMember]) -> float:
         """Calculate how well the team covers required skills"""
 
         if not team_members:
@@ -442,7 +489,7 @@ class RecommendationEngine:
 
         return min(coverage + skill_abundance_bonus, 1.0)
 
-    def _calculate_diversity(self, team_members: List[TeamMember]) -> float:
+    def _calculate_diversity(self, team_members: list[TeamMember]) -> float:
         """Calculate team diversity across multiple dimensions"""
 
         if len(team_members) < 2:
@@ -482,7 +529,7 @@ class RecommendationEngine:
 
         return np.mean(diversity_scores) if diversity_scores else 0.0
 
-    def _identify_team_strengths(self, team_members: List[TeamMember]) -> List[str]:
+    def _identify_team_strengths(self, team_members: list[TeamMember]) -> list[str]:
         """Identify team strengths based on composition"""
 
         strengths = []
@@ -491,13 +538,13 @@ class RecommendationEngine:
         roles = [member.role for member in team_members]
         role_counts = {role: roles.count(role) for role in set(roles)}
 
-        if role_counts.get('developer', 0) >= 2:
+        if role_counts.get("developer", 0) >= 2:
             strengths.append("Strong development capability")
-        if role_counts.get('designer', 0) >= 1:
+        if role_counts.get("designer", 0) >= 1:
             strengths.append("Good design sensibility")
-        if role_counts.get('pm', 0) >= 1:
+        if role_counts.get("pm", 0) >= 1:
             strengths.append("Project management oversight")
-        if role_counts.get('qa', 0) >= 1:
+        if role_counts.get("qa", 0) >= 1:
             strengths.append("Quality assurance focus")
 
         # Experience-based strengths
@@ -517,19 +564,19 @@ class RecommendationEngine:
             all_skills.extend(member.skills)
 
         skill_categories = {
-            'frontend': ['react', 'vue', 'angular', 'css', 'html', 'javascript', 'typescript'],
-            'backend': ['python', 'java', 'node', 'go', 'rust', 'sql', 'nosql'],
-            'devops': ['docker', 'kubernetes', 'aws', 'azure', 'ci/cd', 'terraform'],
-            'mobile': ['ios', 'android', 'react-native', 'flutter', 'swift', 'kotlin'],
+            "frontend": ["react", "vue", "angular", "css", "html", "javascript", "typescript"],
+            "backend": ["python", "java", "node", "go", "rust", "sql", "nosql"],
+            "devops": ["docker", "kubernetes", "aws", "azure", "ci/cd", "terraform"],
+            "mobile": ["ios", "android", "react-native", "flutter", "swift", "kotlin"],
         }
 
         for category, keywords in skill_categories.items():
-            if any(keyword in ' '.join(all_skills).lower() for keyword in keywords):
+            if any(keyword in " ".join(all_skills).lower() for keyword in keywords):
                 strengths.append(f"Strong {category} capabilities")
 
         return strengths[:5]  # Return top 5 strengths
 
-    def _identify_team_risks(self, team_members: List[TeamMember]) -> List[str]:
+    def _identify_team_risks(self, team_members: list[TeamMember]) -> list[str]:
         """Identify potential team risks based on composition"""
 
         risks = []
@@ -538,11 +585,11 @@ class RecommendationEngine:
         roles = [member.role for member in team_members]
         role_counts = {role: roles.count(role) for role in set(roles)}
 
-        if role_counts.get('developer', 0) == 0:
+        if role_counts.get("developer", 0) == 0:
             risks.append("No developers on team")
-        if role_counts.get('designer', 0) == 0:
+        if role_counts.get("designer", 0) == 0:
             risks.append("No design expertise")
-        if role_counts.get('pm', 0) == 0:
+        if role_counts.get("pm", 0) == 0:
             risks.append("No dedicated project management")
 
         # Experience risks
@@ -570,8 +617,12 @@ class RecommendationEngine:
 
         return risks[:5]  # Return top 5 risks
 
-    def _generate_insights(self, recommendations: List[TeamComposition],
-                           members: List[TeamMember], compatibility_matrix: np.ndarray) -> List[str]:
+    def _generate_insights(
+        self,
+        recommendations: list[TeamComposition],
+        members: list[TeamMember],
+        compatibility_matrix: np.ndarray,
+    ) -> list[str]:
         """Generate insights about the recommendations"""
 
         insights = []
@@ -612,23 +663,27 @@ class RecommendationEngine:
 
         return insights[:4]  # Return top 4 insights
 
-    def _composition_to_dict(self, composition: TeamComposition) -> Dict[str, Any]:
+    def _composition_to_dict(self, composition: TeamComposition) -> dict[str, Any]:
         """Convert TeamComposition to dictionary"""
         return {
-            'member_ids': composition.member_ids,
-            'roles_distribution': composition.roles_distribution,
-            'compatibility_score': composition.compatibility_score,
-            'skill_coverage': composition.skill_coverage,
-            'diversity_score': composition.diversity_score,
-            'estimated_velocity': composition.estimated_velocity,
-            'strengths': composition.strengths,
-            'risks': composition.risks
+            "member_ids": composition.member_ids,
+            "roles_distribution": composition.roles_distribution,
+            "compatibility_score": composition.compatibility_score,
+            "skill_coverage": composition.skill_coverage,
+            "diversity_score": composition.diversity_score,
+            "estimated_velocity": composition.estimated_velocity,
+            "strengths": composition.strengths,
+            "risks": composition.risks,
         }
+
 
 # Singleton instance
 recommendation_engine = RecommendationEngine()
 
-def recommend_groups(members_data: List[Dict], objective: str = "maximize_performance") -> Dict[str, Any]:
+
+def recommend_groups(
+    members_data: list[dict], objective: str = "maximize_performance"
+) -> dict[str, Any]:
     """
     Convenience function for team group recommendations
 

@@ -1,8 +1,8 @@
 # app/api/v1/endpoints/assessments.py
 
 
-import logging
 from datetime import datetime
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -43,6 +43,7 @@ from app.schemas.assessment import Section as SectionSchema
 
 # ==================== SIMPLE SERVICE IMPLEMENTATIONS ====================
 
+
 class AssessmentService:
     """Simple placeholder service implementation for testing"""
 
@@ -57,7 +58,7 @@ class AssessmentService:
             "category": assessment_in.category,
             "status": "draft",
             "created_by_id": creator_id,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
     @staticmethod
@@ -134,12 +135,12 @@ class AssessmentService:
         """Get assessment responses"""
         return []
 
+
 # ==================== HELPER FUNCTIONS ====================
 
+
 async def get_assessment_or_404(
-    assessment_id: int,
-    db: AsyncSession,
-    current_user: User
+    assessment_id: int, db: AsyncSession, current_user: User
 ) -> Assessment:
     """Get assessment by ID or raise 404"""
     result = await db.execute(
@@ -152,15 +153,16 @@ async def get_assessment_or_404(
     if not assessment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Assessment with ID {assessment_id} not found"
+            detail=f"Assessment with ID {assessment_id} not found",
         )
 
     return assessment
 
+
 async def check_assessment_access(
     assessment_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ) -> Assessment:
     """Check if user has access to assessment (read access)"""
     assessment = await get_assessment_or_404(assessment_id, db, current_user)
@@ -169,21 +171,21 @@ async def check_assessment_access(
     # - User created the assessment
     # - Assessment is public
     # - User is in the same organization (simplified for now)
-    if (assessment.created_by_id == current_user.id or
-        assessment.is_public):
+    if assessment.created_by_id == current_user.id or assessment.is_public:
         return assessment
 
     # Could add more sophisticated team/organization checks here
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="You don't have permission to access this assessment"
+        detail="You don't have permission to access this assessment",
     )
+
 
 async def check_assessment_edit_permission(
     assessment_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ) -> Assessment:
     """
     Check if user has edit permission for assessment.
@@ -200,8 +202,9 @@ async def check_assessment_edit_permission(
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="You don't have permission to edit this assessment"
+        detail="You don't have permission to edit this assessment",
     )
+
 
 router = APIRouter(tags=["assessments"])
 logger = logging.getLogger(__name__)
@@ -220,7 +223,7 @@ async def get_assessments(
     search: str | None = Query(None, description="Search assessments by title or description"),
     category: str | None = Query(None, description="Filter by assessment category"),
     status: str | None = Query(None, description="Filter by status"),
-    created_by: int | None = Query(None, description="Filter by creator ID")
+    created_by: int | None = Query(None, description="Filter by creator ID"),
 ):
     """
     Get paginated list of assessments with filtering and sorting
@@ -241,8 +244,7 @@ async def get_assessments(
     if search:
         filter_params["search"] = search
         query = query.where(
-            Assessment.title.ilike(f"%{search}%") |
-            Assessment.description.ilike(f"%{search}%")
+            Assessment.title.ilike(f"%{search}%") | Assessment.description.ilike(f"%{search}%")
         )
 
     if category:
@@ -276,11 +278,13 @@ async def get_assessments(
         pagination=pagination,
         sort_params=sort_params,
         filter_params=filter_params,
-        message="Assessments retrieved successfully"
+        message="Assessments retrieved successfully",
     )
+
 
 # FIX 2: Removed the duplicate placeholder "list_assessments" functions.
 # The real one is below.
+
 
 # FIX 3: Changed path from "" to "/".
 # This is the main fix for the FastAPIError
@@ -290,7 +294,7 @@ async def get_assessments(
 async def create_assessment(
     assessment_in: AssessmentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create a new assessment template.
@@ -302,25 +306,19 @@ async def create_assessment(
     """
     try:
         assessment = AssessmentService.create(
-            db,
-            assessment_in=assessment_in,
-            creator_id=current_user.id
+            db, assessment_in=assessment_in, creator_id=current_user.id
         )
 
         return create_success_response(
             data=assessment,  # Service already returns a dict
-            message="Assessment created successfully"
+            message="Assessment created successfully",
         )
     except ValueError as e:
-        return create_error_response(
-            message=str(e),
-            error_code="VALIDATION_ERROR"
-        )
+        return create_error_response(message=str(e), error_code="VALIDATION_ERROR")
     except Exception as e:
         logger.error(f"Assessment creation failed: {e!s}")
         return create_error_response(
-            message="Failed to create assessment. Please try again.",
-            error_code="CREATION_FAILED"
+            message="Failed to create assessment. Please try again.", error_code="CREATION_FAILED"
         )
 
 
@@ -335,7 +333,7 @@ async def list_assessments(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     List assessments accessible to the current user.
@@ -347,12 +345,7 @@ async def list_assessments(
     """
     try:
         assessments = AssessmentService.get_user_assessments(
-            db,
-            user_id=current_user.id,
-            category=category,
-            status=status,
-            skip=skip,
-            limit=limit
+            db, user_id=current_user.id, category=category, status=status, skip=skip, limit=limit
         )
 
         return create_success_response(
@@ -360,16 +353,16 @@ async def list_assessments(
                 "assessments": [serialize_model(assessment) for assessment in assessments],
                 "total": len(assessments),
                 "skip": skip,
-                "limit": limit
+                "limit": limit,
             },
-            message="Assessments retrieved successfully"
+            message="Assessments retrieved successfully",
         )
     except Exception as e:
         logger.error(f"Assessment listing failed: {e!s}")
         return create_error_response(
             message="Failed to retrieve assessments. Please try again.",
             error_code="LIST_FAILED",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -377,8 +370,7 @@ async def list_assessments(
 @measure_performance
 @async_cached(expire=300, key_prefix="assessment_detail")  # ✅ ASYNC: Non-blocking cache
 async def get_assessment(
-    assessment: Assessment = Depends(check_assessment_access),
-    db: AsyncSession = Depends(get_db)
+    assessment: Assessment = Depends(check_assessment_access), db: AsyncSession = Depends(get_db)
 ):
     """
     Get assessment details with sections and questions.
@@ -397,40 +389,43 @@ async def get_assessment(
         assessment_data["question_count"] = question_count
 
         return create_success_response(
-            data=assessment_data,
-            message="Assessment retrieved successfully"
+            data=assessment_data, message="Assessment retrieved successfully"
         )
     except Exception as e:
         logger.error(f"Assessment retrieval failed: {e!s}")
         return create_error_response(
             message="Failed to retrieve assessment. Please try again.",
             error_code="RETRIEVAL_FAILED",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@router.put("/{assessment_id}", response_model=AssessmentSchema, dependencies=[Depends(get_current_user)])
+@router.put(
+    "/{assessment_id}", response_model=AssessmentSchema, dependencies=[Depends(get_current_user)]
+)
 def update_assessment(
     assessment_in: AssessmentUpdate,
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Update assessment details.
     Requires creator or team admin permission.
     """
     updated_assessment = AssessmentService.update(
-        db,
-        assessment=assessment,
-        assessment_in=assessment_in
+        db, assessment=assessment, assessment_in=assessment_in
     )
     return updated_assessment
 
 
-@router.delete("/{assessment_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])
+@router.delete(
+    "/{assessment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
 def delete_assessment(
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Delete assessment.
@@ -442,15 +437,14 @@ def delete_assessment(
 @router.post("/{assessment_id}/publish", response_model=AssessmentSchema)
 def publish_assessment(
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Publish assessment (change status to active).
     """
     if assessment.status.value == "active":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Assessment is already published"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Assessment is already published"
         )
 
     published_assessment = AssessmentService.publish(db, assessment=assessment)
@@ -460,7 +454,7 @@ def publish_assessment(
 @router.post("/{assessment_id}/archive", response_model=AssessmentSchema)
 def archive_assessment(
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Archive assessment.
@@ -469,49 +463,56 @@ def archive_assessment(
     return archived_assessment
 
 
-@router.post("/{assessment_id}/duplicate", response_model=AssessmentSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{assessment_id}/duplicate",
+    response_model=AssessmentSchema,
+    status_code=status.HTTP_201_CREATED,
+)
 def duplicate_assessment(
     assessment: Assessment = Depends(check_assessment_access),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Duplicate an existing assessment.
     """
     duplicated_assessment = AssessmentService.duplicate(
-        db,
-        assessment=assessment,
-        creator_id=current_user.id
+        db, assessment=assessment, creator_id=current_user.id
     )
     return duplicated_assessment
 
 
 # ==================== SECTION MANAGEMENT ====================
 
-@router.post("/{assessment_id}/sections", response_model=SectionSchema, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/{assessment_id}/sections", response_model=SectionSchema, status_code=status.HTTP_201_CREATED
+)
 def add_section(
     assessment_id: int,
     section_in: SectionCreate,
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Add a new section to the assessment.
     """
     section = AssessmentService.add_section(
-        db,
-        assessment_id=assessment_id,
-        section_data=section_in
+        db, assessment_id=assessment_id, section_data=section_in
     )
     return section
 
 
-@router.delete("/{assessment_id}/sections/{section_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])
+@router.delete(
+    "/{assessment_id}/sections/{section_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
 def delete_section(
     assessment_id: int,
     section_id: int,
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Delete a section from the assessment.
@@ -521,32 +522,37 @@ def delete_section(
 
 # ==================== QUESTION MANAGEMENT ====================
 
-@router.post("/{assessment_id}/sections/{section_id}/questions", response_model=QuestionSchema, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/{assessment_id}/sections/{section_id}/questions",
+    response_model=QuestionSchema,
+    status_code=status.HTTP_201_CREATED,
+)
 def add_question(
     assessment_id: int,
     section_id: int,
     question_in: QuestionCreate,
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Add a new question to a section.
     """
-    question = AssessmentService.add_question(
-        db,
-        section_id=section_id,
-        question_data=question_in
-    )
+    question = AssessmentService.add_question(db, section_id=section_id, question_data=question_in)
     return question
 
 
-@router.delete("/{assessment_id}/questions/{question_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])
+@router.delete(
+    "/{assessment_id}/questions/{question_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
 def delete_question(
     assessment_id: int,
     section_id: int,
-    question_id: int, # Added section_id here for consistency, though it wasn't used
+    question_id: int,  # Added section_id here for consistency, though it wasn't used
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Delete a question from the assessment.
@@ -556,13 +562,18 @@ def delete_question(
 
 # ==================== ASSIGNMENT MANAGEMENT ====================
 
-@router.post("/{assessment_id}/assignments", response_model=AssignmentSchema, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/{assessment_id}/assignments",
+    response_model=AssignmentSchema,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_assignment(
     assessment_id: int,
     assignment_in: AssignmentCreate,
     assessment: Assessment = Depends(check_assessment_access),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Assign assessment to a team or individual user.
@@ -570,8 +581,7 @@ def create_assignment(
     # Verify assessment is published
     if assessment.status.value != "active":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only assign published assessments"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Can only assign published assessments"
         )
 
     assignment = AssessmentService.create_assignment(
@@ -580,7 +590,7 @@ def create_assignment(
         team_id=assignment_in.team_id,
         user_id=assignment_in.assigned_to_user_id,
         assigned_by_id=current_user.id,
-        due_date=assignment_in.due_date
+        due_date=assignment_in.due_date,
     )
     return assignment
 
@@ -589,28 +599,29 @@ def create_assignment(
 def get_my_assignments(
     is_active: bool | None = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get assessments assigned to the current user.
     """
     assignments = AssessmentService.get_user_assignments(
-        db,
-        user_id=current_user.id,
-        is_active=is_active
+        db, user_id=current_user.id, is_active=is_active
     )
     return assignments
 
 
 # ==================== RESPONSE MANAGEMENT ====================
 
-@router.post("/{assessment_id}/responses", response_model=ResponseSchema, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/{assessment_id}/responses", response_model=ResponseSchema, status_code=status.HTTP_201_CREATED
+)
 def submit_response(
     assessment_id: int,
     response_in: ResponseSubmit,
     assessment: Assessment = Depends(check_assessment_access),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Submit a response to an assessment.
@@ -619,7 +630,7 @@ def submit_response(
     if assessment.status.value != "active":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only respond to published assessments"
+            detail="Can only respond to published assessments",
         )
 
     response = AssessmentService.create_response(
@@ -628,7 +639,7 @@ def submit_response(
         respondent_id=current_user.id if not assessment.allow_anonymous else None,
         assignment_id=response_in.assignment_id,
         responses=response_in.responses,
-        is_complete=response_in.is_complete
+        is_complete=response_in.is_complete,
     )
     return response
 
@@ -637,7 +648,7 @@ def submit_response(
 def get_assessment_responses(
     assessment_id: int,
     assessment: Assessment = Depends(check_assessment_edit_permission),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get all responses for an assessment.
@@ -648,6 +659,7 @@ def get_assessment_responses(
 
 
 # ==================== ASSESSMENT QUESTIONS ENDPOINTS ====================
+
 
 @router.get("/assessment-questions/mbti")
 async def get_mbti_assessment_questions():
@@ -671,8 +683,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Talk to many people, even strangers", "value": "E"},
-                            {"text": "Talk to a few people you know well", "value": "I"}
-                        ]
+                            {"text": "Talk to a few people you know well", "value": "I"},
+                        ],
                     },
                     {
                         "id": 2,
@@ -680,8 +692,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "Focus on reality and practical details", "value": "S"},
-                            {"text": "Imagine possibilities and explore ideas", "value": "N"}
-                        ]
+                            {"text": "Imagine possibilities and explore ideas", "value": "N"},
+                        ],
                     },
                     {
                         "id": 3,
@@ -689,8 +701,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "T-F",
                         "options": [
                             {"text": "Prioritize logic and objective analysis", "value": "T"},
-                            {"text": "Consider values and impact on people", "value": "F"}
-                        ]
+                            {"text": "Consider values and impact on people", "value": "F"},
+                        ],
                     },
                     {
                         "id": 4,
@@ -698,8 +710,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Planned and structured", "value": "J"},
-                            {"text": "Flexible and spontaneous", "value": "P"}
-                        ]
+                            {"text": "Flexible and spontaneous", "value": "P"},
+                        ],
                     },
                     {
                         "id": 5,
@@ -707,8 +719,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Being with people and social activities", "value": "E"},
-                            {"text": "Quiet time and reflection", "value": "I"}
-                        ]
+                            {"text": "Quiet time and reflection", "value": "I"},
+                        ],
                     },
                     {
                         "id": 6,
@@ -716,8 +728,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "What is actual and present", "value": "S"},
-                            {"text": "What could be and future possibilities", "value": "N"}
-                        ]
+                            {"text": "What could be and future possibilities", "value": "N"},
+                        ],
                     },
                     {
                         "id": 7,
@@ -725,8 +737,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "T-F",
                         "options": [
                             {"text": "Justice and fairness principles", "value": "T"},
-                            {"text": "Harmony and compassion", "value": "F"}
-                        ]
+                            {"text": "Harmony and compassion", "value": "F"},
+                        ],
                     },
                     {
                         "id": 8,
@@ -734,8 +746,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Planning and organization", "value": "J"},
-                            {"text": "Adaptability and keeping options open", "value": "P"}
-                        ]
+                            {"text": "Adaptability and keeping options open", "value": "P"},
+                        ],
                     },
                     {
                         "id": 9,
@@ -743,8 +755,11 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "Hands-on experience and practical application", "value": "S"},
-                            {"text": "Understanding theories and underlying principles", "value": "N"}
-                        ]
+                            {
+                                "text": "Understanding theories and underlying principles",
+                                "value": "N",
+                            },
+                        ],
                     },
                     {
                         "id": 10,
@@ -752,8 +767,11 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Speak up frequently and share ideas openly", "value": "E"},
-                            {"text": "Listen carefully and speak only when necessary", "value": "I"}
-                        ]
+                            {
+                                "text": "Listen carefully and speak only when necessary",
+                                "value": "I",
+                            },
+                        ],
                     },
                     {
                         "id": 11,
@@ -761,8 +779,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "T-F",
                         "options": [
                             {"text": "Logical consistency and objective facts", "value": "T"},
-                            {"text": "How it affects people and relationships", "value": "F"}
-                        ]
+                            {"text": "How it affects people and relationships", "value": "F"},
+                        ],
                     },
                     {
                         "id": 12,
@@ -770,8 +788,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Well-organized with clear deadlines", "value": "J"},
-                            {"text": "Flexible with room for creativity", "value": "P"}
-                        ]
+                            {"text": "Flexible with room for creativity", "value": "P"},
+                        ],
                     },
                     {
                         "id": 13,
@@ -779,8 +797,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "Factual and straightforward", "value": "S"},
-                            {"text": "Conceptual and theoretical", "value": "N"}
-                        ]
+                            {"text": "Conceptual and theoretical", "value": "N"},
+                        ],
                     },
                     {
                         "id": 14,
@@ -788,8 +806,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Socializing and interacting with others", "value": "E"},
-                            {"text": "Spending time alone in quiet activities", "value": "I"}
-                        ]
+                            {"text": "Spending time alone in quiet activities", "value": "I"},
+                        ],
                     },
                     {
                         "id": 15,
@@ -797,8 +815,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "T-F",
                         "options": [
                             {"text": "Be direct and objective about improvements", "value": "T"},
-                            {"text": "Be encouraging and consider feelings", "value": "F"}
-                        ]
+                            {"text": "Be encouraging and consider feelings", "value": "F"},
+                        ],
                     },
                     {
                         "id": 16,
@@ -806,8 +824,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Well in advance with detailed schedules", "value": "J"},
-                            {"text": "Spontaneously as situations arise", "value": "P"}
-                        ]
+                            {"text": "Spontaneously as situations arise", "value": "P"},
+                        ],
                     },
                     {
                         "id": 17,
@@ -815,8 +833,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "Concrete and proven through experience", "value": "S"},
-                            {"text": "Based on patterns and intuitive insights", "value": "N"}
-                        ]
+                            {"text": "Based on patterns and intuitive insights", "value": "N"},
+                        ],
                     },
                     {
                         "id": 18,
@@ -824,17 +842,26 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Actively participate and lead discussions", "value": "E"},
-                            {"text": "Observe and contribute when you have something valuable", "value": "I"}
-                        ]
+                            {
+                                "text": "Observe and contribute when you have something valuable",
+                                "value": "I",
+                            },
+                        ],
                     },
                     {
                         "id": 19,
                         "question_text": "You approach conflicts by:",
                         "dimension": "T-F",
                         "options": [
-                            {"text": "Analyzing the facts logically to find the truth", "value": "T"},
-                            {"text": "Considering everyone's feelings and finding compromise", "value": "F"}
-                        ]
+                            {
+                                "text": "Analyzing the facts logically to find the truth",
+                                "value": "T",
+                            },
+                            {
+                                "text": "Considering everyone's feelings and finding compromise",
+                                "value": "F",
+                            },
+                        ],
                     },
                     {
                         "id": 20,
@@ -842,17 +869,23 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Organized, tidy, and systematic", "value": "J"},
-                            {"text": "Flexible and creatively arranged", "value": "P"}
-                        ]
+                            {"text": "Flexible and creatively arranged", "value": "P"},
+                        ],
                     },
                     {
                         "id": 21,
                         "question_text": "When traveling, you prefer to:",
                         "dimension": "S-N",
                         "options": [
-                            {"text": "Follow a detailed itinerary and planned activities", "value": "S"},
-                            {"text": "Explore freely and follow spontaneous interests", "value": "N"}
-                        ]
+                            {
+                                "text": "Follow a detailed itinerary and planned activities",
+                                "value": "S",
+                            },
+                            {
+                                "text": "Explore freely and follow spontaneous interests",
+                                "value": "N",
+                            },
+                        ],
                     },
                     {
                         "id": 22,
@@ -860,8 +893,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Lively with lots of interaction", "value": "E"},
-                            {"text": "Intimate with deep one-on-one conversations", "value": "I"}
-                        ]
+                            {"text": "Intimate with deep one-on-one conversations", "value": "I"},
+                        ],
                     },
                     {
                         "id": 23,
@@ -869,8 +902,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "T-F",
                         "options": [
                             {"text": "Impersonal criteria and universal principles", "value": "T"},
-                            {"text": "Personal values and impact on individuals", "value": "F"}
-                        ]
+                            {"text": "Personal values and impact on individuals", "value": "F"},
+                        ],
                     },
                     {
                         "id": 24,
@@ -878,8 +911,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Early completion and time to spare", "value": "J"},
-                            {"text": "Last-minute energy under pressure", "value": "P"}
-                        ]
+                            {"text": "Last-minute energy under pressure", "value": "P"},
+                        ],
                     },
                     {
                         "id": 25,
@@ -887,8 +920,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "Practical skills and real-world applications", "value": "S"},
-                            {"text": "Theoretical concepts and abstract ideas", "value": "N"}
-                        ]
+                            {"text": "Theoretical concepts and abstract ideas", "value": "N"},
+                        ],
                     },
                     {
                         "id": 26,
@@ -896,8 +929,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Go out and socialize with friends", "value": "E"},
-                            {"text": "Stay home and recharge with quiet activities", "value": "I"}
-                        ]
+                            {"text": "Stay home and recharge with quiet activities", "value": "I"},
+                        ],
                     },
                     {
                         "id": 27,
@@ -905,8 +938,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "T-F",
                         "options": [
                             {"text": "Applied consistently and logically", "value": "T"},
-                            {"text": "Flexible based on individual circumstances", "value": "F"}
-                        ]
+                            {"text": "Flexible based on individual circumstances", "value": "F"},
+                        ],
                     },
                     {
                         "id": 28,
@@ -914,8 +947,11 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Completely before moving to the next", "value": "J"},
-                            {"text": "When inspiration strikes or deadlines approach", "value": "P"}
-                        ]
+                            {
+                                "text": "When inspiration strikes or deadlines approach",
+                                "value": "P",
+                            },
+                        ],
                     },
                     {
                         "id": 29,
@@ -923,8 +959,8 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "Specific details and observable facts", "value": "S"},
-                            {"text": "Underlying patterns and meanings", "value": "N"}
-                        ]
+                            {"text": "Underlying patterns and meanings", "value": "N"},
+                        ],
                     },
                     {
                         "id": 30,
@@ -932,11 +968,11 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Think out loud and process verbally", "value": "E"},
-                            {"text": "Process internally before sharing conclusions", "value": "I"}
-                        ]
-                    }
-                ]
-            }
+                            {"text": "Process internally before sharing conclusions", "value": "I"},
+                        ],
+                    },
+                ],
+            },
         }
         return mbti_assessment
     except Exception as e:
@@ -966,8 +1002,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type1"},
                             {"text": "Somewhat true", "value": "type1_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 2,
@@ -976,8 +1012,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type2"},
                             {"text": "Somewhat true", "value": "type2_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 3,
@@ -986,8 +1022,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type3"},
                             {"text": "Somewhat true", "value": "type3_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 4,
@@ -996,8 +1032,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type4"},
                             {"text": "Somewhat true", "value": "type4_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 5,
@@ -1006,8 +1042,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type5"},
                             {"text": "Somewhat true", "value": "type5_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 6,
@@ -1016,8 +1052,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type6"},
                             {"text": "Somewhat true", "value": "type6_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 7,
@@ -1026,8 +1062,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type7"},
                             {"text": "Somewhat true", "value": "type7_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 8,
@@ -1036,8 +1072,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type8"},
                             {"text": "Somewhat true", "value": "type8_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 9,
@@ -1046,8 +1082,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type9"},
                             {"text": "Somewhat true", "value": "type9_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 10,
@@ -1056,8 +1092,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type1"},
                             {"text": "Somewhat true", "value": "type1_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 11,
@@ -1066,8 +1102,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type2"},
                             {"text": "Somewhat true", "value": "type2_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 12,
@@ -1076,8 +1112,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type3"},
                             {"text": "Somewhat true", "value": "type3_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 13,
@@ -1086,8 +1122,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type4"},
                             {"text": "Somewhat true", "value": "type4_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 14,
@@ -1096,8 +1132,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type5"},
                             {"text": "Somewhat true", "value": "type5_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 15,
@@ -1106,8 +1142,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type6"},
                             {"text": "Somewhat true", "value": "type6_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 16,
@@ -1116,8 +1152,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type7"},
                             {"text": "Somewhat true", "value": "type7_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 17,
@@ -1126,8 +1162,8 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type8"},
                             {"text": "Somewhat true", "value": "type8_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
+                            {"text": "Not very true", "value": "other"},
+                        ],
                     },
                     {
                         "id": 18,
@@ -1136,11 +1172,11 @@ async def get_enneagram_assessment_questions():
                         "options": [
                             {"text": "Very true", "value": "type9"},
                             {"text": "Somewhat true", "value": "type9_moderate"},
-                            {"text": "Not very true", "value": "other"}
-                        ]
-                    }
-                ]
-            }
+                            {"text": "Not very true", "value": "other"},
+                        ],
+                    },
+                ],
+            },
         }
         return enneagram_assessment
     except Exception as e:
@@ -1173,8 +1209,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 2,
@@ -1186,8 +1222,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 3,
@@ -1199,8 +1235,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 4,
@@ -1212,8 +1248,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 5,
@@ -1225,8 +1261,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 6,
@@ -1238,8 +1274,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 7,
@@ -1251,8 +1287,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 8,
@@ -1264,8 +1300,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 9,
@@ -1277,8 +1313,8 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
                     },
                     {
                         "id": 10,
@@ -1290,11 +1326,11 @@ async def get_big_five_assessment_questions():
                             {"text": "Disagree", "value": 2},
                             {"text": "Neutral", "value": 3},
                             {"text": "Agree", "value": 4},
-                            {"text": "Strongly Agree", "value": 5}
-                        ]
-                    }
-                ]
-            }
+                            {"text": "Strongly Agree", "value": 5},
+                        ],
+                    },
+                ],
+            },
         }
         return big_five_assessment
     except Exception as e:
@@ -1325,8 +1361,8 @@ async def get_disc_assessment_questions():
                             {"text": "Direct and assertive", "value": "D"},
                             {"text": "Optimistic and friendly", "value": "I"},
                             {"text": "Patient and reliable", "value": "S"},
-                            {"text": "Analytical and precise", "value": "C"}
-                        ]
+                            {"text": "Analytical and precise", "value": "C"},
+                        ],
                     },
                     {
                         "id": 2,
@@ -1336,8 +1372,8 @@ async def get_disc_assessment_questions():
                             {"text": "Take immediate action", "value": "D"},
                             {"text": "Involve others for solutions", "value": "I"},
                             {"text": "Maintain stability and support", "value": "S"},
-                            {"text": "Analyze all details first", "value": "C"}
-                        ]
+                            {"text": "Analyze all details first", "value": "C"},
+                        ],
                     },
                     {
                         "id": 3,
@@ -1347,8 +1383,8 @@ async def get_disc_assessment_questions():
                             {"text": "Bold and straightforward", "value": "D"},
                             {"text": "Enthusiastic and inspiring", "value": "I"},
                             {"text": "Calm and supportive", "value": "S"},
-                            {"text": "Logical and detailed", "value": "C"}
-                        ]
+                            {"text": "Logical and detailed", "value": "C"},
+                        ],
                     },
                     {
                         "id": 4,
@@ -1358,8 +1394,8 @@ async def get_disc_assessment_questions():
                             {"text": "Decide quickly and act", "value": "D"},
                             {"text": "Consider impact on people", "value": "I"},
                             {"text": "Take time to decide", "value": "S"},
-                            {"text": "Research thoroughly first", "value": "C"}
-                        ]
+                            {"text": "Research thoroughly first", "value": "C"},
+                        ],
                     },
                     {
                         "id": 5,
@@ -1369,8 +1405,8 @@ async def get_disc_assessment_questions():
                             {"text": "Confront it directly", "value": "D"},
                             {"text": "Try to smooth things over", "value": "I"},
                             {"text": "Avoid confrontation", "value": "S"},
-                            {"text": "Analyze the causes", "value": "C"}
-                        ]
+                            {"text": "Analyze the causes", "value": "C"},
+                        ],
                     },
                     {
                         "id": 6,
@@ -1380,8 +1416,8 @@ async def get_disc_assessment_questions():
                             {"text": "Lead and direct others", "value": "D"},
                             {"text": "Inspire and motivate people", "value": "I"},
                             {"text": "Support and help the team", "value": "S"},
-                            {"text": "Focus on accuracy and quality", "value": "C"}
-                        ]
+                            {"text": "Focus on accuracy and quality", "value": "C"},
+                        ],
                     },
                     {
                         "id": 7,
@@ -1391,8 +1427,8 @@ async def get_disc_assessment_questions():
                             {"text": "Work intensely to finish early", "value": "D"},
                             {"text": "Rely on last-minute energy", "value": "I"},
                             {"text": "Plan and work steadily", "value": "S"},
-                            {"text": "Need extra time for perfection", "value": "C"}
-                        ]
+                            {"text": "Need extra time for perfection", "value": "C"},
+                        ],
                     },
                     {
                         "id": 8,
@@ -1402,11 +1438,11 @@ async def get_disc_assessment_questions():
                             {"text": "Defend my position", "value": "D"},
                             {"text": "Take it personally at first", "value": "I"},
                             {"text": "Accept it quietly", "value": "S"},
-                            {"text": "Want detailed explanations", "value": "C"}
-                        ]
-                    }
-                ]
-            }
+                            {"text": "Want detailed explanations", "value": "C"},
+                        ],
+                    },
+                ],
+            },
         }
         return disc_assessment
     except Exception as e:
@@ -1437,8 +1473,8 @@ async def get_predictive_index_assessment_questions():
                             {"text": "Analytical", "value": "A"},
                             {"text": "Social", "value": "B"},
                             {"text": "Patient", "value": "C"},
-                            {"text": "Formal", "value": "D"}
-                        ]
+                            {"text": "Formal", "value": "D"},
+                        ],
                     },
                     {
                         "id": 2,
@@ -1448,8 +1484,8 @@ async def get_predictive_index_assessment_questions():
                             {"text": "Analytical", "value": "A"},
                             {"text": "Social", "value": "B"},
                             {"text": "Patient", "value": "C"},
-                            {"text": "Formal", "value": "D"}
-                        ]
+                            {"text": "Formal", "value": "D"},
+                        ],
                     },
                     {
                         "id": 3,
@@ -1459,8 +1495,8 @@ async def get_predictive_index_assessment_questions():
                             {"text": "Driving", "value": "A"},
                             {"text": "Warm", "value": "B"},
                             {"text": "Peaceful", "value": "C"},
-                            {"text": "Precise", "value": "D"}
-                        ]
+                            {"text": "Precise", "value": "D"},
+                        ],
                     },
                     {
                         "id": 4,
@@ -1470,8 +1506,8 @@ async def get_predictive_index_assessment_questions():
                             {"text": "Driving", "value": "A"},
                             {"text": "Warm", "value": "B"},
                             {"text": "Peaceful", "value": "C"},
-                            {"text": "Precise", "value": "D"}
-                        ]
+                            {"text": "Precise", "value": "D"},
+                        ],
                     },
                     {
                         "id": 5,
@@ -1481,8 +1517,8 @@ async def get_predictive_index_assessment_questions():
                             {"text": "Forceful", "value": "A"},
                             {"text": "Empathetic", "value": "B"},
                             {"text": "Consistent", "value": "C"},
-                            {"text": "Structured", "value": "D"}
-                        ]
+                            {"text": "Structured", "value": "D"},
+                        ],
                     },
                     {
                         "id": 6,
@@ -1492,11 +1528,11 @@ async def get_predictive_index_assessment_questions():
                             {"text": "Forceful", "value": "A"},
                             {"text": "Empathetic", "value": "B"},
                             {"text": "Consistent", "value": "C"},
-                            {"text": "Structured", "value": "D"}
-                        ]
-                    }
-                ]
-            }
+                            {"text": "Structured", "value": "D"},
+                        ],
+                    },
+                ],
+            },
         }
         return predictive_index_assessment
     except Exception as e:
@@ -1527,8 +1563,8 @@ async def get_social_styles_assessment_questions():
                             {"text": "Direct and fast-paced", "value": "Driver"},
                             {"text": "Direct and slower-paced", "value": "Analytical"},
                             {"text": "Indirect and slower-paced", "value": "Amiable"},
-                            {"text": "Indirect and fast-paced", "value": "Expressive"}
-                        ]
+                            {"text": "Indirect and fast-paced", "value": "Expressive"},
+                        ],
                     },
                     {
                         "id": 2,
@@ -1538,8 +1574,8 @@ async def get_social_styles_assessment_questions():
                             {"text": "Focus on results and efficiency", "value": "Driver"},
                             {"text": "Focus on facts and details", "value": "Analytical"},
                             {"text": "Focus on relationships and harmony", "value": "Amiable"},
-                            {"text": "Focus on ideas and enthusiasm", "value": "Expressive"}
-                        ]
+                            {"text": "Focus on ideas and enthusiasm", "value": "Expressive"},
+                        ],
                     },
                     {
                         "id": 3,
@@ -1549,8 +1585,8 @@ async def get_social_styles_assessment_questions():
                             {"text": "Quick decisions based on logic", "value": "Driver"},
                             {"text": "Careful analysis of all options", "value": "Analytical"},
                             {"text": "Considering everyone's feelings", "value": "Amiable"},
-                            {"text": "Trusting my intuition and vision", "value": "Expressive"}
-                        ]
+                            {"text": "Trusting my intuition and vision", "value": "Expressive"},
+                        ],
                     },
                     {
                         "id": 4,
@@ -1560,8 +1596,8 @@ async def get_social_styles_assessment_questions():
                             {"text": "Brief and to the point", "value": "Driver"},
                             {"text": "Detailed and thorough", "value": "Analytical"},
                             {"text": "Supportive and listening", "value": "Amiable"},
-                            {"text": "Animated and storytelling", "value": "Expressive"}
-                        ]
+                            {"text": "Animated and storytelling", "value": "Expressive"},
+                        ],
                     },
                     {
                         "id": 5,
@@ -1571,8 +1607,8 @@ async def get_social_styles_assessment_questions():
                             {"text": "Address it head-on", "value": "Driver"},
                             {"text": "Analyze the situation first", "value": "Analytical"},
                             {"text": "Try to maintain harmony", "value": "Amiable"},
-                            {"text": "Express my feelings openly", "value": "Expressive"}
-                        ]
+                            {"text": "Express my feelings openly", "value": "Expressive"},
+                        ],
                     },
                     {
                         "id": 6,
@@ -1582,8 +1618,8 @@ async def get_social_styles_assessment_questions():
                             {"text": "Independently with clear goals", "value": "Driver"},
                             {"text": "Alone with detailed instructions", "value": "Analytical"},
                             {"text": "In a supportive team environment", "value": "Amiable"},
-                            {"text": "With people and variety", "value": "Expressive"}
-                        ]
+                            {"text": "With people and variety", "value": "Expressive"},
+                        ],
                     },
                     {
                         "id": 7,
@@ -1593,8 +1629,8 @@ async def get_social_styles_assessment_questions():
                             {"text": "Want it direct and actionable", "value": "Driver"},
                             {"text": "Appreciate data and specifics", "value": "Analytical"},
                             {"text": "Need reassurance and support", "value": "Amiable"},
-                            {"text": "Prefer positive recognition", "value": "Expressive"}
-                        ]
+                            {"text": "Prefer positive recognition", "value": "Expressive"},
+                        ],
                     },
                     {
                         "id": 8,
@@ -1604,11 +1640,11 @@ async def get_social_styles_assessment_questions():
                             {"text": "Time-conscious and efficient", "value": "Driver"},
                             {"text": "Plan ahead and stick to schedule", "value": "Analytical"},
                             {"text": "Flexible and accommodating", "value": "Amiable"},
-                            {"text": "Spontaneous and energetic", "value": "Expressive"}
-                        ]
-                    }
-                ]
-            }
+                            {"text": "Spontaneous and energetic", "value": "Expressive"},
+                        ],
+                    },
+                ],
+            },
         }
         return social_styles_assessment
     except Exception as e:
@@ -1636,9 +1672,15 @@ async def get_strengthsfinder_assessment_questions():
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I can quickly sense what others are feeling", "value": "Empathy"},
-                            {"text": "I enjoy thinking about complex problems", "value": "Analytical"}
-                        ]
+                            {
+                                "text": "I can quickly sense what others are feeling",
+                                "value": "Empathy",
+                            },
+                            {
+                                "text": "I enjoy thinking about complex problems",
+                                "value": "Analytical",
+                            },
+                        ],
                     },
                     {
                         "id": 2,
@@ -1646,8 +1688,8 @@ async def get_strengthsfinder_assessment_questions():
                         "type": "paired-choice",
                         "options": [
                             {"text": "I love to start new projects", "value": "Activator"},
-                            {"text": "I work hard to complete what I start", "value": "Focus"}
-                        ]
+                            {"text": "I work hard to complete what I start", "value": "Focus"},
+                        ],
                     },
                     {
                         "id": 3,
@@ -1655,26 +1697,35 @@ async def get_strengthsfinder_assessment_questions():
                         "type": "paired-choice",
                         "options": [
                             {"text": "I enjoy being the center of attention", "value": "Woo"},
-                            {"text": "I prefer deep one-on-one conversations", "value": "Individualization"}
-                        ]
+                            {
+                                "text": "I prefer deep one-on-one conversations",
+                                "value": "Individualization",
+                            },
+                        ],
                     },
                     {
                         "id": 4,
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I am always looking for ways to improve", "value": "Maximizer"},
-                            {"text": "I am satisfied with good enough", "value": "Consistency"}
-                        ]
+                            {
+                                "text": "I am always looking for ways to improve",
+                                "value": "Maximizer",
+                            },
+                            {"text": "I am satisfied with good enough", "value": "Consistency"},
+                        ],
                     },
                     {
                         "id": 5,
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I need to understand the 'why' before acting", "value": "Analytical"},
-                            {"text": "I trust my instincts and act quickly", "value": "Activator"}
-                        ]
+                            {
+                                "text": "I need to understand the 'why' before acting",
+                                "value": "Analytical",
+                            },
+                            {"text": "I trust my instincts and act quickly", "value": "Activator"},
+                        ],
                     },
                     {
                         "id": 6,
@@ -1682,17 +1733,26 @@ async def get_strengthsfinder_assessment_questions():
                         "type": "paired-choice",
                         "options": [
                             {"text": "I set ambitious goals for myself", "value": "Achiever"},
-                            {"text": "I go with the flow and adapt easily", "value": "Adaptability"}
-                        ]
+                            {
+                                "text": "I go with the flow and adapt easily",
+                                "value": "Adaptability",
+                            },
+                        ],
                     },
                     {
                         "id": 7,
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I enjoy organizing people and resources", "value": "Arranger"},
-                            {"text": "I enjoy thinking strategically about the future", "value": "Strategic"}
-                        ]
+                            {
+                                "text": "I enjoy organizing people and resources",
+                                "value": "Arranger",
+                            },
+                            {
+                                "text": "I enjoy thinking strategically about the future",
+                                "value": "Strategic",
+                            },
+                        ],
                     },
                     {
                         "id": 8,
@@ -1700,8 +1760,11 @@ async def get_strengthsfinder_assessment_questions():
                         "type": "paired-choice",
                         "options": [
                             {"text": "I believe everyone has potential", "value": "Developer"},
-                            {"text": "I recognize and celebrate others' achievements", "value": "Positivity"}
-                        ]
+                            {
+                                "text": "I recognize and celebrate others' achievements",
+                                "value": "Positivity",
+                            },
+                        ],
                     },
                     {
                         "id": 9,
@@ -1709,8 +1772,11 @@ async def get_strengthsfinder_assessment_questions():
                         "type": "paired-choice",
                         "options": [
                             {"text": "I confidently take charge of situations", "value": "Command"},
-                            {"text": "I build trust through consistency", "value": "Responsibility"}
-                        ]
+                            {
+                                "text": "I build trust through consistency",
+                                "value": "Responsibility",
+                            },
+                        ],
                     },
                     {
                         "id": 10,
@@ -1718,11 +1784,11 @@ async def get_strengthsfinder_assessment_questions():
                         "type": "paired-choice",
                         "options": [
                             {"text": "I learn for the joy of learning", "value": "Learner"},
-                            {"text": "I love to share what I've learned", "value": "Input"}
-                        ]
-                    }
-                ]
-            }
+                            {"text": "I love to share what I've learned", "value": "Input"},
+                        ],
+                    },
+                ],
+            },
         }
         return strengthsfinder_assessment
     except Exception as e:

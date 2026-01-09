@@ -28,10 +28,7 @@ Version: 2.0 Enterprise Security
 from .base_repository import BaseRepository
 from .user_repository import UserRepository
 
-__all__ = [
-    "BaseRepository",
-    "UserRepository"
-]
+__all__ = ["BaseRepository", "UserRepository"]
 
 # Package information
 __version__ = "2.0.0"

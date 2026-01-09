@@ -2,10 +2,13 @@
 """
 CSRF Token Endpoint for API Protection
 """
-from fastapi import APIRouter, Response
+
 import secrets
 
+from fastapi import APIRouter
+
 router = APIRouter()
+
 
 @router.get("/token")
 async def get_csrf_token():

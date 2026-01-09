@@ -4,13 +4,14 @@ Improved API router for PsychSync AI v1 endpoints
 Clean, modular endpoint inclusion with proper error handling
 """
 
-from fastapi import APIRouter
-from typing import Optional, List
 import logging
+
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
-def safe_import_endpoint(module_name: str) -> Optional[APIRouter]:
+
+def safe_import_endpoint(module_name: str) -> APIRouter | None:
     """Safely import an endpoint module with proper error handling"""
     try:
         module = __import__(f"app.api.v1.endpoints.{module_name}", fromlist=[module_name])
@@ -27,6 +28,7 @@ def safe_import_endpoint(module_name: str) -> Optional[APIRouter]:
         logger.error(f"Unexpected error importing endpoint {module_name}: {e}")
         return None
 
+
 # Core endpoints (always required)
 CORE_ENDPOINTS = [
     # SECURITY: standalone_auth disabled - backdoor endpoint allowing any login
@@ -40,9 +42,10 @@ CORE_ENDPOINTS = [
     # "dns_security",  # ❌ invalid syntax at line 86
     # "security_monitoring",  # ❌ invalid syntax at line 193
     "security_monitoring_public",  # ✅ NEW: Security monitoring dashboard API
-    "auth",  # ✅ Replaced with fixed secure authentication
+    "auth_unified",  # ✅ NEW: Unified auth with MFA support (replaces auth.py)
+    # "auth",  # ⚠️ TEMPORARILY DISABLED - Using auth_unified instead
     "health",  # ✅ Health check endpoint
-    "two_factor_auth",  # ✅ Two-factor authentication (2FA/TOTP)
+    # "two_factor_auth",  # ⚠️ DISABLED - MFA now integrated in auth_unified
     # "database_security"  # TEMPORARILY DISABLED - has syntax error on line 306
 ]
 
@@ -62,7 +65,7 @@ FEATURE_ENDPOINTS = [
     "assessments",
     "responses",
     "ai_analytics",  # NEW: AI-enhanced analytics endpoints
-    "ai_monitoring", # NEW: AI engine monitoring endpoints
+    "ai_monitoring",  # NEW: AI engine monitoring endpoints
     "gdpr",  # GDPR compliance endpoints
     # Temporarily disabled potentially problematic endpoints:
     # "teams",
@@ -88,9 +91,9 @@ FEATURE_ENDPOINTS = [
 
 # Separated Service Areas (NEW: Five distinct service areas)
 SEPARATED_SERVICE_ENDPOINTS = [
-    "personality_assessments",     # MBTI, Enneagram, Big Five, etc.
+    "personality_assessments",  # MBTI, Enneagram, Big Five, etc.
     # "behavioral_analysis",         # Behavioral patterns, anomaly detection - temporarily disabled due to import issues
-    "clinical_assessments",        # Mental health screening, wellness
+    "clinical_assessments",  # Mental health screening, wellness
     # "email_connector",            # Email integration and analytics - temporarily disabled due to missing schemas
     # "hris_connector",             # HR system integration and workforce analytics - temporarily disabled due to syntax errors
     # Temporarily disabled new analytics:
@@ -98,12 +101,10 @@ SEPARATED_SERVICE_ENDPOINTS = [
 ]
 
 # Create the main API router
-api_router = APIRouter(
-    prefix="/api/v1",
-    tags=["PsychSync API v1"]
-)
+api_router = APIRouter(prefix="/api/v1", tags=["PsychSync API v1"])
 
-def register_endpoints(router: APIRouter, endpoints: List[str], required: bool = True) -> None:
+
+def register_endpoints(router: APIRouter, endpoints: list[str], required: bool = True) -> None:
     """Register endpoints with the main router"""
     failed_imports = []
 
@@ -118,6 +119,7 @@ def register_endpoints(router: APIRouter, endpoints: List[str], required: bool =
         error_msg = f"Failed to import required endpoints: {', '.join(failed_imports)}"
         logger.error(error_msg)
         raise ImportError(error_msg)
+
 
 # Register core endpoints (required)
 register_endpoints(api_router, CORE_ENDPOINTS, required=True)
@@ -150,13 +152,3 @@ logger.info(f"API router initialized with {len(api_router.routes)} routes")
 # - Endpoint dependency management
 # - Automatic endpoint health monitoring
 # - Configuration-driven endpoint enablement
-  
-
-
-
-
-
-
-
-
-

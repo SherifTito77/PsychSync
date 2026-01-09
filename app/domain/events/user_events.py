@@ -11,20 +11,21 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import uuid
-from datetime import datetime
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from datetime import datetime
+from typing import Any
+import uuid
 
 
 @dataclass
 class DomainEvent:
     """Base domain event class"""
+
     event_id: str
     event_type: str
     timestamp: datetime
     aggregate_id: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
     def __post_init__(self):
         if not self.event_id:
@@ -34,12 +35,13 @@ class DomainEvent:
 @dataclass
 class UserRegisteredEvent(DomainEvent):
     """Domain event raised when a new user is registered"""
+
     user_id: str
     email: str
     registration_time: datetime
     registration_source: str
-    client_ip: Optional[str] = None
-    organization_id: Optional[str] = None
+    client_ip: str | None = None
+    organization_id: str | None = None
 
     def __post_init__(self):
         self.event_id = str(uuid.uuid4())
@@ -51,13 +53,14 @@ class UserRegisteredEvent(DomainEvent):
             "email": self.email,
             "registration_source": self.registration_source,
             "client_ip": self.client_ip,
-            "organization_id": self.organization_id
+            "organization_id": self.organization_id,
         }
 
 
 @dataclass
 class UserEmailVerifiedEvent(DomainEvent):
     """Domain event raised when a user verifies their email"""
+
     user_id: str
     email: str
     verification_time: datetime
@@ -71,18 +74,19 @@ class UserEmailVerifiedEvent(DomainEvent):
         self.data = {
             "user_id": self.user_id,
             "email": self.email,
-            "verification_method": self.verification_method
+            "verification_method": self.verification_method,
         }
 
 
 @dataclass
 class UserLoginEvent(DomainEvent):
     """Domain event raised when a user logs in"""
+
     user_id: str
     email: str
     login_time: datetime
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    ip_address: str | None = None
+    user_agent: str | None = None
     login_method: str = "password"  # password, oauth, sso, etc.
 
     def __post_init__(self):
@@ -95,13 +99,14 @@ class UserLoginEvent(DomainEvent):
             "email": self.email,
             "ip_address": self.ip_address,
             "user_agent": self.user_agent,
-            "login_method": self.login_method
+            "login_method": self.login_method,
         }
 
 
 @dataclass
 class UserPasswordChangedEvent(DomainEvent):
     """Domain event raised when a user changes their password"""
+
     user_id: str
     email: str
     change_time: datetime
@@ -115,18 +120,19 @@ class UserPasswordChangedEvent(DomainEvent):
         self.data = {
             "user_id": self.user_id,
             "email": self.email,
-            "change_reason": self.change_reason
+            "change_reason": self.change_reason,
         }
 
 
 @dataclass
 class UserSuspendedEvent(DomainEvent):
     """Domain event raised when a user is suspended"""
+
     user_id: str
     email: str
     suspension_time: datetime
     suspension_reason: str
-    suspended_by: Optional[str] = None  # User ID of admin who suspended
+    suspended_by: str | None = None  # User ID of admin who suspended
 
     def __post_init__(self):
         self.event_id = str(uuid.uuid4())
@@ -137,18 +143,19 @@ class UserSuspendedEvent(DomainEvent):
             "user_id": self.user_id,
             "email": self.email,
             "suspension_reason": self.suspension_reason,
-            "suspended_by": self.suspended_by
+            "suspended_by": self.suspended_by,
         }
 
 
 @dataclass
 class UserActivatedEvent(DomainEvent):
     """Domain event raised when a suspended user is reactivated"""
+
     user_id: str
     email: str
     activation_time: datetime
     activation_reason: str
-    activated_by: Optional[str] = None  # User ID of admin who activated
+    activated_by: str | None = None  # User ID of admin who activated
 
     def __post_init__(self):
         self.event_id = str(uuid.uuid4())
@@ -159,17 +166,18 @@ class UserActivatedEvent(DomainEvent):
             "user_id": self.user_id,
             "email": self.email,
             "activation_reason": self.activation_reason,
-            "activated_by": self.activated_by
+            "activated_by": self.activated_by,
         }
 
 
 @dataclass
 class UserUpdatedProfileEvent(DomainEvent):
     """Domain event raised when a user updates their profile"""
+
     user_id: str
     email: str
     update_time: datetime
-    updated_fields: Dict[str, Any]
+    updated_fields: dict[str, Any]
 
     def __post_init__(self):
         self.event_id = str(uuid.uuid4())
@@ -179,5 +187,5 @@ class UserUpdatedProfileEvent(DomainEvent):
         self.data = {
             "user_id": self.user_id,
             "email": self.email,
-            "updated_fields": self.updated_fields
+            "updated_fields": self.updated_fields,
         }

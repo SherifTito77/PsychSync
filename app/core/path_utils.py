@@ -4,24 +4,19 @@ Provides safe path handling to prevent directory traversal attacks
 """
 
 from pathlib import Path
-from typing import Optional, List, Set
 import re
 
 
 class PathTraversalError(Exception):
     """Raised when path traversal is detected"""
-    pass
 
 
 class FileExtensionError(Exception):
     """Raised when file extension is not allowed"""
-    pass
 
 
 def sanitize_path(
-    user_path: str,
-    allowed_dir: Path,
-    allowed_extensions: Optional[Set[str]] = None
+    user_path: str, allowed_dir: Path, allowed_extensions: set[str] | None = None
 ) -> Path:
     """
     Sanitize and validate a user-provided path
@@ -100,23 +95,23 @@ def safe_filename(filename: str) -> str:
     sanitized = filename.replace("/", "_").replace("\\", "_")
 
     # Remove dangerous characters
-    sanitized = re.sub(r'[<>:"|?*]', '_', sanitized)
+    sanitized = re.sub(r'[<>:"|?*]', "_", sanitized)
 
     # Remove control characters
-    sanitized = re.sub(r'[-]', '', sanitized)
+    sanitized = re.sub(r"[-]", "", sanitized)
 
     # Limit length
     if len(sanitized) > 255:
-        name, ext = sanitized.rsplit('.', 1) if '.' in sanitized else (sanitized, '')
-        sanitized = name[:250] + ('.' + ext if ext else '')
+        name, ext = sanitized.rsplit(".", 1) if "." in sanitized else (sanitized, "")
+        sanitized = name[:250] + ("." + ext if ext else "")
 
     return sanitized
 
 
 def validate_file_type(
     file_path: Path,
-    allowed_mime_types: Optional[Set[str]] = None,
-    allowed_extensions: Optional[Set[str]] = None
+    allowed_mime_types: set[str] | None = None,
+    allowed_extensions: set[str] | None = None,
 ) -> bool:
     """
     Validate file type by extension and/or MIME type
@@ -147,6 +142,7 @@ def validate_file_type(
     # Check MIME type if requested
     if allowed_mime_types is not None:
         import mimetypes
+
         mime_type, _ = mimetypes.guess_type(file_path)
 
         if mime_type not in allowed_mime_types:
@@ -156,7 +152,7 @@ def validate_file_type(
 
 
 # Common allowed extensions for different file types
-ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'}
-ALLOWED_DOCUMENT_EXTENSIONS = {'.pdf', '.doc', '.docx', '.txt', '.csv', '.xlsx'}
-ALLOWED_VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.webm'}
-ALLOWED_ARCHIVE_EXTENSIONS = {'.zip', '.tar', '.gz', '.bz2'}
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"}
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".csv", ".xlsx"}
+ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".webm"}
+ALLOWED_ARCHIVE_EXTENSIONS = {".zip", ".tar", ".gz", ".bz2"}

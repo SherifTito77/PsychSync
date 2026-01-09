@@ -3,28 +3,25 @@ DNS Security Monitoring Endpoints
 Provides monitoring and management of DNS security features
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-
-from app.middleware.rate_limiter import check_rate_limit
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-from app.api.v1.deps import get_db, get_current_admin_user, get_current_user
-from app.db.models.user import User
-from app.core.responses import APIResponse, get_request_id
+from fastapi import APIRouter, Depends, Query, Request
+
+from app.api.v1.deps import get_current_admin_user, get_current_user
 from app.core.dns_security import dns_security_manager
-from app.core.structured_logging import get_logger, EventType
+from app.core.responses import APIResponse, get_request_id
+from app.core.structured_logging import EventType, get_logger
+from app.db.models.user import User
+from app.middleware.rate_limiter import check_rate_limit
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
-@check_rate_limit(identifier="public", endpoint_type="public", dependencies=[Depends(get_current_user)])
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/dns/security/status", summary="DNS Security Status")
 async def get_dns_security_status(
-    request: Request,
-    current_user: User = Depends(get_current_admin_user)
+    request: Request, current_user: User = Depends(get_current_admin_user)
 ):
     """
     Get DNS security and resolver status
@@ -37,26 +34,25 @@ async def get_dns_security_status(
             EventType.SECURITY_EVENT,
             "DNS security status retrieved",
             operation_name="get_dns_security_status",
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
         return APIResponse.success(
             data=status_data,
             message="DNS security status retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_dns_security_status", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to retrieve DNS security status",
-            request_id=get_request_id(request)
+            message="Failed to retrieve DNS security status", request_id=get_request_id(request)
         )
+
 
 @router.get("/dns/security/summary", summary="DNS Security Summary")
 async def get_dns_security_summary(
-    request: Request,
-    current_user: User = Depends(get_current_admin_user)
+    request: Request, current_user: User = Depends(get_current_admin_user)
 ):
     """
     Get DNS security summary and metrics
@@ -70,29 +66,25 @@ async def get_dns_security_summary(
             "DNS security summary retrieved",
             operation_name="get_dns_security_summary",
             user_id=str(current_user.id),
-            security_score=summary_data.get('security_score', 0)
+            security_score=summary_data.get("security_score", 0),
         )
 
         return APIResponse.success(
             data=summary_data,
             message="DNS security summary retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_dns_security_summary", user_id=str(current_user.id))
-        return APIResponse.server_
-@check_rate_limit(identifier="public", endpoint_type="public")
-error(
+        return APIResponse.server_error(
             message="Failed to retrieve DNS security summary",
-            request_id=get_request_id(request, dependencies=[Depends(get_current_user)])
+            request_id=get_request_id(request, dependencies=[Depends(get_current_user)]),
         )
 
+
 @router.post("/dns/security/cache/clear", summary="Clear DNS Cache")
-async def clear_dns_cache(
-    request: Request,
-    current_user: User = Depends(get_current_admin_user)
-):
+async def clear_dns_cache(request: Request, current_user: User = Depends(get_current_admin_user)):
     """
     Clear DNS query cache
     Requires admin privileges
@@ -106,32 +98,29 @@ async def clear_dns_cache(
             "DNS cache cleared",
             operation_name="clear_dns_cache",
             user_id=str(current_user.id),
-            old_cache_size=old_cache_size
+            old_cache_size=old_cache_size,
         )
 
         return APIResponse.success(
-            data={
-                "cache_cleared": True,
-                "old_cache_size": old_cache_size,
-                "new_cache_size": 0
-            },
+            data={"cache_cleared": True, "old_cache_size": old_cache_size, "new_cache_size": 0},
             message="DNS cache cleared successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="clear_dns_cache", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to clear DNS cache",
-            request_id=get_request_id(request, dependencies=[Depends(get_current_user)])
+            request_id=get_request_id(request, dependencies=[Depends(get_current_user)]),
         )
+
 
 @router.get("/dns/security/test", summary="Test DNS Resolution")
 async def test_dns_resolution(
     request: Request,
     hostname: str = Query(..., description="Hostname to test"),
     record_type: str = Query("A", description="DNS record type"),
-    current_user: User = Depends(get_current_admin_user)
+    current_user: User = Depends(get_current_admin_user),
 ):
     """
     Test DNS resolution for a specific hostname
@@ -150,28 +139,31 @@ async def test_dns_resolution(
             hostname=hostname,
             record_type=record_type,
             is_secure=result.is_secure,
-            dnssec_valid=result.dnssec_valid
+            dnssec_valid=result.dnssec_valid,
         )
 
         return APIResponse.success(
             data=result.__dict__,
             message=f"DNS resolution test completed for {hostname}",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="test_dns_resolution", user_id=str(current_user.id))
         return APIResponse.server_error(
             message=f"DNS resolution test failed for {hostname}",
-            request_id=get_request_id(request, dependencies=[Depends(get_current_user)])
+            request_id=get_request_id(request, dependencies=[Depends(get_current_user)]),
         )
 
-@router.get("/dns/security/events", summary="DNS Security Events", dependencies=[Depends(get_current_user)])
+
+@router.get(
+    "/dns/security/events", summary="DNS Security Events", dependencies=[Depends(get_current_user)]
+)
 async def get_dns_security_events(
     request: Request,
     hours: int = Query(24, description="Hours of events to retrieve"),
-    severity: Optional[str] = Query(None, description="Filter by severity (HIGH, MEDIUM)"),
-    current_user: User = Depends(get_current_admin_user)
+    severity: str | None = Query(None, description="Filter by severity (HIGH, MEDIUM)"),
+    current_user: User = Depends(get_current_admin_user),
 ):
     """
     Get DNS security events
@@ -183,12 +175,12 @@ async def get_dns_security_events(
         # Filter events
         filtered_events = []
         for event in dns_security_manager.security_events:
-            event_time = datetime.fromisoformat(event['timestamp'])
+            event_time = datetime.fromisoformat(event["timestamp"])
 
             if event_time < cutoff_time:
                 continue
 
-            if severity and event['severity'] != severity:
+            if severity and event["severity"] != severity:
                 continue
 
             filtered_events.append(event)
@@ -199,7 +191,7 @@ async def get_dns_security_events(
             operation_name="get_dns_security_events",
             user_id=str(current_user.id),
             events_count=len(filtered_events),
-            hours=hours
+            hours=hours,
         )
 
         return APIResponse.success(
@@ -207,15 +199,14 @@ async def get_dns_security_events(
                 "events": filtered_events,
                 "count": len(filtered_events),
                 "hours": hours,
-                "severity_filter": severity
+                "severity_filter": severity,
             },
             message=f"Retrieved {len(filtered_events)} DNS security events",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_dns_security_events", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to retrieve DNS security events",
-            request_id=get_request_id(request)
+            message="Failed to retrieve DNS security events", request_id=get_request_id(request)
         )

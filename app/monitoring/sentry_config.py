@@ -3,23 +3,22 @@ PsychSync Sentry Configuration for FastAPI
 Comprehensive error tracking and performance monitoring
 """
 
-import os
-import logging
-from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
+import logging
+import os
+from typing import Any
 
 import sentry_sdk
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration
-from sentry_sdk.integrations.httpx import HttpxIntegration
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.pydantic import PydanticIntegration
-from sentry_sdk.integrations.strawberry import StrawberryIntegration
-from sentry_sdk.integrations.starlette import StarletteIntegration
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
-
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.httpx import HttpxIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.pydantic import PydanticIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
+from sentry_sdk.integrations.strawberry import StrawberryIntegration
 
 # Sentry Configuration
 SENTRY_DSN = os.getenv("SENTRY_DSN")
@@ -48,58 +47,40 @@ def init_sentry() -> None:
 
     # Configure logging integration
     sentry_logging = LoggingIntegration(
-        level=logging.INFO,        # Capture info and above as breadcrumbs
-        event_level=logging.ERROR  # Send ERROR logs as events
+        level=logging.INFO,  # Capture info and above as breadcrumbs
+        event_level=logging.ERROR,  # Send ERROR logs as events
     )
 
     integrations = [
         # FastAPI and ASGI
         FastApiIntegration(
-            enable_tracing=ENABLE_PERFORMANCE_MONITORING,
-            transaction_style="endpoint"
+            enable_tracing=ENABLE_PERFORMANCE_MONITORING, transaction_style="endpoint"
         ),
-        SentryAsgiMiddleware(
-            transaction_style="url"
-        ),
-        StarletteIntegration(
-            transaction_style="url"
-        ),
-
+        SentryAsgiMiddleware(transaction_style="url"),
+        StarletteIntegration(transaction_style="url"),
         # Database and Cache
-        SqlalchemyIntegration(
-            enable_spans=True,
-            engine_logging_level=logging.WARNING
-        ),
-        RedisIntegration(
-            enable_spans=True,
-            enable_breadcrumbs=True
-        ),
-
+        SqlalchemyIntegration(enable_spans=True, engine_logging_level=logging.WARNING),
+        RedisIntegration(enable_spans=True, enable_breadcrumbs=True),
         # HTTP clients
         HttpxIntegration(
-            enable_tracing=ENABLE_PERFORMANCE_MONITORING,
-            httpx_capture_all_requests=True
+            enable_tracing=ENABLE_PERFORMANCE_MONITORING, httpx_capture_all_requests=True
         ),
-
         # Background tasks
         CeleryIntegration(
             monitor_beat_tasks=True,
             propagate_traces=True,
-            exclude_beat_tasks=["celery.backend_cleanup"]
+            exclude_beat_tasks=["celery.backend_cleanup"],
         ),
-
         # Schema validation
         PydanticIntegration(),
-
         # GraphQL (if using)
         StrawberryIntegration(),
-
         # Logging
         sentry_logging,
     ]
 
     # Configure before_send to filter sensitive data
-    def before_send(event: Dict[str, Any], hint: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
         """Filter sensitive data and add context"""
 
         # Remove sensitive data from headers
@@ -128,7 +109,7 @@ def init_sentry() -> None:
         return event
 
     # Configure before_breadcrumb to add context
-    def before_breadcrumb(crumb: Dict[str, Any], hint: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def before_breadcrumb(crumb: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
         """Filter and enhance breadcrumb data"""
 
         # Filter sensitive URLs
@@ -141,44 +122,35 @@ def init_sentry() -> None:
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-
         # Environment and release
         environment=ENVIRONMENT,
         release=RELEASE,
-
         # Sampling
         traces_sample_rate=TRACES_SAMPLE_RATE if ENABLE_PERFORMANCE_MONITORING else 0,
         profiles_sample_rate=PROFILES_SAMPLE_RATE if ENABLE_PERFORMANCE_MONITORING else 0,
-
         # Integrations
         integrations=integrations,
-
         # Data filtering
         before_send=before_send,
         before_breadcrumb=before_breadcrumb,
-
         # Error filtering
         ignore_errors=[
             # HTTP errors that are expected
             "HTTPException",
             "starlette.exceptions.HTTPException",
             "fastapi.exceptions.HTTPException",
-
             # Validation errors (handled in application)
             "pydantic.ValidationError",
             "starlette.validation.ValidationError",
-
             # Connection timeouts
             "TimeoutError",
             "asyncio.TimeoutError",
         ],
-
         # Additional configuration
         max_breadcrumbs=100,
         attach_stacktrace=True,
         send_default_pii=False,  # Never send PII
         debug=ENVIRONMENT == "development",
-
         # Server name for identification
         server_name=os.getenv("SENTRY_SERVER_NAME", "psychsync-api"),
     )
@@ -193,11 +165,7 @@ async def sentry_transaction(name: str, op: str = "function"):
         yield
         return
 
-    with sentry_sdk.start_transaction(
-        name=name,
-        op=op,
-        auto_finish=True
-    ) as transaction:
+    with sentry_sdk.start_transaction(name=name, op=op, auto_finish=True) as transaction:
         try:
             yield transaction
         except Exception as e:
@@ -206,7 +174,7 @@ async def sentry_transaction(name: str, op: str = "function"):
             raise
 
 
-def set_sentry_user(user_data: Dict[str, Any]) -> None:
+def set_sentry_user(user_data: dict[str, Any]) -> None:
     """Set user context for Sentry"""
     if not ENABLE_ERROR_MONITORING:
         return
@@ -226,7 +194,7 @@ def set_sentry_user(user_data: Dict[str, Any]) -> None:
     sentry_sdk.set_user(filtered_user)
 
 
-def set_sentry_context(key: str, value: Dict[str, Any]) -> None:
+def set_sentry_context(key: str, value: dict[str, Any]) -> None:
     """Set additional context for Sentry"""
     if not ENABLE_ERROR_MONITORING:
         return
@@ -237,8 +205,8 @@ def set_sentry_context(key: str, value: Dict[str, Any]) -> None:
 def capture_sentry_exception(
     error: Exception,
     level: str = "error",
-    extra: Optional[Dict[str, Any]] = None,
-    tags: Optional[Dict[str, str]] = None
+    extra: dict[str, Any] | None = None,
+    tags: dict[str, str] | None = None,
 ) -> None:
     """Capture exception with additional context"""
     if not ENABLE_ERROR_MONITORING:
@@ -261,8 +229,8 @@ def capture_sentry_exception(
 def capture_sentry_message(
     message: str,
     level: str = "info",
-    extra: Optional[Dict[str, Any]] = None,
-    tags: Optional[Dict[str, str]] = None
+    extra: dict[str, Any] | None = None,
+    tags: dict[str, str] | None = None,
 ) -> None:
     """Capture message with context"""
     if not ENABLE_ERROR_MONITORING:
@@ -306,9 +274,7 @@ class SentryTransactionMiddleware:
 
         # Start transaction
         transaction = sentry_sdk.start_transaction(
-            name=transaction_name,
-            op="http.server",
-            auto_finish=True
+            name=transaction_name, op="http.server", auto_finish=True
         )
 
         # Set request data
@@ -344,7 +310,7 @@ class SentryTransactionMiddleware:
         import re
 
         # Replace numeric IDs with placeholders
-        path = re.sub(r'/\d+', '/{id}', path)
+        path = re.sub(r"/\d+", "/{id}", path)
 
         # Extract the main endpoint part
         if path.startswith("/api/v1/"):
@@ -355,7 +321,7 @@ class SentryTransactionMiddleware:
 
 
 # Health check for Sentry
-def check_sentry_health() -> Dict[str, Any]:
+def check_sentry_health() -> dict[str, Any]:
     """Check Sentry health and configuration"""
     return {
         "configured": bool(SENTRY_DSN),

@@ -9,24 +9,25 @@ Features:
 - Real-time performance dashboards
 """
 
-import time
 import asyncio
-import logging
-import json
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Callable
 from enum import Enum
-from dataclasses import dataclass, asdict
 from functools import wraps
+import json
+import logging
 import statistics
+import time
+from typing import Any
 
-from app.core.config import settings
-from app.core.redis_client import redis_get, redis_set
+from app.core.redis_client import redis_set
 
 logger = logging.getLogger(__name__)
 
+
 class OperationType(str, Enum):
     """Operation types for monitoring"""
+
     READ = "read"
     WRITE = "write"
     DELETE = "delete"
@@ -36,49 +37,53 @@ class OperationType(str, Enum):
     EXTERNAL_API = "external_api"
     FILE_OPERATION = "file_operation"
 
+
 class PerformanceLevel(str, Enum):
     """Performance level classifications"""
+
     EXCELLENT = "excellent"  # < 100ms
-    GOOD = "good"           # 100-300ms
+    GOOD = "good"  # 100-300ms
     ACCEPTABLE = "acceptable"  # 300-1000ms
-    POOR = "poor"           # > 1000ms
+    POOR = "poor"  # > 1000ms
+
 
 @dataclass
 class PerformanceMetric:
     """Performance metric data structure"""
+
     operation: str
     operation_type: OperationType
     duration_ms: float
     timestamp: datetime
     success: bool
-    request_id: Optional[str] = None
-    user_id: Optional[str] = None
-    endpoint: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    request_id: str | None = None
+    user_id: str | None = None
+    endpoint: str | None = None
+    metadata: dict[str, Any] | None = None
+    error_message: str | None = None
 
     def __post_init__(self):
         if isinstance(self.timestamp, str):
             self.timestamp = datetime.fromisoformat(self.timestamp)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
-        data['operation_type'] = self.operation_type.value
-        data['performance_level'] = self.get_performance_level().value
+        data["timestamp"] = self.timestamp.isoformat()
+        data["operation_type"] = self.operation_type.value
+        data["performance_level"] = self.get_performance_level().value
         return data
 
     def get_performance_level(self) -> PerformanceLevel:
         """Get performance level based on duration"""
         if self.duration_ms < 100:
             return PerformanceLevel.EXCELLENT
-        elif self.duration_ms < 300:
+        if self.duration_ms < 300:
             return PerformanceLevel.GOOD
-        elif self.duration_ms < 1000:
+        if self.duration_ms < 1000:
             return PerformanceLevel.ACCEPTABLE
-        else:
-            return PerformanceLevel.POOR
+        return PerformanceLevel.POOR
+
 
 class PerformanceMonitor:
     """
@@ -86,7 +91,7 @@ class PerformanceMonitor:
     """
 
     def __init__(self):
-        self.metrics: List[PerformanceMetric] = []
+        self.metrics: list[PerformanceMetric] = []
         self.max_metrics_in_memory = 10000
         self.alert_thresholds = {
             "warning_ms": 500,
@@ -94,13 +99,7 @@ class PerformanceMonitor:
             "error_rate_threshold": 0.05,  # 5%
             "slow_request_threshold": 0.1,  # 10% of requests
         }
-        self.performance_windows = {
-            "1m": 60,
-            "5m": 300,
-            "15m": 900,
-            "1h": 3600,
-            "24h": 86400
-        }
+        self.performance_windows = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "24h": 86400}
 
     async def record_metric(self, metric: PerformanceMetric) -> bool:
         """
@@ -118,7 +117,7 @@ class PerformanceMonitor:
 
             # Trim if too many metrics
             if len(self.metrics) > self.max_metrics_in_memory:
-                self.metrics = self.metrics[-self.max_metrics_in_memory:]
+                self.metrics = self.metrics[-self.max_metrics_in_memory :]
 
             # Store in Redis for persistence
             await self._store_in_redis(metric)
@@ -133,10 +132,8 @@ class PerformanceMonitor:
             return False
 
     def get_metrics_summary(
-        self,
-        operation_type: Optional[OperationType] = None,
-        window_minutes: int = 60
-    ) -> Dict[str, Any]:
+        self, operation_type: OperationType | None = None, window_minutes: int = 60
+    ) -> dict[str, Any]:
         """
         Get performance metrics summary
 
@@ -151,9 +148,10 @@ class PerformanceMonitor:
 
         # Filter metrics
         filtered_metrics = [
-            m for m in self.metrics
-            if m.timestamp >= cutoff_time and
-            (operation_type is None or m.operation == operation_type)
+            m
+            for m in self.metrics
+            if m.timestamp >= cutoff_time
+            and (operation_type is None or m.operation == operation_type)
         ]
 
         if not filtered_metrics:
@@ -161,7 +159,7 @@ class PerformanceMonitor:
                 "total_requests": 0,
                 "success_rate": 0.0,
                 "average_duration_ms": 0.0,
-                "performance_levels": {"excellent": 0, "good": 0, "acceptable": 0, "poor": 0}
+                "performance_levels": {"excellent": 0, "good": 0, "acceptable": 0, "poor": 0},
             }
 
         # Calculate statistics
@@ -169,12 +167,7 @@ class PerformanceMonitor:
         success_count = sum(1 for m in filtered_metrics if m.success)
 
         # Performance level distribution
-        level_counts = {
-            "excellent": 0,
-            "good": 0,
-            "acceptable": 0,
-            "poor": 0
-        }
+        level_counts = {"excellent": 0, "good": 0, "acceptable": 0, "poor": 0}
 
         for metric in filtered_metrics:
             level = metric.get_performance_level().value
@@ -198,15 +191,12 @@ class PerformanceMonitor:
             "percentiles": percentiles,
             "performance_levels": level_counts,
             "window_minutes": window_minutes,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
     def get_slow_requests(
-        self,
-        threshold_ms: float = 1000,
-        limit: int = 100,
-        window_minutes: int = 60
-    ) -> List[Dict[str, Any]]:
+        self, threshold_ms: float = 1000, limit: int = 100, window_minutes: int = 60
+    ) -> list[dict[str, Any]]:
         """
         Get slow requests exceeding threshold
 
@@ -221,9 +211,7 @@ class PerformanceMonitor:
         cutoff_time = datetime.utcnow() - timedelta(minutes=window_minutes)
 
         slow_metrics = [
-            m for m in self.metrics
-            if (m.timestamp >= cutoff_time and
-                m.duration_ms > threshold_ms)
+            m for m in self.metrics if (m.timestamp >= cutoff_time and m.duration_ms > threshold_ms)
         ]
 
         # Sort by duration (slowest first) and limit
@@ -233,10 +221,8 @@ class PerformanceMonitor:
         return [m.to_dict() for m in slow_metrics]
 
     def get_error_rate_trend(
-        self,
-        window_minutes: int = 60,
-        bucket_minutes: int = 5
-    ) -> List[Dict[str, Any]]:
+        self, window_minutes: int = 60, bucket_minutes: int = 5
+    ) -> list[dict[str, Any]]:
         """
         Get error rate trend over time
 
@@ -254,10 +240,7 @@ class PerformanceMonitor:
             bucket_start = cutoff_time + timedelta(minutes=i)
             bucket_end = bucket_start + timedelta(minutes=bucket_minutes)
 
-            bucket_metrics = [
-                m for m in self.metrics
-                if bucket_start <= m.timestamp < bucket_end
-            ]
+            bucket_metrics = [m for m in self.metrics if bucket_start <= m.timestamp < bucket_end]
 
             if bucket_metrics:
                 error_count = sum(1 for m in bucket_metrics if not m.success)
@@ -265,12 +248,14 @@ class PerformanceMonitor:
             else:
                 error_rate = 0.0
 
-            buckets.append({
-                "timestamp": bucket_start.isoformat(),
-                "error_rate": error_rate,
-                "total_requests": len(bucket_metrics),
-                "error_count": error_count
-            })
+            buckets.append(
+                {
+                    "timestamp": bucket_start.isoformat(),
+                    "error_rate": error_rate,
+                    "total_requests": len(bucket_metrics),
+                    "error_count": error_count,
+                }
+            )
 
         return buckets
 
@@ -303,8 +288,8 @@ class PerformanceMonitor:
                         "operation": metric.operation,
                         "duration_ms": metric.duration_ms,
                         "request_id": metric.request_id,
-                        "user_id": metric.user_id
-                    }
+                        "user_id": metric.user_id,
+                    },
                 )
             elif metric.duration_ms > self.alert_thresholds["warning_ms"]:
                 await self._trigger_alert(
@@ -313,8 +298,8 @@ class PerformanceMonitor:
                     {
                         "operation": metric.operation,
                         "duration_ms": metric.duration_ms,
-                        "request_id": metric.request_id
-                    }
+                        "request_id": metric.request_id,
+                    },
                 )
 
             # Check for error patterns
@@ -329,8 +314,7 @@ class PerformanceMonitor:
         try:
             # Get recent error rate for this operation
             summary = self.get_metrics_summary(
-                operation_type=metric.operation_type,
-                window_minutes=5
+                operation_type=metric.operation_type, window_minutes=5
             )
 
             if summary["total_requests"] > 0:
@@ -343,19 +327,14 @@ class PerformanceMonitor:
                             "operation": metric.operation,
                             "error_rate": error_rate,
                             "total_requests": summary["total_requests"],
-                            "window_minutes": 5
-                        }
+                            "window_minutes": 5,
+                        },
                     )
 
         except Exception as e:
             logger.error(f"Failed to check error patterns: {e}")
 
-    async def _trigger_alert(
-        self,
-        alert_type: str,
-        message: str,
-        metadata: Dict[str, Any]
-    ):
+    async def _trigger_alert(self, alert_type: str, message: str, metadata: dict[str, Any]):
         """Trigger performance alert"""
         try:
             alert_data = {
@@ -363,15 +342,12 @@ class PerformanceMonitor:
                 "message": message,
                 "metadata": metadata,
                 "timestamp": datetime.utcnow().isoformat(),
-                "service": "psychsync_api"
+                "service": "psychsync_api",
             }
 
             # Log to alert logger
             alert_logger = logging.getLogger("performance_alerts")
-            alert_logger.warning(
-                f"Performance Alert: {alert_type}",
-                extra=alert_data
-            )
+            alert_logger.warning(f"Performance Alert: {alert_type}", extra=alert_data)
 
             # Store alert in Redis
             alert_key = f"alerts:performance:{int(time.time())}"
@@ -385,10 +361,7 @@ class PerformanceMonitor:
         cutoff_time = datetime.utcnow() - timedelta(hours=retention_hours)
         original_count = len(self.metrics)
 
-        self.metrics = [
-            m for m in self.metrics
-            if m.timestamp >= cutoff_time
-        ]
+        self.metrics = [m for m in self.metrics if m.timestamp >= cutoff_time]
 
         cleaned_count = original_count - len(self.metrics)
         if cleaned_count > 0:
@@ -398,11 +371,12 @@ class PerformanceMonitor:
 # Global performance monitor instance
 performance_monitor = PerformanceMonitor()
 
+
 # Decorator for automatic performance monitoring
 def measure_performance(
     operation_name: str = None,
     operation_type: OperationType = OperationType.READ,
-    include_args: bool = False
+    include_args: bool = False,
 ):
     """
     Decorator for automatic performance monitoring
@@ -412,6 +386,7 @@ def measure_performance(
         operation_type: Type of operation
         include_args: Whether to include function arguments in metadata
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -426,12 +401,12 @@ def measure_performance(
 
             try:
                 # Extract from function arguments if available
-                if hasattr(args[0], '__self__'):  # Method call
+                if hasattr(args[0], "__self__"):  # Method call
                     self_obj = args[0]
-                    if hasattr(self_obj, 'request'):
-                        request_id = getattr(self_obj.request, 'request_id', None)
-                        user_id = getattr(self_obj.request, 'user_id', None)
-                        endpoint = getattr(self_obj.request, 'url', None)
+                    if hasattr(self_obj, "request"):
+                        request_id = getattr(self_obj.request, "request_id", None)
+                        user_id = getattr(self_obj.request, "user_id", None)
+                        endpoint = getattr(self_obj.request, "url", None)
 
                 # Call the function
                 result = await func(*args, **kwargs)
@@ -450,10 +425,7 @@ def measure_performance(
                 # Prepare metadata
                 metadata = {}
                 if include_args:
-                    metadata.update({
-                        "args_count": len(args),
-                        "kwargs_keys": list(kwargs.keys())
-                    })
+                    metadata.update({"args_count": len(args), "kwargs_keys": list(kwargs.keys())})
 
                 if error_message:
                     metadata["error_message"] = error_message
@@ -468,13 +440,14 @@ def measure_performance(
                     user_id=user_id,
                     endpoint=str(endpoint) if endpoint else None,
                     metadata=metadata if metadata else None,
-                    error_message=error_message
+                    error_message=error_message,
                 )
 
                 # Record metric asynchronously
                 asyncio.create_task(performance_monitor.record_metric(metric))
 
         return wrapper
+
     return decorator
 
 
@@ -508,7 +481,7 @@ class PerformanceMiddleware:
             "POST": OperationType.WRITE,
             "PUT": OperationType.WRITE,
             "PATCH": OperationType.WRITE,
-            "DELETE": OperationType.DELETE
+            "DELETE": OperationType.DELETE,
         }
         operation_type = operation_type_map.get(method, OperationType.READ)
 
@@ -528,11 +501,7 @@ class PerformanceMiddleware:
                     success=200 <= status_code < 400,
                     request_id=request_id,
                     endpoint=f"{method} {path}{query_string if query_string else ''}",
-                    metadata={
-                        "method": method,
-                        "path": path,
-                        "status_code": status_code
-                    }
+                    metadata={"method": method, "path": path, "status_code": status_code},
                 )
 
                 # Record metric asynchronously
@@ -548,7 +517,7 @@ class PerformanceReporter:
     """Generate performance reports"""
 
     @staticmethod
-    def generate_daily_report(date: datetime = None) -> Dict[str, Any]:
+    def generate_daily_report(date: datetime = None) -> dict[str, Any]:
         """Generate daily performance report"""
         if date is None:
             date = datetime.utcnow()
@@ -561,7 +530,7 @@ class PerformanceReporter:
             "summary": monitor.get_metrics_summary(window_minutes=1440),  # 24 hours
             "slow_requests": monitor.get_slow_requests(threshold_ms=1000, limit=50),
             "error_trend": monitor.get_error_rate_trend(window_minutes=1440, bucket_minutes=60),
-            "alerts": []
+            "alerts": [],
         }
 
         # Add recommendations
@@ -570,7 +539,7 @@ class PerformanceReporter:
         return report
 
     @staticmethod
-    def _generate_recommendations(report: Dict[str, Any]) -> List[str]:
+    def _generate_recommendations(report: dict[str, Any]) -> list[str]:
         """Generate performance recommendations"""
         recommendations = []
 

@@ -5,32 +5,31 @@ Advanced mathematical modeling for predicting individual and organizational grow
 patterns using multiple curve fitting approaches and machine learning techniques.
 """
 
-import logging
-import math
-from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass
-from enum import Enum
-import asyncio
 from datetime import datetime, timedelta
+from enum import Enum
+import logging
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy import optimize, stats
 from scipy.optimize import curve_fit
-from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc, asc
 
 from app.db.models.growth_trajectories import (
-    GrowthTrajectory, TrajectoryPrediction, GrowthMilestone,
-    GrowthPotentialAnalysis, TrajectoryBenchmark
+    GrowthPotentialAnalysis,
+    GrowthTrajectory,
+    TrajectoryPrediction,
 )
 
 logger = logging.getLogger(__name__)
 
+
 class GrowthModelType(Enum):
     """Types of growth curve models"""
+
     LINEAR = "linear"
     EXPONENTIAL = "exponential"
     LOGISTIC = "logistic"
@@ -40,60 +39,73 @@ class GrowthModelType(Enum):
     GOMPERTZ = "gompertz"
     RICHARDS = "richards"
 
+
 class GrowthStage(Enum):
     """Stages of growth development"""
-    FOUNDATION = "foundation"      # Initial learning phase
+
+    FOUNDATION = "foundation"  # Initial learning phase
     ACCELERATION = "acceleration"  # Rapid growth phase
-    MATURATION = "maturation"      # Slowing growth phase
-    MASTERY = "mastery"           # Expert level achieved
-    INNOVATION = "innovation"      # Creating new knowledge
+    MATURATION = "maturation"  # Slowing growth phase
+    MASTERY = "mastery"  # Expert level achieved
+    INNOVATION = "innovation"  # Creating new knowledge
+
 
 class PotentialCategory(Enum):
     """Categories of growth potential"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     VERY_HIGH = "very_high"
     EXCEPTIONAL = "exceptional"
 
+
 @dataclass
 class TrajectoryPoint:
     """Data point for trajectory analysis"""
+
     timestamp: datetime
     value: float
     metric_type: str
-    context: Dict[str, Any] = None
+    context: dict[str, Any] = None
+
 
 @dataclass
 class ModelParameters:
     """Parameters for fitted growth models"""
+
     model_type: GrowthModelType
-    parameters: Dict[str, float]
+    parameters: dict[str, float]
     r_squared: float
     aic: float
     bic: float
     rmse: float
-    confidence_intervals: Dict[str, Tuple[float, float]] = None
+    confidence_intervals: dict[str, tuple[float, float]] = None
+
 
 @dataclass
 class GrowthPrediction:
     """Growth trajectory prediction"""
+
     prediction_date: datetime
     predicted_value: float
-    confidence_interval: Tuple[float, float]
+    confidence_interval: tuple[float, float]
     probability_density: float
     growth_rate: float
     acceleration: float
 
+
 @dataclass
 class MilestonePrediction:
     """Prediction for milestone achievement"""
+
     milestone_name: str
     target_value: float
     achievement_probability: float
     expected_date: datetime
-    confidence_interval: Tuple[datetime, datetime]
-    risk_factors: List[str]
+    confidence_interval: tuple[datetime, datetime]
+    risk_factors: list[str]
+
 
 class GrowthTrajectoryModeler:
     """Advanced growth trajectory modeling service"""
@@ -107,8 +119,8 @@ class GrowthTrajectoryModeler:
         self,
         user_id: str,
         competency_domain: str,
-        trajectory_data: List[TrajectoryPoint],
-        model_types: Optional[List[GrowthModelType]] = None
+        trajectory_data: list[TrajectoryPoint],
+        model_types: list[GrowthModelType] | None = None,
     ) -> GrowthTrajectory:
         """Build comprehensive growth trajectory with multiple models"""
 
@@ -117,16 +129,20 @@ class GrowthTrajectoryModeler:
                 GrowthModelType.LINEAR,
                 GrowthModelType.EXPONENTIAL,
                 GrowthModelType.LOGISTIC,
-                GrowthModelType.SIGMOIDAL
+                GrowthModelType.SIGMOIDAL,
             ]
 
-        self.logger.info(f"Building growth trajectory for user {user_id}, domain {competency_domain}")
+        self.logger.info(
+            f"Building growth trajectory for user {user_id}, domain {competency_domain}"
+        )
 
         # Prepare data
         df = self._prepare_trajectory_data(trajectory_data)
 
         if len(df) < 5:
-            raise ValueError("Insufficient data points for trajectory modeling (minimum 5 required)")
+            raise ValueError(
+                "Insufficient data points for trajectory modeling (minimum 5 required)"
+            )
 
         # Fit multiple models
         fitted_models = []
@@ -159,8 +175,8 @@ class GrowthTrajectoryModeler:
             model_type=best_model.model_type.value,
             model_parameters=best_model.parameters,
             training_data_points=len(df),
-            training_start_date=df['timestamp'].min(),
-            training_end_date=df['timestamp'].max(),
+            training_start_date=df["timestamp"].min(),
+            training_end_date=df["timestamp"].max(),
             model_accuracy=best_model.r_squared,
             confidence_level=0.95,
             prediction_horizon_days=365,  # 1 year predictions
@@ -169,7 +185,7 @@ class GrowthTrajectoryModeler:
             asymptotic_potential=asymptotic_potential,
             growth_stage=growth_stage.value,
             plateau_probability=await self._estimate_plateau_probability(best_model),
-            inflection_point_date=await self._estimate_inflection_point(best_model)
+            inflection_point_date=await self._estimate_inflection_point(best_model),
         )
 
         self.db.add(trajectory)
@@ -182,16 +198,13 @@ class GrowthTrajectoryModeler:
         return trajectory
 
     async def predict_future_trajectory(
-        self,
-        trajectory_id: str,
-        prediction_horizon_days: int = 365,
-        confidence_level: float = 0.95
-    ) -> List[GrowthPrediction]:
+        self, trajectory_id: str, prediction_horizon_days: int = 365, confidence_level: float = 0.95
+    ) -> list[GrowthPrediction]:
         """Generate predictions for future growth trajectory"""
 
-        trajectory = self.db.query(GrowthTrajectory).filter(
-            GrowthTrajectory.id == trajectory_id
-        ).first()
+        trajectory = (
+            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+        )
 
         if not trajectory:
             raise ValueError(f"Trajectory {trajectory_id} not found")
@@ -231,7 +244,7 @@ class GrowthTrajectoryModeler:
                     confidence_interval=confidence_interval,
                     probability_density=1.0,  # Will be calculated later
                     growth_rate=growth_rate,
-                    acceleration=acceleration
+                    acceleration=acceleration,
                 )
 
                 predictions.append(prediction)
@@ -248,24 +261,29 @@ class GrowthTrajectoryModeler:
         return predictions
 
     async def analyze_growth_potential(
-        self,
-        user_id: str,
-        competency_domains: Optional[List[str]] = None
+        self, user_id: str, competency_domains: list[str] | None = None
     ) -> GrowthPotentialAnalysis:
         """Comprehensive analysis of individual growth potential"""
 
         if not competency_domains:
             # Get all domains for user
-            competency_domains = self.db.query(GrowthTrajectory.competency_domain).filter(
-                GrowthTrajectory.user_id == user_id
-            ).distinct().all()
+            competency_domains = (
+                self.db.query(GrowthTrajectory.competency_domain)
+                .filter(GrowthTrajectory.user_id == user_id)
+                .distinct()
+                .all()
+            )
             competency_domains = [domain[0] for domain in competency_domains]
 
         # Collect trajectory data
-        trajectories = self.db.query(GrowthTrajectory).filter(
-            GrowthTrajectory.user_id == user_id,
-            GrowthTrajectory.competency_domain.in_(competency_domains)
-        ).all()
+        trajectories = (
+            self.db.query(GrowthTrajectory)
+            .filter(
+                GrowthTrajectory.user_id == user_id,
+                GrowthTrajectory.competency_domain.in_(competency_domains),
+            )
+            .all()
+        )
 
         if not trajectories:
             raise ValueError("No trajectories found for potential analysis")
@@ -280,7 +298,9 @@ class GrowthTrajectoryModeler:
         # Performance projections
         time_to_mastery = await self._estimate_time_to_mastery(trajectories)
         ceiling_estimate = await self._estimate_performance_ceiling(trajectories)
-        growth_velocity_percentile = await self._calculate_velocity_percentile(user_id, trajectories)
+        growth_velocity_percentile = await self._calculate_velocity_percentile(
+            user_id, trajectories
+        )
 
         # Generate development insights
         key_drivers = await self._identify_key_growth_drivers(trajectories)
@@ -316,8 +336,8 @@ class GrowthTrajectoryModeler:
                 "models_used": [t.model_type for t in trajectories],
                 "data_points": sum(t.training_data_points for t in trajectories),
                 "confidence_level": 0.95,
-                "analysis_date": datetime.utcnow().isoformat()
-            }
+                "analysis_date": datetime.utcnow().isoformat(),
+            },
         )
 
         self.db.add(analysis)
@@ -327,16 +347,13 @@ class GrowthTrajectoryModeler:
         return analysis
 
     async def simulate_intervention_impact(
-        self,
-        trajectory_id: str,
-        intervention_scenario: Dict[str, Any],
-        simulation_days: int = 365
-    ) -> Dict[str, Any]:
+        self, trajectory_id: str, intervention_scenario: dict[str, Any], simulation_days: int = 365
+    ) -> dict[str, Any]:
         """Simulate impact of interventions on growth trajectory"""
 
-        trajectory = self.db.query(GrowthTrajectory).filter(
-            GrowthTrajectory.id == trajectory_id
-        ).first()
+        trajectory = (
+            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+        )
 
         if not trajectory:
             raise ValueError(f"Trajectory {trajectory_id} not found")
@@ -351,9 +368,7 @@ class GrowthTrajectoryModeler:
         )
 
         # Generate baseline predictions
-        baseline_predictions = await self.predict_future_trajectory(
-            trajectory_id, simulation_days
-        )
+        baseline_predictions = await self.predict_future_trajectory(trajectory_id, simulation_days)
 
         # Generate intervention predictions
         intervention_predictions = []
@@ -368,11 +383,9 @@ class GrowthTrajectoryModeler:
                     model_type, modified_params, days_elapsed, 0.95
                 )
 
-                intervention_predictions.append({
-                    'date': current_date,
-                    'value': predicted_value,
-                    'confidence_interval': ci
-                })
+                intervention_predictions.append(
+                    {"date": current_date, "value": predicted_value, "confidence_interval": ci}
+                )
 
             except Exception as e:
                 self.logger.warning(f"Intervention prediction failed for day {days_elapsed}: {e}")
@@ -383,60 +396,59 @@ class GrowthTrajectoryModeler:
         )
 
         return {
-            'intervention_scenario': intervention_scenario,
-            'baseline_predictions': baseline_predictions,
-            'intervention_predictions': intervention_predictions,
-            'impact_analysis': impact_analysis,
-            'recommendations': await self._generate_intervention_recommendations(impact_analysis)
+            "intervention_scenario": intervention_scenario,
+            "baseline_predictions": baseline_predictions,
+            "intervention_predictions": intervention_predictions,
+            "impact_analysis": impact_analysis,
+            "recommendations": await self._generate_intervention_recommendations(impact_analysis),
         }
 
     # Private methods for model fitting and calculations
-    def _prepare_trajectory_data(self, trajectory_points: List[TrajectoryPoint]) -> pd.DataFrame:
+    def _prepare_trajectory_data(self, trajectory_points: list[TrajectoryPoint]) -> pd.DataFrame:
         """Prepare trajectory data for modeling"""
         data = []
         for point in trajectory_points:
-            data.append({
-                'timestamp': point.timestamp,
-                'days_elapsed': 0,  # Will be calculated
-                'value': point.value,
-                'metric_type': point.metric_type,
-                'context': point.context or {}
-            })
+            data.append(
+                {
+                    "timestamp": point.timestamp,
+                    "days_elapsed": 0,  # Will be calculated
+                    "value": point.value,
+                    "metric_type": point.metric_type,
+                    "context": point.context or {},
+                }
+            )
 
         df = pd.DataFrame(data)
-        df = df.sort_values('timestamp')
+        df = df.sort_values("timestamp")
 
         # Calculate days elapsed from first point
-        start_time = df['timestamp'].min()
-        df['days_elapsed'] = (df['timestamp'] - start_time).dt.days
+        start_time = df["timestamp"].min()
+        df["days_elapsed"] = (df["timestamp"] - start_time).dt.days
 
         return df
 
     async def _fit_growth_model(
-        self,
-        df: pd.DataFrame,
-        model_type: GrowthModelType
+        self, df: pd.DataFrame, model_type: GrowthModelType
     ) -> ModelParameters:
         """Fit specific growth model to trajectory data"""
 
-        x = df['days_elapsed'].values
-        y = df['value'].values
+        x = df["days_elapsed"].values
+        y = df["value"].values
 
         try:
             if model_type == GrowthModelType.LINEAR:
                 return await self._fit_linear_model(x, y)
-            elif model_type == GrowthModelType.EXPONENTIAL:
+            if model_type == GrowthModelType.EXPONENTIAL:
                 return await self._fit_exponential_model(x, y)
-            elif model_type == GrowthModelType.LOGISTIC:
+            if model_type == GrowthModelType.LOGISTIC:
                 return await self._fit_logistic_model(x, y)
-            elif model_type == GrowthModelType.SIGMOIDAL:
+            if model_type == GrowthModelType.SIGMOIDAL:
                 return await self._fit_sigmoidal_model(x, y)
-            elif model_type == GrowthModelType.POWER_LAW:
+            if model_type == GrowthModelType.POWER_LAW:
                 return await self._fit_power_law_model(x, y)
-            elif model_type == GrowthModelType.POLYNOMIAL:
+            if model_type == GrowthModelType.POLYNOMIAL:
                 return await self._fit_polynomial_model(x, y)
-            else:
-                raise ValueError(f"Unsupported model type: {model_type}")
+            raise ValueError(f"Unsupported model type: {model_type}")
 
         except Exception as e:
             self.logger.error(f"Failed to fit {model_type.value} model: {e}")
@@ -465,21 +477,21 @@ class GrowthTrajectoryModeler:
 
             # Confidence intervals
             confidence_intervals = {}
-            for i, param_name in enumerate(['a', 'b']):
+            for i, param_name in enumerate(["a", "b"]):
                 std_error = np.sqrt(np.diag(pcov))[i]
                 confidence_intervals[param_name] = (
                     popt[i] - 1.96 * std_error,
-                    popt[i] + 1.96 * std_error
+                    popt[i] + 1.96 * std_error,
                 )
 
             return ModelParameters(
                 model_type=GrowthModelType.LINEAR,
-                parameters={'a': float(a), 'b': float(b)},
+                parameters={"a": float(a), "b": float(b)},
                 r_squared=float(r_squared),
                 aic=float(aic),
                 bic=float(bic),
                 rmse=float(rmse),
-                confidence_intervals=confidence_intervals
+                confidence_intervals=confidence_intervals,
             )
 
         except Exception as e:
@@ -498,9 +510,7 @@ class GrowthTrajectoryModeler:
             c_init = min(y)
 
             popt, pcov = curve_fit(
-                exponential_func, x, y,
-                p0=[a_init, b_init, c_init],
-                maxfev=10000
+                exponential_func, x, y, p0=[a_init, b_init, c_init], maxfev=10000
             )
             a, b, c = popt
 
@@ -517,21 +527,21 @@ class GrowthTrajectoryModeler:
 
             # Confidence intervals
             confidence_intervals = {}
-            for i, param_name in enumerate(['a', 'b', 'c']):
+            for i, param_name in enumerate(["a", "b", "c"]):
                 std_error = np.sqrt(np.diag(pcov))[i]
                 confidence_intervals[param_name] = (
                     popt[i] - 1.96 * std_error,
-                    popt[i] + 1.96 * std_error
+                    popt[i] + 1.96 * std_error,
                 )
 
             return ModelParameters(
                 model_type=GrowthModelType.EXPONENTIAL,
-                parameters={'a': float(a), 'b': float(b), 'c': float(c)},
+                parameters={"a": float(a), "b": float(b), "c": float(c)},
                 r_squared=float(r_squared),
                 aic=float(aic),
                 bic=float(bic),
                 rmse=float(rmse),
-                confidence_intervals=confidence_intervals
+                confidence_intervals=confidence_intervals,
             )
 
         except Exception as e:
@@ -547,13 +557,15 @@ class GrowthTrajectoryModeler:
             # Initial parameter guesses
             L_init = max(y) * 1.1  # Carrying capacity
             k_init = 0.01  # Growth rate
-            x0_init = x[len(x)//2]  # Inflection point
+            x0_init = x[len(x) // 2]  # Inflection point
 
             popt, pcov = curve_fit(
-                logistic_func, x, y,
+                logistic_func,
+                x,
+                y,
                 p0=[L_init, k_init, x0_init],
                 maxfev=10000,
-                bounds=([0, -np.inf, -np.inf], [np.inf, np.inf, np.inf])
+                bounds=([0, -np.inf, -np.inf], [np.inf, np.inf, np.inf]),
             )
             L, k, x0 = popt
 
@@ -570,21 +582,21 @@ class GrowthTrajectoryModeler:
 
             # Confidence intervals
             confidence_intervals = {}
-            for i, param_name in enumerate(['L', 'k', 'x0']):
+            for i, param_name in enumerate(["L", "k", "x0"]):
                 std_error = np.sqrt(np.diag(pcov))[i]
                 confidence_intervals[param_name] = (
                     popt[i] - 1.96 * std_error,
-                    popt[i] + 1.96 * std_error
+                    popt[i] + 1.96 * std_error,
                 )
 
             return ModelParameters(
                 model_type=GrowthModelType.LOGISTIC,
-                parameters={'L': float(L), 'k': float(k), 'x0': float(x0)},
+                parameters={"L": float(L), "k": float(k), "x0": float(x0)},
                 r_squared=float(r_squared),
                 aic=float(aic),
                 bic=float(bic),
                 rmse=float(rmse),
-                confidence_intervals=confidence_intervals
+                confidence_intervals=confidence_intervals,
             )
 
         except Exception as e:
@@ -600,13 +612,11 @@ class GrowthTrajectoryModeler:
             # Initial parameter guesses
             L_init = max(y) - min(y)  # Amplitude
             k_init = 0.01  # Steepness
-            x0_init = x[len(x)//2]  # Center
+            x0_init = x[len(x) // 2]  # Center
             y0_init = min(y)  # Offset
 
             popt, pcov = curve_fit(
-                sigmoidal_func, x, y,
-                p0=[L_init, k_init, x0_init, y0_init],
-                maxfev=10000
+                sigmoidal_func, x, y, p0=[L_init, k_init, x0_init, y0_init], maxfev=10000
             )
             L, k, x0, y0 = popt
 
@@ -623,21 +633,21 @@ class GrowthTrajectoryModeler:
 
             # Confidence intervals
             confidence_intervals = {}
-            for i, param_name in enumerate(['L', 'k', 'x0', 'y0']):
+            for i, param_name in enumerate(["L", "k", "x0", "y0"]):
                 std_error = np.sqrt(np.diag(pcov))[i]
                 confidence_intervals[param_name] = (
                     popt[i] - 1.96 * std_error,
-                    popt[i] + 1.96 * std_error
+                    popt[i] + 1.96 * std_error,
                 )
 
             return ModelParameters(
                 model_type=GrowthModelType.SIGMOIDAL,
-                parameters={'L': float(L), 'k': float(k), 'x0': float(x0), 'y0': float(y0)},
+                parameters={"L": float(L), "k": float(k), "x0": float(x0), "y0": float(y0)},
                 r_squared=float(r_squared),
                 aic=float(aic),
                 bic=float(bic),
                 rmse=float(rmse),
-                confidence_intervals=confidence_intervals
+                confidence_intervals=confidence_intervals,
             )
 
         except Exception as e:
@@ -655,11 +665,7 @@ class GrowthTrajectoryModeler:
             b_init = 1.0
             c_init = min(y)
 
-            popt, pcov = curve_fit(
-                power_law_func, x, y,
-                p0=[a_init, b_init, c_init],
-                maxfev=10000
-            )
+            popt, pcov = curve_fit(power_law_func, x, y, p0=[a_init, b_init, c_init], maxfev=10000)
             a, b, c = popt
 
             # Calculate goodness of fit
@@ -675,21 +681,21 @@ class GrowthTrajectoryModeler:
 
             # Confidence intervals
             confidence_intervals = {}
-            for i, param_name in enumerate(['a', 'b', 'c']):
+            for i, param_name in enumerate(["a", "b", "c"]):
                 std_error = np.sqrt(np.diag(pcov))[i]
                 confidence_intervals[param_name] = (
                     popt[i] - 1.96 * std_error,
-                    popt[i] + 1.96 * std_error
+                    popt[i] + 1.96 * std_error,
                 )
 
             return ModelParameters(
                 model_type=GrowthModelType.POWER_LAW,
-                parameters={'a': float(a), 'b': float(b), 'c': float(c)},
+                parameters={"a": float(a), "b": float(b), "c": float(c)},
                 r_squared=float(r_squared),
                 aic=float(aic),
                 bic=float(bic),
                 rmse=float(rmse),
-                confidence_intervals=confidence_intervals
+                confidence_intervals=confidence_intervals,
             )
 
         except Exception as e:
@@ -718,28 +724,28 @@ class GrowthTrajectoryModeler:
 
             # Confidence intervals
             confidence_intervals = {}
-            for i, param_name in enumerate(['a', 'b', 'c']):
+            for i, param_name in enumerate(["a", "b", "c"]):
                 std_error = np.sqrt(np.diag(pcov))[i]
                 confidence_intervals[param_name] = (
                     popt[i] - 1.96 * std_error,
-                    popt[i] + 1.96 * std_error
+                    popt[i] + 1.96 * std_error,
                 )
 
             return ModelParameters(
                 model_type=GrowthModelType.POLYNOMIAL,
-                parameters={'a': float(a), 'b': float(b), 'c': float(c)},
+                parameters={"a": float(a), "b": float(b), "c": float(c)},
                 r_squared=float(r_squared),
                 aic=float(aic),
                 bic=float(bic),
                 rmse=float(rmse),
-                confidence_intervals=confidence_intervals
+                confidence_intervals=confidence_intervals,
             )
 
         except Exception as e:
             raise ValueError(f"Polynomial model fitting failed: {e}")
 
     # Additional helper methods for growth analysis
-    def _select_best_model(self, models: List[ModelParameters]) -> ModelParameters:
+    def _select_best_model(self, models: list[ModelParameters]) -> ModelParameters:
         """Select best model based on AIC/BIC and R-squared"""
         # Use weighted scoring: 0.4*R² + 0.3*(1/normalized_AIC) + 0.3*(1/normalized_BIC)
         scores = []
@@ -749,8 +755,12 @@ class GrowthTrajectoryModeler:
         r2_values = [m.r_squared for m in models]
 
         # Normalize values
-        aic_norm = [(aic - min(aic_values)) / (max(aic_values) - min(aic_values)) for aic in aic_values]
-        bic_norm = [(bic - min(bic_values)) / (max(bic_values) - min(bic_values)) for bic in bic_values]
+        aic_norm = [
+            (aic - min(aic_values)) / (max(aic_values) - min(aic_values)) for aic in aic_values
+        ]
+        bic_norm = [
+            (bic - min(bic_values)) / (max(bic_values) - min(bic_values)) for bic in bic_values
+        ]
 
         for i, model in enumerate(models):
             # Lower AIC/BIC is better, higher R² is better
@@ -761,17 +771,13 @@ class GrowthTrajectoryModeler:
         return models[best_idx]
 
     async def _generate_initial_predictions(
-        self,
-        trajectory: GrowthTrajectory,
-        df: pd.DataFrame,
-        model_params: ModelParameters
+        self, trajectory: GrowthTrajectory, df: pd.DataFrame, model_params: ModelParameters
     ):
         """Generate initial predictions for the trajectory"""
         # This would generate predictions for the next few months
         # Implementation details would depend on specific business requirements
-        pass
 
-    async def _save_predictions(self, trajectory_id: str, predictions: List[GrowthPrediction]):
+    async def _save_predictions(self, trajectory_id: str, predictions: list[GrowthPrediction]):
         """Save predictions to database"""
         for pred in predictions:
             db_pred = TrajectoryPrediction(
@@ -800,43 +806,46 @@ class GrowthTrajectoryModeler:
     async def _estimate_asymptotic_potential(self, model: ModelParameters) -> float:
         """Estimate maximum potential value"""
         if model.model_type == GrowthModelType.LOGISTIC:
-            return model.parameters.get('L', 0)
-        elif model.model_type == GrowthModelType.SIGMOIDAL:
-            return model.parameters.get('L', 0) + model.parameters.get('y0', 0)
-        return float('inf')  # No asymptote for linear/exponential
+            return model.parameters.get("L", 0)
+        if model.model_type == GrowthModelType.SIGMOIDAL:
+            return model.parameters.get("L", 0) + model.parameters.get("y0", 0)
+        return float("inf")  # No asymptote for linear/exponential
 
-    async def _determine_growth_stage(self, df: pd.DataFrame, model: ModelParameters) -> GrowthStage:
+    async def _determine_growth_stage(
+        self, df: pd.DataFrame, model: ModelParameters
+    ) -> GrowthStage:
         """Determine current growth stage"""
-        current_value = df['value'].iloc[-1]
-        max_value = df['value'].max()
+        current_value = df["value"].iloc[-1]
+        max_value = df["value"].max()
 
         if current_value < 0.3 * max_value:
             return GrowthStage.FOUNDATION
-        elif current_value < 0.6 * max_value:
+        if current_value < 0.6 * max_value:
             return GrowthStage.ACCELERATION
-        elif current_value < 0.8 * max_value:
+        if current_value < 0.8 * max_value:
             return GrowthStage.MATURATION
-        elif current_value < 0.95 * max_value:
+        if current_value < 0.95 * max_value:
             return GrowthStage.MASTERY
-        else:
-            return GrowthStage.INNOVATION
+        return GrowthStage.INNOVATION
 
     async def _estimate_plateau_probability(self, model: ModelParameters) -> float:
         """Estimate probability of growth plateau"""
         # Implementation would analyze model characteristics
         return 0.2  # Placeholder
 
-    async def _estimate_inflection_point(self, model: ModelParameters) -> Optional[datetime]:
+    async def _estimate_inflection_point(self, model: ModelParameters) -> datetime | None:
         """Estimate when growth inflection occurs"""
         if model.model_type == GrowthModelType.LOGISTIC:
-            x0 = model.parameters.get('x0')
+            x0 = model.parameters.get("x0")
             if x0:
                 # Convert days to date relative to some baseline
                 return datetime.utcnow() + timedelta(days=int(x0))
         return None
 
     # Placeholder implementations for potential analysis methods
-    async def _calculate_overall_potential_score(self, trajectories: List[GrowthTrajectory]) -> float:
+    async def _calculate_overall_potential_score(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> float:
         """Calculate overall growth potential score"""
         # Implementation would analyze multiple trajectories
         return 0.75  # Placeholder
@@ -845,119 +854,116 @@ class GrowthTrajectoryModeler:
         """Categorize potential score"""
         if score >= 0.9:
             return PotentialCategory.EXCEPTIONAL
-        elif score >= 0.75:
+        if score >= 0.75:
             return PotentialCategory.VERY_HIGH
-        elif score >= 0.6:
+        if score >= 0.6:
             return PotentialCategory.HIGH
-        elif score >= 0.4:
+        if score >= 0.4:
             return PotentialCategory.MEDIUM
-        else:
-            return PotentialCategory.LOW
+        return PotentialCategory.LOW
 
     # Additional placeholder methods would be implemented here
     async def _predict_with_model(
         self,
         model_type: GrowthModelType,
-        params: Dict[str, float],
+        params: dict[str, float],
         days_elapsed: int,
-        confidence_level: float
-    ) -> Tuple[float, Tuple[float, float]]:
+        confidence_level: float,
+    ) -> tuple[float, tuple[float, float]]:
         """Make prediction using fitted model"""
         # Implementation would use model parameters to predict
         return 0.0, (0.0, 0.0)  # Placeholder
 
     async def _calculate_instantaneous_growth_rate(
-        self,
-        model_type: GrowthModelType,
-        params: Dict[str, float],
-        days_elapsed: int
+        self, model_type: GrowthModelType, params: dict[str, float], days_elapsed: int
     ) -> float:
         """Calculate instantaneous growth rate"""
         return 0.01  # Placeholder
 
     async def _calculate_instantaneous_acceleration(
-        self,
-        model_type: GrowthModelType,
-        params: Dict[str, float],
-        days_elapsed: int
+        self, model_type: GrowthModelType, params: dict[str, float], days_elapsed: int
     ) -> float:
         """Calculate instantaneous acceleration"""
         return 0.001  # Placeholder
 
     # Placeholder methods for comprehensive analysis
-    async def _assess_growth_readiness(self, trajectories: List[GrowthTrajectory]) -> float:
+    async def _assess_growth_readiness(self, trajectories: list[GrowthTrajectory]) -> float:
         return 0.8
 
-    async def _assess_learning_agility(self, trajectories: List[GrowthTrajectory]) -> float:
+    async def _assess_learning_agility(self, trajectories: list[GrowthTrajectory]) -> float:
         return 0.7
 
-    async def _assess_adaptability(self, trajectories: List[GrowthTrajectory]) -> float:
+    async def _assess_adaptability(self, trajectories: list[GrowthTrajectory]) -> float:
         return 0.75
 
-    async def _estimate_time_to_mastery(self, trajectories: List[GrowthTrajectory]) -> int:
+    async def _estimate_time_to_mastery(self, trajectories: list[GrowthTrajectory]) -> int:
         return 730  # 2 years
 
-    async def _estimate_performance_ceiling(self, trajectories: List[GrowthTrajectory]) -> float:
+    async def _estimate_performance_ceiling(self, trajectories: list[GrowthTrajectory]) -> float:
         return 4.5
 
-    async def _calculate_velocity_percentile(self, user_id: str, trajectories: List[GrowthTrajectory]) -> float:
+    async def _calculate_velocity_percentile(
+        self, user_id: str, trajectories: list[GrowthTrajectory]
+    ) -> float:
         return 0.80
 
-    async def _identify_key_growth_drivers(self, trajectories: List[GrowthTrajectory]) -> List[str]:
+    async def _identify_key_growth_drivers(self, trajectories: list[GrowthTrajectory]) -> list[str]:
         return ["consistent_practice", "mentorship", "challenge_appropriate"]
 
-    async def _identify_limiting_factors(self, trajectories: List[GrowthTrajectory]) -> List[str]:
+    async def _identify_limiting_factors(self, trajectories: list[GrowthTrajectory]) -> list[str]:
         return ["time_constraints", "resource_limitations"]
 
-    async def _recommend_development_focus(self, trajectories: List[GrowthTrajectory]) -> List[str]:
+    async def _recommend_development_focus(self, trajectories: list[GrowthTrajectory]) -> list[str]:
         return ["technical_skills", "leadership_capabilities"]
 
-    async def _design_optimal_path(self, trajectories: List[GrowthTrajectory]) -> List[str]:
+    async def _design_optimal_path(self, trajectories: list[GrowthTrajectory]) -> list[str]:
         return ["skill_development", "experience_building", "network_expansion"]
 
-    async def _assess_career_trajectory_alignment(self, user_id: str, trajectories: List[GrowthTrajectory]) -> float:
+    async def _assess_career_trajectory_alignment(
+        self, user_id: str, trajectories: list[GrowthTrajectory]
+    ) -> float:
         return 0.85
 
-    async def _calculate_success_probability(self, trajectories: List[GrowthTrajectory]) -> float:
+    async def _calculate_success_probability(self, trajectories: list[GrowthTrajectory]) -> float:
         return 0.78
 
-    async def _estimate_development_roi(self, trajectories: List[GrowthTrajectory]) -> float:
+    async def _estimate_development_roi(self, trajectories: list[GrowthTrajectory]) -> float:
         return 3.2
 
     async def _apply_intervention_modifications(
-        self,
-        baseline_params: Dict[str, float],
-        intervention_scenario: Dict[str, Any]
-    ) -> Dict[str, float]:
+        self, baseline_params: dict[str, float], intervention_scenario: dict[str, Any]
+    ) -> dict[str, float]:
         """Apply intervention modifications to model parameters"""
         modified_params = baseline_params.copy()
 
         # Example modifications based on intervention type
-        if intervention_scenario.get('intensity') == 'high':
+        if intervention_scenario.get("intensity") == "high":
             # Increase growth rate parameters
             for key in modified_params:
-                if key in ['k', 'b', 'a']:
+                if key in ["k", "b", "a"]:
                     modified_params[key] *= 1.3
 
         return modified_params
 
     async def _calculate_intervention_impact(
         self,
-        baseline_predictions: List[GrowthPrediction],
-        intervention_predictions: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        baseline_predictions: list[GrowthPrediction],
+        intervention_predictions: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Calculate impact metrics for intervention"""
         return {
-            'improvement_percentage': 15.5,
-            'time_to_goal_reduction_days': 60,
-            'roi_estimate': 2.8,
-            'confidence_level': 0.85
+            "improvement_percentage": 15.5,
+            "time_to_goal_reduction_days": 60,
+            "roi_estimate": 2.8,
+            "confidence_level": 0.85,
         }
 
-    async def _generate_intervention_recommendations(self, impact_analysis: Dict[str, Any]) -> List[str]:
+    async def _generate_intervention_recommendations(
+        self, impact_analysis: dict[str, Any]
+    ) -> list[str]:
         """Generate recommendations based on impact analysis"""
         return [
             "Continue current intervention approach",
             "Consider increasing intensity for faster results",
-            "Monitor progress quarterly"
+            "Monitor progress quarterly",
         ]

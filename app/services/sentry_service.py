@@ -3,20 +3,17 @@ Sentry Error Tracking Service
 Provides comprehensive error tracking, performance monitoring, and issue management integration
 """
 
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime, timedelta
-from enum import Enum
-import logging
-from dataclasses import dataclass, field
-import json
-import uuid
-import traceback
-from functools import wraps
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from functools import wraps
+import logging
+from typing import Any
+import uuid
 
-from sqlalchemy.orm import Session
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
@@ -26,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class ErrorSeverity(Enum):
     """Error severity levels for Sentry"""
+
     FATAL = "fatal"
     ERROR = "error"
     WARNING = "warning"
@@ -35,6 +33,7 @@ class ErrorSeverity(Enum):
 
 class ErrorLevel(Enum):
     """Sentry error levels"""
+
     FATAL = "fatal"
     ERROR = "error"
     WARNING = "warning"
@@ -44,6 +43,7 @@ class ErrorLevel(Enum):
 
 class IssueStatus(Enum):
     """Sentry issue status"""
+
     UNRESOLVED = "unresolved"
     RESOLVED = "resolved"
     IGNORED = "ignored"
@@ -52,6 +52,7 @@ class IssueStatus(Enum):
 
 class IssuePriority(Enum):
     """Sentry issue priority levels"""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -60,45 +61,48 @@ class IssuePriority(Enum):
 @dataclass
 class SentryConfig:
     """Sentry configuration"""
+
     dsn: str
     environment: str
-    release: Optional[str] = None
-    server_name: Optional[str] = None
+    release: str | None = None
+    server_name: str | None = None
     debug: bool = False
     sample_rate: float = 1.0
     traces_sample_rate: float = 0.1
     max_breadcrumbs: int = 100
     attach_stacktrace: bool = True
     send_default_pii: bool = False
-    before_send_callback: Optional[str] = None
-    before_breadcrumb_callback: Optional[str] = None
-    integrations: List[str] = field(default_factory=list)
-    custom_tags: Dict[str, str] = field(default_factory=dict)
-    user_context: Dict[str, Any] = field(default_factory=dict)
+    before_send_callback: str | None = None
+    before_breadcrumb_callback: str | None = None
+    integrations: list[str] = field(default_factory=list)
+    custom_tags: dict[str, str] = field(default_factory=dict)
+    user_context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class ErrorEvent:
     """Error event data structure"""
+
     event_id: str
     message: str
     level: ErrorLevel
-    culprit: Optional[str] = None
-    exception: Optional[Dict[str, Any]] = None
-    stacktrace: Optional[str] = None
-    request: Optional[Dict[str, Any]] = None
-    user: Optional[Dict[str, Any]] = None
-    tags: Dict[str, str] = field(default_factory=dict)
-    extra: Dict[str, Any] = field(default_factory=dict)
-    fingerprint: List[str] = field(default_factory=list)
-    breadcrumbs: List[Dict[str, Any]] = field(default_factory=list)
-    contexts: Dict[str, Any] = field(default_factory=dict)
+    culprit: str | None = None
+    exception: dict[str, Any] | None = None
+    stacktrace: str | None = None
+    request: dict[str, Any] | None = None
+    user: dict[str, Any] | None = None
+    tags: dict[str, str] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
+    fingerprint: list[str] = field(default_factory=list)
+    breadcrumbs: list[dict[str, Any]] = field(default_factory=list)
+    contexts: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
 
 @dataclass
 class Issue:
     """Sentry issue representation"""
+
     issue_id: str
     title: str
     level: ErrorLevel
@@ -108,54 +112,56 @@ class Issue:
     last_seen: datetime
     count: int
     users_affected: int
-    assigned_to: Optional[str] = None
-    tags: Dict[str, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    assigned_to: str | None = None
+    tags: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class PerformanceSpan:
     """Performance span data"""
+
     span_id: str
-    parent_span_id: Optional[str]
+    parent_span_id: str | None
     trace_id: str
     op: str  # operation type
     description: str
     start_timestamp: datetime
-    end_timestamp: Optional[datetime] = None
-    duration_ms: Optional[float] = None
+    end_timestamp: datetime | None = None
+    duration_ms: float | None = None
     status: str = "ok"  # ok, deadline_exceeded, cancelled, unknown
-    tags: Dict[str, str] = field(default_factory=dict)
-    data: Dict[str, Any] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class PerformanceTransaction:
     """Performance transaction data"""
+
     event_id: str
     trace_id: str
     name: str
     start_timestamp: datetime
-    end_timestamp: Optional[datetime] = None
-    duration_ms: Optional[float] = None
+    end_timestamp: datetime | None = None
+    duration_ms: float | None = None
     status: str = "ok"
-    spans: List[PerformanceSpan] = field(default_factory=list)
-    tags: Dict[str, str] = field(default_factory=dict)
-    contexts: Dict[str, Any] = field(default_factory=dict)
-    user: Optional[Dict[str, Any]] = None
-    release: Optional[str] = None
-    environment: Optional[str] = None
+    spans: list[PerformanceSpan] = field(default_factory=list)
+    tags: dict[str, str] = field(default_factory=dict)
+    contexts: dict[str, Any] = field(default_factory=dict)
+    user: dict[str, Any] | None = None
+    release: str | None = None
+    environment: str | None = None
 
 
 class SentryService:
     """Comprehensive Sentry error tracking and performance monitoring service"""
 
-    def __init__(self, config: Optional[SentryConfig] = None):
+    def __init__(self, config: SentryConfig | None = None):
         self.config = config or self._get_default_config()
         self.enabled = bool(self.config.dsn)
-        self.issues_cache: Dict[str, Issue] = {}
-        self.performance_transactions: Dict[str, PerformanceTransaction] = {}
-        self.breadcrumbs: List[Dict[str, Any]] = []
+        self.issues_cache: dict[str, Issue] = {}
+        self.performance_transactions: dict[str, PerformanceTransaction] = {}
+        self.breadcrumbs: list[dict[str, Any]] = []
 
         # Initialize Sentry if enabled
         if self.enabled:
@@ -164,58 +170,59 @@ class SentryService:
     def _get_default_config(self) -> SentryConfig:
         """Get default Sentry configuration"""
         return SentryConfig(
-            dsn=getattr(settings, 'SENTRY_DSN', ''),
-            environment=getattr(settings, 'ENVIRONMENT', 'development'),
-            release=getattr(settings, 'APP_VERSION', None),
-            server_name=getattr(settings, 'SERVER_NAME', 'psychsync-api'),
-            debug=getattr(settings, 'DEBUG', False),
-            sample_rate=1.0 if getattr(settings, 'ENVIRONMENT') == 'production' else 1.0,
-            traces_sample_rate=0.1 if getattr(settings, 'ENVIRONMENT') == 'production' else 1.0,
-            integrations=['fastapi', 'sqlalchemy', 'redis', 'celery'],
+            dsn=getattr(settings, "SENTRY_DSN", ""),
+            environment=getattr(settings, "ENVIRONMENT", "development"),
+            release=getattr(settings, "APP_VERSION", None),
+            server_name=getattr(settings, "SERVER_NAME", "psychsync-api"),
+            debug=getattr(settings, "DEBUG", False),
+            sample_rate=1.0 if settings.ENVIRONMENT == "production" else 1.0,
+            traces_sample_rate=0.1 if settings.ENVIRONMENT == "production" else 1.0,
+            integrations=["fastapi", "sqlalchemy", "redis", "celery"],
             custom_tags={
-                'service': 'psychsync-api',
-                'version': getattr(settings, 'APP_VERSION', '1.0.0')
-            }
+                "service": "psychsync-api",
+                "version": getattr(settings, "APP_VERSION", "1.0.0"),
+            },
         )
 
     def _initialize_sentry(self):
         """Initialize Sentry SDK"""
         try:
             import sentry_sdk
-            from sentry_sdk.integrations.fastapi import FastApiIntegration
-            from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-            from sentry_sdk.integrations.redis import RedisIntegration
             from sentry_sdk.integrations.celery import CeleryIntegration
+            from sentry_sdk.integrations.fastapi import FastApiIntegration
+            from sentry_sdk.integrations.redis import RedisIntegration
+            from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
             # Configure integrations
             integrations = []
-            if 'fastapi' in self.config.integrations:
+            if "fastapi" in self.config.integrations:
                 integrations.append(FastApiIntegration(auto_enabling_integrations=False))
-            if 'sqlalchemy' in self.config.integrations:
+            if "sqlalchemy" in self.config.integrations:
                 integrations.append(SqlalchemyIntegration())
-            if 'redis' in self.config.integrations:
+            if "redis" in self.config.integrations:
                 integrations.append(RedisIntegration())
-            if 'celery' in self.config.integrations:
+            if "celery" in self.config.integrations:
                 integrations.append(CeleryIntegration())
 
             # Configure before_send callback
             def before_send(event, hint):
                 """Filter and enrich events before sending to Sentry"""
                 # Filter out sensitive data
-                if event.get('request'):
-                    request = event['request']
+                if event.get("request"):
+                    request = event["request"]
                     # Remove sensitive headers
-                    sensitive_headers = ['authorization', 'cookie', 'x-api-key']
-                    if 'headers' in request:
-                        request['headers'] = {
-                            k: v for k, v in request['headers'].items()
+                    sensitive_headers = ["authorization", "cookie", "x-api-key"]
+                    if "headers" in request:
+                        request["headers"] = {
+                            k: v
+                            for k, v in request["headers"].items()
                             if k.lower() not in sensitive_headers
                         }
 
                 # Add custom tags
-                if 'tags' not in event:
-                    event['tags'] = {}
-                event['tags'].update(self.config.custom_tags)
+                if "tags" not in event:
+                    event["tags"] = {}
+                event["tags"].update(self.config.custom_tags)
 
                 return event
 
@@ -233,7 +240,7 @@ class SentryService:
                 send_default_pii=self.config.send_default_pii,
                 before_send=before_send,
                 integrations=integrations,
-                auto_enabling_integrations=False
+                auto_enabling_integrations=False,
             )
 
             logger.info("Sentry SDK initialized successfully")
@@ -242,18 +249,18 @@ class SentryService:
             logger.warning("Sentry SDK not installed. Error tracking disabled.")
             self.enabled = False
         except Exception as e:
-            logger.error(f"Failed to initialize Sentry: {str(e)}")
+            logger.error(f"Failed to initialize Sentry: {e!s}")
             self.enabled = False
 
     async def capture_exception(
         self,
         exception: Exception,
         level: ErrorLevel = ErrorLevel.ERROR,
-        user: Optional[Dict[str, Any]] = None,
-        tags: Optional[Dict[str, str]] = None,
-        extra: Optional[Dict[str, Any]] = None,
-        fingerprint: Optional[List[str]] = None
-    ) -> Optional[str]:
+        user: dict[str, Any] | None = None,
+        tags: dict[str, str] | None = None,
+        extra: dict[str, Any] | None = None,
+        fingerprint: list[str] | None = None,
+    ) -> str | None:
         """Capture exception and send to Sentry"""
         if not self.enabled:
             return None
@@ -271,7 +278,7 @@ class SentryService:
 
             # Add extra data
             if extra:
-                sentry_sdk.set_extra('custom_data', extra)
+                sentry_sdk.set_extra("custom_data", extra)
 
             # Set fingerprint for grouping
             if fingerprint:
@@ -285,17 +292,17 @@ class SentryService:
             return event_id
 
         except Exception as e:
-            logger.error(f"Failed to capture exception in Sentry: {str(e)}")
+            logger.error(f"Failed to capture exception in Sentry: {e!s}")
             return None
 
     async def capture_message(
         self,
         message: str,
         level: ErrorLevel = ErrorLevel.INFO,
-        user: Optional[Dict[str, Any]] = None,
-        tags: Optional[Dict[str, str]] = None,
-        extra: Optional[Dict[str, Any]] = None
-    ) -> Optional[str]:
+        user: dict[str, Any] | None = None,
+        tags: dict[str, str] | None = None,
+        extra: dict[str, Any] | None = None,
+    ) -> str | None:
         """Capture message and send to Sentry"""
         if not self.enabled:
             return None
@@ -313,7 +320,7 @@ class SentryService:
 
             # Add extra data
             if extra:
-                sentry_sdk.set_extra('custom_data', extra)
+                sentry_sdk.set_extra("custom_data", extra)
 
             # Capture message
             event_id = sentry_sdk.capture_message(message, level=level.value)
@@ -322,15 +329,15 @@ class SentryService:
             return event_id
 
         except Exception as e:
-            logger.error(f"Failed to capture message in Sentry: {str(e)}")
+            logger.error(f"Failed to capture message in Sentry: {e!s}")
             return None
 
     async def add_breadcrumb(
         self,
         message: str,
-        category: Optional[str] = None,
-        level: Optional[str] = None,
-        data: Optional[Dict[str, Any]] = None
+        category: str | None = None,
+        level: str | None = None,
+        data: dict[str, Any] | None = None,
     ):
         """Add breadcrumb to current Sentry context"""
         if not self.enabled:
@@ -340,28 +347,25 @@ class SentryService:
             import sentry_sdk
 
             breadcrumb = {
-                'message': message,
-                'timestamp': datetime.utcnow().isoformat(),
+                "message": message,
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
             if category:
-                breadcrumb['category'] = category
+                breadcrumb["category"] = category
             if level:
-                breadcrumb['level'] = level
+                breadcrumb["level"] = level
             if data:
-                breadcrumb['data'] = data
+                breadcrumb["data"] = data
 
             sentry_sdk.add_breadcrumb(**breadcrumb)
 
         except Exception as e:
-            logger.error(f"Failed to add breadcrumb to Sentry: {str(e)}")
+            logger.error(f"Failed to add breadcrumb to Sentry: {e!s}")
 
     async def start_transaction(
-        self,
-        name: str,
-        op: str = "http.server",
-        description: Optional[str] = None
-    ) -> Optional[str]:
+        self, name: str, op: str = "http.server", description: str | None = None
+    ) -> str | None:
         """Start a performance transaction"""
         if not self.enabled or self.config.traces_sample_rate == 0:
             return None
@@ -371,8 +375,8 @@ class SentryService:
 
             transaction = sentry_sdk.start_transaction(
                 {
-                    'name': name,
-                    'op': op,
+                    "name": name,
+                    "op": op,
                 }
             )
 
@@ -391,20 +395,16 @@ class SentryService:
                 name=name,
                 start_timestamp=datetime.utcnow(),
                 spans=[],
-                tags=self.config.custom_tags.copy()
+                tags=self.config.custom_tags.copy(),
             )
 
             return trace_id
 
         except Exception as e:
-            logger.error(f"Failed to start transaction in Sentry: {str(e)}")
+            logger.error(f"Failed to start transaction in Sentry: {e!s}")
             return None
 
-    async def finish_transaction(
-        self,
-        trace_id: str,
-        status: str = "ok"
-    ):
+    async def finish_transaction(self, trace_id: str, status: str = "ok"):
         """Finish a performance transaction"""
         if not self.enabled or trace_id not in self.performance_transactions:
             return
@@ -433,15 +433,11 @@ class SentryService:
                 del self.performance_transactions[trace_id]
 
         except Exception as e:
-            logger.error(f"Failed to finish transaction in Sentry: {str(e)}")
+            logger.error(f"Failed to finish transaction in Sentry: {e!s}")
 
     async def create_span(
-        self,
-        trace_id: str,
-        op: str,
-        description: str,
-        parent_span_id: Optional[str] = None
-    ) -> Optional[str]:
+        self, trace_id: str, op: str, description: str, parent_span_id: str | None = None
+    ) -> str | None:
         """Create a performance span within a transaction"""
         if not self.enabled or trace_id not in self.performance_transactions:
             return None
@@ -457,7 +453,7 @@ class SentryService:
                 trace_id=trace_id,
                 op=op,
                 description=description,
-                start_timestamp=datetime.utcnow()
+                start_timestamp=datetime.utcnow(),
             )
 
             # Store span in transaction
@@ -466,25 +462,17 @@ class SentryService:
             # Create actual Sentry span
             transaction = sentry_sdk.get_current_transaction()
             if transaction and transaction.trace_id == trace_id:
-                sentry_span = transaction.start_child(
-                    op=op,
-                    description=description
-                )
+                sentry_span = transaction.start_child(op=op, description=description)
                 # Store Sentry span reference for later finishing
                 span._sentry_span = sentry_span
 
             return span_id
 
         except Exception as e:
-            logger.error(f"Failed to create span in Sentry: {str(e)}")
+            logger.error(f"Failed to create span in Sentry: {e!s}")
             return None
 
-    async def finish_span(
-        self,
-        trace_id: str,
-        span_id: str,
-        status: str = "ok"
-    ):
+    async def finish_span(self, trace_id: str, span_id: str, status: str = "ok"):
         """Finish a performance span"""
         if not self.enabled:
             return
@@ -504,25 +492,23 @@ class SentryService:
                 return
 
             span.end_timestamp = datetime.utcnow()
-            span.duration_ms = (
-                span.end_timestamp - span.start_timestamp
-            ).total_seconds() * 1000
+            span.duration_ms = (span.end_timestamp - span.start_timestamp).total_seconds() * 1000
             span.status = status
 
             # Finish actual Sentry span if it exists
-            if hasattr(span, '_sentry_span'):
+            if hasattr(span, "_sentry_span"):
                 span._sentry_span.set_status(status)
                 span._sentry_span.finish()
 
         except Exception as e:
-            logger.error(f"Failed to finish span in Sentry: {str(e)}")
+            logger.error(f"Failed to finish span in Sentry: {e!s}")
 
     async def set_user(
         self,
         user_id: str,
-        email: Optional[str] = None,
-        username: Optional[str] = None,
-        extra: Optional[Dict[str, Any]] = None
+        email: str | None = None,
+        username: str | None = None,
+        extra: dict[str, Any] | None = None,
     ):
         """Set user context for Sentry events"""
         if not self.enabled:
@@ -531,11 +517,7 @@ class SentryService:
         try:
             import sentry_sdk
 
-            user_data = {
-                'id': user_id,
-                'email': email,
-                'username': username
-            }
+            user_data = {"id": user_id, "email": email, "username": username}
 
             if extra:
                 user_data.update(extra)
@@ -543,7 +525,7 @@ class SentryService:
             sentry_sdk.set_user(user_data)
 
         except Exception as e:
-            logger.error(f"Failed to set user in Sentry: {str(e)}")
+            logger.error(f"Failed to set user in Sentry: {e!s}")
 
     async def set_tag(self, key: str, value: str):
         """Set tag for Sentry events"""
@@ -552,10 +534,11 @@ class SentryService:
 
         try:
             import sentry_sdk
+
             sentry_sdk.set_tag(key, value)
 
         except Exception as e:
-            logger.error(f"Failed to set tag in Sentry: {str(e)}")
+            logger.error(f"Failed to set tag in Sentry: {e!s}")
 
     async def set_extra(self, key: str, value: Any):
         """Set extra data for Sentry events"""
@@ -564,62 +547,39 @@ class SentryService:
 
         try:
             import sentry_sdk
+
             sentry_sdk.set_extra(key, value)
 
         except Exception as e:
-            logger.error(f"Failed to set extra data in Sentry: {str(e)}")
+            logger.error(f"Failed to set extra data in Sentry: {e!s}")
 
-    async def get_error_stats(
-        self,
-        hours: int = 24
-    ) -> Dict[str, Any]:
+    async def get_error_stats(self, hours: int = 24) -> dict[str, Any]:
         """Get error statistics from Sentry"""
         if not self.enabled:
-            return {
-                'total_errors': 0,
-                'errors_by_level': {},
-                'top_errors': [],
-                'error_trend': []
-            }
+            return {"total_errors": 0, "errors_by_level": {}, "top_errors": [], "error_trend": []}
 
         try:
             # This would make API calls to Sentry
             # For now, returning simulated data
             return {
-                'total_errors': 45,
-                'errors_by_level': {
-                    'error': 38,
-                    'warning': 5,
-                    'fatal': 2
-                },
-                'top_errors': [
-                    {
-                        'title': 'Database Connection Timeout',
-                        'count': 15,
-                        'level': 'error'
-                    },
-                    {
-                        'title': 'Authentication Failed',
-                        'count': 12,
-                        'level': 'error'
-                    },
-                    {
-                        'title': 'External API Timeout',
-                        'count': 8,
-                        'level': 'warning'
-                    }
+                "total_errors": 45,
+                "errors_by_level": {"error": 38, "warning": 5, "fatal": 2},
+                "top_errors": [
+                    {"title": "Database Connection Timeout", "count": 15, "level": "error"},
+                    {"title": "Authentication Failed", "count": 12, "level": "error"},
+                    {"title": "External API Timeout", "count": 8, "level": "warning"},
                 ],
-                'error_trend': [
-                    {'hour': -23, 'count': 3},
-                    {'hour': -22, 'count': 5},
-                    {'hour': -21, 'count': 2},
-                    {'hour': -20, 'count': 8},
-                    {'hour': -19, 'count': 4}
-                ]
+                "error_trend": [
+                    {"hour": -23, "count": 3},
+                    {"hour": -22, "count": 5},
+                    {"hour": -21, "count": 2},
+                    {"hour": -20, "count": 8},
+                    {"hour": -19, "count": 4},
+                ],
             }
 
         except Exception as e:
-            logger.error(f"Failed to get error stats from Sentry: {str(e)}")
+            logger.error(f"Failed to get error stats from Sentry: {e!s}")
             return {}
 
     async def create_issue(
@@ -627,9 +587,9 @@ class SentryService:
         title: str,
         description: str,
         level: ErrorLevel = ErrorLevel.ERROR,
-        assignee: Optional[str] = None,
-        tags: Optional[Dict[str, str]] = None
-    ) -> Optional[str]:
+        assignee: str | None = None,
+        tags: dict[str, str] | None = None,
+    ) -> str | None:
         """Create issue in Sentry"""
         if not self.enabled:
             return None
@@ -651,7 +611,7 @@ class SentryService:
                 users_affected=1,
                 assigned_to=assignee,
                 tags=tags or {},
-                metadata={'description': description}
+                metadata={"description": description},
             )
 
             self.issues_cache[issue_id] = issue
@@ -660,11 +620,12 @@ class SentryService:
             return issue_id
 
         except Exception as e:
-            logger.error(f"Failed to create issue in Sentry: {str(e)}")
+            logger.error(f"Failed to create issue in Sentry: {e!s}")
             return None
 
     def capture_exception_sync(self, func):
         """Decorator to automatically capture exceptions in functions"""
+
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             try:
@@ -676,11 +637,11 @@ class SentryService:
                         exception=e,
                         level=ErrorLevel.ERROR,
                         extra={
-                            'function': func.__name__,
-                            'module': func.__module__,
-                            'args_count': len(args),
-                            'kwargs_count': len(kwargs)
-                        }
+                            "function": func.__name__,
+                            "module": func.__module__,
+                            "args_count": len(args),
+                            "kwargs_count": len(kwargs),
+                        },
                     )
                 )
                 raise
@@ -693,65 +654,51 @@ class SentryService:
                 # Capture exception synchronously
                 try:
                     import sentry_sdk
+
                     sentry_sdk.capture_exception(e)
                 except:
-                    logger.error(f"Failed to capture exception: {str(e)}")
+                    logger.error(f"Failed to capture exception: {e!s}")
                 raise
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
-        else:
-            return sync_wrapper
+        return sync_wrapper
 
-    async def get_performance_summary(
-        self,
-        hours: int = 24
-    ) -> Dict[str, Any]:
+    async def get_performance_summary(self, hours: int = 24) -> dict[str, Any]:
         """Get performance monitoring summary from Sentry"""
         if not self.enabled:
             return {
-                'total_transactions': 0,
-                'average_duration': 0,
-                'slow_transactions': [],
-                'error_rate': 0
+                "total_transactions": 0,
+                "average_duration": 0,
+                "slow_transactions": [],
+                "error_rate": 0,
             }
 
         try:
             # This would make API calls to Sentry for performance data
             # For now, returning simulated data
             return {
-                'total_transactions': 1250,
-                'average_duration': 245.6,
-                'slow_transactions': [
-                    {
-                        'name': 'POST /api/v1/assessments',
-                        'duration': 1250.5,
-                        'count': 15
-                    },
-                    {
-                        'name': 'GET /api/v1/team/analytics',
-                        'duration': 890.3,
-                        'count': 23
-                    }
+                "total_transactions": 1250,
+                "average_duration": 245.6,
+                "slow_transactions": [
+                    {"name": "POST /api/v1/assessments", "duration": 1250.5, "count": 15},
+                    {"name": "GET /api/v1/team/analytics", "duration": 890.3, "count": 23},
                 ],
-                'error_rate': 0.8,
-                'top_operations': [
-                    {'op': 'http.server', 'count': 800, 'avg_duration': 120.5},
-                    {'op': 'db.query', 'count': 450, 'avg_duration': 45.2},
-                    {'op': 'cache.get', 'count': 1200, 'avg_duration': 2.1}
-                ]
+                "error_rate": 0.8,
+                "top_operations": [
+                    {"op": "http.server", "count": 800, "avg_duration": 120.5},
+                    {"op": "db.query", "count": 450, "avg_duration": 45.2},
+                    {"op": "cache.get", "count": 1200, "avg_duration": 2.1},
+                ],
             }
 
         except Exception as e:
-            logger.error(f"Failed to get performance summary from Sentry: {str(e)}")
+            logger.error(f"Failed to get performance summary from Sentry: {e!s}")
             return {}
 
     @asynccontextmanager
     async def transaction_context(
-        self,
-        name: str,
-        op: str = "http.server",
-        description: Optional[str] = None
+        self, name: str, op: str = "http.server", description: str | None = None
     ):
         """Context manager for automatically managing transactions"""
         trace_id = await self.start_transaction(name, op, description)
@@ -759,20 +706,21 @@ class SentryService:
             yield trace_id
         except Exception as e:
             await self.capture_exception(
-                e,
-                level=ErrorLevel.ERROR,
-                extra={'transaction_trace_id': trace_id}
+                e, level=ErrorLevel.ERROR, extra={"transaction_trace_id": trace_id}
             )
             raise
         finally:
             if trace_id:
-                await self.finish_transaction(trace_id, "ok" if not isinstance(e, Exception) else "internal_error")
+                await self.finish_transaction(
+                    trace_id, "ok" if not isinstance(e, Exception) else "internal_error"
+                )
 
     def __del__(self):
         """Cleanup when service is destroyed"""
         if self.enabled:
             try:
                 import sentry_sdk
+
                 sentry_sdk.flush()
             except:
                 pass
@@ -793,8 +741,7 @@ class SentryMiddleware(BaseHTTPMiddleware):
         # Start transaction
         transaction_name = f"{request.method} {request.url.path}"
         trace_id = await self.sentry_service.start_transaction(
-            name=transaction_name,
-            op="http.server"
+            name=transaction_name, op="http.server"
         )
 
         # Add request breadcrumb
@@ -806,8 +753,8 @@ class SentryMiddleware(BaseHTTPMiddleware):
                 "method": request.method,
                 "url": str(request.url),
                 "user_agent": request.headers.get("user-agent"),
-                "ip_address": request.client.host if request.client else None
-            }
+                "ip_address": request.client.host if request.client else None,
+            },
         )
 
         try:
@@ -820,8 +767,8 @@ class SentryMiddleware(BaseHTTPMiddleware):
                 level="info",
                 data={
                     "status_code": response.status_code,
-                    "content_type": response.headers.get("content-type")
-                }
+                    "content_type": response.headers.get("content-type"),
+                },
             )
 
             # Finish transaction with success
@@ -840,13 +787,13 @@ class SentryMiddleware(BaseHTTPMiddleware):
                     "method": request.method,
                     "url": str(request.url),
                     "user_agent": request.headers.get("user-agent"),
-                    "ip_address": request.client.host if request.client else None
+                    "ip_address": request.client.host if request.client else None,
                 },
                 tags={
                     "middleware": "sentry",
                     "request_method": request.method,
-                    "request_path": request.url.path
-                }
+                    "request_path": request.url.path,
+                },
             )
 
             # Finish transaction with error

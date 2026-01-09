@@ -28,7 +28,7 @@ except (ImportError, SyntaxError) as e:
     DATABASE_SECURITY_AVAILABLE = False
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/database/security/scan", summary="Database Security Scan")
 async def scan_database_security(
     request: Request,
@@ -125,7 +125,7 @@ async def scan_database_security(
         logger.log_error(e, operation="scan_database_security", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to perform database security s
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 can",
             request_id=get_request_id(request)
         )
@@ -184,7 +184,7 @@ async def remediate_database_security(
     except Exception as e:
         logger.log_error(e, operation="remediate_database_security", user_id=str(current_user.id))
         return APIResponse.serv
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 er_error(
             message="Failed to apply security remediation",
             request_id=get_request_id(request)

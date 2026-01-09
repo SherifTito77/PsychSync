@@ -3,11 +3,11 @@ Performance-Optimized Security Functions
 JWT caching and optimized authentication for high-load scenarios
 """
 
-import time
-import hashlib
 from functools import lru_cache
-from typing import Optional, Dict, Any
+import hashlib
 import logging
+import time
+from typing import Any
 
 from app.core.config import settings
 
@@ -15,7 +15,7 @@ logger = logging.getLogger("app.security.performance")
 
 # Performance configuration
 JWT_CACHE_SIZE = 1000  # Number of cached JWT tokens
-JWT_CACHE_TTL = 300   # 5 minutes cache TTL
+JWT_CACHE_TTL = 300  # 5 minutes cache TTL
 CLEANUP_INTERVAL = 60  # Check for cleanup every minute
 
 # Cache metrics
@@ -23,7 +23,8 @@ _last_cleanup = time.time()
 _cache_hits = 0
 _cache_misses = 0
 
-def get_cache_metrics() -> Dict[str, Any]:
+
+def get_cache_metrics() -> dict[str, Any]:
     """Get cache performance metrics"""
     total_requests = _cache_hits + _cache_misses
     hit_rate = (_cache_hits / total_requests * 100) if total_requests > 0 else 0
@@ -34,14 +35,16 @@ def get_cache_metrics() -> Dict[str, Any]:
         "hit_rate_percentage": round(hit_rate, 2),
         "total_requests": total_requests,
         "cache_size": JWT_CACHE_SIZE,
-        "cache_ttl_seconds": JWT_CACHE_TTL
+        "cache_ttl_seconds": JWT_CACHE_TTL,
     }
+
 
 def reset_cache_metrics():
     """Reset cache metrics for monitoring"""
     global _cache_hits, _cache_misses
     _cache_hits = 0
     _cache_misses = 0
+
 
 def _should_cleanup_cache() -> bool:
     """Check if cache should be cleaned up"""
@@ -52,12 +55,14 @@ def _should_cleanup_cache() -> bool:
         return True
     return False
 
+
 def _get_token_hash(token: str) -> str:
     """Get a hash of the token for cache key"""
     return hashlib.sha256(token.encode()).hexdigest()[:32]
 
+
 @lru_cache(maxsize=JWT_CACHE_SIZE)
-def cached_verify_jwt_token(token_hash: str, original_token: str) -> Optional[Dict[str, Any]]:
+def cached_verify_jwt_token(token_hash: str, original_token: str) -> dict[str, Any] | None:
     """
     Cached JWT token verification for performance optimization
 
@@ -72,15 +77,11 @@ def cached_verify_jwt_token(token_hash: str, original_token: str) -> Optional[Di
     _cache_misses += 1
 
     try:
-        import jwt
         from jose import JWTError
+        import jwt
 
         # This is where the actual JWT verification happens
-        payload = jwt.decode(
-            original_token,
-            settings.jwt_secret,
-            algorithms=["HS256"]
-        )
+        payload = jwt.decode(original_token, settings.jwt_secret, algorithms=["HS256"])
 
         # Cache the decoded payload
         return payload
@@ -89,7 +90,8 @@ def cached_verify_jwt_token(token_hash: str, original_token: str) -> Optional[Di
         logger.debug(f"JWT verification failed: {type(e).__name__}")
         return None
 
-def get_jwt_payload_optimized(token: str) -> Optional[Dict[str, Any]]:
+
+def get_jwt_payload_optimized(token: str) -> dict[str, Any] | None:
     """
     Optimized JWT payload retrieval with caching
 
@@ -125,25 +127,23 @@ def get_jwt_payload_optimized(token: str) -> Optional[Dict[str, Any]]:
 
     # Fallback to direct verification if cache fails
     try:
-        import jwt
         from jose import JWTError
+        import jwt
 
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=["HS256"]
-        )
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
         return payload
 
     except (JWTError, Exception) as e:
         logger.debug(f"Direct JWT verification failed: {type(e).__name__}")
         return None
 
+
 # Fast authentication check for health endpoints
 HEALTH_ENDPOINT_TOKENS = {
     # Pre-verified test tokens for health checks
     "health_check_token": {"sub": "health_check", "type": "access", "exp": 9999999999}
 }
+
 
 def is_health_endpoint_token(token: str) -> bool:
     """
@@ -157,7 +157,8 @@ def is_health_endpoint_token(token: str) -> bool:
     """
     return token in HEALTH_ENDPOINT_TOKENS
 
-def get_health_endpoint_payload(token: str) -> Optional[Dict[str, Any]]:
+
+def get_health_endpoint_payload(token: str) -> dict[str, Any] | None:
     """
     Get payload for health endpoint without verification (performance optimization)
 
@@ -168,6 +169,7 @@ def get_health_endpoint_payload(token: str) -> Optional[Dict[str, Any]]:
         Pre-configured payload or None
     """
     return HEALTH_ENDPOINT_TOKENS.get(token)
+
 
 # Performance monitoring middleware helper
 def log_performance_metrics():
@@ -180,16 +182,17 @@ def log_performance_metrics():
             "cache_misses": metrics["cache_misses"],
             "hit_rate_percentage": metrics["hit_rate_percentage"],
             "total_requests": metrics["total_requests"],
-            "event_type": "performance_metrics"
-        }
+            "event_type": "performance_metrics",
+        },
     )
+
 
 # Export optimized functions
 __all__ = [
+    "get_cache_metrics",
+    "get_health_endpoint_payload",
     "get_jwt_payload_optimized",
     "is_health_endpoint_token",
-    "get_health_endpoint_payload",
-    "get_cache_metrics",
+    "log_performance_metrics",
     "reset_cache_metrics",
-    "log_performance_metrics"
 ]

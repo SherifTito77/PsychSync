@@ -4,19 +4,17 @@ Provides comprehensive tools for IRT model calibration, validation,
 quality assessment, and diagnostic reporting.
 """
 
-import asyncio
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+import json
 import logging
 import math
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union
-from dataclasses import dataclass, field
-from enum import Enum
-from collections import defaultdict
-import json
+from typing import Any
 
 import numpy as np
 from scipy import stats
-from scipy.stats import chi2, kstest
 
 # Optional imports for visualization
 try:
@@ -27,8 +25,13 @@ except ImportError:
     VISUALIZATION_AVAILABLE = False
 
 from app.services.irt_service import (
-    IRTService, IRTModel, EstimationMethod, IRTItem, IRTPerson,
-    IRTResponse, IRTCalibrationResult
+    EstimationMethod,
+    IRTCalibrationResult,
+    IRTItem,
+    IRTModel,
+    IRTPerson,
+    IRTResponse,
+    IRTService,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,7 +72,7 @@ class ItemFitStatistics:
     status: CalibrationStatus
     interpretation: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "item_id": self.item_id,
             "outfit_mnsq": self.outfit_mnsq,
@@ -98,7 +101,7 @@ class PersonFitStatistics:
     status: CalibrationStatus
     interpretation: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "person_id": self.person_id,
             "outfit_mnsq": self.outfit_mnsq,
@@ -125,7 +128,7 @@ class ReliabilityAnalysis:
     interpretation: str
     status: CalibrationStatus
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "cronbach_alpha": self.cronbach_alpha,
             "mcdonalds_omega": self.mcdonalds_omega,
@@ -141,17 +144,17 @@ class ReliabilityAnalysis:
 @dataclass
 class DimensionalityAnalysis:
     """Dimensionality analysis results"""
-    eigenvalues: List[float]
-    variance_explained: List[float]
-    parallel_analysis: List[float]
+    eigenvalues: list[float]
+    variance_explained: list[float]
+    parallel_analysis: list[float]
     Kaiser_criterion: int
     scree_plot: str  # Base64 encoded plot
-    factor_structure: List[List[float]]
+    factor_structure: list[list[float]]
     unidimensionality_score: float
     status: CalibrationStatus
     interpretation: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "eigenvalues": self.eigenvalues,
             "variance_explained": self.variance_explained,
@@ -181,7 +184,7 @@ class DIFAnalysis:
     status: CalibrationStatus
     interpretation: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "item_id": self.item_id,
             "group_type": self.group_type,
@@ -206,17 +209,17 @@ class CalibrationReport:
     model: IRTModel
     sample_size: int
     item_count: int
-    item_fit_stats: List[ItemFitStatistics]
-    person_fit_stats: List[PersonFitStatistics]
+    item_fit_stats: list[ItemFitStatistics]
+    person_fit_stats: list[PersonFitStatistics]
     reliability_analysis: ReliabilityAnalysis
     dimensionality_analysis: DimensionalityAnalysis
-    dif_analyses: List[DIFAnalysis]
+    dif_analyses: list[DIFAnalysis]
     overall_status: CalibrationStatus
-    recommendations: List[str]
-    summary_metrics: Dict[str, float]
-    validation_checks: Dict[str, bool]
+    recommendations: list[str]
+    summary_metrics: dict[str, float]
+    validation_checks: dict[str, bool]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "calibration_id": self.calibration_id,
             "timestamp": self.timestamp.isoformat(),
@@ -260,13 +263,13 @@ class IRTCalibrationService:
 
     async def comprehensive_calibration(
         self,
-        responses: List[IRTResponse],
+        responses: list[IRTResponse],
         model: IRTModel,
         estimation_method: EstimationMethod = EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD,
-        item_metadata: Optional[List[Dict[str, Any]]] = None,
-        person_metadata: Optional[List[Dict[str, Any]]] = None,
+        item_metadata: list[dict[str, Any]] | None = None,
+        person_metadata: list[dict[str, Any]] | None = None,
         perform_dif: bool = True,
-        dif_grouping_variables: Optional[List[str]] = None
+        dif_grouping_variables: list[str] | None = None
     ) -> CalibrationReport:
         """Perform comprehensive IRT calibration with full validation"""
         try:
@@ -354,15 +357,15 @@ class IRTCalibrationService:
             return report
 
         except Exception as e:
-            logger.error(f"Comprehensive calibration failed: {str(e)}")
+            logger.error(f"Comprehensive calibration failed: {e!s}")
             raise
 
     async def analyze_item_fit(
         self,
-        responses: List[IRTResponse],
-        items: List[IRTItem],
-        persons: List[IRTPerson]
-    ) -> List[ItemFitStatistics]:
+        responses: list[IRTResponse],
+        items: list[IRTItem],
+        persons: list[IRTPerson]
+    ) -> list[ItemFitStatistics]:
         """Analyze item fit statistics"""
         try:
             item_fit_stats = []
@@ -442,15 +445,15 @@ class IRTCalibrationService:
             return item_fit_stats
 
         except Exception as e:
-            logger.error(f"Item fit analysis failed: {str(e)}")
+            logger.error(f"Item fit analysis failed: {e!s}")
             return []
 
     async def analyze_person_fit(
         self,
-        responses: List[IRTResponse],
-        items: List[IRTItem],
-        persons: List[IRTPerson]
-    ) -> List[PersonFitStatistics]:
+        responses: list[IRTResponse],
+        items: list[IRTItem],
+        persons: list[IRTPerson]
+    ) -> list[PersonFitStatistics]:
         """Analyze person fit statistics"""
         try:
             person_fit_stats = []
@@ -520,14 +523,14 @@ class IRTCalibrationService:
             return person_fit_stats
 
         except Exception as e:
-            logger.error(f"Person fit analysis failed: {str(e)}")
+            logger.error(f"Person fit analysis failed: {e!s}")
             return []
 
     async def analyze_reliability(
         self,
-        responses: List[IRTResponse],
-        items: List[IRTItem],
-        persons: List[IRTPerson]
+        responses: list[IRTResponse],
+        items: list[IRTItem],
+        persons: list[IRTPerson]
     ) -> ReliabilityAnalysis:
         """Analyze test reliability"""
         try:
@@ -555,7 +558,7 @@ class IRTCalibrationService:
                     test_reliability=0.0,
                     split_half_reliability=0.0,
                     stratified_alpha=0.0,
-                    sem=float('inf'),
+                    sem=float("inf"),
                     interpretation="Insufficient sample for reliability analysis",
                     status=CalibrationStatus.FAILED
                 )
@@ -593,22 +596,22 @@ class IRTCalibrationService:
             )
 
         except Exception as e:
-            logger.error(f"Reliability analysis failed: {str(e)}")
+            logger.error(f"Reliability analysis failed: {e!s}")
             return ReliabilityAnalysis(
                 cronbach_alpha=0.0,
                 mcdonalds_omega=0.0,
                 test_reliability=0.0,
                 split_half_reliability=0.0,
                 stratified_alpha=0.0,
-                sem=float('inf'),
-                interpretation=f"Error: {str(e)}",
+                sem=float("inf"),
+                interpretation=f"Error: {e!s}",
                 status=CalibrationStatus.FAILED
             )
 
     async def analyze_dimensionality(
         self,
-        responses: List[IRTResponse],
-        persons: List[IRTPerson]
+        responses: list[IRTResponse],
+        persons: list[IRTPerson]
     ) -> DimensionalityAnalysis:
         """Analyze test dimensionality"""
         try:
@@ -680,7 +683,7 @@ class IRTCalibrationService:
             )
 
         except Exception as e:
-            logger.error(f"Dimensionality analysis failed: {str(e)}")
+            logger.error(f"Dimensionality analysis failed: {e!s}")
             return DimensionalityAnalysis(
                 eigenvalues=[],
                 variance_explained=[],
@@ -689,18 +692,18 @@ class IRTCalibrationService:
                 scree_plot="",
                 factor_structure=[],
                 unidimensionality_score=0.0,
-                interpretation=f"Error: {str(e)}",
+                interpretation=f"Error: {e!s}",
                 status=CalibrationStatus.FAILED
             )
 
     async def analyze_differential_item_functioning(
         self,
-        responses: List[IRTResponse],
-        items: List[IRTItem],
-        persons: List[IRTPerson],
-        person_metadata: List[Dict[str, Any]],
+        responses: list[IRTResponse],
+        items: list[IRTItem],
+        persons: list[IRTPerson],
+        person_metadata: list[dict[str, Any]],
         grouping_variable: str
-    ) -> List[DIFAnalysis]:
+    ) -> list[DIFAnalysis]:
         """Analyze Differential Item Functioning"""
         try:
             dif_analyses = []
@@ -734,25 +737,25 @@ class IRTCalibrationService:
                     if dif_result:
                         dif_analyses.append(dif_result)
                 except Exception as e:
-                    logger.error(f"DIF analysis failed for item {item.item_id}: {str(e)}")
+                    logger.error(f"DIF analysis failed for item {item.item_id}: {e!s}")
                     continue
 
             return dif_analyses
 
         except Exception as e:
-            logger.error(f"DIF analysis failed: {str(e)}")
+            logger.error(f"DIF analysis failed: {e!s}")
             return []
 
     async def _analyze_item_dif(
         self,
         item: IRTItem,
-        responses: List[IRTResponse],
-        group1: List[IRTPerson],
-        group2: List[IRTPerson],
+        responses: list[IRTResponse],
+        group1: list[IRTPerson],
+        group2: list[IRTPerson],
         group1_name: str,
         group2_name: str,
         grouping_variable: str
-    ) -> Optional[DIFAnalysis]:
+    ) -> DIFAnalysis | None:
         """Analyze DIF for a specific item"""
         try:
             # Get responses for this item by group
@@ -796,7 +799,7 @@ class IRTCalibrationService:
                 interpretation = f"Significant DIF detected: {group1_name} ({p1:.3f}) vs {group2_name} ({p2:.3f})"
             else:
                 status = CalibrationStatus.ACCEPTABLE
-                interpretation = f"No significant DIF detected"
+                interpretation = "No significant DIF detected"
 
             return DIFAnalysis(
                 item_id=item.item_id,
@@ -814,7 +817,7 @@ class IRTCalibrationService:
             )
 
         except Exception as e:
-            logger.error(f"Item DIF analysis failed: {str(e)}")
+            logger.error(f"Item DIF analysis failed: {e!s}")
             return None
 
     # Helper methods for fit statistics
@@ -822,8 +825,8 @@ class IRTCalibrationService:
     def _calculate_item_fit_statistics(
         self,
         observed_responses: np.ndarray,
-        expected_probabilities: List[float]
-    ) -> Tuple[float, float]:
+        expected_probabilities: list[float]
+    ) -> tuple[float, float]:
         """Calculate outfit and infit mean square statistics"""
         try:
             outfit_sum = 0.0
@@ -838,19 +841,19 @@ class IRTCalibrationService:
                     weight_sum += expected
 
             outfit_mnsq = outfit_sum / len(observed_responses)
-            infit_mnsq = infit_sum / weight_sum if weight_sum > 0 else float('inf')
+            infit_mnsq = infit_sum / weight_sum if weight_sum > 0 else float("inf")
 
             return outfit_mnsq, infit_mnsq
 
         except Exception as e:
-            logger.error(f"Item fit statistics calculation failed: {str(e)}")
+            logger.error(f"Item fit statistics calculation failed: {e!s}")
             return 1.0, 1.0
 
     def _calculate_person_fit_statistics(
         self,
         observed_responses: np.ndarray,
-        expected_probabilities: List[float]
-    ) -> Tuple[float, float]:
+        expected_probabilities: list[float]
+    ) -> tuple[float, float]:
         """Calculate outfit and infit mean square for person"""
         return self._calculate_item_fit_statistics(observed_responses, expected_probabilities)
 
@@ -859,7 +862,7 @@ class IRTCalibrationService:
         outfit_mnsq: float,
         infit_mnsq: float,
         sample_size: int
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Calculate z-scores for fit statistics"""
         try:
             # Approximate standard errors (simplified)
@@ -879,14 +882,14 @@ class IRTCalibrationService:
         outfit_mnsq: float,
         infit_mnsq: float,
         item_count: int
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Calculate z-scores for person fit statistics"""
         return self._calculate_item_fit_z_scores(outfit_mnsq, infit_mnsq, item_count)
 
     def _calculate_point_biserial(
         self,
         item_responses: np.ndarray,
-        abilities: List[float]
+        abilities: list[float]
     ) -> float:
         """Calculate point-biserial correlation"""
         try:
@@ -941,7 +944,7 @@ class IRTCalibrationService:
         infit_zstd: float,
         point_biserial: float,
         item_total_correlation: float
-    ) -> Tuple[CalibrationStatus, str]:
+    ) -> tuple[CalibrationStatus, str]:
         """Evaluate item fit and determine status"""
         try:
             issues = []
@@ -986,8 +989,8 @@ class IRTCalibrationService:
             return status, interpretation
 
         except Exception as e:
-            logger.error(f"Item fit evaluation failed: {str(e)}")
-            return CalibrationStatus.FAILED, f"Error evaluating fit: {str(e)}"
+            logger.error(f"Item fit evaluation failed: {e!s}")
+            return CalibrationStatus.FAILED, f"Error evaluating fit: {e!s}"
 
     def _evaluate_person_fit(
         self,
@@ -995,7 +998,7 @@ class IRTCalibrationService:
         infit_mnsq: float,
         outfit_zstd: float,
         infit_zstd: float
-    ) -> Tuple[CalibrationStatus, str]:
+    ) -> tuple[CalibrationStatus, str]:
         """Evaluate person fit and determine status"""
         try:
             issues = []
@@ -1033,8 +1036,8 @@ class IRTCalibrationService:
             return status, interpretation
 
         except Exception as e:
-            logger.error(f"Person fit evaluation failed: {str(e)}")
-            return CalibrationStatus.FAILED, f"Error evaluating fit: {str(e)}"
+            logger.error(f"Person fit evaluation failed: {e!s}")
+            return CalibrationStatus.FAILED, f"Error evaluating fit: {e!s}"
 
     # Reliability calculation methods
 
@@ -1065,7 +1068,7 @@ class IRTCalibrationService:
         except Exception:
             return 0.0
 
-    def _calculate_irt_reliability(self, items: List[IRTItem], persons: List[IRTPerson]) -> float:
+    def _calculate_irt_reliability(self, items: list[IRTItem], persons: list[IRTPerson]) -> float:
         """Calculate reliability from IRT parameters"""
         try:
             # Calculate average information across ability range
@@ -1121,22 +1124,21 @@ class IRTCalibrationService:
         """Calculate Standard Error of Measurement"""
         try:
             if reliability <= 0:
-                return float('inf')
+                return float("inf")
             return math.sqrt(1 - reliability)
 
         except Exception:
-            return float('inf')
+            return float("inf")
 
-    def _interpret_reliability(self, cronbach_alpha: float) -> Tuple[str, CalibrationStatus]:
+    def _interpret_reliability(self, cronbach_alpha: float) -> tuple[str, CalibrationStatus]:
         """Interpret reliability coefficient"""
         if cronbach_alpha >= self.thresholds["reliability_excellent"]:
             return "Excellent internal consistency", CalibrationStatus.EXCELLENT
-        elif cronbach_alpha >= self.thresholds["reliability_good"]:
+        if cronbach_alpha >= self.thresholds["reliability_good"]:
             return "Good internal consistency", CalibrationStatus.GOOD
-        elif cronbach_alpha >= self.thresholds["reliability_acceptable"]:
+        if cronbach_alpha >= self.thresholds["reliability_acceptable"]:
             return "Acceptable internal consistency", CalibrationStatus.ACCEPTABLE
-        else:
-            return "Poor internal consistency - review test items", CalibrationStatus.QUESTIONABLE
+        return "Poor internal consistency - review test items", CalibrationStatus.QUESTIONABLE
 
     # Dimensionality analysis methods
 
@@ -1171,7 +1173,7 @@ class IRTCalibrationService:
         except Exception:
             return np.array([])
 
-    def _perform_parallel_analysis(self, response_matrix: np.ndarray) -> List[float]:
+    def _perform_parallel_analysis(self, response_matrix: np.ndarray) -> list[float]:
         """Perform parallel analysis for factor retention"""
         try:
             n_persons, n_items = response_matrix.shape
@@ -1187,7 +1189,7 @@ class IRTCalibrationService:
         except Exception:
             return []
 
-    def _create_scree_plot(self, eigenvalues: np.ndarray, parallel_analysis: List[float]) -> str:
+    def _create_scree_plot(self, eigenvalues: np.ndarray, parallel_analysis: list[float]) -> str:
         """Create scree plot (simplified - return base64 string)"""
         try:
             # For now, return empty string - in production, this would create an actual plot
@@ -1196,7 +1198,7 @@ class IRTCalibrationService:
         except Exception:
             return ""
 
-    def _calculate_factor_structure(self, response_matrix: np.ndarray, n_factors: int) -> List[List[float]]:
+    def _calculate_factor_structure(self, response_matrix: np.ndarray, n_factors: int) -> list[list[float]]:
         """Calculate factor structure matrix"""
         try:
             if n_factors == 0:
@@ -1258,18 +1260,16 @@ class IRTCalibrationService:
         unidimensionality_score: float,
         kaiser_criterion: int,
         eigenvalues: np.ndarray
-    ) -> Tuple[str, CalibrationStatus]:
+    ) -> tuple[str, CalibrationStatus]:
         """Interpret dimensionality analysis results"""
         try:
             if unidimensionality_score >= self.thresholds["unidimensionality_min"]:
                 if kaiser_criterion == 1:
                     return "Strong evidence of unidimensionality", CalibrationStatus.EXCELLENT
-                else:
-                    return "Moderate evidence of unidimensionality", CalibrationStatus.GOOD
-            elif kaiser_criterion <= 2:
+                return "Moderate evidence of unidimensionality", CalibrationStatus.GOOD
+            if kaiser_criterion <= 2:
                 return "Some multidimensionality detected", CalibrationStatus.ACCEPTABLE
-            else:
-                return "Significant multidimensionality detected - consider test restructuring", CalibrationStatus.QUESTIONABLE
+            return "Significant multidimensionality detected - consider test restructuring", CalibrationStatus.QUESTIONABLE
 
         except Exception:
             return "Error interpreting dimensionality", CalibrationStatus.FAILED
@@ -1278,9 +1278,9 @@ class IRTCalibrationService:
 
     def _mantel_haenszel_test(
         self,
-        group1_responses: List[int],
-        group2_responses: List[int]
-    ) -> Tuple[float, float]:
+        group1_responses: list[int],
+        group2_responses: list[int]
+    ) -> tuple[float, float]:
         """Perform Mantel-Haenszel test for DIF"""
         try:
             # Create 2x2 table
@@ -1308,12 +1308,12 @@ class IRTCalibrationService:
 
     async def generate_overall_assessment(
         self,
-        item_fit_stats: List[ItemFitStatistics],
-        person_fit_stats: List[PersonFitStatistics],
+        item_fit_stats: list[ItemFitStatistics],
+        person_fit_stats: list[PersonFitStatistics],
         reliability_analysis: ReliabilityAnalysis,
         dimensionality_analysis: DimensionalityAnalysis,
-        dif_analyses: List[DIFAnalysis]
-    ) -> Tuple[CalibrationStatus, List[str]]:
+        dif_analyses: list[DIFAnalysis]
+    ) -> tuple[CalibrationStatus, list[str]]:
         """Generate overall assessment and recommendations"""
         try:
             recommendations = []
@@ -1389,17 +1389,17 @@ class IRTCalibrationService:
             return overall_status, recommendations
 
         except Exception as e:
-            logger.error(f"Overall assessment generation failed: {str(e)}")
-            return CalibrationStatus.FAILED, [f"Error generating assessment: {str(e)}"]
+            logger.error(f"Overall assessment generation failed: {e!s}")
+            return CalibrationStatus.FAILED, [f"Error generating assessment: {e!s}"]
 
     async def create_summary_metrics(
         self,
         calibration_result: IRTCalibrationResult,
-        item_fit_stats: List[ItemFitStatistics],
-        person_fit_stats: List[PersonFitStatistics],
+        item_fit_stats: list[ItemFitStatistics],
+        person_fit_stats: list[PersonFitStatistics],
         reliability_analysis: ReliabilityAnalysis,
         dimensionality_analysis: DimensionalityAnalysis
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Create summary metrics for the calibration"""
         try:
             metrics = {
@@ -1433,17 +1433,17 @@ class IRTCalibrationService:
             return metrics
 
         except Exception as e:
-            logger.error(f"Summary metrics creation failed: {str(e)}")
+            logger.error(f"Summary metrics creation failed: {e!s}")
             return {}
 
     async def perform_validation_checks(
         self,
-        item_fit_stats: List[ItemFitStatistics],
-        person_fit_stats: List[PersonFitStatistics],
+        item_fit_stats: list[ItemFitStatistics],
+        person_fit_stats: list[PersonFitStatistics],
         reliability_analysis: ReliabilityAnalysis,
         dimensionality_analysis: DimensionalityAnalysis,
-        dif_analyses: List[DIFAnalysis]
-    ) -> Dict[str, bool]:
+        dif_analyses: list[DIFAnalysis]
+    ) -> dict[str, bool]:
         """Perform standard validation checks"""
         try:
             checks = {}
@@ -1477,7 +1477,7 @@ class IRTCalibrationService:
             return checks
 
         except Exception as e:
-            logger.error(f"Validation checks failed: {str(e)}")
+            logger.error(f"Validation checks failed: {e!s}")
             return {}
 
     def export_calibration_report(
@@ -1489,23 +1489,22 @@ class IRTCalibrationService:
         try:
             if format == "json":
                 return json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
-            else:
-                raise ValueError(f"Unsupported export format: {format}")
+            raise ValueError(f"Unsupported export format: {format}")
 
         except Exception as e:
-            logger.error(f"Report export failed: {str(e)}")
+            logger.error(f"Report export failed: {e!s}")
             return ""
 
 
 # Export the main service class
 __all__ = [
-    "IRTCalibrationService",
     "CalibrationReport",
+    "CalibrationStatus",
+    "DIFAnalysis",
+    "DimensionalityAnalysis",
+    "IRTCalibrationService",
     "ItemFitStatistics",
     "PersonFitStatistics",
     "ReliabilityAnalysis",
-    "DimensionalityAnalysis",
-    "DIFAnalysis",
-    "ValidationMetric",
-    "CalibrationStatus"
+    "ValidationMetric"
 ]

@@ -1,31 +1,32 @@
 # app/api/v1/endpoints/onboarding.py
 # FastAPI endpoints for value-first onboarding experience
-from fastapi import APIRouter, HTTPException, Depends, Request
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Dict, Any
 from datetime import datetime
-import uuid
 import json
+from typing import Any
+import uuid
 
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.deps import get_current_active_user, get_current_user_optional
 from app.core.database import get_async_db as get_db
-from app.api.v1.deps import get_current_user_optional, get_current_active_user
-from app.db.models.user import User
 from app.core.input_validation import validate_input
 from app.core.rate_limiter import RateLimiter
+from app.db.models.user import User
 from app.schemas.onboarding import (
+    OnboardingAnalyticsEvent,
     QuickAssessmentRequest,
     QuickAssessmentResponse,
     TeamInsightRequest,
     TeamInsightResponse,
-    OnboardingAnalyticsEvent
 )
-from app.services.onboarding_service import OnboardingService
 from app.services.analytics_service import AnalyticsService
+from app.services.onboarding_service import OnboardingService
 
 router = APIRouter()
 onboarding_service = OnboardingService()
 analytics_service = AnalyticsService()
+
 
 @router.post("/quick-assessment", response_model=QuickAssessmentResponse)
 @RateLimiter(limit=20, window_seconds=60)  # 20 requests per minute
@@ -33,7 +34,7 @@ async def quick_assessment(
     request: QuickAssessmentRequest,
     http_request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Generate instant team insights from role and challenge (no auth required).
@@ -52,13 +53,15 @@ async def quick_assessment(
             user_id=current_user.id if current_user else None,
             session_id=request.session_id or str(uuid.uuid4()),
             data={
-                "role": request.role.value if hasattr(request.role, 'value') else str(request.role),
-                "challenge": request.challenge.value if hasattr(request.challenge, 'value') else str(request.challenge),
+                "role": request.role.value if hasattr(request.role, "value") else str(request.role),
+                "challenge": request.challenge.value
+                if hasattr(request.challenge, "value")
+                else str(request.challenge),
                 "team_size": request.team_size,
                 "client_ip": client_ip,
                 "user_agent": user_agent[:200],  # Truncate for security
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
 
         # Generate instant insights
@@ -67,7 +70,7 @@ async def quick_assessment(
             challenge=request.challenge,
             team_size=request.team_size,
             industry=request.industry,
-            user_id=current_user.id if current_user else None
+            user_id=current_user.id if current_user else None,
         )
 
         # Track completion event
@@ -79,8 +82,8 @@ async def quick_assessment(
                 "role": request.role,
                 "challenge": request.challenge,
                 "insights_generated": len(insights.recommendations),
-                "conversion_probability": insights.conversion_probability
-            }
+                "conversion_probability": insights.conversion_probability,
+            },
         )
 
         return QuickAssessmentResponse(
@@ -89,10 +92,10 @@ async def quick_assessment(
             next_steps=[
                 "Create your account to save these insights",
                 "Set up your team for detailed analysis",
-                "Take the full personality assessment"
+                "Take the full personality assessment",
             ],
             value_proposition=f"As a {request.role}, you can potentially {insights.primary_benefit}",
-            estimated_time_to_value=insights.estimated_time_to_value
+            estimated_time_to_value=insights.estimated_time_to_value,
         )
 
     except Exception as e:
@@ -100,16 +103,19 @@ async def quick_assessment(
             event_type="quick_assessment_error",
             user_id=current_user.id if current_user else None,
             session_id=request.session_id or str(uuid.uuid4()),
-            data={"error": str(e), "role": request.role, "challenge": request.challenge}
+            data={"error": str(e), "role": request.role, "challenge": request.challenge},
         )
-        raise HTTPException(status_code=500, detail=f"Assessment generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Assessment generation failed: {e!s}")
+
 
 @router.post("/team-insights", response_model=TeamInsightResponse)
 @RateLimiter(limit=30, window_seconds=60)  # 30 requests per minute for authenticated users
 async def get_team_insights(
     request: TeamInsightRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)  # Require authentication for team insights
+    current_user: User = Depends(
+        get_current_active_user
+    ),  # Require authentication for team insights
 ):
     """
     Generate deeper team insights for registered users.
@@ -127,7 +133,7 @@ async def get_team_insights(
             user_id=current_user.id,
             team_id=request.team_id,
             assessment_data=request.assessment_data,
-            team_composition=request.team_composition
+            team_composition=request.team_composition,
         )
 
         await analytics_service.track_onboarding_event(
@@ -137,8 +143,8 @@ async def get_team_insights(
             data={
                 "team_id": request.team_id,
                 "insights_count": len(insights.detailed_insights),
-                "recommendations_count": len(insights.action_items)
-            }
+                "recommendations_count": len(insights.action_items),
+            },
         )
 
         return TeamInsightResponse(
@@ -147,11 +153,12 @@ async def get_team_insights(
             detailed_insights=insights.detailed_insights,
             action_items=insights.action_items,
             predicted_outcomes=insights.predicted_outcomes,
-            implementation_roadmap=insights.implementation_roadmap
+            implementation_roadmap=insights.implementation_roadmap,
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Team insights generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Team insights generation failed: {e!s}")
+
 
 @router.post("/track-conversion")
 @RateLimiter(limit=100, window_seconds=60)  # Higher limit for analytics
@@ -159,7 +166,7 @@ async def track_conversion_event(
     event: OnboardingAnalyticsEvent,
     http_request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Track onboarding conversion events for analytics and optimization.
@@ -179,24 +186,21 @@ async def track_conversion_event(
             event_type=event.event_type,
             user_id=current_user.id if current_user else None,
             session_id=event.session_id,
-            data={
-                **(event.data or {}),
-                "client_ip": client_ip,
-                "user_agent": user_agent
-            }
+            data={**(event.data or {}), "client_ip": client_ip, "user_agent": user_agent},
         )
 
         return {"success": True, "message": "Event tracked successfully"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analytics tracking failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analytics tracking failed: {e!s}")
+
 
 @router.get("/onboarding-status")
 @RateLimiter(limit=60, window_seconds=60)
 async def get_onboarding_status(
     http_request: Request,
     current_user: User = Depends(get_current_user_optional),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get user's onboarding progress and recommended next steps.
@@ -207,8 +211,8 @@ async def get_onboarding_status(
             "onboarding_complete": False,
             "recommended_actions": [
                 "Try the quick assessment to see instant value",
-                "Create an account to save your insights"
-            ]
+                "Create an account to save your insights",
+            ],
         }
 
     try:
@@ -216,15 +220,16 @@ async def get_onboarding_status(
         return status
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get onboarding status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get onboarding status: {e!s}")
+
 
 @router.post("/setup-wizard")
 @RateLimiter(limit=20, window_seconds=60)
 async def setup_wizard_step(
-    step_data: Dict[str, Any],
+    step_data: dict[str, Any],
     http_request: Request,
     current_user: User = Depends(get_current_active_user),  # Require authentication
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Handle progressive setup wizard steps.
@@ -244,29 +249,28 @@ async def setup_wizard_step(
         data = step_data.get("data", {})
 
         result = await onboarding_service.process_setup_step(
-            user_id=current_user.id,
-            step=step,
-            data=data
+            user_id=current_user.id, step=step, data=data
         )
 
         await analytics_service.track_onboarding_event(
             event_type="setup_step_completed",
             user_id=current_user.id,
             session_id=step_data.get("session_id"),
-            data={"step": step, "success": result.get("success", False)}
+            data={"step": step, "success": result.get("success", False)},
         )
 
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Setup wizard step failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Setup wizard step failed: {e!s}")
+
 
 @router.get("/value-metrics")
 @RateLimiter(limit=30, window_seconds=60)
 async def get_value_metrics(
     http_request: Request,
     current_user: User = Depends(get_current_active_user),  # Require authentication
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get real-time value metrics for the user's team (post-onboarding).
@@ -276,4 +280,4 @@ async def get_value_metrics(
         return metrics
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to calculate value metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to calculate value metrics: {e!s}")

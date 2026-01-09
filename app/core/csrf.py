@@ -33,13 +33,31 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         app,
         exclude_paths: list[str] = None,
         token_expire_seconds: int = 3600,
-        header_name: str = "X-CSRF-Token"
+        header_name: str = "X-CSRF-Token",
     ):
         super().__init__(app)
         self.exclude_paths = exclude_paths or [
-            "/health", "/docs", "/redoc", "/openapi.json",
-            "/api/v1/token", "/api/v1/auth/token", "/api/v1/auth/register", "/api/v1/auth/refresh", "/api/v1/auth/login",
-            "/static", "/favicon.ico"
+            "/health",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/api/v1/token",
+            # Auth endpoints (old path with /auth prefix)
+            "/api/v1/auth/token",
+            "/api/v1/auth/register",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/login",
+            # Auth endpoints (new unified auth without /auth prefix)
+            "/api/v1/login",
+            "/api/v1/register",
+            "/api/v1/verify-email",
+            "/api/v1/resend-verification",
+            "/api/v1/login/mfa/verify",  # MFA verification endpoint
+            "/api/v1/mfa/setup",
+            "/api/v1/mfa/verify",
+            "/api/v1/mfa/disable",  # MFA management
+            "/static",
+            "/favicon.ico",
         ]
         self.token_expire_seconds = token_expire_seconds
         self.header_name = header_name
@@ -73,15 +91,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         logger.debug(
             EventType.SYSTEM_EVENT,
             f"CSRF check for path: {request.url.path}, method: {request.method}",
-            metadata={"exclude_paths": self.exclude_paths}
+            metadata={"exclude_paths": self.exclude_paths},
         )
 
         # Skip based on path
         if any(request.url.path.startswith(path) for path in self.exclude_paths):
-            logger.debug(
-                EventType.SYSTEM_EVENT,
-                f"CSRF check skipped for path: {request.url.path}"
-            )
+            logger.debug(EventType.SYSTEM_EVENT, f"CSRF check skipped for path: {request.url.path}")
             return True
 
         # Skip based on HTTP method (safe methods don't need CSRF protection)
@@ -89,10 +104,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method.upper() in safe_methods:
             return True
 
-        logger.debug(
-            EventType.SYSTEM_EVENT,
-            f"CSRF check required for path: {request.url.path}"
-        )
+        logger.debug(EventType.SYSTEM_EVENT, f"CSRF check required for path: {request.url.path}")
         return False
 
     def _requires_csrf_protection(self, request: Request) -> bool:
@@ -105,10 +117,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         """Check if CSRF token should be generated for this request"""
         # Only generate tokens for authenticated users on safe methods
         safe_methods = ["GET", "HEAD"]
-        return (
-            request.method.upper() in safe_methods and
-            self._is_authenticated_request(request)
-        )
+        return request.method.upper() in safe_methods and self._is_authenticated_request(request)
 
     async def _validate_csrf_token(self, request: Request):
         """Validate CSRF token from request"""
@@ -122,12 +131,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     "path": request.url.path,
                     "method": request.method,
                     "user_agent": request.headers.get("User-Agent"),
-                    "remote_addr": request.client.host if request.client else None
-                }
+                    "remote_addr": request.client.host if request.client else None,
+                },
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="CSRF token required for state-changing requests"
+                detail="CSRF token required for state-changing requests",
             )
 
         # Get user session token
@@ -135,7 +144,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if not auth_header or not auth_header.startswith("Bearer "):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required for CSRF-protected requests"
+                detail="Authentication required for CSRF-protected requests",
             )
 
         user_token = auth_header[7:]  # Remove "Bearer "
@@ -150,13 +159,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     "method": request.method,
                     "token_length": len(csrf_token),
                     "user_agent": request.headers.get("User-Agent"),
-                    "remote_addr": request.client.host if request.client else None
-                }
+                    "remote_addr": request.client.host if request.client else None,
+                },
             )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid CSRF token"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
 
     def _extract_csrf_token(self, request: Request) -> str | None:
         """Extract CSRF token from various sources"""
@@ -205,22 +211,21 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             "CSRF token generated",
             metadata={
                 "session_key_hash": hashlib.sha256(session_key.encode()).hexdigest()[:16],
-                "token_length": len(token)
-            }
+                "token_length": len(token),
+            },
         )
 
         return token
 
-    async def _validate_csrf_token_against_session(self, provided_token: str, user_token: str) -> bool:
+    async def _validate_csrf_token_against_session(
+        self, provided_token: str, user_token: str
+    ) -> bool:
         """Validate CSRF token against user session"""
         session_key = self._get_session_key(user_token)
         stored_token = await cache_get(session_key)
 
         if not stored_token:
-            logger.warning(
-                EventType.AUTHENTICATION,
-                "CSRF token expired or not found in session"
-            )
+            logger.warning(EventType.AUTHENTICATION, "CSRF token expired or not found in session")
             return False
 
         # Use constant-time comparison to prevent timing attacks
@@ -255,7 +260,9 @@ class CSRFProtection:
         return f"{token}:{timestamp}:{token_signature}"
 
     @staticmethod
-    def validate_csrf_token_for_user(csrf_token: str, user_id: str, max_age_seconds: int = 3600) -> bool:
+    def validate_csrf_token_for_user(
+        csrf_token: str, user_id: str, max_age_seconds: int = 3600
+    ) -> bool:
         """
         Validate CSRF token for specific user (for API usage)
         """
@@ -269,6 +276,7 @@ class CSRFProtection:
             # Check timestamp
             timestamp = int(timestamp_str)
             import time
+
             if time.time() - timestamp > max_age_seconds:
                 return False
 
@@ -289,7 +297,7 @@ class CSRFProtection:
         return {
             "X-CSRF-Protection": "1; mode=strict",
             "X-Content-Type-Options": "nosniff",
-            "Referrer-Policy": "strict-origin-when-cross-origin"
+            "Referrer-Policy": "strict-origin-when-cross-origin",
         }
 
 

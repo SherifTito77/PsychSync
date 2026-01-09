@@ -122,7 +122,7 @@ reliability_service = ReliabilityValidityService()
 data_service = PredictionDataCollectionService()
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/reliability/analyze", response_model=ReliabilityAnalysisResponse)
 async def analyze_reliability(
     request: ReliabilityAnalysisRequest,
@@ -232,8 +232,8 @@ async def analyze_reliability(
     except Exception as e:
         logger.error(f"Error in reliability analysis: {str(e)}")
         return ReliabilityAnalysisResponse(
-       
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
      success=False,
             error_message=str(e)
         )
@@ -324,7 +324,7 @@ async def conduct_factor_analysis(
 
     except Exception as e:
         logger.error(f"Error in factor ana
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 lysis: {str(e)}")
         return FactorAnalysisResponse(
             success=False,

@@ -1,0 +1,214 @@
+# Ruff configuration for PsychSync Python codebase
+# Ruff is a fast Python linter that replaces Flake8, isort, pyupgrade, and more
+# Install: pip install ruff
+# Run: ruff check .
+# Auto-fix: ruff check --fix .
+
+# Target Python 3.12 (latest supported by ruff)
+target-version = "py312"
+
+# Line length limit (matches project's Black configuration)
+line-length = 100
+
+# Excluded paths
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "*.pyc",
+    ".eggs",
+    "*.egg",
+    "build",
+    "dist",
+    "node_modules",
+    ".tox",
+    ".mypy_cache",
+    ".pytest_cache",
+    "*.so",
+    "_vendor",
+    "migrations",
+]
+
+# ==============================================================================
+# Linting Rules Configuration
+# ==============================================================================
+
+[lint]
+# Enable recommended rules
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort (import sorting)
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "ASYNC",  # flake8-async
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "EM",     # flake8-errmsg
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "G",      # flake8-logging-format
+    "PIE",    # flake8-pie
+    "T20",    # flake8-print
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SIM",    # flake8-simplify
+    "TID",    # flake8-tidy-imports
+    "TCH",    # flake8-type-checking
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate (commented out code)
+    "PL",     # Pylint
+    "TRY",    # tryceratops
+    "FLY",    # flynt
+    "PERF",   # Perflint
+    "RUF",    # Ruff-specific rules
+    "S",      # flake8-bandit (security)
+]
+
+# Ignore specific rules that don't match project patterns
+ignore = [
+    # Allow relative imports in specific cases
+    "TID252",  # Prefer absolute imports
+
+    # Allow assert statements (needed for tests)
+    "S101",    # Use of assert detected
+
+    # Allow print statements in CLI scripts and debugging
+    "T201",    # print found
+    "T203",    # pprint found
+
+    # Allow camelCase in API responses (FastAPI compatibility)
+    "N806",    # Variable in function should be lowercase
+
+    # Exception handling flexibility
+    "TRY003",  # Avoid specifying long messages outside exception class
+    "TRY300",  # Consider moving statement into else clause
+
+    # Complexity limits (adjust as needed)
+    "PLR0913", # Too many arguments in function definition
+    "PLR2004", # Magic value used in comparison
+    # C901 removed - enforcing max complexity of 15
+
+    # Allow temporary variables in some cases
+    "PLR0912", # Too many branches
+
+    # Specific to FastAPI/SQLAlchemy patterns
+    "B008",    # Do not perform function calls in argument defaults
+    "ARG002",  # Unused method argument (common in dependency injection)
+    "ARG001",  # Unused function argument
+
+    # Docstring conventions (use Google style)
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in __init__
+]
+
+# Allow autofix for applicable rules
+fixable = ["ALL"]
+unfixable = []
+
+# ==============================================================================
+# Security Rules (flake8-bandit)
+# ==============================================================================
+
+[lint.per-file-ignores]
+# Tests can have more relaxed rules
+"tests/**/*" = [
+    "S101",    # Asserts allowed in tests
+    "ARG001",  # Unused arguments allowed in test fixtures
+    "ARG002",  # Unused arguments allowed in test fixtures
+    "PLR2004", # Magic values allowed in tests
+]
+
+# Migrations can have relaxed rules
+"alembic/versions/**" = [
+    "D103",    # Docstrings not required in migrations
+]
+
+# CLI scripts can use print
+"scripts/**" = [
+    "T201",    # Print allowed in CLI scripts
+]
+
+# ==============================================================================
+# Import Organization (isort)
+# ==============================================================================
+
+[lint.isort]
+known-first-party = ["app"]
+force-sort-within-sections = true
+split-on-trailing-comma = true
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+# ==============================================================================
+# Code Complexity Limits
+# ==============================================================================
+
+[lint.mccabe]
+# Maximum cyclomatic complexity
+max-complexity = 15
+
+[lint.pylint]
+# Maximum number of arguments for function / method
+max-args = 7
+
+# Maximum number of locals for function / method body
+max-locals = 15
+
+# Maximum number of return / yield for function / method body
+max-returns = 6
+
+# Maximum number of branches for function / method body
+max-branches = 12
+
+# Maximum number of statements in function / method body
+max-statements = 50
+
+# ==============================================================================
+# Formatting Configuration (compatible with Black)
+# ==============================================================================
+
+[format]
+# Use double quotes for strings
+quote-style = "double"
+
+# Use spaces for indentation
+indent-style = "space"
+
+# Skip magic trailing comma (for cleaner diffs)
+skip-magic-trailing-comma = false
+
+# Line ending style
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings
+docstring-code-format = true
+
+# ==============================================================================
+# Rule Rationale
+# ==============================================================================
+# This configuration balances:
+# 1. Security: S-rules catch common security issues (SQL injection, hardcoded secrets)
+# 2. Code Quality: Bugbear and Pylint catch common bugs and anti-patterns
+# 3. Modern Python: pyupgrade ensures usage of modern Python syntax
+# 4. Import Organization: isort keeps imports clean and consistent
+# 5. Type Safety: Rules that work well with mypy for type checking
+# 6. FastAPI Patterns: Rules adjusted for FastAPI/SQLAlchemy patterns
+#
+# Team Adoption Guidelines:
+# - Run `ruff check --fix .` before commits to auto-fix issues
+# - Run `ruff check .` to see all issues
+# - Most rules have auto-fix available - use `--fix` flag
+# - For security issues (S-prefix), review before auto-fixing
+# - Complexity warnings indicate need for refactoring (extract functions)
+# - New rules can be temporarily added to ignore list during migration

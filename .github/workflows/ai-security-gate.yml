@@ -1,0 +1,255 @@
+name: AI Security Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  # ===========================================================================
+  # AI-INTRODUCED SECURITY PATTERNS
+  # ===========================================================================
+  
+  ai-security-scan:
+    name: 🔒 AI Security Scan (AI-Introduced Patterns)
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep:latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - name: Semgrep AI Security Scan
+        run: |
+          echo "🔍 Scanning for AI-introduced security vulnerabilities..."
+          semgrep --config=semgrep_rules/ai-introduced-security.yaml \
+            --error \
+            --verbose \
+            --json \
+            --output=ai-security-report.json || true
+      
+      - name: Upload AI Security Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-security-scan-results
+          path: ai-security-report.json
+          retention-days: 30
+      
+      - name: Check for Critical Issues
+        run: |
+          # Check if any ERROR or HIGH severity issues found
+          if grep -q '"severity": "ERROR' ai-security-report.json 2>/dev/null; then
+            echo "❌ CRITICAL: AI-introduced security vulnerabilities detected!"
+            echo ""
+            echo "Critical security issues must be fixed before merging."
+            exit 1
+          fi
+          
+          echo "✅ No critical AI security issues found"
+
+  # ===========================================================================
+  # COMMAND INJECTION DETECTION (Specific to AI patterns)
+  # ===========================================================================
+  
+  command-injection-check:
+    name: 💥 Command Injection Prevention
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Scan for subprocess shell=True
+        run: |
+          echo "🔍 Scanning for unsafe subprocess usage..."
+          
+          # Count occurrences of shell=True
+          count=$(grep -r "shell=True" app/ --include="*.py" | wc -l)
+          
+          if [ $count -gt 0 ]; then
+            echo "⚠️  Found $count instances of shell=True"
+            echo "These are potential command injection vulnerabilities often introduced by AI."
+            
+            # Show the files
+            grep -r "shell=True" app/ --include="*.py" -l
+            
+            # Check if they're in critical paths
+            if grep -r "shell=True.*subprocess\.(run\|call\|Popen)" app/ --include="*.py" | \
+               grep -v "test\|spec\|example" | grep -q .; then
+              echo "❌ CRITICAL: Found shell=True in production code"
+              echo ""
+              echo "Files with shell=True (non-test):"
+              grep -r "shell=True" app/ --include="*.py" -l | grep -v "test"
+              echo ""
+              echo "AI assistants frequently introduce command injection via shell=True."
+              echo "Please use shell=False with argument lists instead."
+              exit 1
+            fi
+          fi
+          
+          echo "✅ No critical command injection patterns found"
+
+  # ===========================================================================
+  # UNSAFE DESERIALIZATION CHECK
+  # ===========================================================================
+  
+  unsafe-deserialization-check:
+    name: 📦 Unsafe Deserialization Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Scan for pickle usage
+        run: |
+          echo "🔍 Scanning for unsafe pickle usage..."
+          
+          # Check for pickle.loads or pickle.load in production code
+          if grep -r "pickle\.loads\|pickle\.load" app/ --include="*.py" | \
+             grep -v "test\|spec\|example" | grep -q .; then
+            echo "⚠️  Found pickle usage in production code"
+            echo ""
+            echo "AI assistants often use pickle for serialization which is vulnerable"
+            echo "to arbitrary code execution (CVE-2024-35089)."
+            echo ""
+            echo "Files with pickle:"
+            grep -r "pickle\.loads\|pickle\.load" app/ --include="*.py" -l | grep -v "test"
+            echo ""
+            echo "⚠️  WARNING: Consider using JSON or msgpack instead."
+            # Don't fail the build, just warn
+          else
+            echo "✅ No unsafe pickle usage found in production code"
+          fi
+
+  # ===========================================================================
+  # RAW SQL INJECTION CHECK
+  # ===========================================================================
+  
+  sql-injection-check:
+    name: 💉 SQL Injection Prevention
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Scan for raw SQL with f-strings
+        run: |
+          echo "🔍 Scanning for SQL injection vulnerabilities..."
+          
+          # Check for text(f"...") patterns which AI frequently generates
+          if grep -rP 'text\(f"[^"]*\{' app/ --include="*.py" | \
+             grep -v "test\|spec\|example" | grep -q .; then
+            echo "❌ CRITICAL: Found raw SQL with f-strings"
+            echo ""
+            echo "AI assistants frequently generate SQL queries with f-strings like:"
+            echo "  text(f\"SELECT * FROM users WHERE id = {user_id}\")"
+            echo ""
+            echo "This is vulnerable to SQL injection. Use parameterized queries:"
+            echo "  text(\"SELECT * FROM users WHERE id = :user_id\", {\"user_id\": user_id})"
+            echo ""
+            echo "Files with raw SQL f-strings:"
+            grep -rP 'text\(f"[^"]*\{' app/ --include="*.py" -l | grep -v "test"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ No raw SQL f-string patterns found"
+
+  # ===========================================================================
+  # SECURITY SUMMARY
+  # ===========================================================================
+  
+  security-summary:
+    name: 📊 Security Summary
+    runs-on: ubuntu-latest
+    needs: [ai-security-scan, command-injection-check, sql-injection-check]
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+      
+      - name: Generate Summary
+        run: |
+          echo "# 🔒 AI Security Gate Summary" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ AI Security Scan: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Command Injection Check: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Unsafe Deserialization Check: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ SQL Injection Check: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Status" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.ai-security-scan.result }}" == "success" ] && \
+             [ "${{ needs.command-injection-check.result }}" == "success" ] && \
+             [ "${{ needs.sql-injection-check.result }}" == "success" ]; then
+            echo "✅ **ALL CHECKS PASSED** - Code is safe to merge" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **CHECKS FAILED** - Please fix issues before merging" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          cat $GITHUB_STEP_SUMMARY
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  # ===========================================================================
+  # FINAL GATE - Block merge if critical issues found
+  # ===========================================================================
+  
+  security-gate:
+    name: 🚪 Security Gate (Block on Critical Issues)
+    runs-on: ubuntu-latest
+    needs: [ai-security-scan, command-injection-check, sql-injection-check]
+    
+    steps:
+      - name: Check results and block if needed
+        run: |
+          echo "🚪 FINAL SECURITY GATE"
+          echo ""
+          
+          # If any check failed, block the merge
+          if [ "${{ needs.ai-security-scan.result }}" == "failure" ] || \
+             [ "${{ needs.command-injection-check.result }}" == "failure" ] || \
+             [ "${{ needs.sql-injection-check.result }}" == "failure" ]; then
+            echo ""
+            echo "❌ SECURITY GATE BLOCKED"
+            echo ""
+            echo "Critical security issues detected. Please fix before merging."
+            echo ""
+            echo "Run locally with:"
+            echo "  semgrep --config=semgrep_rules/ai-introduced-security.yaml"
+            echo ""
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ SECURITY GATE PASSED"
+          echo ""
+          echo "All critical security checks passed. Code is safe to merge."

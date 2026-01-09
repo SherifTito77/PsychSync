@@ -3,8 +3,9 @@ Simple script to run seeds from command line
 
 File path: app/db/seeds/run_seeds.py
 """
-import sys
+
 from pathlib import Path
+import sys
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent.parent
@@ -17,7 +18,7 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("PsychSync - Database Seeding")
     print("=" * 60 + "\n")
-    
+
     try:
         run_seed()
         print("\n✅ All seeds completed successfully!\n")

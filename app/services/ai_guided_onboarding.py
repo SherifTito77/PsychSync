@@ -3,25 +3,22 @@ AI-Guided User Onboarding Service
 Personalizes the onboarding experience using AI personality insights and behavioral predictions
 """
 
-import asyncio
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, desc, text
-import logging
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+import logging
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ai.processors.big_five import BigFiveProcessor
 
 # AI Engine imports
-from ai.processors.processors_base import PersonalityFrameworkProcessor
 from ai.processors.mbti_processor import MBTIProcessor
-from ai.processors.big_five import BigFiveProcessor
+from app.services.ai_behavioral_integration import AIBehavioralIntegrationService
 
 # Behavioral and integration imports
 from app.services.behavioral_pattern_recognition import BehavioralPatternRecognizer
-
-from app.core.path_utils import sanitize_path, safe_filename
-from app.services.ai_behavioral_integration import AIBehavioralIntegrationService
 
 logger = logging.getLogger(__name__)
 
@@ -50,22 +47,22 @@ class OnboardingStep:
     stage: OnboardingStage
     title: str
     description: str
-    content: Dict[str, Any]
-    persona_adaptations: Dict[str, Any]
+    content: dict[str, Any]
+    persona_adaptations: dict[str, Any]
     estimated_duration_minutes: int
     required: bool = True
-    skip_conditions: List[str] = None
+    skip_conditions: list[str] = None
 
 @dataclass
 class PersonalizedOnboardingPath:
     """AI-generated personalized onboarding path"""
     user_id: str
     persona: UserPersona
-    steps: List[OnboardingStep]
+    steps: list[OnboardingStep]
     total_estimated_duration: int
     predicted_completion_rate: float
-    personalization_insights: List[str]
-    adaptive_adjustments: Dict[str, Any]
+    personalization_insights: list[str]
+    adaptive_adjustments: dict[str, Any]
 
 class AIGuidedOnboardingService:
     """
@@ -81,15 +78,15 @@ class AIGuidedOnboardingService:
         self.behavioral_integration = AIBehavioralIntegrationService(db)
         self.pattern_recognizer = BehavioralPatternRecognizer(db)
         self.ai_processors = {
-            'mbti': MBTIProcessor(),
-            'big_five': BigFiveProcessor()
+            "mbti": MBTIProcessor(),
+            "big_five": BigFiveProcessor()
         }
 
     async def create_personalized_onboarding_path(
         self,
         user_id: str,
-        user_context: Dict[str, Any],
-        team_context: Optional[Dict[str, Any]] = None
+        user_context: dict[str, Any],
+        team_context: dict[str, Any] | None = None
     ) -> PersonalizedOnboardingPath:
         """
         Create AI-personalized onboarding path based on user's predicted personality and context
@@ -140,8 +137,8 @@ class AIGuidedOnboardingService:
         self,
         user_id: str,
         current_path: PersonalizedOnboardingPath,
-        user_progress: Dict[str, Any],
-        behavioral_data: Dict[str, Any]
+        user_progress: dict[str, Any],
+        behavioral_data: dict[str, Any]
     ) -> PersonalizedOnboardingPath:
         """
         Adapt onboarding path based on user progress and behavior using AI
@@ -197,8 +194,8 @@ class AIGuidedOnboardingService:
         self,
         user_id: str,
         current_stage: OnboardingStage,
-        user_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        user_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Get AI-powered recommendations for current onboarding stage
 
@@ -240,8 +237,8 @@ class AIGuidedOnboardingService:
     async def _predict_user_persona(
         self,
         user_id: str,
-        user_context: Dict[str, Any],
-        team_context: Optional[Dict[str, Any]]
+        user_context: dict[str, Any],
+        team_context: dict[str, Any] | None
     ) -> UserPersona:
         """Predict user persona based on context and available data"""
 
@@ -306,9 +303,9 @@ class AIGuidedOnboardingService:
     async def _generate_personalized_steps(
         self,
         persona: UserPersona,
-        user_context: Dict[str, Any],
-        team_context: Optional[Dict[str, Any]]
-    ) -> List[OnboardingStep]:
+        user_context: dict[str, Any],
+        team_context: dict[str, Any] | None
+    ) -> list[OnboardingStep]:
         """Generate persona-specific onboarding steps"""
 
         steps = []
@@ -443,7 +440,7 @@ class AIGuidedOnboardingService:
         }
         return descriptions.get(persona, "Welcome to PsychSync - your platform for personality insights and team optimization.")
 
-    async def _get_key_features_for_persona(self, persona: UserPersona) -> List[str]:
+    async def _get_key_features_for_persona(self, persona: UserPersona) -> list[str]:
         features = {
             UserPersona.ANALYTICAL_ACHIEVER: [
                 "Advanced Analytics Dashboard",
@@ -503,15 +500,15 @@ class AIGuidedOnboardingService:
     async def _get_goal_setting_description(self, persona: UserPersona) -> str:
         return "Establish clear objectives and track your progress"
 
-    async def _get_priority_features(self, persona: UserPersona) -> List[str]:
+    async def _get_priority_features(self, persona: UserPersona) -> list[str]:
         # Implementation would return persona-specific feature priorities
         return ["Dashboard", "Assessments", "Reports"]
 
-    async def _get_quick_wins_for_persona(self, persona: UserPersona) -> List[str]:
+    async def _get_quick_wins_for_persona(self, persona: UserPersona) -> list[str]:
         # Implementation would return easy wins for each persona
         return ["Complete first assessment", "View team insights"]
 
-    async def _get_learning_path_for_persona(self, persona: UserPersona) -> Dict[str, Any]:
+    async def _get_learning_path_for_persona(self, persona: UserPersona) -> dict[str, Any]:
         # Implementation would return personalized learning paths
         return {"path": "standard", "duration": "30 days"}
 
@@ -526,7 +523,7 @@ class AIGuidedOnboardingService:
         }
         return tones.get(persona, "professional")
 
-    async def _get_focus_areas_for_persona(self, persona: UserPersona) -> List[str]:
+    async def _get_focus_areas_for_persona(self, persona: UserPersona) -> list[str]:
         # Implementation would return focus areas for each persona
         return ["performance", "growth"]
 
@@ -541,7 +538,7 @@ class AIGuidedOnboardingService:
         }
         return levels.get(persona, "medium")
 
-    async def _predict_completion_rate(self, persona: UserPersona, steps: List[OnboardingStep]) -> float:
+    async def _predict_completion_rate(self, persona: UserPersona, steps: list[OnboardingStep]) -> float:
         # Implementation would predict completion likelihood
         base_rates = {
             UserPersona.ANALYTICAL_ACHIEVER: 0.85,
@@ -553,7 +550,7 @@ class AIGuidedOnboardingService:
         }
         return base_rates.get(persona, 0.80)
 
-    async def _generate_personalization_insights(self, persona: UserPersona, user_context: Dict[str, Any]) -> List[str]:
+    async def _generate_personalization_insights(self, persona: UserPersona, user_context: dict[str, Any]) -> list[str]:
         # Implementation would generate insights about personalization choices
         return [f"Onboarding optimized for {persona.value} persona"]
 
@@ -570,52 +567,52 @@ class AIGuidedOnboardingService:
             adaptive_adjustments={}
         )
 
-    async def _refine_persona_prediction(self, user_id: str, current_persona: UserPersona, behavioral_data: Dict[str, Any]) -> UserPersona:
+    async def _refine_persona_prediction(self, user_id: str, current_persona: UserPersona, behavioral_data: dict[str, Any]) -> UserPersona:
         """Refine persona prediction based on actual behavior during onboarding"""
         # Implementation would analyze actual behavior and adjust persona if needed
         return current_persona
 
-    async def _analyze_engagement_indicators(self, user_progress: Dict[str, Any], behavioral_data: Dict[str, Any]) -> Dict[str, float]:
+    async def _analyze_engagement_indicators(self, user_progress: dict[str, Any], behavioral_data: dict[str, Any]) -> dict[str, float]:
         """Analyze user engagement indicators"""
         # Implementation would return engagement metrics
         return {"time_on_page": 0.8, "interaction_rate": 0.7}
 
-    async def _analyze_difficulty_indicators(self, user_progress: Dict[str, Any], behavioral_data: Dict[str, Any]) -> Dict[str, float]:
+    async def _analyze_difficulty_indicators(self, user_progress: dict[str, Any], behavioral_data: dict[str, Any]) -> dict[str, float]:
         """Analyze difficulty indicators from user behavior"""
         # Implementation would return difficulty metrics
         return {"completion_time": 0.6, "error_rate": 0.2}
 
-    async def _generate_adaptive_adjustments(self, current_path: PersonalizedOnboardingPath, engagement: Dict[str, float], difficulty: Dict[str, float], persona: UserPersona) -> Dict[str, Any]:
+    async def _generate_adaptive_adjustments(self, current_path: PersonalizedOnboardingPath, engagement: dict[str, float], difficulty: dict[str, float], persona: UserPersona) -> dict[str, Any]:
         """Generate adaptive adjustments based on user behavior"""
         # Implementation would return specific adjustments needed
         return {"adjustment_type": "none", "new_insights": []}
 
-    async def _apply_step_adjustments(self, steps: List[OnboardingStep], adjustments: Dict[str, Any]) -> List[OnboardingStep]:
+    async def _apply_step_adjustments(self, steps: list[OnboardingStep], adjustments: dict[str, Any]) -> list[OnboardingStep]:
         """Apply AI-recommended adjustments to onboarding steps"""
         # Implementation would modify steps based on adjustments
         return steps
 
-    async def _recalculate_completion_rate(self, persona: UserPersona, steps: List[OnboardingStep], engagement: Dict[str, float]) -> float:
+    async def _recalculate_completion_rate(self, persona: UserPersona, steps: list[OnboardingStep], engagement: dict[str, float]) -> float:
         """Recalculate completion probability based on current progress"""
         # Implementation would return updated completion rate
         return 0.80
 
-    async def _get_onboarding_behavioral_profile(self, user_id: str, user_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_onboarding_behavioral_profile(self, user_id: str, user_data: dict[str, Any]) -> dict[str, Any]:
         """Get behavioral profile for onboarding personalization"""
         # Implementation would return behavioral insights
         return {"engagement_style": "focused", "confidence": 0.7}
 
-    async def _generate_stage_recommendations(self, stage: OnboardingStage, behavioral_profile: Dict[str, Any]) -> List[str]:
+    async def _generate_stage_recommendations(self, stage: OnboardingStage, behavioral_profile: dict[str, Any]) -> list[str]:
         """Generate recommendations for specific onboarding stage"""
         # Implementation would return stage-specific tips
         return ["Take your time", "Ask questions if needed"]
 
-    async def _personalize_content(self, stage: OnboardingStage, behavioral_profile: Dict[str, Any]) -> Dict[str, Any]:
+    async def _personalize_content(self, stage: OnboardingStage, behavioral_profile: dict[str, Any]) -> dict[str, Any]:
         """Personalize content for current stage"""
         # Implementation would return personalized content
         return {"tone": "encouraging", "detail_level": "medium"}
 
-    async def _predict_optimal_timing(self, user_id: str, stage: OnboardingStage, behavioral_profile: Dict[str, Any]) -> Dict[str, Any]:
+    async def _predict_optimal_timing(self, user_id: str, stage: OnboardingStage, behavioral_profile: dict[str, Any]) -> dict[str, Any]:
         """Predict optimal timing for next steps"""
         # Implementation would return timing recommendations
         return {"next_step_time": "immediate", "optimal_session_length": "15 minutes"}

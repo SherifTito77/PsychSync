@@ -1,0 +1,73 @@
+AI Risk Register,PsychSync,NIST AI RMF Mapping,2025-01-01
+Risk ID,Risk Category,Risk Name,Description,NIST Function,Owner,Likelihood,Impact (1-5),Risk Score,Current Mitigations,Additional Mitigations Required,Timeline,Status,KPI,Metric Target,OWASP LLM Top 10
+GOV-001,Governance,Lack of AI Governance Framework,"No formal AI governance committee or policies defined",Govern,CISO,Medium,4,12,"Basic security policies exist, but no AI-specific governance","Establish AI governance committee, create AI acceptance policy","Q1 2025",Open,"Policy coverage %","100% policies in place",N/A
+GOV-002,Governance,Undefined Model Acceptance Criteria,"No clear process for approving models for production use",Govern,CTO,High,5,25,"Ad-hoc model selection without formal review","Implement model acceptance criteria, create review board","Q1 2025",Open,"Models reviewed %","100% of models reviewed",N/A
+GOV-003,Governance,Missing AI Inventory,"Incomplete inventory of AI systems, models, and usage",Govern,Head of AI,High,4,20,"Partial inventory of Claude models, no comprehensive registry","Complete AI systems inventory, maintain living document","Q1 2025",Open,"Inventory completeness %","95% of systems documented",N/A
+GOV-004,Governance,Undefined AI Roles & Responsibilities,"Ambiguous accountability for AI-related decisions",Govern,CEO,Medium,3,9,"Some role definitions but unclear escalation paths","Define RACI matrix for AI decisions, establish escalation process","Q1 2025",Open,"Role clarity score","100% roles defined",N/A
+MAP-001,Risk Mapping,Incomplete AI Risk Assessment,"Risks identified but not systematically mapped or prioritized",Map,Head of AI,High,4,20,"Ad-hoc risk identification during development","Conduct comprehensive AI risk assessment, create risk taxonomy","Q2 2025",Open,"Risks documented %","100% risks mapped",N/A
+MAP-002,Risk Mapping,Missing Use Case Analysis,"AI deployed without thorough use case risk analysis",Map,Product Lead,Medium,4,16,"Some business case analysis but limited risk consideration","Implement use case risk questionnaire, require approval for high-risk cases","Q2 2025",Open,"Use cases reviewed %","100% use cases assessed",N/A
+MAP-003,Risk Mapping,Unclear AI Context Classification,"No formal classification of AI system risk levels (low/medium/high)",Map,CISO,Medium,4,16,"Informal risk assessment without standard criteria","Define AI system risk classification framework, categorize all systems","Q1 2025",Open,"Systems classified %","100% systems classified",N/A
+MAP-004,Risk Mapping,Undefined Supply Chain Risks,"Third-party AI providers (Anthropic) not fully assessed",Map,CISO,High,4,20,"Basic vendor review but no comprehensive supply chain mapping","Map AI supply chain, assess vendor controls, create contingency plans","Q2 2025",Open,"Vendors assessed %","100% vendors reviewed",N/A
+MEAS-001,Measure,Missing AI Safety Metrics,"No automated measurement of model safety, reliability, fairness",Measure,Head of AI,High,4,20,"Manual review of some model outputs","Implement automated safety metrics dashboard, continuous monitoring","Q2 2025",Open,"Metric coverage %","90% metrics automated",N/A
+MEAS-002,Measure,No Bias Detection System,"Lack of systematic bias detection and monitoring",Measure,Head of AI,High,4,20,"Ad-hoc bias checks during testing","Implement bias detection tools, regular bias audits, fairness metrics","Q2 2025",Open,"Bias audit frequency","Quarterly bias audits",N/A
+MEAS-003,Measure,Undefined Model Performance Thresholds,"No clear performance benchmarks or degradation monitoring",Measure,CTO,Medium,3,9,"Some performance monitoring but no formal thresholds","Define minimum performance criteria, implement degradation alerts","Q2 2025",Open,"Performance score",">95% performance maintained",N/A
+MEAS-004,Measure,Missing Explainability Metrics,"No measurement of model explainability or interpretability",Measure,Head of AI,Medium,3,9,"Manual review of model decisions","Implement explainability metrics, SHAP values, decision auditing","Q3 2025",Open,"Explainability score",">80% explainability target",N/A
+MEAS-005,Measure,No Adversarial Testing,"Lack of systematic testing against adversarial inputs",Measure,Security Lead,High,5,25,"Some manual red-team testing","Implement automated adversarial testing suite, continuous fuzzing","Q2 2025",Open,"Adversarial test coverage","100% critical paths tested",LLM01: Prompt Injection
+MEAS-006,Measure,Undefined Data Quality Metrics,"No systematic measurement of training/data quality",Measure,Data Lead,Medium,3,9,"Basic data validation","Implement comprehensive data quality dashboard, lineage tracking","Q2 2025",Open,"Data quality score",">90% data quality target",N/A
+MANA-001,Model Management,Prompt Injection Vulnerabilities,"LLM vulnerable to jailbreaking and prompt injection",Manage,Security Lead,High,5,25,"Basic input sanitization, no comprehensive protection","Implement advanced injection detection, input validation, output filtering","Q1 2025",In Progress,"Injection attempts blocked",">95% blocked rate",LLM01: Prompt Injection
+MANA-002,Model Management,Sensitive Information Disclosure,"Model may inadvertently disclose sensitive information",Manage,Security Lead,High,5,25,"Output redaction for some sensitive patterns","Enhance redaction rules, implement PII scanning, add deny-lists","Q1 2025",Open,"Sensitive disclosures","0 incidents/month",LLM02: Sensitive Information Disclosure
+MANA-003,Model Management,Excessive Agency,"Agent may perform unauthorized actions via tool use",Manage,Security Lead,High,5,25,"Basic tool authorization","Implement tool use governance, require human approval for sensitive operations, sandboxing","Q1 2025",Open,"Unauthorized tool use","0 incidents/month",LLM06: Excessive Agency
+MANA-004,Model Management,Unsafe Output Handling,"Model outputs consumed without proper validation",Manage,Engineering Lead,High,4,20,"Some output validation in place","Implement comprehensive output validation, schema enforcement, sanitization","Q1 2025",Open,"Output validation failures","<1% failure rate",LLM09: Insecure Output Handling
+MANA-005,Model Management,Training Data Poisoning,"ML models vulnerable to training data poisoning",Manage,ML Lead,Low,2,4,"Some data validation, no systematic poisoning detection","Implement data provenance tracking, poisoning detection, anomaly detection","Q2 2025",Open,"Poisoning detection","100% models scanned",LLM07: Insecure Training Data
+MANA-006,Model Management,Model Denial of Service,"Resource exhaustion attacks via complex inputs",Manage,Security Lead,Medium,3,9,"Basic rate limiting","Implement input complexity limits, resource quotas, circuit breakers","Q1 2025",Open,"DoS incidents","<1 incident/month",LLM10: Model Denial of Service
+MANA-007,Model Management,Model Theft,"Model weights or architecture may be extracted",Manage,Security Lead,Low,2,4,"Model access controls, no watermarking","Implement model watermarking, access monitoring, theft detection","Q2 2025",Open,"Model access anomalies","100% access reviewed",N/A
+MANA-008,Model Management,Gradient Extraction,"Attackers may extract training data via gradients",Manage,ML Lead,Low,1,1,"Some PPE checks","Implement differential privacy, gradient perturbation, monitoring","Q3 2025",Open,"Gradient query anomalies","0 successful attacks",N/A
+MANA-009,Data Governance,Training Data Privacy Violations,"Personal data in training data may violate privacy",Manage,Privacy Lead,High,4,20,"Basic PII redaction, no comprehensive privacy preservation","Implement differential privacy, data minimization, consent tracking","Q2 2025",Open,"Privacy violations","0 violations/month",N/A
+MANA-010,Data Governance,Model Hallucinations,"Model generates plausible but incorrect information",Manage,Head of AI,High,4,20,"Some fact-checking in prompts","Implement grounding in knowledge bases, uncertainty quantification, human-in-the-loop","Q2 2025",Open,"Hallucination rate","<5% on test set",N/A
+MANA-011,Operational,Model Version Control Issues,"No clear model versioning or rollback procedures",Manage,Engineering Lead,Medium,3,9,"Ad-hoc version management","Implement MLOps with version control, canary deployments, automated rollback","Q1 2025",Open,"Rollback success rate","100% successful rollbacks",N/A
+MANA-012,Operational,Missing Model Monitoring,"No real-time monitoring of model behavior in production",Manage,SRE Lead,High,4,20,"Basic logging, no behavioral monitoring","Implement comprehensive model monitoring dashboard, anomaly detection, alerting","Q1 2025",Open,"Monitoring coverage","100% models monitored",N/A
+MANA-013,Operational,Undefined Incident Response,"No AI-specific incident response procedures",Manage,Security Lead,High,4,20,"General IR plan but no AI-specific procedures","Develop AI incident response playbooks, train IR team, conduct drills","Q1 2025",Open,"IR drill frequency","Quarterly drills",N/A
+MANA-014,Compliance,AI Act Non-Compliance,"Potential non-compliance with EU AI Act requirements",Comply,Legal,Medium,4,16,"Limited awareness of AI Act requirements","Conduct AI Act compliance gap analysis, implement required controls","Q2 2025",Open,"Compliance score","100% requirements met",N/A
+MANA-015,Compliance,Undefined Copyright Ownership,"Unclear ownership of AI-generated content",Comply,Legal,Medium,3,9,"No explicit policy on AI-generated IP","Develop IP ownership policy, implement content tagging","Q2 2025",Open,"Policy coverage","100% content covered",N/A
+TECH-001,Technical,Insecure Model Serialization,"Model files may be tampered with during storage/transfer",Technical,Engineering Lead,Medium,3,9,"Basic file permissions","Implement model signing, checksum verification, secure storage","Q1 2025",Open,"Model integrity checks","100% models verified",N/A
+TECH-002,Technical,Missing Model Sandboxing,"Models not isolated from production systems",Technical,Security Lead,High,4,20,"Some containerization","Implement strict sandboxing, network isolation, resource limits","Q1 2025",Open,"Sandbox coverage","100% models sandboxed",N/A
+TECH-003,Technical,Unencrypted Model Communications,"Model API calls may be intercepted",Technical,Security Lead,High,4,20,"TLS for some endpoints","Enforce TLS 1.3 for all model communications, implement mTLS","Q1 2025",Open,"Encryption coverage","100% traffic encrypted",N/A
+TECH-004,Technical,Lack of Model Watermarking,"Unable to detect if model outputs are AI-generated",Technical,Head of AI,Low,2,4,"No watermarking","Implement output watermarking for provenance tracking","Q3 2025",Open,"Watermark coverage","100% outputs watermarked",N/A
+HUM-001,Human Factors,Over-Reliance on AI,"Users may over-trust AI recommendations",Human Factors,UX Lead,High,4,20,"Basic AI capability disclosure","Implement uncertainty communication, confidence intervals, human-AI collaboration patterns","Q2 2025",Open,"User understanding",">90% users understand limitations",N/A
+HUM-002,Human Factors,Inadequate Human Oversight,"Insufficient human review of AI decisions",Human Factors,Process Lead,High,4,20,"Some human review for high-risk cases","Define required human oversight levels, implement review queues, audit trails","Q1 2025",Open,"Review compliance","100% high-risk decisions reviewed",N/A
+HUM-003,Human Factors,AI Skill Gaps,"Staff lack AI literacy and risk awareness",Human Factors,HR,Medium,3,9,"Some AI training","Implement comprehensive AI literacy training, role-specific training programs","Q2 2025",Open,"Training completion","100% staff trained",N/A
+HUM-004,Human Factors,Chilling Effects,"Fear of AI reduces beneficial AI use",Human Factors,Head of AI,Low,2,4,"Some concern about AI job impact","Develop AI acceptance program, communicate benefits, address concerns","Q2 2025",Open,"AI acceptance score",">80% positive sentiment",N/A
+PRIV-001,Privacy,Biometric Data in Models,"Facial/voice data may be used without proper consent",Privacy,Privacy Lead,Medium,3,9,"Basic consent management","Implement biometric consent tracking, minimize biometric data use","Q2 2025",Open,"Consent coverage","100% biometric uses consented",N/A
+PRIV-002,Privacy,Model Inversion Attacks,"Adversaries may extract training data from model",Privacy,Security Lead,Medium,3,9,"Some differential privacy","Implement stronger differential privacy, membership inference defense","Q2 2025",Open,"Inversion success rate","<0.1% success rate",N/A
+PRIV-003,Privacy,Cross-Border Data Flows,"AI data may cross borders in violation of regulations",Privacy,Legal,High,4,20,"Some data location tracking","Implement data residency controls, cross-border transfer approval","Q2 2025",Open,"Compliance violations","0 violations/month",N/A
+
+,,,,,,,,
+,,,,,,,,
+# Summary Statistics
+,,,,,,,,
+# Total Risks: 52
+# Critical Risks (Score 20-25): 11
+# High Risks (Score 15-19): 28
+# Medium Risks (Score 8-14): 12
+# Low Risks (Score 1-7): 1
+,,,,,,,,
+# By NIST Function:
+# Govern: 4
+# Map: 4
+# Measure: 6
+# Manage: 38
+,,,,,,,,
+# By Status:
+# Open: 46
+# In Progress: 5
+# Closed: 1
+,,,,,,,,
+# By OWASP LLM Top 10:
+# LLM01 Prompt Injection: 2
+# LLM02 Sensitive Disclosure: 1
+# LLM03 Training Data Poisoning: 1
+# LLM06 Excessive Agency: 1
+# LLM07 Insecure Output Handling: 1
+# LLM09 Model Denial of Service: 1
+# LLM10 Model Theft: 1
+# Total OWASP mappings: 8

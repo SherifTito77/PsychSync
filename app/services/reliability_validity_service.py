@@ -16,45 +16,38 @@ Key Features:
 - Validity dashboard and reporting
 """
 
-import asyncio
-import logging
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass, field
 from enum import Enum
-from scipy import stats
-from scipy.spatial.distance import pdist, squareform
-from sklearn.decomposition import FactorAnalysis, PCA
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, r2_score
+import logging
+from typing import Any
 import warnings
-warnings.filterwarnings('ignore')
 
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc, asc
-from sqlalchemy.dialects.postgresql import array_agg
+import numpy as np
+import pandas as pd
+from scipy import stats
+from sklearn.decomposition import PCA, FactorAnalysis
+from sklearn.preprocessing import StandardScaler
 
-from app.core.database import get_db
-from app.db.models.user import User
-from app.db.models.assessment import Assessment
-from app.db.models.response import Response
-from app.db.models.team import Team
-from app.db.models.team import TeamMember
+warnings.filterwarnings("ignore")
+
+
 from app.services.irt_service import IRTService
 
 logger = logging.getLogger(__name__)
 
+
 class ReliabilityType(Enum):
     """Types of reliability analysis."""
+
     INTERNAL_CONSISTENCY = "internal_consistency"
     TEST_RETEST = "test_retest"
     INTER_RATER = "inter_rater"
     PARALLEL_FORMS = "parallel_forms"
 
+
 class ValidityType(Enum):
     """Types of validity analysis."""
+
     CONSTRUCT = "construct"
     CRITERION = "criterion"
     CONVERGENT = "convergent"
@@ -62,15 +55,19 @@ class ValidityType(Enum):
     CONTENT = "content"
     FACE = "face"
 
+
 class FactorAnalysisMethod(Enum):
     """Factor analysis extraction methods."""
+
     PCA = "pca"
     PRINCIPAL_AXIS = "principal_axis"
     MAXIMUM_LIKELIHOOD = "maximum_likelihood"
     MINIMUM_RESIDUAL = "minimum_residual"
 
+
 class RotationMethod(Enum):
     """Factor rotation methods."""
+
     VARIMAX = "varimax"
     EQUAMAX = "equamax"
     QUARTIMAX = "quartimax"
@@ -78,34 +75,40 @@ class RotationMethod(Enum):
     OBLIMIN = "oblimin"
     NO_ROTATION = "none"
 
+
 @dataclass
 class ReliabilityResult:
     """Results from reliability analysis."""
+
     reliability_type: ReliabilityType
     coefficient: float
-    confidence_interval: Optional[Tuple[float, float]] = None
-    standard_error: Optional[float] = None
+    confidence_interval: tuple[float, float] | None = None
+    standard_error: float | None = None
     sample_size: int = 0
     interpretation: str = ""
-    item_statistics: Optional[Dict[str, Dict[str, float]]] = None
-    recommendations: List[str] = field(default_factory=list)
+    item_statistics: dict[str, dict[str, float]] | None = None
+    recommendations: list[str] = field(default_factory=list)
+
 
 @dataclass
 class ValidityResult:
     """Results from validity analysis."""
+
     validity_type: ValidityType
     coefficient: float
     significance_level: float
-    confidence_interval: Optional[Tuple[float, float]] = None
+    confidence_interval: tuple[float, float] | None = None
     sample_size: int = 0
     interpretation: str = ""
     methodology: str = ""
-    criterion_description: Optional[str] = None
-    recommendations: List[str] = field(default_factory=list)
+    criterion_description: str | None = None
+    recommendations: list[str] = field(default_factory=list)
+
 
 @dataclass
 class FactorAnalysisResult:
     """Results from factor analysis."""
+
     extraction_method: FactorAnalysisMethod
     rotation_method: RotationMethod
     eigenvalues: np.ndarray
@@ -114,15 +117,17 @@ class FactorAnalysisResult:
     uniqueness: np.ndarray
     variance_explained: np.ndarray
     cumulative_variance: np.ndarray
-    factor_correlations: Optional[np.ndarray] = None
+    factor_correlations: np.ndarray | None = None
     kaiser_criterion: int = 0
     parallel_analysis: int = 0
-    scree_plot_data: Optional[Dict[str, List[float]]] = None
-    factor_interpretation: Dict[str, List[str]] = field(default_factory=dict)
+    scree_plot_data: dict[str, list[float]] | None = None
+    factor_interpretation: dict[str, list[str]] = field(default_factory=dict)
+
 
 @dataclass
 class ItemAnalysisResult:
     """Results from item analysis."""
+
     item_id: str
     difficulty: float  # p-value
     discrimination: float  # point-biserial correlation
@@ -131,8 +136,9 @@ class ItemAnalysisResult:
     item_validity: float
     skewness: float
     kurtosis: float
-    option_frequencies: Optional[Dict[str, int]] = None
-    distractor_analysis: Optional[Dict[str, Dict[str, float]]] = None
+    option_frequencies: dict[str, int] | None = None
+    distractor_analysis: dict[str, dict[str, float]] | None = None
+
 
 class ReliabilityValidityService:
     """
@@ -144,7 +150,7 @@ class ReliabilityValidityService:
         self.reliability_thresholds = self._initialize_reliability_thresholds()
         self.validity_thresholds = self._initialize_validity_thresholds()
 
-    def _initialize_reliability_thresholds(self) -> Dict[str, Dict[str, float]]:
+    def _initialize_reliability_thresholds(self) -> dict[str, dict[str, float]]:
         """Initialize reliability interpretation thresholds."""
         return {
             "cronbach_alpha": {
@@ -152,25 +158,25 @@ class ReliabilityValidityService:
                 "good": 0.80,
                 "acceptable": 0.70,
                 "questionable": 0.60,
-                "poor": 0.50
+                "poor": 0.50,
             },
             "test_retest": {
                 "excellent": 0.80,
                 "good": 0.70,
                 "acceptable": 0.60,
                 "questionable": 0.50,
-                "poor": 0.40
+                "poor": 0.40,
             },
             "mcdonald_omega": {
                 "excellent": 0.90,
                 "good": 0.80,
                 "acceptable": 0.70,
                 "questionable": 0.60,
-                "poor": 0.50
-            }
+                "poor": 0.50,
+            },
         }
 
-    def _initialize_validity_thresholds(self) -> Dict[str, Dict[str, float]]:
+    def _initialize_validity_thresholds(self) -> dict[str, dict[str, float]]:
         """Initialize validity interpretation thresholds."""
         return {
             "convergent": {
@@ -178,28 +184,30 @@ class ReliabilityValidityService:
                 "good": 0.60,
                 "acceptable": 0.50,
                 "questionable": 0.40,
-                "poor": 0.30
+                "poor": 0.30,
             },
             "criterion": {
                 "excellent": 0.70,
                 "good": 0.60,
                 "acceptable": 0.50,
                 "questionable": 0.40,
-                "poor": 0.30
+                "poor": 0.30,
             },
             "discriminant": {
                 "excellent": 0.30,  # Lower is better for discriminant
                 "good": 0.40,
                 "acceptable": 0.50,
                 "questionable": 0.60,
-                "poor": 0.70
-            }
+                "poor": 0.70,
+            },
         }
 
-    async def calculate_cronbach_alpha(self,
-                                     response_matrix: pd.DataFrame,
-                                     item_ids: Optional[List[str]] = None,
-                                     confidence_level: float = 0.95) -> ReliabilityResult:
+    async def calculate_cronbach_alpha(
+        self,
+        response_matrix: pd.DataFrame,
+        item_ids: list[str] | None = None,
+        confidence_level: float = 0.95,
+    ) -> ReliabilityResult:
         """
         Calculate Cronbach's Alpha for internal consistency reliability.
 
@@ -225,7 +233,7 @@ class ReliabilityValidityService:
                     reliability_type=ReliabilityType.INTERNAL_CONSISTENCY,
                     coefficient=0.0,
                     sample_size=len(item_data),
-                    interpretation="Insufficient data for reliability analysis"
+                    interpretation="Insufficient data for reliability analysis",
                 )
 
             # Calculate Cronbach's Alpha
@@ -262,8 +270,9 @@ class ReliabilityValidityService:
                     total_score_without = item_data_without.sum(axis=1)
                     total_variance_without = total_score_without.var(ddof=1)
 
-                    alpha_without = (n_items_without / (n_items_without - 1)) * \
-                                  (1 - (item_variances_without.sum() / total_variance_without))
+                    alpha_without = (n_items_without / (n_items_without - 1)) * (
+                        1 - (item_variances_without.sum() / total_variance_without)
+                    )
                     alpha_without = max(0.0, min(1.0, alpha_without))
                 else:
                     alpha_without = 0.0
@@ -273,13 +282,11 @@ class ReliabilityValidityService:
                     "alpha_if_deleted": alpha_without,
                     "item_mean": item_scores.mean(),
                     "item_std": item_scores.std(),
-                    "item_variance": item_scores.var(ddof=1)
+                    "item_variance": item_scores.var(ddof=1),
                 }
 
             # Interpretation
-            interpretation = self._interpret_reliability_coefficient(
-                alpha, "cronbach_alpha"
-            )
+            interpretation = self._interpret_reliability_coefficient(alpha, "cronbach_alpha")
 
             # Recommendations
             recommendations = self._generate_reliability_recommendations(
@@ -293,20 +300,20 @@ class ReliabilityValidityService:
                 sample_size=len(item_data),
                 interpretation=interpretation,
                 item_statistics=item_statistics,
-                recommendations=recommendations
+                recommendations=recommendations,
             )
 
         except Exception as e:
-            logger.error(f"Error calculating Cronbach's Alpha: {str(e)}")
+            logger.error(f"Error calculating Cronbach's Alpha: {e!s}")
             return ReliabilityResult(
                 reliability_type=ReliabilityType.INTERNAL_CONSISTENCY,
                 coefficient=0.0,
-                interpretation=f"Error in calculation: {str(e)}"
+                interpretation=f"Error in calculation: {e!s}",
             )
 
-    async def calculate_mcdonald_omega(self,
-                                     response_matrix: pd.DataFrame,
-                                     item_ids: Optional[List[str]] = None) -> ReliabilityResult:
+    async def calculate_mcdonald_omega(
+        self, response_matrix: pd.DataFrame, item_ids: list[str] | None = None
+    ) -> ReliabilityResult:
         """
         Calculate McDonald's Omega for internal consistency reliability.
         This is often preferred over Cronbach's Alpha when items don't meet tau-equivalence.
@@ -331,14 +338,13 @@ class ReliabilityValidityService:
                     reliability_type=ReliabilityType.INTERNAL_CONSISTENCY,
                     coefficient=0.0,
                     sample_size=len(item_data),
-                    interpretation="Insufficient data for reliability analysis"
+                    interpretation="Insufficient data for reliability analysis",
                 )
 
             # Standardize the data
             scaler = StandardScaler()
             standardized_data = pd.DataFrame(
-                scaler.fit_transform(item_data),
-                columns=item_data.columns
+                scaler.fit_transform(item_data), columns=item_data.columns
             )
 
             # Calculate correlation matrix
@@ -351,38 +357,40 @@ class ReliabilityValidityService:
 
             # Calculate omega
             loading_matrix = fa.components_.T
-            squared_loadings = loading_matrix ** 2
+            squared_loadings = loading_matrix**2
             error_variances = 1 - squared_loadings.flatten()
 
             omega = (squared_loadings.sum()) / (squared_loadings.sum() + error_variances.sum())
             omega = max(0.0, min(1.0, omega))
 
             # Interpretation
-            interpretation = self._interpret_reliability_coefficient(
-                omega, "mcdonald_omega"
-            )
+            interpretation = self._interpret_reliability_coefficient(omega, "mcdonald_omega")
 
             return ReliabilityResult(
                 reliability_type=ReliabilityType.INTERNAL_CONSISTENCY,
                 coefficient=omega,
                 sample_size=len(item_data),
                 interpretation=interpretation,
-                recommendations=["Consider using omega over alpha when items are not tau-equivalent"]
+                recommendations=[
+                    "Consider using omega over alpha when items are not tau-equivalent"
+                ],
             )
 
         except Exception as e:
-            logger.error(f"Error calculating McDonald's Omega: {str(e)}")
+            logger.error(f"Error calculating McDonald's Omega: {e!s}")
             return ReliabilityResult(
                 reliability_type=ReliabilityType.INTERNAL_CONSISTENCY,
                 coefficient=0.0,
-                interpretation=f"Error in calculation: {str(e)}"
+                interpretation=f"Error in calculation: {e!s}",
             )
 
-    async def calculate_test_retest_reliability(self,
-                                              time1_responses: pd.DataFrame,
-                                              time2_responses: pd.DataFrame,
-                                              test_retest_interval: int,
-                                              time_point_matching: str = "respondent_id") -> ReliabilityResult:
+    async def calculate_test_retest_reliability(
+        self,
+        time1_responses: pd.DataFrame,
+        time2_responses: pd.DataFrame,
+        test_retest_interval: int,
+        time_point_matching: str = "respondent_id",
+    ) -> ReliabilityResult:
         """
         Calculate test-retest reliability using correlation between two time points.
 
@@ -398,9 +406,7 @@ class ReliabilityValidityService:
         try:
             # Merge the two time point datasets
             merged_data = pd.merge(
-                time1_responses, time2_responses,
-                on=time_point_matching,
-                suffixes=('_t1', '_t2')
+                time1_responses, time2_responses, on=time_point_matching, suffixes=("_t1", "_t2")
             )
 
             if len(merged_data) < 30:  # Minimum sample size recommendation
@@ -408,17 +414,17 @@ class ReliabilityValidityService:
                     reliability_type=ReliabilityType.TEST_RETEST,
                     coefficient=0.0,
                     sample_size=len(merged_data),
-                    interpretation="Insufficient sample size for test-retest reliability (n < 30)"
+                    interpretation="Insufficient sample size for test-retest reliability (n < 30)",
                 )
 
             # Calculate total scores at each time point
-            time1_columns = [col for col in merged_data.columns if col.endswith('_t1')]
-            time2_columns = [col for col in merged_data.columns if col.endswith('_t2')]
+            time1_columns = [col for col in merged_data.columns if col.endswith("_t1")]
+            time2_columns = [col for col in merged_data.columns if col.endswith("_t2")]
 
             # Match items across time points
             score_pairs = []
             for col in time1_columns:
-                item_name = col.replace('_t1', '')
+                item_name = col.replace("_t1", "")
                 t2_col = f"{item_name}_t2"
                 if t2_col in merged_data.columns:
                     score_pairs.append((col, t2_col))
@@ -434,10 +440,10 @@ class ReliabilityValidityService:
 
                 if len(valid_pairs) >= 10:  # Minimum for correlation
                     correlation, p_value = stats.pearsonr(valid_pairs[t1_col], valid_pairs[t2_col])
-                    item_correlations[t1_col.replace('_t1', '')] = {
+                    item_correlations[t1_col.replace("_t1", "")] = {
                         "correlation": correlation,
                         "p_value": p_value,
-                        "n": len(valid_pairs)
+                        "n": len(valid_pairs),
                     }
 
                 # Add to total scores
@@ -476,23 +482,25 @@ class ReliabilityValidityService:
                 sample_size=len(merged_data),
                 interpretation=interpretation,
                 item_statistics=item_correlations,
-                recommendations=recommendations
+                recommendations=recommendations,
             )
 
         except Exception as e:
-            logger.error(f"Error calculating test-retest reliability: {str(e)}")
+            logger.error(f"Error calculating test-retest reliability: {e!s}")
             return ReliabilityResult(
                 reliability_type=ReliabilityType.TEST_RETEST,
                 coefficient=0.0,
-                interpretation=f"Error in calculation: {str(e)}"
+                interpretation=f"Error in calculation: {e!s}",
             )
 
-    async def conduct_factor_analysis(self,
-                                    response_matrix: pd.DataFrame,
-                                    extraction_method: FactorAnalysisMethod = FactorAnalysisMethod.PRINCIPAL_AXIS,
-                                    rotation_method: RotationMethod = RotationMethod.VARIMAX,
-                                    n_factors: Optional[int] = None,
-                                    parallel_analysis_samples: int = 100) -> FactorAnalysisResult:
+    async def conduct_factor_analysis(
+        self,
+        response_matrix: pd.DataFrame,
+        extraction_method: FactorAnalysisMethod = FactorAnalysisMethod.PRINCIPAL_AXIS,
+        rotation_method: RotationMethod = RotationMethod.VARIMAX,
+        n_factors: int | None = None,
+        parallel_analysis_samples: int = 100,
+    ) -> FactorAnalysisResult:
         """
         Conduct exploratory factor analysis to assess construct validity.
 
@@ -511,7 +519,9 @@ class ReliabilityValidityService:
             item_data = response_matrix.dropna()
 
             if len(item_data) < 100 or item_data.shape[1] < 3:
-                raise ValueError("Insufficient data for factor analysis (need n >= 100 and items >= 3)")
+                raise ValueError(
+                    "Insufficient data for factor analysis (need n >= 100 and items >= 3)"
+                )
 
             # Standardize the data
             scaler = StandardScaler()
@@ -556,15 +566,13 @@ class ReliabilityValidityService:
                 fa = FactorAnalysis(n_components=n_factors, random_state=42)
                 factor_scores = fa.fit_transform(standardized_data)
                 factor_loadings = fa.components_.T
-                communalities = np.sum(fa.components_.T ** 2, axis=1)
+                communalities = np.sum(fa.components_.T**2, axis=1)
                 uniqueness = 1 - communalities
 
             # Create factor loadings DataFrame
-            factor_columns = [f"Factor_{i+1}" for i in range(n_factors)]
+            factor_columns = [f"Factor_{i + 1}" for i in range(n_factors)]
             loadings_df = pd.DataFrame(
-                factor_loadings,
-                index=item_data.columns,
-                columns=factor_columns
+                factor_loadings, index=item_data.columns, columns=factor_columns
             )
 
             # Calculate variance explained
@@ -582,7 +590,7 @@ class ReliabilityValidityService:
             scree_plot_data = {
                 "factor_numbers": list(range(1, len(eigenvalues) + 1)),
                 "eigenvalues": eigenvalues.tolist(),
-                "parallel_analysis": []  # Would be filled with parallel analysis results
+                "parallel_analysis": [],  # Would be filled with parallel analysis results
             }
 
             # Interpret factors
@@ -601,17 +609,19 @@ class ReliabilityValidityService:
                 kaiser_criterion=np.sum(eigenvalues > 1.0),
                 parallel_analysis=n_factors,
                 scree_plot_data=scree_plot_data,
-                factor_interpretation=factor_interpretation
+                factor_interpretation=factor_interpretation,
             )
 
         except Exception as e:
-            logger.error(f"Error in factor analysis: {str(e)}")
+            logger.error(f"Error in factor analysis: {e!s}")
             raise
 
-    async def calculate_convergent_validity(self,
-                                          assessment_scores: pd.Series,
-                                          criterion_scores: pd.Series,
-                                          criterion_description: str = "") -> ValidityResult:
+    async def calculate_convergent_validity(
+        self,
+        assessment_scores: pd.Series,
+        criterion_scores: pd.Series,
+        criterion_description: str = "",
+    ) -> ValidityResult:
         """
         Calculate convergent validity by correlating assessment with similar measures.
 
@@ -625,10 +635,9 @@ class ReliabilityValidityService:
         """
         try:
             # Remove missing data
-            valid_data = pd.DataFrame({
-                'assessment': assessment_scores,
-                'criterion': criterion_scores
-            }).dropna()
+            valid_data = pd.DataFrame(
+                {"assessment": assessment_scores, "criterion": criterion_scores}
+            ).dropna()
 
             if len(valid_data) < 50:  # Minimum sample size recommendation
                 return ValidityResult(
@@ -636,11 +645,11 @@ class ReliabilityValidityService:
                     coefficient=0.0,
                     significance_level=1.0,
                     sample_size=len(valid_data),
-                    interpretation="Insufficient sample size for validity analysis (n < 50)"
+                    interpretation="Insufficient sample size for validity analysis (n < 50)",
                 )
 
             # Calculate Pearson correlation
-            correlation, p_value = stats.pearsonr(valid_data['assessment'], valid_data['criterion'])
+            correlation, p_value = stats.pearsonr(valid_data["assessment"], valid_data["criterion"])
 
             # Calculate confidence interval
             n = len(valid_data)
@@ -651,9 +660,7 @@ class ReliabilityValidityService:
             confidence_interval = (ci_lower, ci_upper)
 
             # Interpretation
-            interpretation = self._interpret_validity_coefficient(
-                abs(correlation), "convergent"
-            )
+            interpretation = self._interpret_validity_coefficient(abs(correlation), "convergent")
 
             # Recommendations
             recommendations = self._generate_convergent_validity_recommendations(
@@ -669,22 +676,24 @@ class ReliabilityValidityService:
                 interpretation=interpretation,
                 methodology="Pearson correlation coefficient",
                 criterion_description=criterion_description,
-                recommendations=recommendations
+                recommendations=recommendations,
             )
 
         except Exception as e:
-            logger.error(f"Error calculating convergent validity: {str(e)}")
+            logger.error(f"Error calculating convergent validity: {e!s}")
             return ValidityResult(
                 validity_type=ValidityType.CONVERGENT,
                 coefficient=0.0,
                 significance_level=1.0,
-                interpretation=f"Error in calculation: {str(e)}"
+                interpretation=f"Error in calculation: {e!s}",
             )
 
-    async def calculate_discriminant_validity(self,
-                                             assessment_scores: pd.Series,
-                                             unrelated_scores: pd.Series,
-                                             unrelated_construct_description: str = "") -> ValidityResult:
+    async def calculate_discriminant_validity(
+        self,
+        assessment_scores: pd.Series,
+        unrelated_scores: pd.Series,
+        unrelated_construct_description: str = "",
+    ) -> ValidityResult:
         """
         Calculate discriminant validity by showing low correlation with unrelated constructs.
 
@@ -698,10 +707,9 @@ class ReliabilityValidityService:
         """
         try:
             # Remove missing data
-            valid_data = pd.DataFrame({
-                'assessment': assessment_scores,
-                'unrelated': unrelated_scores
-            }).dropna()
+            valid_data = pd.DataFrame(
+                {"assessment": assessment_scores, "unrelated": unrelated_scores}
+            ).dropna()
 
             if len(valid_data) < 50:
                 return ValidityResult(
@@ -709,11 +717,11 @@ class ReliabilityValidityService:
                     coefficient=0.0,
                     significance_level=1.0,
                     sample_size=len(valid_data),
-                    interpretation="Insufficient sample size for validity analysis (n < 50)"
+                    interpretation="Insufficient sample size for validity analysis (n < 50)",
                 )
 
             # Calculate correlation
-            correlation, p_value = stats.pearsonr(valid_data['assessment'], valid_data['unrelated'])
+            correlation, p_value = stats.pearsonr(valid_data["assessment"], valid_data["unrelated"])
 
             # For discriminant validity, we're interested in absolute correlation
             abs_correlation = abs(correlation)
@@ -727,9 +735,7 @@ class ReliabilityValidityService:
             confidence_interval = (ci_lower, ci_upper)
 
             # Interpretation (lower is better for discriminant validity)
-            interpretation = self._interpret_validity_coefficient(
-                abs_correlation, "discriminant"
-            )
+            interpretation = self._interpret_validity_coefficient(abs_correlation, "discriminant")
 
             # Recommendations
             recommendations = self._generate_discriminant_validity_recommendations(
@@ -745,22 +751,24 @@ class ReliabilityValidityService:
                 interpretation=interpretation,
                 methodology="Pearson correlation coefficient",
                 criterion_description=unrelated_construct_description,
-                recommendations=recommendations
+                recommendations=recommendations,
             )
 
         except Exception as e:
-            logger.error(f"Error calculating discriminant validity: {str(e)}")
+            logger.error(f"Error calculating discriminant validity: {e!s}")
             return ValidityResult(
                 validity_type=ValidityType.DISCRIMINANT,
                 coefficient=0.0,
                 significance_level=1.0,
-                interpretation=f"Error in calculation: {str(e)}"
+                interpretation=f"Error in calculation: {e!s}",
             )
 
-    async def conduct_item_analysis(self,
-                                  response_matrix: pd.DataFrame,
-                                  total_scores: pd.Series,
-                                  item_answer_keys: Optional[Dict[str, str]] = None) -> Dict[str, ItemAnalysisResult]:
+    async def conduct_item_analysis(
+        self,
+        response_matrix: pd.DataFrame,
+        total_scores: pd.Series,
+        item_answer_keys: dict[str, str] | None = None,
+    ) -> dict[str, ItemAnalysisResult]:
         """
         Conduct comprehensive item analysis including difficulty, discrimination, and validity.
 
@@ -795,7 +803,7 @@ class ReliabilityValidityService:
                 kurtosis = stats.kurtosis(item_responses)
 
                 # Item reliability (squared item-total correlation)
-                item_reliability = item_total_corr ** 2
+                item_reliability = item_total_corr**2
 
                 # Option frequencies (for multiple-choice items)
                 option_frequencies = None
@@ -815,11 +823,14 @@ class ReliabilityValidityService:
                             # Calculate discrimination for this distractor
                             option_binary = (item_responses == option).astype(int)
                             if option_binary.sum() > 0:
-                                distractor_corr = stats.pointbiserialr(option_binary, total_scores).correlation
+                                distractor_corr = stats.pointbiserialr(
+                                    option_binary, total_scores
+                                ).correlation
                                 distractor_analysis[str(option)] = {
                                     "frequency": frequency,
                                     "discrimination": distractor_corr,
-                                    "is_effective": distractor_corr < 0  # Good distractors have negative discrimination
+                                    "is_effective": distractor_corr
+                                    < 0,  # Good distractors have negative discrimination
                                 }
 
                 item_results[item_id] = ItemAnalysisResult(
@@ -832,21 +843,19 @@ class ReliabilityValidityService:
                     skewness=skewness,
                     kurtosis=kurtosis,
                     option_frequencies=option_frequencies,
-                    distractor_analysis=distractor_analysis
+                    distractor_analysis=distractor_analysis,
                 )
 
             return item_results
 
         except Exception as e:
-            logger.error(f"Error in item analysis: {str(e)}")
+            logger.error(f"Error in item analysis: {e!s}")
             return {}
 
     # Helper methods
-    def _calculate_alpha_confidence_interval(self,
-                                          alpha: float,
-                                          n_items: int,
-                                          n_respondents: int,
-                                          confidence_level: float) -> Tuple[float, float]:
+    def _calculate_alpha_confidence_interval(
+        self, alpha: float, n_items: int, n_respondents: int, confidence_level: float
+    ) -> tuple[float, float]:
         """Calculate confidence interval for Cronbach's Alpha using Feldt's method."""
         try:
             if alpha <= 0 or alpha >= 1 or n_respondents <= 1:
@@ -873,26 +882,23 @@ class ReliabilityValidityService:
         except Exception:
             return (0.0, 1.0)
 
-    def _interpret_reliability_coefficient(self,
-                                         coefficient: float,
-                                         reliability_type: str) -> str:
+    def _interpret_reliability_coefficient(self, coefficient: float, reliability_type: str) -> str:
         """Interpret reliability coefficient based on established thresholds."""
         thresholds = self.reliability_thresholds.get(reliability_type, {})
 
         if coefficient >= thresholds.get("excellent", 0.90):
             return f"Excellent reliability ({coefficient:.3f}). The assessment demonstrates strong internal consistency."
-        elif coefficient >= thresholds.get("good", 0.80):
+        if coefficient >= thresholds.get("good", 0.80):
             return f"Good reliability ({coefficient:.3f}). The assessment has acceptable internal consistency."
-        elif coefficient >= thresholds.get("acceptable", 0.70):
+        if coefficient >= thresholds.get("acceptable", 0.70):
             return f"Acceptable reliability ({coefficient:.3f}). The assessment meets minimum standards for reliability."
-        elif coefficient >= thresholds.get("questionable", 0.60):
+        if coefficient >= thresholds.get("questionable", 0.60):
             return f"Questionable reliability ({coefficient:.3f}). Consider item analysis and revision."
-        else:
-            return f"Poor reliability ({coefficient:.3f}). The assessment requires substantial revision."
+        return (
+            f"Poor reliability ({coefficient:.3f}). The assessment requires substantial revision."
+        )
 
-    def _interpret_test_retest_reliability(self,
-                                         coefficient: float,
-                                         interval_days: int) -> str:
+    def _interpret_test_retest_reliability(self, coefficient: float, interval_days: int) -> str:
         """Interpret test-retest reliability considering the time interval."""
         thresholds = self.reliability_thresholds["test_retest"]
 
@@ -905,15 +911,14 @@ class ReliabilityValidityService:
             expected_min = 0.60
 
         if coefficient >= thresholds.get("excellent", 0.80):
-            return f"Excellent test-retest reliability ({coefficient:.3f}) over {interval_days} days."
-        elif coefficient >= expected_min:
+            return (
+                f"Excellent test-retest reliability ({coefficient:.3f}) over {interval_days} days."
+            )
+        if coefficient >= expected_min:
             return f"Good test-retest reliability ({coefficient:.3f}) over {interval_days} days."
-        else:
-            return f"Low test-retest reliability ({coefficient:.3f}) over {interval_days} days. Consider construct instability or measurement error."
+        return f"Low test-retest reliability ({coefficient:.3f}) over {interval_days} days. Consider construct instability or measurement error."
 
-    def _interpret_validity_coefficient(self,
-                                       coefficient: float,
-                                       validity_type: str) -> str:
+    def _interpret_validity_coefficient(self, coefficient: float, validity_type: str) -> str:
         """Interpret validity coefficient."""
         thresholds = self.validity_thresholds.get(validity_type, {})
 
@@ -921,24 +926,19 @@ class ReliabilityValidityService:
             # For discriminant validity, lower is better
             if coefficient <= thresholds.get("excellent", 0.30):
                 return f"Excellent discriminant validity ({coefficient:.3f}). Low correlation with unrelated constructs."
-            elif coefficient <= thresholds.get("good", 0.40):
+            if coefficient <= thresholds.get("good", 0.40):
                 return f"Good discriminant validity ({coefficient:.3f})."
-            else:
-                return f"Poor discriminant validity ({coefficient:.3f}). High correlation suggests construct overlap."
-        else:
-            # For convergent and criterion validity, higher is better
-            if coefficient >= thresholds.get("excellent", 0.70):
-                return f"Excellent validity ({coefficient:.3f}). Strong relationship with criterion."
-            elif coefficient >= thresholds.get("good", 0.60):
-                return f"Good validity ({coefficient:.3f}). Adequate relationship with criterion."
-            elif coefficient >= thresholds.get("acceptable", 0.50):
-                return f"Acceptable validity ({coefficient:.3f}). Meets minimum standards."
-            else:
-                return f"Poor validity ({coefficient:.3f}). Weak relationship with criterion."
+            return f"Poor discriminant validity ({coefficient:.3f}). High correlation suggests construct overlap."
+        # For convergent and criterion validity, higher is better
+        if coefficient >= thresholds.get("excellent", 0.70):
+            return f"Excellent validity ({coefficient:.3f}). Strong relationship with criterion."
+        if coefficient >= thresholds.get("good", 0.60):
+            return f"Good validity ({coefficient:.3f}). Adequate relationship with criterion."
+        if coefficient >= thresholds.get("acceptable", 0.50):
+            return f"Acceptable validity ({coefficient:.3f}). Meets minimum standards."
+        return f"Poor validity ({coefficient:.3f}). Weak relationship with criterion."
 
-    async def _parallel_analysis(self,
-                               data: np.ndarray,
-                               n_samples: int = 100) -> int:
+    async def _parallel_analysis(self, data: np.ndarray, n_samples: int = 100) -> int:
         """Conduct parallel analysis to determine optimal number of factors."""
         try:
             n_items = data.shape[1]
@@ -968,10 +968,10 @@ class ReliabilityValidityService:
             return max(1, n_factors)
 
         except Exception as e:
-            logger.error(f"Error in parallel analysis: {str(e)}")
+            logger.error(f"Error in parallel analysis: {e!s}")
             return 1
 
-    def _calculate_kmo(self, correlation_matrix: np.ndarray) -> Dict[str, float]:
+    def _calculate_kmo(self, correlation_matrix: np.ndarray) -> dict[str, float]:
         """Calculate Kaiser-Meyer-Olkin measure of sampling adequacy."""
         try:
             # Calculate inverse of correlation matrix
@@ -982,12 +982,14 @@ class ReliabilityValidityService:
 
             # Calculate partial correlations
             n_items = correlation_matrix.shape[0]
-            partial_corr = -inverse_corr / np.sqrt(np.outer(np.diag(inverse_corr), np.diag(inverse_corr)))
+            partial_corr = -inverse_corr / np.sqrt(
+                np.outer(np.diag(inverse_corr), np.diag(inverse_corr))
+            )
             np.fill_diagonal(partial_corr, 0)
 
             # Calculate KMO statistics
-            correlation_sq = correlation_matrix ** 2
-            partial_corr_sq = partial_corr ** 2
+            correlation_sq = correlation_matrix**2
+            partial_corr_sq = partial_corr**2
 
             kmo_overall = np.sum(correlation_sq) - np.sum(np.diag(correlation_sq))
             kmo_overall /= kmo_overall + 2 * np.sum(partial_corr_sq - np.diag(partial_corr_sq))
@@ -998,16 +1000,15 @@ class ReliabilityValidityService:
                 kmo_i /= kmo_i + 2 * np.sum(partial_corr_sq[i, :])
                 kmo_individual.append(kmo_i)
 
-            return {
-                "kmo_overall": kmo_overall,
-                "kmo_individual": kmo_individual
-            }
+            return {"kmo_overall": kmo_overall, "kmo_individual": kmo_individual}
 
         except Exception as e:
-            logger.error(f"Error calculating KMO: {str(e)}")
+            logger.error(f"Error calculating KMO: {e!s}")
             return {"kmo_overall": 0.0, "kmo_individual": []}
 
-    def _calculate_bartlett_test(self, correlation_matrix: np.ndarray, n_samples: int) -> Dict[str, Any]:
+    def _calculate_bartlett_test(
+        self, correlation_matrix: np.ndarray, n_samples: int
+    ) -> dict[str, Any]:
         """Calculate Bartlett's test of sphericity."""
         try:
             n_items = correlation_matrix.shape[0]
@@ -1023,17 +1024,15 @@ class ReliabilityValidityService:
             df = n_items * (n_items - 1) / 2
             p_value = 1 - stats.chi2.cdf(chi_square, df)
 
-            return {
-                "chi_square": chi_square,
-                "df": df,
-                "p_value": p_value
-            }
+            return {"chi_square": chi_square, "df": df, "p_value": p_value}
 
         except Exception as e:
-            logger.error(f"Error calculating Bartlett's test: {str(e)}")
+            logger.error(f"Error calculating Bartlett's test: {e!s}")
             return {"chi_square": 0.0, "df": 0, "p_value": 1.0}
 
-    def _interpret_factors(self, loadings_df: pd.DataFrame, item_ids: List[str]) -> Dict[str, List[str]]:
+    def _interpret_factors(
+        self, loadings_df: pd.DataFrame, item_ids: list[str]
+    ) -> dict[str, list[str]]:
         """Interpret factors based on factor loadings."""
         try:
             factor_interpretation = {}
@@ -1049,18 +1048,19 @@ class ReliabilityValidityService:
             return factor_interpretation
 
         except Exception as e:
-            logger.error(f"Error interpreting factors: {str(e)}")
+            logger.error(f"Error interpreting factors: {e!s}")
             return {}
 
-    def _generate_reliability_recommendations(self,
-                                            alpha: float,
-                                            item_statistics: Dict[str, Dict[str, float]],
-                                            n_items: int) -> List[str]:
+    def _generate_reliability_recommendations(
+        self, alpha: float, item_statistics: dict[str, dict[str, float]], n_items: int
+    ) -> list[str]:
         """Generate recommendations based on reliability analysis."""
         recommendations = []
 
         if alpha < 0.70:
-            recommendations.append("Consider increasing the number of items to improve reliability.")
+            recommendations.append(
+                "Consider increasing the number of items to improve reliability."
+            )
             recommendations.append("Review items with low item-total correlations (< 0.30).")
 
         # Check items that would improve reliability if deleted
@@ -1070,23 +1070,26 @@ class ReliabilityValidityService:
                 items_to_review.append(item_id)
 
         if items_to_review:
-            recommendations.append(f"Consider revising or removing items: {', '.join(items_to_review[:5])}")
+            recommendations.append(
+                f"Consider revising or removing items: {', '.join(items_to_review[:5])}"
+            )
 
         if n_items < 10:
             recommendations.append("Consider adding more items to improve measurement precision.")
 
         return recommendations
 
-    def _generate_test_retest_recommendations(self,
-                                            correlation: float,
-                                            interval_days: int,
-                                            sample_size: int) -> List[str]:
+    def _generate_test_retest_recommendations(
+        self, correlation: float, interval_days: int, sample_size: int
+    ) -> list[str]:
         """Generate recommendations for test-retest reliability."""
         recommendations = []
 
         if correlation < 0.70:
             if interval_days > 30:
-                recommendations.append("Consider that low reliability may be due to genuine change over time.")
+                recommendations.append(
+                    "Consider that low reliability may be due to genuine change over time."
+                )
             else:
                 recommendations.append("Review item clarity and scoring consistency.")
                 recommendations.append("Consider providing clearer instructions to respondents.")
@@ -1096,34 +1099,42 @@ class ReliabilityValidityService:
 
         return recommendations
 
-    def _generate_convergent_validity_recommendations(self,
-                                                     correlation: float,
-                                                     p_value: float,
-                                                     criterion_description: str) -> List[str]:
+    def _generate_convergent_validity_recommendations(
+        self, correlation: float, p_value: float, criterion_description: str
+    ) -> list[str]:
         """Generate recommendations for convergent validity."""
         recommendations = []
 
         if abs(correlation) < 0.50:
             if criterion_description:
-                recommendations.append(f"Review conceptual overlap between your assessment and {criterion_description}.")
-            recommendations.append("Consider whether the criterion measure is appropriate for validation.")
-            recommendations.append("Examine whether the assessment measures the intended construct.")
+                recommendations.append(
+                    f"Review conceptual overlap between your assessment and {criterion_description}."
+                )
+            recommendations.append(
+                "Consider whether the criterion measure is appropriate for validation."
+            )
+            recommendations.append(
+                "Examine whether the assessment measures the intended construct."
+            )
 
         if p_value > 0.05:
-            recommendations.append("The correlation is not statistically significant. Consider increasing sample size.")
+            recommendations.append(
+                "The correlation is not statistically significant. Consider increasing sample size."
+            )
 
         return recommendations
 
-    def _generate_discriminant_validity_recommendations(self,
-                                                       correlation: float,
-                                                       p_value: float,
-                                                       construct_description: str) -> List[str]:
+    def _generate_discriminant_validity_recommendations(
+        self, correlation: float, p_value: float, construct_description: str
+    ) -> list[str]:
         """Generate recommendations for discriminant validity."""
         recommendations = []
 
         if abs(correlation) > 0.50:
             if construct_description:
-                recommendations.append(f"High correlation with {construct_description} suggests construct overlap.")
+                recommendations.append(
+                    f"High correlation with {construct_description} suggests construct overlap."
+                )
             recommendations.append("Consider whether these constructs are truly distinct.")
             recommendations.append("Review item content to ensure construct differentiation.")
 

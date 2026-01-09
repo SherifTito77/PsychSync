@@ -3,31 +3,25 @@ Enterprise Sales and Customer Success Service
 B2B infrastructure for enterprise account management and customer success
 """
 
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
-import asyncio
 import logging
+from typing import Any
 
 from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.db.models.user import User
+
 from app.db.models.organization import Organization
-from app.db.models.team import Team
-from app.services.billing import (
-    RevenueGenerationService,
-    SubscriptionTier,
-    BillingCycle
-)
 
 logger = logging.getLogger(__name__)
+
 
 class AccountTier(Enum):
     ENTERPRISE = "enterprise"
     CLINICAL = "clinical"
     PROFESSIONAL = "professional"
     STARTUP = "startup"
+
 
 class CustomerHealthStatus(Enum):
     HEALTHY = "healthy"
@@ -36,11 +30,13 @@ class CustomerHealthStatus(Enum):
     CHURNED = "churned"
     NEW = "new"
 
+
 class SLATier(Enum):
-    BASIC = "basic"          # 99.5% uptime, 48hr response
+    BASIC = "basic"  # 99.5% uptime, 48hr response
     PROFESSIONAL = "professional"  # 99.8% uptime, 24hr response
-    ENTERPRISE = "enterprise"      # 99.95% uptime, 4hr response
-    CLINICAL = "clinical"          # 99.99% uptime, 1hr response
+    ENTERPRISE = "enterprise"  # 99.95% uptime, 4hr response
+    CLINICAL = "clinical"  # 99.99% uptime, 1hr response
+
 
 @dataclass
 class SLAMetrics:
@@ -49,6 +45,7 @@ class SLAMetrics:
     resolution_time_hours: int
     availability_guarantee: float
     compensation_percentage: float
+
 
 @dataclass
 class CustomerHealthMetrics:
@@ -59,13 +56,14 @@ class CustomerHealthMetrics:
     usage_frequency: float
     feature_adoption: float
     support_tickets: int
-    nps_score: Optional[int]
+    nps_score: int | None
     renewal_risk: str
     last_login: datetime
     mrr_value: float
     team_engagement: float
-    key_risks: List[str]
-    opportunities: List[str]
+    key_risks: list[str]
+    opportunities: list[str]
+
 
 @dataclass
 class EnterpriseAccount:
@@ -80,10 +78,11 @@ class EnterpriseAccount:
     users_active: int
     sla_tier: SLATier
     health_metrics: CustomerHealthMetrics
-    custom_integrations: List[str]
-    training_completed: List[str]
+    custom_integrations: list[str]
+    training_completed: list[str]
     upcoming_renewal: bool
-    expansion_opportunities: List[str]
+    expansion_opportunities: list[str]
+
 
 class EnterpriseSalesService:
     """
@@ -96,7 +95,7 @@ class EnterpriseSalesService:
         self.success_plays = self._initialize_success_plays()
         self.enterprise_features = self._initialize_enterprise_features()
 
-    def _initialize_sla_metrics(self) -> Dict[SLATier, SLAMetrics]:
+    def _initialize_sla_metrics(self) -> dict[SLATier, SLAMetrics]:
         """Initialize SLA metrics by tier"""
         return {
             SLATier.BASIC: SLAMetrics(
@@ -104,32 +103,32 @@ class EnterpriseSalesService:
                 response_time_hours=48,
                 resolution_time_hours=72,
                 availability_guarantee=99.5,
-                compensation_percentage=10
+                compensation_percentage=10,
             ),
             SLATier.PROFESSIONAL: SLAMetrics(
                 uptime_percentage=99.8,
                 response_time_hours=24,
                 resolution_time_hours=48,
                 availability_guarantee=99.8,
-                compensation_percentage=20
+                compensation_percentage=20,
             ),
             SLATier.ENTERPRISE: SLAMetrics(
                 uptime_percentage=99.95,
                 response_time_hours=4,
                 resolution_time_hours=8,
                 availability_guarantee=99.95,
-                compensation_percentage=50
+                compensation_percentage=50,
             ),
             SLATier.CLINICAL: SLAMetrics(
                 uptime_percentage=99.99,
                 response_time_hours=1,
                 resolution_time_hours=4,
                 availability_guarantee=99.99,
-                compensation_percentage=100
-            )
+                compensation_percentage=100,
+            ),
         }
 
-    def _initialize_health_thresholds(self) -> Dict[str, Any]:
+    def _initialize_health_thresholds(self) -> dict[str, Any]:
         """Initialize customer health scoring thresholds"""
         return {
             "healthy_score_min": 80,
@@ -139,10 +138,10 @@ class EnterpriseSalesService:
             "feature_adoption_weight": 0.20,
             "support_tickets_weight": 0.15,
             "nps_weight": 0.20,
-            "team_engagement_weight": 0.20
+            "team_engagement_weight": 0.20,
         }
 
-    def _initialize_success_plays(self) -> Dict[str, List[Dict[str, Any]]]:
+    def _initialize_success_plays(self) -> dict[str, list[dict[str, Any]]]:
         """Initialize customer success playbooks"""
         return {
             "new_onboarding": [
@@ -150,109 +149,109 @@ class EnterpriseSalesService:
                     "action": "Welcome call with CSM",
                     "timeline": "Day 1-3",
                     "owner": "Customer Success Manager",
-                    "template": "enterprise_welcome_call"
+                    "template": "enterprise_welcome_call",
                 },
                 {
                     "action": "Technical setup consultation",
                     "timeline": "Day 3-7",
                     "owner": "Solutions Engineer",
-                    "template": "technical_setup"
+                    "template": "technical_setup",
                 },
                 {
                     "action": "Admin training session",
                     "timeline": "Week 2",
                     "owner": "Training Specialist",
-                    "template": "admin_training"
+                    "template": "admin_training",
                 },
                 {
                     "action": "30-day check-in",
                     "timeline": "Day 30",
                     "owner": "Customer Success Manager",
-                    "template": "30_day_checkin"
-                }
+                    "template": "30_day_checkin",
+                },
             ],
             "at_risk_intervention": [
                 {
                     "action": "Account review meeting",
                     "timeline": "Immediate",
                     "owner": "Customer Success Manager",
-                    "template": "account_review"
+                    "template": "account_review",
                 },
                 {
                     "action": "Usage analysis and optimization",
                     "timeline": "Week 1",
                     "owner": "Solutions Engineer",
-                    "template": "usage_optimization"
+                    "template": "usage_optimization",
                 },
                 {
                     "action": "Additional training",
                     "timeline": "Week 2",
                     "owner": "Training Specialist",
-                    "template": "additional_training"
+                    "template": "additional_training",
                 },
                 {
                     "action": "Executive business review",
                     "timeline": "Week 3",
                     "owner": "Account Executive",
-                    "template": "executive_review"
-                }
+                    "template": "executive_review",
+                },
             ],
             "renewal_campaign": [
                 {
                     "action": "90-day renewal notice",
                     "timeline": "Day 90 before renewal",
                     "owner": "Customer Success Manager",
-                    "template": "renewal_notice_90"
+                    "template": "renewal_notice_90",
                 },
                 {
                     "action": "Value demonstration",
                     "timeline": "Day 60 before renewal",
                     "owner": "Customer Success Manager",
-                    "template": "value_demonstration"
+                    "template": "value_demonstration",
                 },
                 {
                     "action": "Expansion opportunity discussion",
                     "timeline": "Day 30 before renewal",
                     "owner": "Account Executive",
-                    "template": "expansion_discussion"
+                    "template": "expansion_discussion",
                 },
                 {
                     "action": "Final renewal confirmation",
                     "timeline": "Day 7 before renewal",
                     "owner": "Customer Success Manager",
-                    "template": "renewal_confirmation"
-                }
+                    "template": "renewal_confirmation",
+                },
             ],
             "expansion_opportunity": [
                 {
                     "action": "Usage pattern analysis",
                     "timeline": "Monthly",
                     "owner": "Customer Success Manager",
-                    "template": "usage_analysis"
+                    "template": "usage_analysis",
                 },
                 {
                     "action": "Feature upgrade recommendation",
                     "timeline": "Quarterly",
                     "owner": "Solutions Engineer",
-                    "template": "feature_upgrade"
+                    "template": "feature_upgrade",
                 },
                 {
                     "action": "Business value assessment",
                     "timeline": "Semi-annually",
                     "owner": "Account Executive",
-                    "template": "business_value"
-                }
-            ]
+                    "template": "business_value",
+                },
+            ],
         }
 
-    def _initialize_enterprise_features(self) -> Dict[AccountTier, List[str]]:
+    def _initialize_enterprise_features(self) -> dict[AccountTier, list[str]]:
         """Initialize enterprise features by account tier"""
         return {
             AccountTier.STARTUP: [
                 "Standard support",
                 "Basic analytics",
                 "Email support",
-                "Standard security"
+                "Standard security",
             ],
             AccountTier.PROFESSIONAL: [
                 "Priority support",
@@ -260,7 +259,7 @@ class EnterpriseSalesService:
                 "Phone support",
                 "Advanced security",
                 "API access",
-                "Custom branding"
+                "Custom branding",
             ],
             AccountTier.ENTERPRISE: [
                 "Dedicated Customer Success Manager",
@@ -270,7 +269,7 @@ class EnterpriseSalesService:
                 "Custom API integrations",
                 "White-label solution",
                 "Custom training programs",
-                "Account-based marketing support"
+                "Account-based marketing support",
             ],
             AccountTier.CLINICAL: [
                 "Dedicated Clinical Account Manager",
@@ -281,8 +280,8 @@ class EnterpriseSalesService:
                 "Research collaboration tools",
                 "IRB support documentation",
                 "Clinical validation studies",
-                "Custom clinical workflows"
-            ]
+                "Custom clinical workflows",
+            ],
         }
 
     async def create_enterprise_account(
@@ -293,7 +292,7 @@ class EnterpriseSalesService:
         contract_term_months: int = 12,
         users_licensed: int = 100,
         customer_success_manager: str = "Unassigned",
-        custom_requirements: List[str] = None
+        custom_requirements: list[str] = None,
     ) -> EnterpriseAccount:
         """Create new enterprise account"""
         try:
@@ -315,7 +314,7 @@ class EnterpriseSalesService:
                 mrr_value=contract_value / contract_term_months,
                 team_engagement=0.0,
                 key_risks=["New account - limited usage data"],
-                opportunities=["Full platform adoption", "Team training"]
+                opportunities=["Full platform adoption", "Team training"],
             )
 
             # Create enterprise account
@@ -334,30 +333,28 @@ class EnterpriseSalesService:
                 custom_integrations=custom_requirements or [],
                 training_completed=[],
                 upcoming_renewal=False,
-                expansion_opportunities=[]
+                expansion_opportunities=[],
             )
 
             # Schedule onboarding success plays
             await self._schedule_success_plays(account, "new_onboarding")
 
-            logger.info(f"Created enterprise account for {organization.name} with tier {tier.value}")
+            logger.info(
+                f"Created enterprise account for {organization.name} with tier {tier.value}"
+            )
             return account
 
         except Exception as e:
-            logger.error(f"Failed to create enterprise account: {str(e)}")
+            logger.error(f"Failed to create enterprise account: {e!s}")
             raise
 
     async def calculate_customer_health(
-        self,
-        organization_id: int,
-        db: Session
+        self, organization_id: int, db: Session
     ) -> CustomerHealthMetrics:
         """Calculate comprehensive customer health score"""
         try:
             # Get organization data
-            organization = db.query(Organization).filter(
-                Organization.id == organization_id
-            ).first()
+            organization = db.query(Organization).filter(Organization.id == organization_id).first()
 
             if not organization:
                 raise ValueError(f"Organization {organization_id} not found")
@@ -370,18 +367,20 @@ class EnterpriseSalesService:
             # Calculate component scores
             usage_score = min(100, usage_metrics["usage_frequency"] * 100)
             adoption_score = min(100, adoption_metrics["feature_adoption_percentage"] * 100)
-            support_score = max(0, 100 - (support_metrics["open_tickets"] * 10))  # Penalty for tickets
+            support_score = max(
+                0, 100 - (support_metrics["open_tickets"] * 10)
+            )  # Penalty for tickets
             nps_score = support_metrics.get("nps_score", 70)  # Default NPS if not available
             engagement_score = min(100, usage_metrics["team_engagement"] * 100)
 
             # Weighted health score calculation
             weights = self.health_thresholds
             health_score = (
-                usage_score * weights["usage_frequency_weight"] +
-                adoption_score * weights["feature_adoption_weight"] +
-                support_score * weights["support_tickets_weight"] +
-                nps_score * weights["nps_weight"] +
-                engagement_score * weights["team_engagement_weight"]
+                usage_score * weights["usage_frequency_weight"]
+                + adoption_score * weights["feature_adoption_weight"]
+                + support_score * weights["support_tickets_weight"]
+                + nps_score * weights["nps_weight"]
+                + engagement_score * weights["team_engagement_weight"]
             )
 
             # Determine health status
@@ -399,7 +398,9 @@ class EnterpriseSalesService:
                 renewal_risk = "critical"
 
             # Identify risks and opportunities
-            key_risks = self._identify_health_risks(usage_metrics, adoption_metrics, support_metrics)
+            key_risks = self._identify_health_risks(
+                usage_metrics, adoption_metrics, support_metrics
+            )
             opportunities = self._identify_growth_opportunities(usage_metrics, adoption_metrics)
 
             # Create health metrics
@@ -417,25 +418,21 @@ class EnterpriseSalesService:
                 mrr_value=usage_metrics["mrr_value"],
                 team_engagement=usage_metrics["team_engagement"],
                 key_risks=key_risks,
-                opportunities=opportunities
+                opportunities=opportunities,
             )
 
             return health_metrics
 
         except Exception as e:
-            logger.error(f"Failed to calculate customer health for org {organization_id}: {str(e)}")
+            logger.error(f"Failed to calculate customer health for org {organization_id}: {e!s}")
             raise
 
     async def generate_expansion_opportunities(
-        self,
-        organization_id: int,
-        db: Session
-    ) -> List[Dict[str, Any]]:
+        self, organization_id: int, db: Session
+    ) -> list[dict[str, Any]]:
         """Identify expansion and upsell opportunities"""
         try:
-            organization = db.query(Organization).filter(
-                Organization.id == organization_id
-            ).first()
+            organization = db.query(Organization).filter(Organization.id == organization_id).first()
 
             if not organization:
                 raise ValueError(f"Organization {organization_id} not found")
@@ -447,70 +444,85 @@ class EnterpriseSalesService:
 
             # License expansion opportunity
             if usage_metrics["active_users"] > usage_metrics["licensed_users"] * 0.8:
-                opportunities.append({
-                    "type": "license_expansion",
-                    "description": "Approaching user limit - consider additional licenses",
-                    "potential_value": (usage_metrics["active_users"] - usage_metrics["licensed_users"]) * 50,
-                    "priority": "high",
-                    "confidence": 0.9
-                })
+                opportunities.append(
+                    {
+                        "type": "license_expansion",
+                        "description": "Approaching user limit - consider additional licenses",
+                        "potential_value": (
+                            usage_metrics["active_users"] - usage_metrics["licensed_users"]
+                        )
+                        * 50,
+                        "priority": "high",
+                        "confidence": 0.9,
+                    }
+                )
 
             # Feature upgrade opportunities
             adoption_metrics = await self._calculate_adoption_metrics(organization_id, db)
 
             # Advanced analytics upgrade
-            if adoption_metrics["analytics_usage"] > 70 and organization.subscription_tier != "enterprise":
-                opportunities.append({
-                    "type": "tier_upgrade",
-                    "description": "Heavy analytics usage - upgrade to Enterprise for advanced features",
-                    "potential_value": 400,  # Monthly incremental value
-                    "priority": "medium",
-                    "confidence": 0.7
-                })
+            if (
+                adoption_metrics["analytics_usage"] > 70
+                and organization.subscription_tier != "enterprise"
+            ):
+                opportunities.append(
+                    {
+                        "type": "tier_upgrade",
+                        "description": "Heavy analytics usage - upgrade to Enterprise for advanced features",
+                        "potential_value": 400,  # Monthly incremental value
+                        "priority": "medium",
+                        "confidence": 0.7,
+                    }
+                )
 
             # Clinical module opportunity
             if "healthcare" in organization.name.lower() or "clinic" in organization.name.lower():
-                opportunities.append({
-                    "type": "clinical_module",
-                    "description": "Healthcare organization - add clinical assessment modules",
-                    "potential_value": 400,
-                    "priority": "high",
-                    "confidence": 0.8
-                })
+                opportunities.append(
+                    {
+                        "type": "clinical_module",
+                        "description": "Healthcare organization - add clinical assessment modules",
+                        "potential_value": 400,
+                        "priority": "high",
+                        "confidence": 0.8,
+                    }
+                )
 
             # Custom integration opportunity
             tech_stack = await self._analyze_tech_stack(organization_id)
             if tech_stack.get("has_sso", False) and organization.subscription_tier != "enterprise":
-                opportunities.append({
-                    "type": "enterprise_integration",
-                    "description": "SSO infrastructure detected - Enterprise tier with SAML integration",
-                    "potential_value": 400,
-                    "priority": "medium",
-                    "confidence": 0.8
-                })
+                opportunities.append(
+                    {
+                        "type": "enterprise_integration",
+                        "description": "SSO infrastructure detected - Enterprise tier with SAML integration",
+                        "potential_value": 400,
+                        "priority": "medium",
+                        "confidence": 0.8,
+                    }
+                )
 
             # Team training opportunity
             if adoption_metrics["feature_adoption_percentage"] < 50:
-                opportunities.append({
-                    "type": "training_package",
-                    "description": "Low feature adoption - comprehensive team training recommended",
-                    "potential_value": 200,
-                    "priority": "high",
-                    "confidence": 0.9
-                })
+                opportunities.append(
+                    {
+                        "type": "training_package",
+                        "description": "Low feature adoption - comprehensive team training recommended",
+                        "potential_value": 200,
+                        "priority": "high",
+                        "confidence": 0.9,
+                    }
+                )
 
             return sorted(opportunities, key=lambda x: x["confidence"], reverse=True)
 
         except Exception as e:
-            logger.error(f"Failed to generate expansion opportunities for org {organization_id}: {str(e)}")
+            logger.error(
+                f"Failed to generate expansion opportunities for org {organization_id}: {e!s}"
+            )
             raise
 
     async def monitor_sla_compliance(
-        self,
-        sla_tier: SLATier,
-        date_range_start: datetime,
-        date_range_end: datetime
-    ) -> Dict[str, Any]:
+        self, sla_tier: SLATier, date_range_start: datetime, date_range_end: datetime
+    ) -> dict[str, Any]:
         """Monitor SLA compliance and calculate potential credits"""
         try:
             sla_metrics = self.sla_metrics[sla_tier]
@@ -519,7 +531,9 @@ class EnterpriseSalesService:
             actual_uptime = await self._calculate_actual_uptime(date_range_start, date_range_end)
 
             # Calculate support response times (this would integrate with support systems)
-            support_metrics = await self._calculate_support_metrics(date_range_start, date_range_end)
+            support_metrics = await self._calculate_support_metrics(
+                date_range_start, date_range_end
+            )
 
             # Determine SLA breaches
             uptime_breach = max(0, sla_metrics.uptime_percentage - actual_uptime)
@@ -532,51 +546,52 @@ class EnterpriseSalesService:
             if uptime_breach > 0:
                 uptime_credit = (uptime_breach / 100) * sla_metrics.compensation_percentage
                 total_compensation += uptime_credit
-                breaches.append({
-                    "type": "uptime",
-                    "sla_requirement": f"{sla_metrics.uptime_percentage}%",
-                    "actual": f"{actual_uptime}%",
-                    "breach_percentage": uptime_breach,
-                    "credit_percentage": uptime_credit
-                })
+                breaches.append(
+                    {
+                        "type": "uptime",
+                        "sla_requirement": f"{sla_metrics.uptime_percentage}%",
+                        "actual": f"{actual_uptime}%",
+                        "breach_percentage": uptime_breach,
+                        "credit_percentage": uptime_credit,
+                    }
+                )
 
             if response_time_breaches > 0:
                 response_credit = response_time_breaches * 0.1  # 10% credit per breach
                 total_compensation += response_credit
-                breaches.append({
-                    "type": "response_time",
-                    "sla_requirement": f"{sla_metrics.response_time_hours}h",
-                    "breaches": response_time_breaches,
-                    "credit_percentage": response_credit
-                })
+                breaches.append(
+                    {
+                        "type": "response_time",
+                        "sla_requirement": f"{sla_metrics.response_time_hours}h",
+                        "breaches": response_time_breaches,
+                        "credit_percentage": response_credit,
+                    }
+                )
 
             return {
                 "sla_tier": sla_tier.value,
                 "monitoring_period": {
                     "start": date_range_start.isoformat(),
-                    "end": date_range_end.isoformat()
+                    "end": date_range_end.isoformat(),
                 },
                 "uptime": {
                     "required": sla_metrics.uptime_percentage,
                     "actual": actual_uptime,
-                    "breach": max(0, sla_metrics.uptime_percentage - actual_uptime)
+                    "breach": max(0, sla_metrics.uptime_percentage - actual_uptime),
                 },
                 "support_performance": support_metrics,
                 "breaches": breaches,
                 "total_compensation_percentage": round(total_compensation, 2),
-                "sla_status": "compliant" if total_compensation == 0 else "breached"
+                "sla_status": "compliant" if total_compensation == 0 else "breached",
             }
 
         except Exception as e:
-            logger.error(f"Failed to monitor SLA compliance: {str(e)}")
+            logger.error(f"Failed to monitor SLA compliance: {e!s}")
             raise
 
     async def schedule_qbr(
-        self,
-        organization_id: int,
-        qbr_type: str = "quarterly",
-        attendees: List[str] = None
-    ) -> Dict[str, Any]:
+        self, organization_id: int, qbr_type: str = "quarterly", attendees: list[str] = None
+    ) -> dict[str, Any]:
         """Schedule Quarterly Business Review"""
         try:
             # Get account information
@@ -590,7 +605,7 @@ class EnterpriseSalesService:
                 "value_realization": await self._calculate_value_realization(organization_id),
                 "expansion_opportunities": opportunities,
                 "success_stories": await self._get_success_stories(organization_id),
-                "recommendations": await self._generate_recommendations(organization_id)
+                "recommendations": await self._generate_recommendations(organization_id),
             }
 
             # Schedule QBR meeting (this would integrate with calendaring)
@@ -602,14 +617,14 @@ class EnterpriseSalesService:
                 "attendees": attendees or ["Customer Success Manager", "Account Executive"],
                 "meeting_link": f"https://zoom.us/meeting/qbr_{organization_id}_{int(datetime.utcnow().timestamp())}",
                 "preparation_required": True,
-                "content_package": qbr_content
+                "content_package": qbr_content,
             }
 
             logger.info(f"Scheduled {qbr_type} QBR for organization {organization_id}")
             return qbr_scheduled
 
         except Exception as e:
-            logger.error(f"Failed to schedule QBR for organization {organization_id}: {str(e)}")
+            logger.error(f"Failed to schedule QBR for organization {organization_id}: {e!s}")
             raise
 
     async def _schedule_success_plays(self, account: EnterpriseAccount, play_type: str):
@@ -627,13 +642,15 @@ class EnterpriseSalesService:
                     "owner": play["owner"],
                     "template": play["template"],
                     "scheduled_date": self._calculate_schedule_date(account, play["timeline"]),
-                    "status": "scheduled"
+                    "status": "scheduled",
                 }
 
-                logger.info(f"Scheduled success play: {play['action']} for account {account.account_name}")
+                logger.info(
+                    f"Scheduled success play: {play['action']} for account {account.account_name}"
+                )
 
         except Exception as e:
-            logger.error(f"Failed to schedule success plays: {str(e)}")
+            logger.error(f"Failed to schedule success plays: {e!s}")
 
     def _map_tier_to_sla(self, tier: AccountTier) -> SLATier:
         """Map account tier to SLA tier"""
@@ -641,11 +658,11 @@ class EnterpriseSalesService:
             AccountTier.STARTUP: SLATier.BASIC,
             AccountTier.PROFESSIONAL: SLATier.PROFESSIONAL,
             AccountTier.ENTERPRISE: SLATier.ENTERPRISE,
-            AccountTier.CLINICAL: SLATier.CLINICAL
+            AccountTier.CLINICAL: SLATier.CLINICAL,
         }
         return mapping.get(tier, SLATier.BASIC)
 
-    async def _calculate_usage_metrics(self, organization_id: int, db: Session) -> Dict[str, Any]:
+    async def _calculate_usage_metrics(self, organization_id: int, db: Session) -> dict[str, Any]:
         """Calculate detailed usage metrics"""
         # This would integrate with analytics systems
         # Mock implementation for demonstration
@@ -655,35 +672,37 @@ class EnterpriseSalesService:
             "licensed_users": 50,
             "last_login": datetime.utcnow() - timedelta(days=3),
             "mrr_value": 500.0,
-            "team_engagement": 0.68
+            "team_engagement": 0.68,
         }
 
-    async def _calculate_adoption_metrics(self, organization_id: int, db: Session) -> Dict[str, Any]:
+    async def _calculate_adoption_metrics(
+        self, organization_id: int, db: Session
+    ) -> dict[str, Any]:
         """Calculate feature adoption metrics"""
         # This would integrate with feature tracking systems
         return {
             "feature_adoption_percentage": 0.65,  # 65% of features used
             "analytics_usage": 0.80,
             "assessment_usage": 0.90,
-            "team_features_usage": 0.45
+            "team_features_usage": 0.45,
         }
 
-    async def _calculate_support_metrics(self, organization_id: int, db: Session) -> Dict[str, Any]:
+    async def _calculate_support_metrics(self, organization_id: int, db: Session) -> dict[str, Any]:
         """Calculate support ticket metrics"""
         # This would integrate with support systems (Zendesk, etc.)
         return {
             "open_tickets": 2,
             "closed_tickets": 15,
             "average_resolution_time": 24.5,
-            "nps_score": 75
+            "nps_score": 75,
         }
 
     def _identify_health_risks(
         self,
-        usage_metrics: Dict[str, Any],
-        adoption_metrics: Dict[str, Any],
-        support_metrics: Dict[str, Any]
-    ) -> List[str]:
+        usage_metrics: dict[str, Any],
+        adoption_metrics: dict[str, Any],
+        support_metrics: dict[str, Any],
+    ) -> list[str]:
         """Identify potential health risks"""
         risks = []
 
@@ -702,10 +721,8 @@ class EnterpriseSalesService:
         return risks
 
     def _identify_growth_opportunities(
-        self,
-        usage_metrics: Dict[str, Any],
-        adoption_metrics: Dict[str, Any]
-    ) -> List[str]:
+        self, usage_metrics: dict[str, Any], adoption_metrics: dict[str, Any]
+    ) -> list[str]:
         """Identify growth opportunities"""
         opportunities = []
 
@@ -726,16 +743,16 @@ class EnterpriseSalesService:
 
         if "Day 1-3" in timeline:
             return now + timedelta(days=2)
-        elif "Day 3-7" in timeline:
+        if "Day 3-7" in timeline:
             return now + timedelta(days=5)
-        elif "Week 2" in timeline:
+        if "Week 2" in timeline:
             return now + timedelta(weeks=2)
-        elif "Day 30" in timeline:
+        if "Day 30" in timeline:
             return now + timedelta(days=30)
-        elif "Immediate" in timeline:
+        if "Immediate" in timeline:
             return now
-        else:
-            return now + timedelta(weeks=1)  # Default to 1 week
+        return now + timedelta(weeks=1)  # Default to 1 week
+
 
 # Global enterprise sales service instance
 enterprise_sales_service = EnterpriseSalesService()

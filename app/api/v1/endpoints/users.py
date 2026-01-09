@@ -1,51 +1,56 @@
 # app/api/v1/endpoints/users.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, text
-from sqlalchemy.orm import selectinload
-from typing import List, Optional, Dict, Any
 import logging
 import time
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import or_, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
 
 # Dependencies
-from app.api.v1.deps import get_db as get_db, get_current_active_user
+from app.api.v1.deps import get_current_active_user
+from app.api.v1.deps import get_db as get_db
+from app.core.api_utils import (
+    PaginationParams,
+    SortParams,
+    create_paginated_list_response,
+    get_pagination_params,
+    get_sort_params,
+    measure_performance,
+    serialize_model,
+)
+from app.core.async_cache import async_cached  # ✅ ASYNC CACHE (non-blocking)
+from app.core.audit_logger import AuditLogger
+from app.core.rate_limiter import RateLimiter
+from app.core.response import (
+    SuccessResponse,
+    create_error_response,
+    create_success_response,
+)
+
+# Enhanced Core - Updated imports
+from app.core.security import verify_password
+from app.core.security_validator import security_validator
 
 # Models
 from app.db.models.user import User
-
-# Schemas
-from app.schemas.user import UserCreate, UserRead, UserUpdate, UserOut
 from app.schemas.auth import PasswordChange
 
-# Services
-import app.services.user_service as user_service
+# Schemas
+from app.schemas.user import UserCreate, UserUpdate
 
-# Enhanced Core - Updated imports
-from app.core.security import verify_password, get_password_hash
-from app.core.response import (
-    SuccessResponse, ErrorResponse, PaginatedResponse, create_success_response,
-    create_error_response, create_paginated_response, ErrorDetail, ResponseStatus
-)
-from app.core.api_utils import (
-    PaginationParams, SortParams, get_pagination_params, get_sort_params,
-    create_paginated_list_response, measure_performance, cache_response,
-    apply_filters, apply_sorting, serialize_model, validate_permissions
-)
-from app.core.security_validator import security_validator, SecurityLevel
-from app.core.rate_limiter import RateLimiter
-from app.core.audit_logger import AuditLogger
+# Services
+from app.services import user_service
 
 router = APIRouter(tags=["users"])
 
 
 @router.get("/me")
 @measure_performance
-@cache_response(expire_seconds=300, key_prefix="user_profile")
-async def get_user_profile(
-    current_user: User = Depends(get_current_active_user)
-):
+@async_cached(expire=300, key_prefix="user_profile")  # ✅ ASYNC: Non-blocking cache
+async def get_user_profile(current_user: User = Depends(get_current_active_user)):
     """
     Retrieve the profile of the currently authenticated user.
 
@@ -55,8 +60,7 @@ async def get_user_profile(
     - Standardized response format with metadata
     """
     return create_success_response(
-        data=serialize_model(current_user),
-        message="User profile retrieved successfully"
+        data=serialize_model(current_user), message="User profile retrieved successfully"
     )
 
 
@@ -67,7 +71,7 @@ async def change_password(
     password_change: PasswordChange,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ) -> SuccessResponse[None]:
     """
     Change the password for the currently authenticated user.
@@ -80,20 +84,16 @@ async def change_password(
     - CSRF protection
     """
     start_time = time.time()
-    client_ip = getattr(request, 'client', {}).get('host', 'unknown')
+    client_ip = getattr(request, "client", {}).get("host", "unknown")
 
     try:
         # Validate and sanitize input
         current_password_validation = security_validator.validate_text_input(
-            password_change.current_password,
-            "current_password",
-            max_length=128
+            password_change.current_password, "current_password", max_length=128
         )
 
         new_password_validation = security_validator.validate_text_input(
-            password_change.new_password,
-            "new_password",
-            max_length=128
+            password_change.new_password, "new_password", max_length=128
         )
 
         if not current_password_validation.is_valid:
@@ -101,11 +101,10 @@ async def change_password(
                 user_id=current_user.id,
                 event_type="PASSWORD_CHANGE_INVALID_INPUT",
                 details=f"Invalid current password: {current_password_validation.security_issues}",
-                client_ip=client_ip
+                client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid current password format"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid current password format"
             )
 
         if not new_password_validation.is_valid:
@@ -113,11 +112,10 @@ async def change_password(
                 user_id=current_user.id,
                 event_type="PASSWORD_CHANGE_INVALID_INPUT",
                 details=f"Invalid new password: {new_password_validation.security_issues}",
-                client_ip=client_ip
+                client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid new password format"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid new password format"
             )
 
         # Password strength validation
@@ -127,24 +125,25 @@ async def change_password(
                 user_id=current_user.id,
                 event_type="PASSWORD_CHANGE_WEAK_PASSWORD",
                 details="Password does not meet strength requirements",
-                client_ip=client_ip
+                client_ip=client_ip,
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character"
+                detail="Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character",
             )
 
         # Verify the current password
-        if not verify_password(current_password_validation.sanitized_value, current_user.password_hash):
+        if not verify_password(
+            current_password_validation.sanitized_value, current_user.password_hash
+        ):
             AuditLogger.log_security_event(
                 user_id=current_user.id,
                 event_type="PASSWORD_CHANGE_FAILED",
                 details="Incorrect current password",
-                client_ip=client_ip
+                client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect current password"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect current password"
             )
 
         # Update password using user service with transaction
@@ -164,39 +163,40 @@ async def change_password(
                 user_id=current_user.id,
                 event_type="PASSWORD_CHANGED",
                 details="Password successfully changed",
-                client_ip=client_ip
+                client_ip=client_ip,
             )
 
-            logger.info(f"Password updated successfully for user {current_user.id} from {client_ip}")
+            logger.info(
+                f"Password updated successfully for user {current_user.id} from {client_ip}"
+            )
 
             return create_success_response(
                 message="Password updated successfully. All sessions have been invalidated for security.",
-                data={"sessions_invalidated": True}
+                data={"sessions_invalidated": True},
             )
 
         except ValueError as e:
             AuditLogger.log_security_event(
                 user_id=current_user.id,
                 event_type="PASSWORD_CHANGE_VALIDATION_ERROR",
-                details=f"Validation error: {str(e)}",
-                client_ip=client_ip
+                details=f"Validation error: {e!s}",
+                client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=str(e)
-            )
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+            ) from e
         except Exception as e:
             AuditLogger.log_security_event(
                 user_id=current_user.id,
                 event_type="PASSWORD_CHANGE_ERROR",
-                details=f"System error: {str(e)}",
-                client_ip=client_ip
+                details=f"System error: {e!s}",
+                client_ip=client_ip,
             )
-            logger.error(f"Password update failed for user {current_user.id}: {str(e)}")
+            logger.error(f"Password update failed for user {current_user.id}: {e!s}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update password. Please try again."
-            )
+                detail="Failed to update password. Please try again.",
+            ) from e
 
     except HTTPException:
         raise
@@ -205,14 +205,14 @@ async def change_password(
         AuditLogger.log_security_event(
             user_id=current_user.id,
             event_type="PASSWORD_CHANGE_UNEXPECTED_ERROR",
-            details=f"Unexpected error after {execution_time:.2f}s: {str(e)}",
-            client_ip=client_ip
+            details=f"Unexpected error after {execution_time:.2f}s: {e!s}",
+            client_ip=client_ip,
         )
-        logger.error(f"Unexpected error in password change for user {current_user.id}: {str(e)}")
+        logger.error(f"Unexpected error in password change for user {current_user.id}: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred. Please try again."
-        )
+            detail="An unexpected error occurred. Please try again.",
+        ) from e
 
 
 def _validate_password_strength(password: str) -> bool:
@@ -244,26 +244,31 @@ async def _invalidate_user_sessions(user_id: str) -> None:
         # await cache_delete_pattern(f"session:*{user_id}*")
 
     except Exception as e:
-        logger.error(f"Failed to invalidate sessions for user {user_id}: {str(e)}")
+        logger.error(f"Failed to invalidate sessions for user {user_id}: {e!s}")
         # Don't raise - password change should still succeed
 
 
 # ==================== ENHANCED ENDPOINTS WITH NEW UTILITIES ====================
 
+
 @router.get("/")
 @RateLimiter(limit=30, window_seconds=60)  # 30 requests per minute
 @measure_performance
-@cache_response(expire_seconds=60, key_prefix="users_list")
+@async_cached(expire=60, key_prefix="users_list")  # ✅ ASYNC: Non-blocking cache
 async def list_users(
     request: Request,
     pagination: PaginationParams = Depends(get_pagination_params),
     sort_params: SortParams = Depends(get_sort_params),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-    search: Optional[str] = Query(None, description="Search users by name or email", min_length=1, max_length=100),
-    is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    organization_id: Optional[int] = Query(None, description="Filter by organization", ge=1),
-    role: Optional[str] = Query(None, description="Filter by user role", regex="^(admin|user|team_lead)$")
+    search: str | None = Query(
+        None, description="Search users by name or email", min_length=1, max_length=100
+    ),
+    is_active: bool | None = Query(None, description="Filter by active status"),
+    organization_id: int | None = Query(None, description="Filter by organization", ge=1),
+    role: str | None = Query(
+        None, description="Filter by user role", regex="^(admin|user|team_lead)$"
+    ),
 ):
     """
     Get paginated list of users with advanced filtering and sorting.
@@ -276,7 +281,7 @@ async def list_users(
     - Audit logging for data access
     - XSS protection in search functionality
     """
-    client_ip = getattr(request, 'client', {}).get('host', 'unknown')
+    client_ip = getattr(request, "client", {}).get("host", "unknown")
     start_time = time.time()
 
     try:
@@ -285,12 +290,11 @@ async def list_users(
             AuditLogger.log_security_event(
                 user_id=current_user.id,
                 event_type="UNAUTHORIZED_USER_LISTING_ATTEMPT",
-                details=f"Non-admin user attempted to list users",
-                client_ip=client_ip
+                details="Non-admin user attempted to list users",
+                client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only administrators can list users"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Only administrators can list users"
             )
 
         # INPUT VALIDATION AND SANITIZATION
@@ -301,9 +305,11 @@ async def list_users(
         if search:
             search_validation = security_validator.validate_search_query(search, "search")
             if not search_validation.is_valid:
-                validation_errors.extend([f"Search: {issue}" for issue in search_validation.security_issues])
+                validation_errors.extend(
+                    [f"Search: {issue}" for issue in search_validation.security_issues]
+                )
             else:
-                sanitized_params['search'] = search_validation.sanitized_value
+                sanitized_params["search"] = search_validation.sanitized_value
 
         # Validate pagination parameters
         pagination_validation = security_validator.validate_pagination_params(
@@ -321,17 +327,17 @@ async def list_users(
                 if org_id_int < 1:
                     validation_errors.append("Organization ID must be a positive integer")
                 else:
-                    sanitized_params['organization_id'] = org_id_int
+                    sanitized_params["organization_id"] = org_id_int
             except (ValueError, TypeError):
                 validation_errors.append("Organization ID must be a valid integer")
 
         # Validate role parameter
         if role:
-            valid_roles = ['admin', 'user', 'team_lead']
+            valid_roles = ["admin", "user", "team_lead"]
             if role not in valid_roles:
                 validation_errors.append(f"Invalid role. Must be one of: {', '.join(valid_roles)}")
             else:
-                sanitized_params['role'] = role
+                sanitized_params["role"] = role
 
         # Return validation errors if any
         if validation_errors:
@@ -339,11 +345,11 @@ async def list_users(
                 user_id=current_user.id,
                 event_type="USER_LIST_VALIDATION_FAILED",
                 details=f"Validation errors: {', '.join(validation_errors)}",
-                client_ip=client_ip
+                client_ip=client_ip,
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"validation_errors": validation_errors}
+                detail={"validation_errors": validation_errors},
             )
 
         # BUILD SECURE DATABASE QUERY
@@ -353,35 +359,32 @@ async def list_users(
         filter_params = {}
 
         # Apply search filter with safe parameter binding
-        if 'search' in sanitized_params:
-            sanitized_search = sanitized_params['search']
-            filter_params['search'] = sanitized_search
+        if "search" in sanitized_params:
+            sanitized_search = sanitized_params["search"]
+            filter_params["search"] = sanitized_search
 
             # Use parameterized ILIKE queries
             search_pattern = f"%{sanitized_search}%"
             query = query.where(
-                or_(
-                    User.full_name.ilike(search_pattern),
-                    User.email.ilike(search_pattern)
-                )
+                or_(User.full_name.ilike(search_pattern), User.email.ilike(search_pattern))
             )
 
         # Apply filters with safe parameter binding
         if is_active is not None:
-            filter_params['is_active'] = is_active
+            filter_params["is_active"] = is_active
             query = query.where(User.is_active == is_active)
 
-        if 'organization_id' in sanitized_params:
-            filter_params['organization_id'] = sanitized_params['organization_id']
-            query = query.where(User.organization_id == sanitized_params['organization_id'])
+        if "organization_id" in sanitized_params:
+            filter_params["organization_id"] = sanitized_params["organization_id"]
+            query = query.where(User.organization_id == sanitized_params["organization_id"])
 
-        if 'role' in sanitized_params:
-            filter_params['role'] = sanitized_params['role']
-            query = query.where(User.role == sanitized_params['role'])
+        if "role" in sanitized_params:
+            filter_params["role"] = sanitized_params["role"]
+            query = query.where(User.role == sanitized_params["role"])
 
         # SECURITY: Ensure user can only access their own organization's data
-        if current_user.organization_id and 'organization_id' not in filter_params:
-            filter_params['organization_id'] = current_user.organization_id
+        if current_user.organization_id and "organization_id" not in filter_params:
+            filter_params["organization_id"] = current_user.organization_id
             query = query.where(User.organization_id == current_user.organization_id)
 
         # LOGGING: Log the access attempt
@@ -389,7 +392,7 @@ async def list_users(
             user_id=current_user.id,
             event_type="USER_LIST_ACCESSED",
             details=f"User listed users with filters: {filter_params}",
-            client_ip=client_ip
+            client_ip=client_ip,
         )
 
         # Create paginated response with security context
@@ -399,28 +402,30 @@ async def list_users(
             pagination=pagination,
             sort_params=sort_params,
             filter_params=filter_params,
-            message="Users retrieved successfully"
+            message="Users retrieved successfully",
         )
 
         # Add security metadata
-        response_data = response.dict() if hasattr(response, 'dict') else response
-        response_data['security_metadata'] = {
-            'accessed_at': time.time(),
-            'filters_applied': list(filter_params.keys()),
-            'rate_limit_remaining': 30  # This would come from actual rate limiter
+        response_data = response.dict() if hasattr(response, "dict") else response
+        response_data["security_metadata"] = {
+            "accessed_at": time.time(),
+            "filters_applied": list(filter_params.keys()),
+            "rate_limit_remaining": 30,  # This would come from actual rate limiter
         }
 
         # Sanitize user data in response to prevent data leakage
-        if 'data' in response_data and 'items' in response_data['data']:
+        if "data" in response_data and "items" in response_data["data"]:
             sanitized_users = []
-            for user_item in response_data['data']['items']:
+            for user_item in response_data["data"]["items"]:
                 # Remove sensitive fields from response
                 sanitized_user = {
-                    k: v for k, v in user_item.items()
-                    if k not in ['password_hash', 'password_reset_token', 'email_verification_token']
+                    k: v
+                    for k, v in user_item.items()
+                    if k
+                    not in ["password_hash", "password_reset_token", "email_verification_token"]
                 }
                 sanitized_users.append(sanitized_user)
-            response_data['data']['items'] = sanitized_users
+            response_data["data"]["items"] = sanitized_users
 
         execution_time = time.time() - start_time
         logger.info(f"User list completed in {execution_time:.2f}s for user {current_user.id}")
@@ -434,23 +439,23 @@ async def list_users(
         AuditLogger.log_security_event(
             user_id=current_user.id,
             event_type="USER_LIST_ERROR",
-            details=f"Error after {execution_time:.2f}s: {str(e)}",
-            client_ip=client_ip
+            details=f"Error after {execution_time:.2f}s: {e!s}",
+            client_ip=client_ip,
         )
-        logger.error(f"User listing failed: {str(e)}")
+        logger.error(f"User listing failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve users. Please try again."
-        )
+            detail="Failed to retrieve users. Please try again.",
+        ) from e
 
 
 @router.get("/{user_id}")
 @measure_performance
-@cache_response(expire_seconds=300, key_prefix="user_detail")
+@async_cached(expire=300, key_prefix="user_detail")  # ✅ ASYNC: Non-blocking cache
 async def get_user_by_id(
     user_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get user details by ID.
@@ -463,8 +468,7 @@ async def get_user_by_id(
     # Permission check - users can view their own profile or admins can view any
     if user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this user profile"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this user profile"
         )
 
     result = await db.execute(select(User).filter(User.id == user_id))
@@ -472,13 +476,11 @@ async def get_user_by_id(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"User with ID {user_id} not found"
         )
 
     return create_success_response(
-        data=serialize_model(user),
-        message="User retrieved successfully"
+        data=serialize_model(user), message="User retrieved successfully"
     )
 
 
@@ -487,7 +489,7 @@ async def get_user_by_id(
 async def update_user_profile(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Update the profile of the currently authenticated user.
@@ -502,28 +504,23 @@ async def update_user_profile(
         # Use database transaction to prevent concurrent modification issues
         async with db.begin():
             # Update user using service within transaction
-            updated_user = await user_service.update_user(
-                db, str(current_user.id), user_update
-            )
+            updated_user = await user_service.update_user(db, str(current_user.id), user_update)
 
         # Transaction automatically commits here if successful
 
         return create_success_response(
-            data=serialize_model(updated_user),
-            message="Profile updated successfully"
+            data=serialize_model(updated_user), message="Profile updated successfully"
         )
     except ValueError as e:
         return create_error_response(
-            message=str(e),
-            error_code="VALIDATION_ERROR",
-            status_code=status.HTTP_400_BAD_REQUEST
+            message=str(e), error_code="VALIDATION_ERROR", status_code=status.HTTP_400_BAD_REQUEST
         )
     except Exception as e:
-        logger.error(f"Profile update failed for user {current_user.id}: {str(e)}")
+        logger.error(f"Profile update failed for user {current_user.id}: {e!s}")
         return create_error_response(
             message="Failed to update profile. Please try again.",
             error_code="UPDATE_FAILED",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -531,9 +528,7 @@ async def update_user_profile(
 @RateLimiter(limit=5, window_seconds=300)  # 5 registrations per 5 minutes per IP
 @measure_performance
 async def create_user_endpoint(
-    request: Request,
-    user_create: UserCreate,
-    db: AsyncSession = Depends(get_db)
+    request: Request, user_create: UserCreate, db: AsyncSession = Depends(get_db)
 ):
     """
     Register a new user account.
@@ -547,8 +542,8 @@ async def create_user_endpoint(
     - IP-based registration limits
     - Audit logging for security monitoring
     """
-    client_ip = getattr(request, 'client', {}).get('host', 'unknown')
-    user_agent = getattr(request, 'headers', {}).get('user-agent', 'unknown')
+    client_ip = getattr(request, "client", {}).get("host", "unknown")
+    user_agent = getattr(request, "headers", {}).get("user-agent", "unknown")
     start_time = time.time()
 
     try:
@@ -558,38 +553,42 @@ async def create_user_endpoint(
         # Validate email
         email_validation = security_validator.validate_email(user_create.email, "email")
         if not email_validation.is_valid:
-            validation_errors.extend([f"Email: {issue}" for issue in email_validation.security_issues])
+            validation_errors.extend(
+                [f"Email: {issue}" for issue in email_validation.security_issues]
+            )
             validated_email = None
         else:
             validated_email = email_validation.sanitized_value
 
         # Validate password
         password_validation = security_validator.validate_text_input(
-            user_create.password,
-            "password",
-            max_length=128
+            user_create.password, "password", max_length=128
         )
         if not password_validation.is_valid:
-            validation_errors.extend([f"Password: {issue}" for issue in password_validation.security_issues])
+            validation_errors.extend(
+                [f"Password: {issue}" for issue in password_validation.security_issues]
+            )
             validated_password = None
         else:
             validated_password = password_validation.sanitized_value
 
         # Validate full name
         full_name_validation = security_validator.validate_name_input(
-            user_create.full_name,
-            "full_name",
-            max_length=100
+            user_create.full_name, "full_name", max_length=100
         )
         if not full_name_validation.is_valid:
-            validation_errors.extend([f"Full name: {issue}" for issue in full_name_validation.security_issues])
+            validation_errors.extend(
+                [f"Full name: {issue}" for issue in full_name_validation.security_issues]
+            )
             validated_full_name = None
         else:
             validated_full_name = full_name_validation.sanitized_value
 
         # Password strength validation
         if validated_password and not _validate_password_strength(validated_password):
-            validation_errors.append("Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character")
+            validation_errors.append(
+                "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character"
+            )
 
         # CHECK FOR SUSPICIOUS REGISTRATION PATTERNS
         suspicious_patterns = _detect_suspicious_registration(
@@ -602,11 +601,11 @@ async def create_user_endpoint(
                 event_type="SUSPICIOUS_REGISTRATION_ATTEMPT",
                 details=f"Suspicious patterns detected: {suspicious_patterns}",
                 client_ip=client_ip,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Registration temporarily blocked. Please try again later."
+                detail="Registration temporarily blocked. Please try again later.",
             )
 
         # Return validation errors if any
@@ -616,11 +615,11 @@ async def create_user_endpoint(
                 event_type="REGISTRATION_VALIDATION_FAILED",
                 details=f"Validation errors: {', '.join(validation_errors)}",
                 client_ip=client_ip,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"validation_errors": validation_errors}
+                detail={"validation_errors": validation_errors},
             )
 
         # CHECK FOR EXISTING EMAIL WITH RACE CONDITION PROTECTION
@@ -633,8 +632,7 @@ async def create_user_endpoint(
             """)
 
             existing_user_result = await db.execute(
-                existing_email_query,
-                {"email": validated_email}
+                existing_email_query, {"email": validated_email}
             )
             existing_user = existing_user_result.scalar_one_or_none()
 
@@ -644,19 +642,18 @@ async def create_user_endpoint(
                     event_type="DUPLICATE_EMAIL_REGISTRATION_ATTEMPT",
                     details=f"Attempt to register with existing email: {validated_email}",
                     client_ip=client_ip,
-                    user_agent=user_agent
+                    user_agent=user_agent,
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Email already registered"
+                    status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
                 )
 
         except Exception as db_error:
-            logger.error(f"Database error during email uniqueness check: {str(db_error)}")
+            logger.error(f"Database error during email uniqueness check: {db_error!s}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Registration temporarily unavailable. Please try again."
-            )
+                detail="Registration temporarily unavailable. Please try again.",
+            ) from db_error
 
         # CREATE USER WITH SECURE DEFAULTS
         try:
@@ -665,7 +662,7 @@ async def create_user_endpoint(
                 email=validated_email,
                 password=validated_password,  # Will be hashed in service
                 full_name=validated_full_name,
-                organization_id=getattr(user_create, 'organization_id', None)
+                organization_id=getattr(user_create, "organization_id", None),
             )
 
             # Use database transaction to ensure atomic user creation
@@ -686,7 +683,7 @@ async def create_user_endpoint(
                 event_type="USER_REGISTERED",
                 details=f"User successfully registered: {validated_email}",
                 client_ip=client_ip,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
 
             logger.info(f"New user registered: {validated_email} from {client_ip}")
@@ -697,7 +694,7 @@ async def create_user_endpoint(
                 # await send_verification_email(validated_email, verification_token, validated_full_name)
                 logger.info(f"Verification email queued for {validated_email}")
             except Exception as email_error:
-                logger.error(f"Failed to queue verification email: {str(email_error)}")
+                logger.error(f"Failed to queue verification email: {email_error!s}")
                 # Don't fail registration if email fails
 
             # Return sanitized response (exclude sensitive data)
@@ -709,40 +706,37 @@ async def create_user_endpoint(
                 "is_verified": new_user.is_verified,
                 "created_at": new_user.created_at.isoformat() if new_user.created_at else None,
                 "verification_required": True,
-                "message": "Registration successful. Please check your email for verification."
+                "message": "Registration successful. Please check your email for verification.",
             }
 
             return create_success_response(
                 data=user_response,
                 message="User registered successfully. Please check your email for verification.",
-                status_code=status.HTTP_201_CREATED
+                status_code=status.HTTP_201_CREATED,
             )
 
         except ValueError as e:
             AuditLogger.log_security_event(
                 user_id=None,
                 event_type="REGISTRATION_VALIDATION_ERROR",
-                details=f"Service validation error: {str(e)}",
+                details=f"Service validation error: {e!s}",
                 client_ip=client_ip,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
         except Exception as e:
             AuditLogger.log_security_event(
                 user_id=None,
                 event_type="REGISTRATION_ERROR",
-                details=f"Registration error: {str(e)}",
+                details=f"Registration error: {e!s}",
                 client_ip=client_ip,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
-            logger.error(f"User registration failed: {str(e)}")
+            logger.error(f"User registration failed: {e!s}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Registration failed. Please try again."
-            )
+                detail="Registration failed. Please try again.",
+            ) from e
 
     except HTTPException:
         raise
@@ -751,30 +745,32 @@ async def create_user_endpoint(
         AuditLogger.log_security_event(
             user_id=None,
             event_type="REGISTRATION_UNEXPECTED_ERROR",
-            details=f"Unexpected error after {execution_time:.2f}s: {str(e)}",
+            details=f"Unexpected error after {execution_time:.2f}s: {e!s}",
             client_ip=client_ip,
-            user_agent=user_agent
+            user_agent=user_agent,
         )
-        logger.error(f"Unexpected registration error: {str(e)}")
+        logger.error(f"Unexpected registration error: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred. Please try again."
-        )
+            detail="An unexpected error occurred. Please try again.",
+        ) from e
 
 
-def _detect_suspicious_registration(client_ip: str, user_agent: str, email: Optional[str]) -> List[str]:
+def _detect_suspicious_registration(
+    client_ip: str, user_agent: str, email: str | None
+) -> list[str]:
     """Detect suspicious registration patterns"""
     suspicious_patterns = []
 
     # Check for suspicious user agents
-    suspicious_ua_patterns = ['bot', 'crawler', 'spider', 'scraper', 'curl', 'wget']
+    suspicious_ua_patterns = ["bot", "crawler", "spider", "scraper", "curl", "wget"]
     if any(pattern in user_agent.lower() for pattern in suspicious_ua_patterns):
         suspicious_patterns.append("suspicious_user_agent")
 
     # Check for disposable email domains (simplified list)
     if email:
-        disposable_domains = ['10minutemail', 'tempmail', 'guerrillamail', 'mailinator']
-        domain = email.split('@')[-1].lower()
+        disposable_domains = ["10minutemail", "tempmail", "guerrillamail", "mailinator"]
+        domain = email.split("@")[-1].lower()
         if any(disposable in domain for disposable in disposable_domains):
             suspicious_patterns.append("disposable_email_domain")
 
@@ -789,6 +785,7 @@ def _detect_suspicious_registration(client_ip: str, user_agent: str, email: Opti
 def _generate_verification_token(user_id: str) -> str:
     """Generate secure email verification token"""
     import secrets
+
     return secrets.token_urlsafe(32)
 
 

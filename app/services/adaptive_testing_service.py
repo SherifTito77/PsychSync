@@ -3,17 +3,15 @@ Computerized Adaptive Testing (CAT) Service
 Advanced adaptive testing engine using Item Response Theory (IRT)
 """
 
-import logging
-import math
-import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
-from uuid import UUID
-from sqlalchemy.orm import Session
 from dataclasses import dataclass
 from enum import Enum
+import logging
+import math
+from typing import Any
+from uuid import UUID
 
-from app.db.models.assessments import Assessment, AssessmentResponse
-from app.db.models.responses import UserAssessmentResponse
+import numpy as np
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +41,8 @@ class TestItem:
     discrimination: float  # a parameter
     guessing: float  # c parameter
     content_domain: str
-    position: Optional[int] = None
-    response_time_estimate: Optional[float] = None
+    position: int | None = None
+    response_time_estimate: float | None = None
 
 
 @dataclass
@@ -52,7 +50,7 @@ class AbilityEstimate:
     """Ability estimate with confidence intervals"""
     theta: float  # Ability estimate
     standard_error: float
-    confidence_interval: Tuple[float, float]
+    confidence_interval: tuple[float, float]
     information: float
 
 
@@ -62,8 +60,8 @@ class AdaptiveTestSession:
     session_id: UUID
     user_id: UUID
     assessment_id: UUID
-    items_administered: List[TestItem]
-    responses: List[int]
+    items_administered: list[TestItem]
+    responses: list[int]
     current_ability: AbilityEstimate
     stopping_rule: StoppingRule
     max_items: int
@@ -71,7 +69,7 @@ class AdaptiveTestSession:
     target_se: float
     is_complete: bool
     start_time: float
-    response_times: List[float]
+    response_times: list[float]
 
 
 class ComputerizedAdaptiveTestingService:
@@ -82,26 +80,26 @@ class ComputerizedAdaptiveTestingService:
 
         # CAT configuration defaults
         self.default_config = {
-            'max_items': 30,
-            'min_items': 10,
-            'target_standard_error': 0.3,
-            'stopping_rule': StoppingRule.STANDARD_ERROR,
-            'estimation_method': EstimationMethod.MAXIMUM_LIKELIHOOD,
-            'initial_ability': 0.0,
-            'item_exposure_rate': 0.2,  # Maximum exposure rate for items
-            'content_balancing': True,
-            'shadow_testing': True
+            "max_items": 30,
+            "min_items": 10,
+            "target_standard_error": 0.3,
+            "stopping_rule": StoppingRule.STANDARD_ERROR,
+            "estimation_method": EstimationMethod.MAXIMUM_LIKELIHOOD,
+            "initial_ability": 0.0,
+            "item_exposure_rate": 0.2,  # Maximum exposure rate for items
+            "content_balancing": True,
+            "shadow_testing": True
         }
 
         # IRT model parameters
-        self.irt_model = '3PL'  # 3-parameter logistic model
+        self.irt_model = "3PL"  # 3-parameter logistic model
 
     async def start_adaptive_test(
         self,
         user_id: UUID,
         assessment_id: UUID,
-        config: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        config: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Start a new adaptive testing session"""
         try:
             # Merge with default config
@@ -115,7 +113,7 @@ class ComputerizedAdaptiveTestingService:
             # Create session
             session_id = UUID()
             initial_ability = AbilityEstimate(
-                theta=test_config['initial_ability'],
+                theta=test_config["initial_ability"],
                 standard_error=2.0,  # High uncertainty initially
                 confidence_interval=(-2.0, 2.0),
                 information=0.0
@@ -128,10 +126,10 @@ class ComputerizedAdaptiveTestingService:
                 items_administered=[],
                 responses=[],
                 current_ability=initial_ability,
-                stopping_rule=test_config['stopping_rule'],
-                max_items=test_config['max_items'],
-                min_items=test_config['min_items'],
-                target_se=test_config['target_standard_error'],
+                stopping_rule=test_config["stopping_rule"],
+                max_items=test_config["max_items"],
+                min_items=test_config["min_items"],
+                target_se=test_config["target_standard_error"],
                 is_complete=False,
                 start_time=self._get_current_timestamp(),
                 response_times=[]
@@ -142,40 +140,40 @@ class ComputerizedAdaptiveTestingService:
             session.items_administered.append(first_item)
 
             return {
-                'success': True,
-                'session_id': str(session_id),
-                'first_item': {
-                    'id': first_item.id,
-                    'text': first_item.question_text,
-                    'type': first_item.item_type
+                "success": True,
+                "session_id": str(session_id),
+                "first_item": {
+                    "id": first_item.id,
+                    "text": first_item.question_text,
+                    "type": first_item.item_type
                 },
-                'estimated_time_remaining': len(item_bank) * 30,  # Rough estimate
-                'progress': {
-                    'items_administered': 0,
-                    'max_items': session.max_items
+                "estimated_time_remaining": len(item_bank) * 30,  # Rough estimate
+                "progress": {
+                    "items_administered": 0,
+                    "max_items": session.max_items
                 }
             }
 
         except Exception as e:
-            logger.error(f"Error starting adaptive test: {str(e)}")
-            return {'success': False, 'error': str(e)}
+            logger.error(f"Error starting adaptive test: {e!s}")
+            return {"success": False, "error": str(e)}
 
     async def submit_response(
         self,
         session_id: UUID,
         item_id: str,
         response: int,
-        response_time: Optional[float] = None
-    ) -> Dict[str, Any]:
+        response_time: float | None = None
+    ) -> dict[str, Any]:
         """Submit response and get next item"""
         try:
             # Get session (in production, store in Redis/database)
             session = await self._get_session(session_id)
             if not session:
-                return {'success': False, 'error': 'Invalid session ID'}
+                return {"success": False, "error": "Invalid session ID"}
 
             if session.is_complete:
-                return {'success': False, 'error': 'Test is already complete'}
+                return {"success": False, "error": "Test is already complete"}
 
             # Record response
             session.responses.append(response)
@@ -193,60 +191,59 @@ class ComputerizedAdaptiveTestingService:
                 final_results = await self._calculate_final_results(session)
 
                 return {
-                    'success': True,
-                    'test_complete': True,
-                    'results': final_results,
-                    'session_id': str(session_id)
+                    "success": True,
+                    "test_complete": True,
+                    "results": final_results,
+                    "session_id": str(session_id)
                 }
-            else:
-                # Select next item
-                item_bank = await self._get_item_bank(session.assessment_id)
-                next_item = await self._select_next_item(session, item_bank)
-                session.items_administered.append(next_item)
+            # Select next item
+            item_bank = await self._get_item_bank(session.assessment_id)
+            next_item = await self._select_next_item(session, item_bank)
+            session.items_administered.append(next_item)
 
-                return {
-                    'success': True,
-                    'test_complete': False,
-                    'next_item': {
-                        'id': next_item.id,
-                        'text': next_item.question_text,
-                        'type': next_item.item_type
-                    },
-                    'progress': {
-                        'items_administered': len(session.items_administered) - 1,
-                        'max_items': session.max_items,
-                        'ability_estimate': session.current_ability.theta,
-                        'standard_error': session.current_ability.standard_error
-                    }
+            return {
+                "success": True,
+                "test_complete": False,
+                "next_item": {
+                    "id": next_item.id,
+                    "text": next_item.question_text,
+                    "type": next_item.item_type
+                },
+                "progress": {
+                    "items_administered": len(session.items_administered) - 1,
+                    "max_items": session.max_items,
+                    "ability_estimate": session.current_ability.theta,
+                    "standard_error": session.current_ability.standard_error
                 }
+            }
 
         except Exception as e:
-            logger.error(f"Error submitting response: {str(e)}")
-            return {'success': False, 'error': str(e)}
+            logger.error(f"Error submitting response: {e!s}")
+            return {"success": False, "error": str(e)}
 
-    async def get_test_status(self, session_id: UUID) -> Dict[str, Any]:
+    async def get_test_status(self, session_id: UUID) -> dict[str, Any]:
         """Get current status of adaptive test"""
         try:
             session = await self._get_session(session_id)
             if not session:
-                return {'success': False, 'error': 'Invalid session ID'}
+                return {"success": False, "error": "Invalid session ID"}
 
             return {
-                'success': True,
-                'session_id': str(session_id),
-                'is_complete': session.is_complete,
-                'items_administered': len(session.items_administered),
-                'max_items': session.max_items,
-                'current_ability': session.current_ability.theta,
-                'standard_error': session.current_ability.standard_error,
-                'estimated_time_remaining': (session.max_items - len(session.items_administered)) * 30
+                "success": True,
+                "session_id": str(session_id),
+                "is_complete": session.is_complete,
+                "items_administered": len(session.items_administered),
+                "max_items": session.max_items,
+                "current_ability": session.current_ability.theta,
+                "standard_error": session.current_ability.standard_error,
+                "estimated_time_remaining": (session.max_items - len(session.items_administered)) * 30
             }
 
         except Exception as e:
-            logger.error(f"Error getting test status: {str(e)}")
-            return {'success': False, 'error': str(e)}
+            logger.error(f"Error getting test status: {e!s}")
+            return {"success": False, "error": str(e)}
 
-    async def _get_item_bank(self, assessment_id: UUID) -> List[TestItem]:
+    async def _get_item_bank(self, assessment_id: UUID) -> list[TestItem]:
         """Retrieve and calibrate item bank for assessment"""
         try:
             # In production, this would query the database for calibrated items
@@ -320,13 +317,13 @@ class ComputerizedAdaptiveTestingService:
             return sample_items + additional_items
 
         except Exception as e:
-            logger.error(f"Error getting item bank: {str(e)}")
+            logger.error(f"Error getting item bank: {e!s}")
             return []
 
     async def _select_next_item(
         self,
         session: AdaptiveTestSession,
-        item_bank: List[TestItem]
+        item_bank: list[TestItem]
     ) -> TestItem:
         """Select next item using optimal item selection"""
         try:
@@ -351,7 +348,7 @@ class ComputerizedAdaptiveTestingService:
             item_informations.sort(key=lambda x: x[1], reverse=True)
 
             # Apply content balancing if enabled
-            if self.default_config['content_balancing']:
+            if self.default_config["content_balancing"]:
                 selected_item = await self._apply_content_balancing(
                     item_informations, session
                 )
@@ -362,7 +359,7 @@ class ComputerizedAdaptiveTestingService:
             return selected_item
 
         except Exception as e:
-            logger.error(f"Error selecting next item: {str(e)}")
+            logger.error(f"Error selecting next item: {e!s}")
             # Fallback: return first available item
             return available_items[0]
 
@@ -373,7 +370,7 @@ class ComputerizedAdaptiveTestingService:
             b = item.difficulty
             c = item.guessing
 
-            if self.irt_model == '3PL':
+            if self.irt_model == "3PL":
                 # 3PL model information function
                 p = await self._irt_probability(theta, a, b, c)
                 q = 1 - p
@@ -392,7 +389,7 @@ class ComputerizedAdaptiveTestingService:
             return information
 
         except Exception as e:
-            logger.error(f"Error calculating item information: {str(e)}")
+            logger.error(f"Error calculating item information: {e!s}")
             return 0.0
 
     async def _irt_probability(self, theta: float, a: float, b: float, c: float) -> float:
@@ -401,7 +398,7 @@ class ComputerizedAdaptiveTestingService:
             exp_term = math.exp(a * (theta - b))
             return c + (1 - c) * (exp_term / (1 + exp_term))
         except Exception as e:
-            logger.error(f"Error in IRT probability calculation: {str(e)}")
+            logger.error(f"Error in IRT probability calculation: {e!s}")
             return 0.5
 
     async def _irt_probability_2pl(self, theta: float, a: float, b: float) -> float:
@@ -410,13 +407,13 @@ class ComputerizedAdaptiveTestingService:
             exp_term = math.exp(a * (theta - b))
             return exp_term / (1 + exp_term)
         except Exception as e:
-            logger.error(f"Error in 2PL IRT probability calculation: {str(e)}")
+            logger.error(f"Error in 2PL IRT probability calculation: {e!s}")
             return 0.5
 
     async def _update_ability_estimate(self, session: AdaptiveTestSession):
         """Update ability estimate based on responses"""
         try:
-            method = self.default_config['estimation_method']
+            method = self.default_config["estimation_method"]
 
             if method == EstimationMethod.MAXIMUM_LIKELIHOOD:
                 new_estimate = await self._maximum_likelihood_estimation(session)
@@ -428,7 +425,7 @@ class ComputerizedAdaptiveTestingService:
             session.current_ability = new_estimate
 
         except Exception as e:
-            logger.error(f"Error updating ability estimate: {str(e)}")
+            logger.error(f"Error updating ability estimate: {e!s}")
 
     async def _maximum_likelihood_estimation(self, session: AdaptiveTestSession) -> AbilityEstimate:
         """Maximum likelihood ability estimation"""
@@ -455,7 +452,7 @@ class ComputerizedAdaptiveTestingService:
                     p = await self._irt_probability(theta, a, b, c)
                     q = 1 - p
 
-                    if self.irt_model == '3PL':
+                    if self.irt_model == "3PL":
                         w = (p - c) / (1 - c)
                         first_derivative += (a * (response - p) * w / (p * q))
                         second_derivative -= (a ** 2 * w * ((response * q) - (p * c)) / (p ** 2 * q ** 2))
@@ -488,7 +485,7 @@ class ComputerizedAdaptiveTestingService:
             )
 
         except Exception as e:
-            logger.error(f"Error in MLE estimation: {str(e)}")
+            logger.error(f"Error in MLE estimation: {e!s}")
             return session.current_ability
 
     async def _bayesian_estimation(self, session: AdaptiveTestSession) -> AbilityEstimate:
@@ -521,7 +518,7 @@ class ComputerizedAdaptiveTestingService:
             )
 
         except Exception as e:
-            logger.error(f"Error in Bayesian estimation: {str(e)}")
+            logger.error(f"Error in Bayesian estimation: {e!s}")
             return session.current_ability
 
     async def _expected_a_posteriori(self, session: AdaptiveTestSession) -> AbilityEstimate:
@@ -545,13 +542,13 @@ class ComputerizedAdaptiveTestingService:
             if stopping_rule == StoppingRule.FIXED_LENGTH:
                 return len(session.responses) >= session.max_items
 
-            elif stopping_rule == StoppingRule.STANDARD_ERROR:
+            if stopping_rule == StoppingRule.STANDARD_ERROR:
                 return session.current_ability.standard_error <= session.target_se
 
-            elif stopping_rule == StoppingRule.INFORMATION:
+            if stopping_rule == StoppingRule.INFORMATION:
                 return session.current_ability.information >= 10.0  # Threshold
 
-            elif stopping_rule == StoppingRule.CONFIDENCE_INTERVAL:
+            if stopping_rule == StoppingRule.CONFIDENCE_INTERVAL:
                 ci_width = (session.current_ability.confidence_interval[1] -
                           session.current_ability.confidence_interval[0])
                 return ci_width <= 0.5  # Width threshold
@@ -559,12 +556,12 @@ class ComputerizedAdaptiveTestingService:
             return False
 
         except Exception as e:
-            logger.error(f"Error checking stopping criteria: {str(e)}")
+            logger.error(f"Error checking stopping criteria: {e!s}")
             return False
 
     async def _apply_content_balancing(
         self,
-        item_informations: List[Tuple[TestItem, float]],
+        item_informations: list[tuple[TestItem, float]],
         session: AdaptiveTestSession
     ) -> TestItem:
         """Apply content balancing constraints"""
@@ -585,10 +582,10 @@ class ComputerizedAdaptiveTestingService:
             return item_informations[0][0]
 
         except Exception as e:
-            logger.error(f"Error applying content balancing: {str(e)}")
+            logger.error(f"Error applying content balancing: {e!s}")
             return item_informations[0][0]
 
-    async def _calculate_final_results(self, session: AdaptiveTestSession) -> Dict[str, Any]:
+    async def _calculate_final_results(self, session: AdaptiveTestSession) -> dict[str, Any]:
         """Calculate final test results and report"""
         try:
             ability_estimate = session.current_ability
@@ -605,27 +602,27 @@ class ComputerizedAdaptiveTestingService:
             interpretation = await self._generate_ability_interpretation(z_score)
 
             return {
-                'final_ability': ability_estimate.theta,
-                'standard_error': ability_estimate.standard_error,
-                'confidence_interval': ability_estimate.confidence_interval,
-                'standard_scores': {
-                    'z_score': z_score,
-                    'percentile': percentile,
-                    't_score': t_score
+                "final_ability": ability_estimate.theta,
+                "standard_error": ability_estimate.standard_error,
+                "confidence_interval": ability_estimate.confidence_interval,
+                "standard_scores": {
+                    "z_score": z_score,
+                    "percentile": percentile,
+                    "t_score": t_score
                 },
-                'domain_scores': domain_scores,
-                'interpretation': interpretation,
-                'test_statistics': {
-                    'items_administered': len(session.items_administered),
-                    'response_times': session.response_times,
-                    'total_time': self._get_current_timestamp() - session.start_time,
-                    'reliability': await self._calculate_reliability(ability_estimate.standard_error)
+                "domain_scores": domain_scores,
+                "interpretation": interpretation,
+                "test_statistics": {
+                    "items_administered": len(session.items_administered),
+                    "response_times": session.response_times,
+                    "total_time": self._get_current_timestamp() - session.start_time,
+                    "reliability": await self._calculate_reliability(ability_estimate.standard_error)
                 }
             }
 
         except Exception as e:
-            logger.error(f"Error calculating final results: {str(e)}")
-            return {'error': str(e)}
+            logger.error(f"Error calculating final results: {e!s}")
+            return {"error": str(e)}
 
     async def _theta_to_percentile(self, theta: float) -> float:
         """Convert theta estimate to percentile rank"""
@@ -633,14 +630,13 @@ class ComputerizedAdaptiveTestingService:
             # Standard normal CDF approximation
             if theta == 0:
                 return 50.0
-            elif theta > 0:
+            if theta > 0:
                 return 50.0 + 50.0 * math.erf(theta / math.sqrt(2))
-            else:
-                return 50.0 - 50.0 * math.erf(abs(theta) / math.sqrt(2))
+            return 50.0 - 50.0 * math.erf(abs(theta) / math.sqrt(2))
         except Exception:
             return 50.0
 
-    async def _calculate_domain_scores(self, session: AdaptiveTestSession) -> Dict[str, float]:
+    async def _calculate_domain_scores(self, session: AdaptiveTestSession) -> dict[str, float]:
         """Calculate scores by content domain"""
         try:
             domain_responses = {}
@@ -665,7 +661,7 @@ class ComputerizedAdaptiveTestingService:
             return domain_scores
 
         except Exception as e:
-            logger.error(f"Error calculating domain scores: {str(e)}")
+            logger.error(f"Error calculating domain scores: {e!s}")
             return {}
 
     async def _generate_ability_interpretation(self, theta: float) -> str:
@@ -673,14 +669,13 @@ class ComputerizedAdaptiveTestingService:
         try:
             if theta > 1.5:
                 return "Very High: Demonstrates exceptional ability in this domain."
-            elif theta > 0.5:
+            if theta > 0.5:
                 return "High: Shows strong ability above average."
-            elif theta > -0.5:
+            if theta > -0.5:
                 return "Average: Demonstrates typical ability levels."
-            elif theta > -1.5:
+            if theta > -1.5:
                 return "Below Average: Shows room for development."
-            else:
-                return "Low: May need significant support in this area."
+            return "Low: May need significant support in this area."
 
         except Exception:
             return "Interpretation not available."
@@ -696,7 +691,7 @@ class ComputerizedAdaptiveTestingService:
         except Exception:
             return 0.0
 
-    async def _get_session(self, session_id: UUID) -> Optional[AdaptiveTestSession]:
+    async def _get_session(self, session_id: UUID) -> AdaptiveTestSession | None:
         """Get test session (in production, would use Redis/database)"""
         # Placeholder implementation
         return None
@@ -706,18 +701,18 @@ class ComputerizedAdaptiveTestingService:
         import time
         return time.time()
 
-    async def calibrate_items(self, response_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def calibrate_items(self, response_data: list[dict[str, Any]]) -> dict[str, Any]:
         """Calibrate IRT parameters for new items using response data"""
         try:
             # This is a complex operation that would use specialized IRT calibration software
             # For now, return placeholder results
             return {
-                'success': True,
-                'message': 'Item calibration completed',
-                'calibrated_items': len(response_data),
-                'note': 'This is a placeholder. Real calibration requires specialized algorithms.'
+                "success": True,
+                "message": "Item calibration completed",
+                "calibrated_items": len(response_data),
+                "note": "This is a placeholder. Real calibration requires specialized algorithms."
             }
 
         except Exception as e:
-            logger.error(f"Error calibrating items: {str(e)}")
-            return {'success': False, 'error': str(e)}
+            logger.error(f"Error calibrating items: {e!s}")
+            return {"success": False, "error": str(e)}

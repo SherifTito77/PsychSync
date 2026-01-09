@@ -18,29 +18,27 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import logging
 import asyncio
-import pytest
-import asyncio
-from typing import Any, Dict, List, Optional, Callable, AsyncGenerator, Type
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, MagicMock
-import tempfile
-import os
-import json
+import logging
+from typing import Any
+from unittest.mock import AsyncMock, Mock
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 import redis.asyncio as redis_async
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 # Initialize test framework logger
 test_logger = logging.getLogger("app.testing.framework")
 
+
 @dataclass
 class TestConfig:
     """Configuration for test execution"""
+
     database_url: str = "sqlite+aiosqlite:///:memory:"
     redis_url: str = "redis://localhost:6379/1"  # Use database 1 for tests
     use_test_database: bool = True
@@ -52,24 +50,27 @@ class TestConfig:
     parallel_execution: bool = False
     max_workers: int = 4
 
+
 @dataclass
 class TestResult:
     """Test execution result"""
+
     test_name: str
     passed: bool
     execution_time: float
-    error_message: Optional[str] = None
-    coverage_data: Optional[Dict[str, Any]] = None
-    performance_metrics: Optional[Dict[str, Any]] = None
+    error_message: str | None = None
+    coverage_data: dict[str, Any] | None = None
+    performance_metrics: dict[str, Any] | None = None
+
 
 class DatabaseTestFixture:
     """Database test fixture with isolated test databases"""
 
     def __init__(self, config: TestConfig):
         self.config = config
-        self.engine: Optional[Any] = None
-        self.session_maker: Optional[async_sessionmaker] = None
-        self.test_databases: List[str] = []
+        self.engine: Any | None = None
+        self.session_maker: async_sessionmaker | None = None
+        self.test_databases: list[str] = []
 
     async def setup(self) -> async_sessionmaker:
         """Setup test database"""
@@ -78,22 +79,18 @@ class DatabaseTestFixture:
             engine = create_async_engine(
                 self.config.database_url,
                 poolclass=StaticPool,
-                connect_args={
-                    "check_same_thread": False,
-                    "isolation_level": None
-                },
-                echo=False  # Disable SQL logging for tests
+                connect_args={"check_same_thread": False, "isolation_level": None},
+                echo=False,  # Disable SQL logging for tests
             )
 
             # Create session maker
             self.session_maker = async_sessionmaker(
-                engine,
-                class_=AsyncSession,
-                expire_on_commit=False
+                engine, class_=AsyncSession, expire_on_commit=False
             )
 
             # Create tables
             from app.db.models import Base
+
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
 
@@ -117,12 +114,13 @@ class DatabaseTestFixture:
         except Exception as e:
             test_logger.error(f"Test database cleanup failed: {e}")
 
+
 class RedisTestFixture:
     """Redis test fixture with isolated test databases"""
 
     def __init__(self, config: TestConfig):
         self.config = config
-        self.redis_client: Optional[redis_async.Redis] = None
+        self.redis_client: redis_async.Redis | None = None
 
     async def setup(self) -> redis_async.Redis:
         """Setup test Redis"""
@@ -131,7 +129,7 @@ class RedisTestFixture:
             self.redis_client = redis_async.Redis.from_url(
                 self.config.redis_url,
                 db=1,  # Use database 1 for tests
-                decode_responses=True
+                decode_responses=True,
             )
 
             # Test connection
@@ -159,6 +157,7 @@ class RedisTestFixture:
         except Exception as e:
             test_logger.error(f"Test Redis cleanup failed: {e}")
 
+
 class TestDataGenerator:
     """Generate test data for various entities"""
 
@@ -169,6 +168,7 @@ class TestDataGenerator:
         """Initialize fake data generator"""
         try:
             from faker import Faker
+
             fake = Faker()
             fake.seed(12345)  # Deterministic seed for reproducible tests
             return fake
@@ -176,7 +176,7 @@ class TestDataGenerator:
             test_logger.warning("Faker not available, using basic data generation")
             return None
 
-    def generate_user_data(self, **overrides) -> Dict[str, Any]:
+    def generate_user_data(self, **overrides) -> dict[str, Any]:
         """Generate test user data"""
         if self.fake:
             base_data = {
@@ -185,7 +185,7 @@ class TestDataGenerator:
                 "phone": self.fake.phone_number(),
                 "organization_id": self.fake.uuid4(),
                 "timezone": "UTC",
-                "language": "en"
+                "language": "en",
             }
         else:
             base_data = {
@@ -194,13 +194,13 @@ class TestDataGenerator:
                 "phone": "+1234567890",
                 "organization_id": "test-org-id",
                 "timezone": "UTC",
-                "language": "en"
+                "language": "en",
             }
 
         base_data.update(overrides)
         return base_data
 
-    def generate_organization_data(self, **overrides) -> Dict[str, Any]:
+    def generate_organization_data(self, **overrides) -> dict[str, Any]:
         """Generate test organization data"""
         if self.fake:
             base_data = {
@@ -208,7 +208,7 @@ class TestDataGenerator:
                 "description": self.fake.text(max_nb_chars=200),
                 "industry": self.fake.job(),
                 "website": self.fake.url(),
-                "size": "medium"
+                "size": "medium",
             }
         else:
             base_data = {
@@ -216,13 +216,13 @@ class TestDataGenerator:
                 "description": "Test organization description",
                 "industry": "Technology",
                 "website": "https://example.com",
-                "size": "medium"
+                "size": "medium",
             }
 
         base_data.update(overrides)
         return base_data
 
-    def generate_assessment_data(self, **overrides) -> Dict[str, Any]:
+    def generate_assessment_data(self, **overrides) -> dict[str, Any]:
         """Generate test assessment data"""
         if self.fake:
             base_data = {
@@ -231,7 +231,7 @@ class TestDataGenerator:
                 "type": "personality",
                 "framework": "big_five",
                 "questions_count": 50,
-                "estimated_duration": 30
+                "estimated_duration": 30,
             }
         else:
             base_data = {
@@ -240,11 +240,12 @@ class TestDataGenerator:
                 "type": "personality",
                 "framework": "big_five",
                 "questions_count": 50,
-                "estimated_duration": 30
+                "estimated_duration": 30,
             }
 
         base_data.update(overrides)
         return base_data
+
 
 class MockServiceFactory:
     """Factory for creating mock services for testing"""
@@ -293,22 +294,26 @@ class MockServiceFactory:
 
         return mock_security
 
+
 class PerformanceTestRunner:
     """Runner for performance tests"""
 
     def __init__(self):
-        self.results: List[TestResult] = []
+        self.results: list[TestResult] = []
 
-    async def run_load_test(self,
-                           endpoint: str,
-                           method: str = "GET",
-                           payload: Optional[Dict] = None,
-                           concurrent_users: int = 10,
-                           duration_seconds: int = 60) -> TestResult:
+    async def run_load_test(
+        self,
+        endpoint: str,
+        method: str = "GET",
+        payload: dict | None = None,
+        concurrent_users: int = 10,
+        duration_seconds: int = 60,
+    ) -> TestResult:
         """Run load test for API endpoint"""
         try:
-            import aiohttp
             import time
+
+            import aiohttp
 
             results = []
             errors = []
@@ -328,18 +333,17 @@ class PerformanceTestRunner:
                         raise ValueError(f"Unsupported method: {method}")
 
                     execution_time = time.time() - start_time
-                    results.append({
-                        "execution_time": execution_time,
-                        "status_code": status,
-                        "success": 200 <= status < 400
-                    })
+                    results.append(
+                        {
+                            "execution_time": execution_time,
+                            "status_code": status,
+                            "success": 200 <= status < 400,
+                        }
+                    )
 
                 except Exception as e:
                     execution_time = time.time() - start_time
-                    errors.append({
-                        "execution_time": execution_time,
-                        "error": str(e)
-                    })
+                    errors.append({"execution_time": execution_time, "error": str(e)})
 
             start_time = time.time()
             async with aiohttp.ClientSession() as session:
@@ -378,14 +382,16 @@ class PerformanceTestRunner:
                 "min_response_time": min_response_time,
                 "max_response_time": max_response_time,
                 "requests_per_second": requests_per_second,
-                "error_count": len(errors)
+                "error_count": len(errors),
             }
 
             test_result = TestResult(
                 test_name=f"load_test_{endpoint.replace('/', '_')}",
-                passed=failed_requests / total_requests < 0.01 if total_requests > 0 else False,  # <1% error rate
+                passed=failed_requests / total_requests < 0.01
+                if total_requests > 0
+                else False,  # <1% error rate
                 execution_time=duration_seconds,
-                performance_metrics=performance_metrics
+                performance_metrics=performance_metrics,
             )
 
             self.results.append(test_result)
@@ -396,17 +402,18 @@ class PerformanceTestRunner:
                 test_name=f"load_test_{endpoint.replace('/', '_')}",
                 passed=False,
                 execution_time=duration_seconds,
-                error_message=str(e)
+                error_message=str(e),
             )
 
             self.results.append(test_result)
             return test_result
 
+
 class SecurityTestRunner:
     """Runner for security tests"""
 
     def __init__(self):
-        self.results: List[TestResult] = []
+        self.results: list[TestResult] = []
 
     async def run_authentication_test(self, base_url: str) -> TestResult:
         """Test authentication security"""
@@ -417,16 +424,12 @@ class SecurityTestRunner:
 
             async with aiohttp.ClientSession() as session:
                 # Test 1: SQL Injection in login
-                injection_payloads = [
-                    "' OR '1'='1",
-                    "admin'--",
-                    "' UNION SELECT * FROM users--"
-                ]
+                injection_payloads = ["' OR '1'='1", "admin'--", "' UNION SELECT * FROM users--"]
 
                 for payload in injection_payloads:
                     async with session.post(
                         f"{base_url}/api/v1/auth/login",
-                        json={"email": payload, "password": "password"}
+                        json={"email": payload, "password": "password"},
                     ) as response:
                         if response.status != 401:
                             security_issues.append(f"Potential SQL injection: {payload}")
@@ -436,7 +439,7 @@ class SecurityTestRunner:
                 for _ in range(20):  # Try 20 rapid requests
                     async with session.post(
                         f"{base_url}/api/v1/auth/login",
-                        json={"email": "test@example.com", "password": "wrongpassword"}
+                        json={"email": "test@example.com", "password": "wrongpassword"},
                     ) as response:
                         if response.status != 429:  # Should be rate limited
                             failed_attempts += 1
@@ -445,17 +448,12 @@ class SecurityTestRunner:
                     security_issues.append("Rate limiting may not be working properly")
 
                 # Test 3: JWT token validation
-                invalid_tokens = [
-                    "invalid.token.here",
-                    "Bearer malformed",
-                    "",
-                    "null"
-                ]
+                invalid_tokens = ["invalid.token.here", "Bearer malformed", "", "null"]
 
                 for token in invalid_tokens:
                     async with session.get(
                         f"{base_url}/api/v1/users/profile",
-                        headers={"Authorization": f"Bearer {token}"}
+                        headers={"Authorization": f"Bearer {token}"},
                     ) as response:
                         if response.status != 401:
                             security_issues.append(f"Invalid token accepted: {token}")
@@ -464,7 +462,7 @@ class SecurityTestRunner:
                 test_name="authentication_security",
                 passed=len(security_issues) == 0,
                 execution_time=5.0,
-                error_message="; ".join(security_issues) if security_issues else None
+                error_message="; ".join(security_issues) if security_issues else None,
             )
 
             self.results.append(test_result)
@@ -475,28 +473,29 @@ class SecurityTestRunner:
                 test_name="authentication_security",
                 passed=False,
                 execution_time=5.0,
-                error_message=str(e)
+                error_message=str(e),
             )
 
             self.results.append(test_result)
             return test_result
+
 
 class TestFramework:
     """
     Main testing framework orchestrating all test types and fixtures
     """
 
-    def __init__(self, config: Optional[TestConfig] = None):
+    def __init__(self, config: TestConfig | None = None):
         self.config = config or TestConfig()
         self.db_fixture = DatabaseTestFixture(self.config)
         self.redis_fixture = RedisTestFixture(self.config)
         self.data_generator = TestDataGenerator()
         self.performance_runner = PerformanceTestRunner()
         self.security_runner = SecurityTestRunner()
-        self.results: List[TestResult] = []
+        self.results: list[TestResult] = []
 
     @asynccontextmanager
-    async def test_context(self) -> AsyncGenerator[Dict[str, Any], None]:
+    async def test_context(self) -> AsyncGenerator[dict[str, Any], None]:
         """Setup test environment with all fixtures"""
         try:
             # Setup fixtures
@@ -505,6 +504,7 @@ class TestFramework:
 
             # Reset dependency injection container
             from app.dependency_injection.integration import reset_di_container
+
             reset_di_container()
 
             # Provide test context
@@ -512,7 +512,7 @@ class TestFramework:
                 "session_maker": session_maker,
                 "redis_client": redis_client,
                 "data_generator": self.data_generator,
-                "mock_factory": MockServiceFactory()
+                "mock_factory": MockServiceFactory(),
             }
 
             yield context
@@ -522,10 +522,9 @@ class TestFramework:
             await self.db_fixture.cleanup()
             await self.redis_fixture.cleanup()
 
-    async def run_unit_tests(self, test_modules: List[str]) -> List[TestResult]:
+    async def run_unit_tests(self, test_modules: list[str]) -> list[TestResult]:
         """Run unit tests for specified modules"""
         try:
-            import subprocess
             import sys
 
             results = []
@@ -535,18 +534,18 @@ class TestFramework:
 
                 # Run pytest for the module
                 cmd = [
-                    sys.executable, "-m", "pytest",
+                    sys.executable,
+                    "-m",
+                    "pytest",
                     f"tests/{module}",
                     "-v",
                     "--tb=short",
                     "--cov=app",
-                    "--cov-report=json"
+                    "--cov-report=json",
                 ]
 
                 process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
 
                 stdout, stderr = await process.communicate()
@@ -558,7 +557,7 @@ class TestFramework:
                     test_name=f"unit_tests_{module}",
                     passed=passed,
                     execution_time=execution_time,
-                    error_message=stderr.decode() if not passed else None
+                    error_message=stderr.decode() if not passed else None,
                 )
 
                 results.append(result)
@@ -570,7 +569,7 @@ class TestFramework:
             test_logger.error(f"Unit test execution error: {e}")
             return []
 
-    async def run_integration_tests(self, test_modules: List[str]) -> List[TestResult]:
+    async def run_integration_tests(self, test_modules: list[str]) -> list[TestResult]:
         """Run integration tests for specified modules"""
         try:
             # Similar to unit tests but with database integration
@@ -589,7 +588,7 @@ class TestFramework:
                     result = TestResult(
                         test_name=f"integration_tests_{module}",
                         passed=True,  # Assume passed for demonstration
-                        execution_time=execution_time
+                        execution_time=execution_time,
                     )
 
                     results.append(result)
@@ -601,7 +600,7 @@ class TestFramework:
             test_logger.error(f"Integration test execution error: {e}")
             return []
 
-    async def run_all_tests(self) -> Dict[str, List[TestResult]]:
+    async def run_all_tests(self) -> dict[str, list[TestResult]]:
         """Run all test types"""
         try:
             test_logger.info("Starting comprehensive test suite...")
@@ -623,7 +622,7 @@ class TestFramework:
                     await self.performance_runner.run_load_test(
                         "http://localhost:8000/api/v1/users",
                         concurrent_users=5,
-                        duration_seconds=10
+                        duration_seconds=10,
                     )
                 )
                 all_results["performance"] = performance_results
@@ -632,9 +631,7 @@ class TestFramework:
             if self.config.enable_security_tests:
                 security_results = []
                 security_results.append(
-                    await self.security_runner.run_authentication_test(
-                        "http://localhost:8000"
-                    )
+                    await self.security_runner.run_authentication_test("http://localhost:8000")
                 )
                 all_results["security"] = security_results
 
@@ -645,7 +642,7 @@ class TestFramework:
             test_logger.error(f"Test suite execution error: {e}")
             return {"error": str(e)}
 
-    def generate_test_report(self) -> Dict[str, Any]:
+    def generate_test_report(self) -> dict[str, Any]:
         """Generate comprehensive test report"""
         try:
             total_tests = len(self.results)
@@ -657,7 +654,7 @@ class TestFramework:
             # Group by test type
             test_types = {}
             for result in self.results:
-                test_type = result.test_name.split('_')[0]
+                test_type = result.test_name.split("_")[0]
                 if test_type not in test_types:
                     test_types[test_type] = []
                 test_types[test_type].append(result)
@@ -669,7 +666,7 @@ class TestFramework:
                     "total": len(results),
                     "passed": passed,
                     "failed": len(results) - passed,
-                    "pass_rate": passed / len(results) if results else 0
+                    "pass_rate": passed / len(results) if results else 0,
                 }
 
             return {
@@ -678,28 +675,27 @@ class TestFramework:
                     "passed_tests": passed_tests,
                     "failed_tests": failed_tests,
                     "pass_rate": passed_tests / total_tests if total_tests > 0 else 0,
-                    "total_execution_time": total_execution_time
+                    "total_execution_time": total_execution_time,
                 },
                 "by_type": type_stats,
                 "failed_tests": [
-                    {
-                        "name": r.test_name,
-                        "error": r.error_message
-                    }
-                    for r in self.results if not r.passed
+                    {"name": r.test_name, "error": r.error_message}
+                    for r in self.results
+                    if not r.passed
                 ],
                 "performance_metrics": [
-                    r.performance_metrics for r in self.results
-                    if r.performance_metrics
-                ]
+                    r.performance_metrics for r in self.results if r.performance_metrics
+                ],
             }
 
         except Exception as e:
             test_logger.error(f"Test report generation error: {e}")
             return {"error": str(e)}
 
+
 # Global test framework instance
-_test_framework: Optional[TestFramework] = None
+_test_framework: TestFramework | None = None
+
 
 def get_test_framework() -> TestFramework:
     """Get the global test framework instance"""
@@ -708,7 +704,8 @@ def get_test_framework() -> TestFramework:
         _test_framework = TestFramework()
     return _test_framework
 
-def initialize_test_framework(config: Optional[TestConfig] = None) -> TestFramework:
+
+def initialize_test_framework(config: TestConfig | None = None) -> TestFramework:
     """Initialize the global test framework"""
     global _test_framework
     _test_framework = TestFramework(config)

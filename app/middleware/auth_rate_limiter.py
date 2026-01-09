@@ -4,33 +4,33 @@ Protects authentication endpoints from brute force and credential stuffing attac
 Implements progressive rate limiting based on success/failure patterns.
 """
 
-from typing import Optional, Dict, Tuple
-import time
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 import hashlib
 import ipaddress
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from enum import Enum
+import logging
+import time
 
-from fastapi import Request, Response, HTTPException, status
+from fastapi import Request, Response, status
 from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from starlette.middleware.base import RequestResponseEndpoint
-
 import redis.asyncio as redis
-import logging
+from starlette.middleware.base import RequestResponseEndpoint
 
 logger = logging.getLogger(__name__)
 
+
 class AuthAttemptType(Enum):
     """Types of authentication attempts."""
+
     LOGIN = "login"
     REGISTER = "register"
     PASSWORD_RESET = "password_reset"
     TOKEN_REFRESH = "token_refresh"
     TWO_FACTOR = "two_factor"
     ACCOUNT_VERIFICATION = "account_verification"
+
 
 @dataclass
 class AuthRateLimitConfig:
@@ -59,7 +59,7 @@ class AuthRateLimitConfig:
     redis_url: str = "redis://localhost:6379/3"
 
     # Protected endpoints
-    protected_paths: Dict[str, AuthAttemptType] = None
+    protected_paths: dict[str, AuthAttemptType] = None
 
     def __post_init__(self):
         if self.protected_paths is None:
@@ -72,15 +72,16 @@ class AuthRateLimitConfig:
                 "/api/v1/auth/verify": AuthAttemptType.ACCOUNT_VERIFICATION,
             }
 
+
 class AuthRateLimiter(BaseHTTPMiddleware):
     """
     Authentication rate limiting middleware with progressive penalties.
     """
 
-    def __init__(self, app, config: Optional[AuthRateLimitConfig] = None):
+    def __init__(self, app, config: AuthRateLimitConfig | None = None):
         super().__init__(app)
         self.config = config or AuthRateLimitConfig()
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: redis.Redis | None = None
         self._init_redis()
 
         # Rate limits by attempt type
@@ -99,11 +100,7 @@ class AuthRateLimiter(BaseHTTPMiddleware):
             AuthAttemptType.REGISTER: self.config.ip_register_limit_per_hour,
         }
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         """
         Main middleware dispatcher for authentication rate limiting.
         """
@@ -133,7 +130,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Record result
             result_type = "success" if is_success else "failure"
-            await self._record_attempt(request, attempt_type, client_ip, user_identifier, result_type)
+            await self._record_attempt(
+                request, attempt_type, client_ip, user_identifier, result_type
+            )
 
             # Apply progressive penalties for failures
             if not is_success:
@@ -154,30 +153,25 @@ class AuthRateLimiter(BaseHTTPMiddleware):
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_timeout=True
+                retry_on_timeout=True,
             )
             logger.info("Auth rate limiter Redis connection established")
         except Exception as e:
             logger.warning(f"Could not connect to Redis for auth rate limiting: {e}")
             self.redis_client = None
 
-    def _get_attempt_type(self, request: Request) -> Optional[AuthAttemptType]:
+    def _get_attempt_type(self, request: Request) -> AuthAttemptType | None:
         """Determine authentication attempt type from request path."""
         path = str(request.url.path)
         return self.config.protected_paths.get(path)
 
     def _get_client_ip(self, request: Request) -> str:
         """Extract real client IP from request."""
-        ip_headers = [
-            'x-forwarded-for',
-            'x-real-ip',
-            'x-client-ip',
-            'cf-connecting-ip'
-        ]
+        ip_headers = ["x-forwarded-for", "x-real-ip", "x-client-ip", "cf-connecting-ip"]
 
         for header in ip_headers:
             if header in request.headers:
-                ip = request.headers[header].split(',')[0].strip()
+                ip = request.headers[header].split(",")[0].strip()
                 try:
                     ipaddress.ip_address(ip)
                     return ip
@@ -187,26 +181,24 @@ class AuthRateLimiter(BaseHTTPMiddleware):
         return request.client.host if request.client else "127.0.0.1"
 
     async def _extract_user_identifier(
-        self,
-        request: Request,
-        attempt_type: AuthAttemptType
-    ) -> Optional[str]:
+        self, request: Request, attempt_type: AuthAttemptType
+    ) -> str | None:
         """
         Extract user identifier from request for rate limiting.
         """
         try:
             # Try to get identifier from request body (for POST requests)
-            if request.method in ['POST', 'PUT', 'PATCH']:
+            if request.method in ["POST", "PUT", "PATCH"]:
                 # Note: This requires request body to be available
                 # In practice, you'd need to use a custom request body parser
                 # For now, we'll use a simplified approach
                 if attempt_type in [AuthAttemptType.LOGIN, AuthAttemptType.REGISTER]:
                     # Try to get email/username from query params first
-                    email = request.query_params.get('email')
+                    email = request.query_params.get("email")
                     if email:
                         return hashlib.sha256(email.encode()).hexdigest()[:16]
 
-                    username = request.query_params.get('username')
+                    username = request.query_params.get("username")
                     if username:
                         return hashlib.sha256(username.encode()).hexdigest()[:16]
 
@@ -222,7 +214,7 @@ class AuthRateLimiter(BaseHTTPMiddleware):
         request: Request,
         attempt_type: AuthAttemptType,
         client_ip: str,
-        user_identifier: Optional[str]
+        user_identifier: str | None,
     ) -> bool:
         """
         Check if request should be rate limited.
@@ -265,7 +257,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Check global limits
             global_key = f"auth_limit:global:{attempt_type.value}:{minute_key}"
-            global_limit = getattr(self.config, f'global_{attempt_type.value}_attempts_per_minute', 1000)
+            global_limit = getattr(
+                self.config, f"global_{attempt_type.value}_attempts_per_minute", 1000
+            )
 
             global_count = await self.redis_client.get(global_key)
             if global_count and int(global_count) >= global_limit:
@@ -285,8 +279,8 @@ class AuthRateLimiter(BaseHTTPMiddleware):
         request: Request,
         attempt_type: AuthAttemptType,
         client_ip: str,
-        user_identifier: Optional[str],
-        result_type: str
+        user_identifier: str | None,
+        result_type: str,
     ) -> None:
         """
         Record authentication attempt in Redis.
@@ -324,13 +318,13 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Log for monitoring
             log_data = {
-                'timestamp': datetime.utcnow().isoformat(),
-                'attempt_type': attempt_type.value,
-                'client_ip': client_ip,
-                'user_identifier': user_identifier,
-                'result': result_type,
-                'path': str(request.url.path),
-                'user_agent': request.headers.get('user-agent', '')
+                "timestamp": datetime.utcnow().isoformat(),
+                "attempt_type": attempt_type.value,
+                "client_ip": client_ip,
+                "user_identifier": user_identifier,
+                "result": result_type,
+                "path": str(request.url.path),
+                "user_agent": request.headers.get("user-agent", ""),
             }
 
             # Store recent attempts for monitoring
@@ -357,8 +351,8 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Apply exponential penalty
             penalty_multiplier = max(
-                self.config.failed_attempt_multiplier ** failure_count,
-                0.1  # Don't reduce below 10% of base limit
+                self.config.failed_attempt_multiplier**failure_count,
+                0.1,  # Don't reduce below 10% of base limit
             )
 
             return penalty_multiplier
@@ -368,10 +362,7 @@ class AuthRateLimiter(BaseHTTPMiddleware):
             return 1.0
 
     async def _apply_progressive_penalty(
-        self,
-        user_identifier: Optional[str],
-        client_ip: str,
-        attempt_type: AuthAttemptType
+        self, user_identifier: str | None, client_ip: str, attempt_type: AuthAttemptType
     ) -> None:
         """
         Apply progressive penalties for failed authentication attempts.
@@ -386,13 +377,13 @@ class AuthRateLimiter(BaseHTTPMiddleware):
                 failure_count = int(await self.redis_client.get(failure_key) or 0)
 
                 if failure_count >= 5:  # Block after 5 failures
-                    block_duration = min(60 * (2 ** (failure_count - 5)), self.config.max_penalty_duration)
+                    block_duration = min(
+                        60 * (2 ** (failure_count - 5)), self.config.max_penalty_duration
+                    )
                     block_key = f"auth_blocked:user:{user_identifier}"
 
                     await self.redis_client.setex(
-                        block_key,
-                        block_duration,
-                        f"progressive_penalty:{failure_count}"
+                        block_key, block_duration, f"progressive_penalty:{failure_count}"
                     )
 
                     logger.warning(
@@ -426,30 +417,26 @@ class AuthRateLimiter(BaseHTTPMiddleware):
             content={
                 "detail": f"Too many {attempt_type.value} attempts. Please try again later.",
                 "error_code": "RATE_LIMITED",
-                "attempt_type": attempt_type.value
-            }
+                "attempt_type": attempt_type.value,
+            },
         )
 
     async def _log_rate_limit_violation(
-        self,
-        request: Request,
-        attempt_type: AuthAttemptType,
-        limit_type: str,
-        limit: int
+        self, request: Request, attempt_type: AuthAttemptType, limit_type: str, limit: int
     ) -> None:
         """
         Log rate limit violations for security monitoring.
         """
         try:
             violation_data = {
-                'timestamp': datetime.utcnow().isoformat(),
-                'attempt_type': attempt_type.value,
-                'limit_type': limit_type,
-                'limit': limit,
-                'client_ip': self._get_client_ip(request),
-                'path': str(request.url.path),
-                'user_agent': request.headers.get('user-agent', ''),
-                'headers': dict(request.headers)
+                "timestamp": datetime.utcnow().isoformat(),
+                "attempt_type": attempt_type.value,
+                "limit_type": limit_type,
+                "limit": limit,
+                "client_ip": self._get_client_ip(request),
+                "path": str(request.url.path),
+                "user_agent": request.headers.get("user-agent", ""),
+                "headers": dict(request.headers),
             }
 
             logger.warning(f"Auth rate limit violation: {violation_data}")
@@ -463,6 +450,7 @@ class AuthRateLimiter(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"Error logging rate limit violation: {e}")
 
+
 class CredentialStuffingProtection:
     """
     Advanced protection against credential stuffing attacks.
@@ -471,11 +459,7 @@ class CredentialStuffingProtection:
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
 
-    async def check_known_compromised_credentials(
-        self,
-        identifier: str,
-        ip: str
-    ) -> bool:
+    async def check_known_compromised_credentials(self, identifier: str, ip: str) -> bool:
         """
         Check if credentials/IP are from known breach sources.
         """
@@ -484,10 +468,7 @@ class CredentialStuffingProtection:
             # This would integrate with services like HaveIBeenPwned API
 
             # For now, implement basic heuristics
-            breach_indicators = [
-                f"breached_ip:{ip}",
-                f"compromised_user:{identifier}"
-            ]
+            breach_indicators = [f"breached_ip:{ip}", f"compromised_user:{identifier}"]
 
             for indicator in breach_indicators:
                 if await self.redis.exists(indicator):
@@ -500,20 +481,17 @@ class CredentialStuffingProtection:
             return False
 
     async def report_compromised_credentials(
-        self,
-        identifier: str,
-        ip: str,
-        evidence: Dict[str, Any]
+        self, identifier: str, ip: str, evidence: dict[str, Any]
     ) -> None:
         """
         Report potentially compromised credentials.
         """
         try:
             report_data = {
-                'timestamp': datetime.utcnow().isoformat(),
-                'identifier': identifier,
-                'ip': ip,
-                'evidence': evidence
+                "timestamp": datetime.utcnow().isoformat(),
+                "identifier": identifier,
+                "ip": ip,
+                "evidence": evidence,
             }
 
             await self.redis.lpush("compromised_credentials_reports", str(report_data))

@@ -4,16 +4,15 @@ Secure Persistent Authentication Manager for PsychSync
 Handles secure remember-me tokens with cryptographic signatures
 """
 
-import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 import hashlib
 import hmac
-from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
-from dataclasses import dataclass
-
-from app.core.config import settings
-from app.core.cache import cache_get, cache_set, cache_delete
 import logging
+import secrets
+from typing import Any
+
+from app.core.cache import cache_delete, cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PersistentTokenData:
     """Data for persistent authentication tokens"""
+
     token_id: str
     user_id: str
     selector: str
@@ -49,11 +49,8 @@ class PersistentAuthManager:
         self.SELECTOR_PREFIX = "token_selector:"
 
     def generate_persistent_token(
-        self,
-        user_id: str,
-        ip_address: str = "",
-        user_agent: str = ""
-    ) -> Dict[str, str]:
+        self, user_id: str, ip_address: str = "", user_agent: str = ""
+    ) -> dict[str, str]:
         """
         Generate secure persistent authentication token
 
@@ -86,7 +83,7 @@ class PersistentAuthManager:
                 last_used=now,
                 expires_at=expires_at,
                 ip_address=ip_address,
-                user_agent=user_agent[:200] if user_agent else ""
+                user_agent=user_agent[:200] if user_agent else "",
             )
 
             # Store token data
@@ -104,7 +101,7 @@ class PersistentAuthManager:
                 "selector": selector,
                 "validator": validator,  # Return raw validator to client
                 "token_id": token_id,
-                "expires_days": self.token_duration_days
+                "expires_days": self.token_duration_days,
             }
 
         except Exception as e:
@@ -112,12 +109,8 @@ class PersistentAuthManager:
             raise RuntimeError("Token generation failed")
 
     async def verify_persistent_token(
-        self,
-        selector: str,
-        validator: str,
-        ip_address: str = "",
-        user_agent: str = ""
-    ) -> Dict[str, Any]:
+        self, selector: str, validator: str, ip_address: str = "", user_agent: str = ""
+    ) -> dict[str, Any]:
         """
         Verify persistent authentication token
 
@@ -136,31 +129,19 @@ class PersistentAuthManager:
 
             if not token_data:
                 logger.warning(f"Persistent token not found: {selector[:8]}...")
-                return {
-                    "valid": False,
-                    "reason": "token_not_found",
-                    "user_id": None
-                }
+                return {"valid": False, "reason": "token_not_found", "user_id": None}
 
             # Check if token is active
             if not token_data["is_active"]:
                 logger.warning(f"Inactive persistent token used: {selector[:8]}...")
-                return {
-                    "valid": False,
-                    "reason": "token_inactive",
-                    "user_id": None
-                }
+                return {"valid": False, "reason": "token_inactive", "user_id": None}
 
             # Check expiration
             expires_at = datetime.fromisoformat(token_data["expires_at"])
             if datetime.utcnow() > expires_at:
                 logger.warning(f"Expired persistent token used: {selector[:8]}...")
                 await self._revoke_token(selector, "expired")
-                return {
-                    "valid": False,
-                    "reason": "token_expired",
-                    "user_id": None
-                }
+                return {"valid": False, "reason": "token_expired", "user_id": None}
 
             # Verify validator using constant-time comparison
             stored_validator_hash = token_data["validator"]
@@ -169,16 +150,10 @@ class PersistentAuthManager:
             if not self._constant_time_compare(stored_validator_hash, provided_validator_hash):
                 logger.warning(f"Invalid persistent token validator: {selector[:8]}...")
                 await self._revoke_token(selector, "invalid_validator")
-                return {
-                    "valid": False,
-                    "reason": "invalid_validator",
-                    "user_id": None
-                }
+                return {"valid": False, "reason": "invalid_validator", "user_id": None}
 
             # Check for suspicious usage patterns
-            security_warnings = await self._check_usage_patterns(
-                token_data, ip_address, user_agent
-            )
+            security_warnings = await self._check_usage_patterns(token_data, ip_address, user_agent)
 
             # Update last used timestamp
             await self._update_token_usage(selector, ip_address, user_agent)
@@ -194,16 +169,12 @@ class PersistentAuthManager:
                 "user_id": token_data["user_id"],
                 "token_id": token_data["token_id"],
                 "security_warnings": security_warnings,
-                "last_used": token_data["last_used"]
+                "last_used": token_data["last_used"],
             }
 
         except Exception as e:
             logger.error(f"Persistent token verification failed: {e}")
-            return {
-                "valid": False,
-                "reason": "verification_error",
-                "user_id": None
-            }
+            return {"valid": False, "reason": "verification_error", "user_id": None}
 
     async def revoke_persistent_token(self, selector: str, reason: str = "logout") -> bool:
         """
@@ -218,11 +189,7 @@ class PersistentAuthManager:
         """
         return await self._revoke_token(selector, reason)
 
-    async def revoke_all_user_tokens(
-        self,
-        user_id: str,
-        reason: str = "security_action"
-    ) -> int:
+    async def revoke_all_user_tokens(self, user_id: str, reason: str = "security_action") -> int:
         """
         Revoke all persistent tokens for a user
 
@@ -276,16 +243,18 @@ class PersistentAuthManager:
                     last_used = datetime.fromisoformat(token_data["last_used"])
                     expires_at = datetime.fromisoformat(token_data["expires_at"])
 
-                    active_tokens.append({
-                        "selector": selector[:8] + "...",  # Partial selector for display
-                        "created_at": token_data["created_at"],
-                        "last_used": token_data["last_used"],
-                        "expires_at": token_data["expires_at"],
-                        "ip_address": token_data["ip_address"],
-                        "age_days": (datetime.utcnow() - created_at).days,
-                        "last_used_days": (datetime.utcnow() - last_used).days,
-                        "expires_in_days": (expires_at - datetime.utcnow()).days
-                    })
+                    active_tokens.append(
+                        {
+                            "selector": selector[:8] + "...",  # Partial selector for display
+                            "created_at": token_data["created_at"],
+                            "last_used": token_data["last_used"],
+                            "expires_at": token_data["expires_at"],
+                            "ip_address": token_data["ip_address"],
+                            "age_days": (datetime.utcnow() - created_at).days,
+                            "last_used_days": (datetime.utcnow() - last_used).days,
+                            "expires_in_days": (expires_at - datetime.utcnow()).days,
+                        }
+                    )
 
             return sorted(active_tokens, key=lambda x: x["last_used"], reverse=True)
 
@@ -310,7 +279,7 @@ class PersistentAuthManager:
                 "expires_at": token_data.expires_at.isoformat(),
                 "ip_address": token_data.ip_address,
                 "user_agent": token_data.user_agent,
-                "is_active": token_data.is_active
+                "is_active": token_data.is_active,
             }
 
             # Store token data
@@ -328,7 +297,7 @@ class PersistentAuthManager:
         except Exception as e:
             logger.error(f"Failed to store token data: {e}")
 
-    async def _get_token_by_selector(self, selector: str) -> Optional[Dict[str, Any]]:
+    async def _get_token_by_selector(self, selector: str) -> dict[str, Any] | None:
         """Get token data by selector"""
         try:
             selector_key = f"{self.SELECTOR_PREFIX}{selector}"
@@ -376,10 +345,7 @@ class PersistentAuthManager:
         return hmac.compare_digest(val1, val2)
 
     async def _check_usage_patterns(
-        self,
-        token_data: Dict[str, Any],
-        ip_address: str,
-        user_agent: str
+        self, token_data: dict[str, Any], ip_address: str, user_agent: str
     ) -> list:
         """Check for suspicious usage patterns"""
         warnings = []
@@ -394,8 +360,7 @@ class PersistentAuthManager:
                 )
 
             # User agent change
-            if (token_data["user_agent"] and
-                token_data["user_agent"] != user_agent[:200]):
+            if token_data["user_agent"] and token_data["user_agent"] != user_agent[:200]:
                 warnings.append("user_agent_changed")
                 logger.warning(
                     f"Token used with different user agent: {token_data['selector'][:8]}..."
@@ -412,12 +377,7 @@ class PersistentAuthManager:
 
         return warnings
 
-    async def _update_token_usage(
-        self,
-        selector: str,
-        ip_address: str,
-        user_agent: str
-    ):
+    async def _update_token_usage(self, selector: str, ip_address: str, user_agent: str):
         """Update token usage timestamp"""
         try:
             token_data = await self._get_token_by_selector(selector)
@@ -436,7 +396,7 @@ class PersistentAuthManager:
         except Exception as e:
             logger.error(f"Failed to update token usage: {e}")
 
-    async def _should_rotate_validator(self, token_data: Dict[str, Any]) -> bool:
+    async def _should_rotate_validator(self, token_data: dict[str, Any]) -> bool:
         """Determine if validator should be rotated for security"""
         try:
             last_used = datetime.fromisoformat(token_data["last_used"])
@@ -454,7 +414,7 @@ class PersistentAuthManager:
 
         return False
 
-    async def _rotate_validator(self, selector: str) -> Optional[str]:
+    async def _rotate_validator(self, selector: str) -> str | None:
         """Rotate token validator for enhanced security"""
         try:
             token_data = await self._get_token_by_selector(selector)
@@ -488,7 +448,6 @@ class PersistentAuthManager:
             user_tokens_key = f"{self.USER_TOKENS_PREFIX}{user_id}"
             # This would need to be implemented based on your cache system's list operations
             # For now, we'll just note that this should store the selector in a user-specific list
-            pass
         except Exception as e:
             logger.error(f"Failed to add user token: {e}")
 
@@ -498,7 +457,6 @@ class PersistentAuthManager:
             user_tokens_key = f"{self.USER_TOKENS_PREFIX}{user_id}"
             # This would need to be implemented based on your cache system's list operations
             # For now, we'll just note that this should remove the selector from the user-specific list
-            pass
         except Exception as e:
             logger.error(f"Failed to remove user token: {e}")
 

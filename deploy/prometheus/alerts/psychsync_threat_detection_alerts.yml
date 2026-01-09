@@ -1,0 +1,297 @@
+# Prometheus Alert Rules for Advanced Threat Detection System
+# Integrates with jailbreak_detector, behavioral_analyzer, realtime_monitor
+
+groups:
+  - name: threat_detection_jailbreak
+    interval: 30s
+    rules:
+      # Critical Alert: High Volume Jailbreak Attempts
+      - alert: HighVolumeJailbreakAttempts
+        expr: psychsync_jailbreak_attempts_total > 10
+        for: 2m
+        labels:
+          severity: critical
+          team: security
+          attack_type: jailbreak
+        annotations:
+          summary: "High volume of jailbreak attempts detected"
+          description: "{{ $value }} jailbreak attempts in the last 2 minutes indicates automated attack"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/jailbreak"
+          response_action: "Enable CAPTCHA, increase rate limiting"
+
+      # Critical Alert: Critical Jailbreak Severity
+      - alert: CriticalJailbreakDetected
+        expr: psychsync_jailbreak_by_severity{severity="critical"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          attack_type: jailbreak
+        annotations:
+          summary: "Critical severity jailbreak attempt detected"
+          description: "{{ $value }} critical jailbreak attempts detected - DAN/Developer Mode/Role-playing"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/critical-jailbreak"
+          response_action: "Block request, flag user, alert security team"
+
+      # Warning Alert: Medium Jailbreak Attempts
+      - alert: MediumJailbreakAttempts
+        expr: psychsync_jailbreak_by_severity{severity="medium"} > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+          attack_type: jailbreak
+        annotations:
+          summary: "Medium severity jailbreak attempts increasing"
+          description: "{{ $value }} medium jailbreak attempts detected in the last 5 minutes"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/medium-jailbreak"
+          response_action: "Monitor closely, increase logging"
+
+      # Info Alert: Jailbreak Pattern Matched
+      - alert: JailbreakPatternDetected
+        expr: increase(psychsync_jailbreak_patterns_matched[5m]) > 0
+        for: 1m
+        labels:
+          severity: info
+          team: security
+          attack_type: jailbreak
+        annotations:
+          summary: "Jailbreak pattern detected"
+          description: "{{ $value }} known jailbreak patterns matched in the last 5 minutes"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/pattern-matched"
+
+  - name: threat_detection_behavioral
+    interval: 1m
+    rules:
+      # Critical Alert: Account Takeover Detected
+      - alert: AccountTakeoverDetected
+        expr: psychsync_behavioral_anomalies{category="account_takeover"} > 0
+        for: 30s
+        labels:
+          severity: critical
+          team: security
+          attack_type: behavioral
+        annotations:
+          summary: "Account takeover detected"
+          description: "Anomalous behavior pattern indicates possible account takeover for user {{ $labels.user_id }}"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/account-takeover"
+          response_action: "Revoke sessions, require MFA, notify user"
+
+      # Critical Alert: Bot/Automation Detected
+      - alert: BotAutomationDetected
+        expr: psychsync_behavioral_anomalies{category="bot_automation"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          attack_type: behavioral
+        annotations:
+          summary: "Bot or automation activity detected"
+          description: "Automated behavior detected for user {{ $labels.user_id }} - {{ $value }} requests/min"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/bot-activity"
+          response_action: "Block IP, require CAPTCHA, rate limit"
+
+      # Warning Alert: Brute Force Attack
+      - alert: BruteForceAttackDetected
+        expr: psychsync_behavioral_anomalies{category="brute_force"} > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+          attack_type: behavioral
+        annotations:
+          summary: "Brute force attack detected"
+          description: "Multiple failed login attempts detected for user {{ $labels.user_id }}"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/brute-force"
+          response_action: "Implement account lockout, add CAPTCHA"
+
+      # Critical Alert: Data Exfiltration Detected
+      - alert: DataExfiltrationDetected
+        expr: psychsync_behavioral_anomalies{category="data_exfiltration"} > 0
+        for: 30s
+        labels:
+          severity: critical
+          team: security
+          attack_type: behavioral
+        annotations:
+          summary: "Data exfiltration pattern detected"
+          description: "Unusual data access pattern for user {{ $labels.user_id }} indicates possible exfiltration"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/data-exfiltration"
+          response_action: "Block user, audit data access, alert security team"
+
+      # Warning Alert: Insider Threat Indicator
+      - alert: InsiderThreatSuspected
+        expr: psychsync_behavioral_risk_score > 0.7
+        for: 10m
+        labels:
+          severity: warning
+          team: security
+          attack_type: behavioral
+        annotations:
+          summary: "Insider threat suspected"
+          description: "User {{ $labels.user_id }} has high behavioral risk score: {{ $value }}"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/insider-threat"
+          response_action: "Monitor activity, review access logs"
+
+  - name: threat_detection_unified
+    interval: 30s
+    rules:
+      # Critical Alert: Critical Threat Level
+      - alert: CriticalThreatLevel
+        expr: psychsync_threat_level{level="critical"} > 0
+        for: 30s
+        labels:
+          severity: critical
+          team: security
+          threat_type: unified
+        annotations:
+          summary: "CRITICAL threat level detected"
+          description: "Unified threat assessment detected critical level - {{ $labels.session_id }}"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/critical-threat"
+          response_action: "Block immediately, alert security team, preserve evidence"
+
+      # Warning Alert: High Threat Level
+      - alert: HighThreatLevel
+        expr: psychsync_threat_level{level="high"} > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+          threat_type: unified
+        annotations:
+          summary: "High threat level detected"
+          description: "Unified threat assessment detected high level - session {{ $labels.session_id }}"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/high-threat"
+          response_action: "Block session, monitor user, log all activity"
+
+      # Warning Alert: Elevated Risk Scores
+      - alert: ElevatedRiskScores
+        expr: psychsync_avg_risk_score > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+          threat_type: unified
+        annotations:
+          summary: "Elevated risk scores across the system"
+          description: "Average risk score is {{ $value }} - above 50% threshold"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/elevated-risk"
+          response_action: "Review recent threats, check for coordinated attack"
+
+      # Info Alert: Multiple Concurrent Threats
+      - alert: MultipleConcurrentThreats
+        expr: count(psychsync_threat_signals) > 5
+        for: 1m
+        labels:
+          severity: info
+          team: security
+          threat_type: unified
+        annotations:
+          summary: "Multiple concurrent threats detected"
+          description: "{{ $value }} threat signals detected concurrently - possible coordinated attack"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/concurrent-threats"
+          response_action: "Investigate as potential coordinated attack"
+
+  - name: threat_detection_response
+    interval: 1m
+    rules:
+      # Critical Alert: Response Actions Failing
+      - alert: ResponseActionsFailing
+        expr: rate(psychsync_response_actions_failed[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: security
+          system: response
+        annotations:
+          summary: "Response actions failing at high rate"
+          description: "{{ $value | humanizePercentage }} of response actions are failing"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/response-failure"
+          response_action: "Check response system, investigate failures"
+
+      # Warning Alert: High Action Execution Time
+      - alert: SlowResponseExecution
+        expr: psychsync_response_duration_seconds{quantile="0.95"} > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+          system: response
+        annotations:
+          summary: "Response actions executing slowly"
+          description: "95th percentile response time is {{ $value }}s - above 1s threshold"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/slow-response"
+          response_action: "Review action implementations, optimize performance"
+
+      # Info Alert: Auto-Response Disabled
+      - alert: AutoResponseDisabled
+        expr: psychsync_auto_response_enabled == 0
+        for: 1h
+        labels:
+          severity: info
+          team: security
+          system: response
+        annotations:
+          summary: "Automated response is disabled"
+          description: "Automated threat response is currently disabled - manual response required"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/auto-response-disabled"
+          response_action: "Re-enable auto-response or ensure manual monitoring"
+
+  - name: threat_detection_system_health
+    interval: 5m
+    rules:
+      # Warning Alert: Detection System Down
+      - alert: DetectionSystemDown
+        expr: up{job="psychsync-threat-detection"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          team: devops
+          system: health
+        annotations:
+          summary: "Threat detection system is down"
+          description: "Threat detection service is not responding"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/system-down"
+          response_action: "Restart detection services, check logs"
+
+      # Critical Alert: High Memory Usage
+      - alert: DetectionSystemHighMemory
+        expr: process_resident_memory_bytes{job="psychsync-threat-detection"} / 1024 / 1024 / 1024 > 2
+        for: 10m
+        labels:
+          severity: warning
+          team: devops
+          system: health
+        annotations:
+          summary: "Threat detection system high memory usage"
+          description: "Memory usage is {{ $value | humanize }}GB - above 2GB threshold"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/high-memory"
+          response_action: "Investigate memory leak, restart service if needed"
+
+      # Warning Alert: High CPU Usage
+      - alert: DetectionSystemHighCPU
+        expr: rate(process_cpu_seconds_total{job="psychsync-threat-detection"}[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          team: devops
+          system: health
+        annotations:
+          summary: "Threat detection system high CPU usage"
+          description: "CPU usage is {{ $value | humanizePercentage }} - above 80% threshold"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/high-cpu"
+          response_action: "Check for infinite loops, optimize detection algorithms"
+
+      # Info Alert: Behavioral Baseline Not Ready
+      - alert: BaselinesNotReady
+        expr: psychsync_users_with_baselines / psychsync_total_users_tracked < 0.5
+        for: 1h
+        labels:
+          severity: info
+          team: security
+          system: behavioral
+        annotations:
+          summary: "Many users without behavioral baselines"
+          description: "Only {{ $value | humanizePercentage }} of tracked users have established baselines"
+          runbook_url: "https://docs.psychsync.com/runbooks/threat-detection/baselines-not-ready"
+          response_action: "Allow more time for baseline establishment or adjust requirements"

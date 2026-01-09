@@ -1,0 +1,45 @@
+[Unit]
+Description=PsychSync PR Coverage Watcher
+Documentation=https://github.com/psychsync/psychsync/tree/main/agents
+After=network.target github.com
+
+[Service]
+Type=simple
+User=sheriftito
+Group=staff
+WorkingDirectory=/Users/sheriftito/Downloads/psychsync
+
+# Environment
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="GITHUB_TOKEN=ghp_xxxxxxxxxxxx"
+Environment="GITHUB_REPOSITORY=psychsync/psychsync"
+Environment="MIN_COVERAGE=90.0"
+Environment="MIN_FILE_COVERAGE=80.0"
+EnvironmentFile=-/Users/sheriftito/Downloads/psychsync/.env.agents
+
+# Command - runs in continuous mode watching for PRs
+ExecStart=/usr/bin/python3 /Users/sheriftito/Downloads/psychsync/agents/pr_coverage_tester.py
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Restart policy
+Restart=always
+RestartSec=120
+StartLimitInterval=400
+StartLimitBurst=5
+
+# Logging
+StandardOutput=append:/Users/sheriftito/Downloads/psychsync/agents/logs/pr_coverage_tester.log
+StandardError=append:/Users/sheriftito/Downloads/psychsync/agents/logs/pr_coverage_tester_error.log
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/Users/sheriftito/Downloads/psychsync/agents/logs
+
+[Install]
+WantedBy=multi-user.target

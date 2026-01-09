@@ -3,26 +3,23 @@ GDPR Compliance API Endpoints
 Provides comprehensive endpoints for data export, deletion, consent management, and privacy policy access
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
-
-from app.middleware.rate_limiter import check_rate_limit
-
-from app.core.path_utils import sanitize_path, safe_filename
-from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy.orm import Session
-from typing import Dict, Any, Optional, List
 from datetime import datetime
 import logging
 from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.db.models.user import User
+from app.middleware.rate_limiter import check_rate_limit
+from app.services.compliance_audit_service import AuditAction, ComplianceAuditService
+from app.services.consent_service import ConsentManagementService
 from app.services.gdpr_service import GDPRService
 from app.services.privacy_policy_service import PrivacyPolicyService
-from app.services.consent_service import ConsentManagementService
-from app.services.compliance_audit_service import ComplianceAuditService, AuditAction
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +32,14 @@ consent_service = ConsentManagementService()
 audit_service = ComplianceAuditService()
 
 
-
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/data-export")
 async def request_data_export(
     request: Request,
     background_tasks: BackgroundTasks,
     format: str = "json",
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Request export of all user data (GDPR Right to Data Portability)
@@ -61,14 +57,12 @@ async def request_data_export(
             user_id=str(current_user.id),
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent"),
-            audit_metadata={"format": format}
+            audit_metadata={"format": format},
         )
 
         # Process export in background
         result = await gdpr_service.export_user_data(
-            user_id=str(current_user.id),
-            db=db,
-            format=format
+            user_id=str(current_user.id), db=db, format=format
         )
 
         # Schedule cleanup task
@@ -80,63 +74,50 @@ async def request_data_export(
             "download_url": result["download_url"],
             "expires_at": result["expires_at"],
             "file_size": result["file_size"],
-            "data_categories": result["data_categories"]
+            "data_categories": result["data_categories"],
         }
 
     except Exception as e:
-        logger.error(f"Data export request failed: {str(e)}")
+        logger.error(f"Data export request failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      
-@check_rate_limit(identifier="public", endpoint_type="public")
-      detail="Failed to process data export request"
+            detail="Failed to process data export request",
         )
+
 
 @router.get("/download/{filename}")
 async def download_export(
-    filename: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    filename: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Download exported data file"""
     try:
         # Validate filename to prevent directory traversal
         if not filename or ".." in filename or "/" in filename:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid filename"
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename")
 
         # Check if user has permission to access this file
         if not filename.startswith(str(current_user.id)):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         file_path = Path("exports") / filename
         if not file_path.exists():
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Export file not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Export file not found"
             )
 
         return FileResponse(
-            path=file_path,
-            filename=filename,
-            media_type="application/octet-stream"
+            path=file_path, filename=filename, media_type="application/octet-stream"
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Download export failed: {str(e)}")
-        raise HTTPException
-@check_rate_limit(identifier="public", endpoint_type="public")
-(
+        logger.error(f"Download export failed: {e!s}")
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to download export file"
+            detail="Failed to download export file",
         )
+
 
 @router.delete("/user-data")
 async def request_data_deletion(
@@ -144,7 +125,7 @@ async def request_data_deletion(
     deletion_reason: str = "user_request",
     soft_delete: bool = True,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Request deletion of user data (GDPR Right to be Forgotten)
@@ -163,11 +144,8 @@ async def request_data_deletion(
             user_id=str(current_user.id),
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent"),
-            audit_metadata={
-                "deletion_reason": deletion_reason,
-                "soft_delete": soft_delete
-            },
-            risk_level="high"
+            audit_metadata={"deletion_reason": deletion_reason, "soft_delete": soft_delete},
+            risk_level="high",
         )
 
         # Process deletion
@@ -175,7 +153,7 @@ async def request_data_deletion(
             user_id=str(current_user.id),
             db=db,
             deletion_reason=deletion_reason,
-            soft_delete=soft_delete
+            soft_delete=soft_delete,
         )
 
         return {
@@ -183,21 +161,19 @@ async def request_data_deletion(
             "deletion_id": result["deletion_id"],
             "method": result["method"],
             "deletion_date": result["deletion_date"],
-            "data_categories_processed": result["data_categories_processed"]
+            "data_categories_processed": result["data_categories_processed"],
         }
 
     except Exception as e:
-        logger.error(f"Data deletion request failed: {str(e)}")
+        logger.error(f"Data deletion request failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process data deletion request"
+            detail="Failed to process data deletion request",
         )
 
+
 @router.get("/privacy-policy")
-async def get_privacy_policy(
-    version: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
+async def get_privacy_policy(version: str | None = None, db: Session = Depends(get_db)):
     """Get current or specific privacy policy version"""
     try:
         if version:
@@ -207,8 +183,7 @@ async def get_privacy_policy(
 
         if not policy:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Privacy policy not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Privacy policy not found"
             )
 
         return policy
@@ -216,42 +191,39 @@ async def get_privacy_policy(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get privacy policy: {str(e)}")
+        logger.error(f"Failed to get privacy policy: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve privacy policy"
+            detail="Failed to retrieve privacy policy",
         )
+
 
 @router.get("/privacy-policy/versions")
 async def list_privacy_policy_versions(
-    include_inactive: bool = False,
-    db: Session = Depends(get_db)
+    include_inactive: bool = False, db: Session = Depends(get_db)
 ):
     """List all privacy policy versions"""
     try:
         versions = await privacy_policy_service.list_policy_versions(
-            db=db,
-            include_inactive=include_inactive
+            db=db, include_inactive=include_inactive
         )
 
-        return {
-            "versions": versions,
-            "total_count": len(versions)
-        }
+        return {"versions": versions, "total_count": len(versions)}
 
     except Exception as e:
-        logger.error(f"Failed to list privacy policy versions: {str(e)}")
+        logger.error(f"Failed to list privacy policy versions: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve privacy policy versions"
+            detail="Failed to retrieve privacy policy versions",
         )
+
 
 @router.post("/consent")
 async def update_consent(
     request: Request,
-    consent_data: Dict[str, Any],
+    consent_data: dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Update user consent preferences
@@ -272,8 +244,7 @@ async def update_consent(
         consents = consent_data.get("consents", [])
         if not consents:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No consent data provided"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="No consent data provided"
             )
 
         # Process consent request
@@ -281,21 +252,20 @@ async def update_consent(
             "ip_address": request.client.host,
             "user_agent": request.headers.get("user-agent"),
             "form_version": consent_data.get("form_version", "1.0"),
-            "language": consent_data.get("language", "en")
+            "language": consent_data.get("language", "en"),
         }
 
         result = await consent_service.process_consent_request(
-            db=db,
-            user_id=str(current_user.id),
-            consent_data=consents,
-            context=context
+            db=db, user_id=str(current_user.id), consent_data=consents, context=context
         )
 
         # Log consent updates
         for consent_result in result["results"]:
             await audit_service.log_action(
                 db=db,
-                action=AuditAction.GDPR_CONSENT_GRANT if consent_result.get("consent_type") else AuditAction.GDPR_CONSENT_WITHDRAW,
+                action=AuditAction.GDPR_CONSENT_GRANT
+                if consent_result.get("consent_type")
+                else AuditAction.GDPR_CONSENT_WITHDRAW,
                 resource_type="user_consent",
                 resource_id=str(current_user.id),
                 user_id=str(current_user.id),
@@ -303,55 +273,55 @@ async def update_consent(
                 user_agent=request.headers.get("user-agent"),
                 audit_metadata={
                     "consent_type": consent_result.get("consent_type"),
-                    "consent_id": consent_result.get("consent_id")
-                }
+                    "consent_id": consent_result.get("consent_id"),
+                },
             )
 
         return {
             "message": "Consent preferences updated successfully",
             "processed_count": result["processed_count"],
             "error_count": result["error_count"],
-            "results": result["results"]
+            "results": result["results"],
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Consent update failed: {str(e)}")
+        logger.error(f"Consent update failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update consent preferences"
+            detail="Failed to update consent preferences",
         )
+
 
 @router.get("/consent")
 async def get_user_consents(
     include_history: bool = False,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get user's current consent status and history"""
     try:
         consents = await consent_service.get_user_consents(
-            db=db,
-            user_id=str(current_user.id),
-            include_history=include_history
+            db=db, user_id=str(current_user.id), include_history=include_history
         )
 
         return consents
 
     except Exception as e:
-        logger.error(f"Failed to get user consents: {str(e)}")
+        logger.error(f"Failed to get user consents: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve consent information"
+            detail="Failed to retrieve consent information",
         )
+
 
 @router.get("/consent/check/{consent_type}")
 async def check_consent(
     consent_type: str,
-    granular_check: Optional[str] = None,
+    granular_check: str | None = None,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Check if user has valid consent for a specific purpose"""
     try:
@@ -359,64 +329,58 @@ async def check_consent(
             db=db,
             user_id=str(current_user.id),
             consent_type=consent_type,
-            granular_check=granular_check
+            granular_check=granular_check,
         )
 
         return {
             "consent_type": consent_type,
             "has_consent": has_consent,
             "granular_check": granular_check,
-            "user_id": str(current_user.id)
+            "user_id": str(current_user.id),
         }
 
     except Exception as e:
-        logger.error(f"Consent check failed: {str(e)}")
+        logger.error(f"Consent check failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to check consent status"
+            detail="Failed to check consent status",
         )
+
 
 @router.get("/audit-logs")
 async def get_user_audit_logs(
     request: Request,
     page: int = 1,
     limit: int = 50,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get user's audit logs (GDPR transparency requirement)"""
     try:
         # Parse date filters
-        filters = {
-            "user_id": str(current_user.id)
-        }
+        filters = {"user_id": str(current_user.id)}
 
         if start_date:
             try:
-                filters["start_date"] = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                filters["start_date"] = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
             except ValueError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid start_date format"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid start_date format"
                 )
 
         if end_date:
             try:
-                filters["end_date"] = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                filters["end_date"] = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
             except ValueError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid end_date format"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid end_date format"
                 )
 
         # Search audit logs
         results = await audit_service.search_audit_logs(
-            db=db,
-            filters=filters,
-            page=page,
-            limit=limit
+            db=db, filters=filters, page=page, limit=limit
         )
 
         return results
@@ -424,16 +388,16 @@ async def get_user_audit_logs(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get audit logs: {str(e)}")
+        logger.error(f"Failed to get audit logs: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve audit logs"
+            detail="Failed to retrieve audit logs",
         )
+
 
 @router.get("/data-summary")
 async def get_user_data_summary(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Get summary of user's stored data (GDPR transparency requirement)"""
     try:
@@ -449,27 +413,28 @@ async def get_user_data_summary(
                 "assessments": len(user_data.get("assessments", [])),
                 "responses": len(user_data.get("responses", [])),
                 "audit_logs": len(user_data.get("audit_logs", [])),
-                "consent_records": len(user_data.get("consent_records", []))
+                "consent_records": len(user_data.get("consent_records", [])),
             },
             "last_updated": datetime.utcnow().isoformat(),
-            "data_retention_policy": "Data is retained according to legal requirements and may be deleted upon request"
+            "data_retention_policy": "Data is retained according to legal requirements and may be deleted upon request",
         }
 
         return summary
 
     except Exception as e:
-        logger.error(f"Failed to get user data summary: {str(e)}")
+        logger.error(f"Failed to get user data summary: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve data summary"
+            detail="Failed to retrieve data summary",
         )
+
 
 @router.post("/initiate-compliance-request")
 async def initiate_compliance_request(
     request: Request,
-    request_data: Dict[str, Any],
+    request_data: dict[str, Any],
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Initiate various GDPR compliance requests
@@ -488,8 +453,7 @@ async def initiate_compliance_request(
 
         if not request_type:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Request type is required"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Request type is required"
             )
 
         # Log the compliance request
@@ -504,13 +468,15 @@ async def initiate_compliance_request(
             audit_metadata={
                 "request_type": request_type,
                 "details": details,
-                "contact_method": contact_method
+                "contact_method": contact_method,
             },
-            risk_level="medium"
+            risk_level="medium",
         )
 
         # Create compliance request record (this would typically go to a compliance system)
-        request_id = f"{request_type}_{str(current_user.id)}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        request_id = (
+            f"{request_type}_{current_user.id!s}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        )
 
         return {
             "message": "Compliance request received and is being processed",
@@ -518,14 +484,14 @@ async def initiate_compliance_request(
             "request_type": request_type,
             "status": "received",
             "estimated_processing_time": "30 days",
-            "contact_method": contact_method
+            "contact_method": contact_method,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Compliance request failed: {str(e)}")
+        logger.error(f"Compliance request failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process compliance request"
+            detail="Failed to process compliance request",
         )

@@ -5,22 +5,21 @@ Handles both in-app notifications and email notifications for PsychSync users.
 Supports multiple notification channels and templates.
 """
 
-from typing import Dict, List, Optional, Any, Union
-from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
-import logging
-from enum import Enum
 import asyncio
-from email.mime.text import MIMEText
-from email.mime.html import MIMEText as MIMEHtml
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+import logging
+from typing import Any
 
-from app.core.config import settings
 from app.core.email import send_email_async
 
 logger = logging.getLogger(__name__)
 
+
 class NotificationType(str, Enum):
     """Types of notifications supported"""
+
     TEAM_INVITATION = "team_invitation"
     TEAM_OPTIMIZATION_COMPLETE = "team_optimization_complete"
     ASSESSMENT_COMPLETED = "assessment_completed"
@@ -32,28 +31,32 @@ class NotificationType(str, Enum):
     TEAM_RECOMMENDATION = "team_recommendation"
     DEADLINE_REMINDER = "deadline_reminder"
 
+
 class NotificationChannel(str, Enum):
     """Notification channels"""
+
     IN_APP = "in_app"
     EMAIL = "email"
     PUSH = "push"  # Future: mobile push notifications
     WEBHOOK = "webhook"  # Future: external integrations
 
+
 @dataclass
 class Notification:
     """Represents a notification"""
-    id: Optional[str] = None
+
+    id: str | None = None
     user_id: int = None
     type: NotificationType = NotificationType.SYSTEM_ANNOUNCEMENT
     title: str = ""
     message: str = ""
-    data: Dict[str, Any] = None
-    channels: List[NotificationChannel] = None
+    data: dict[str, Any] = None
+    channels: list[NotificationChannel] = None
     priority: str = "normal"  # low, normal, high, urgent
-    expires_at: Optional[datetime] = None
-    read_at: Optional[datetime] = None
+    expires_at: datetime | None = None
+    read_at: datetime | None = None
     created_at: datetime = None
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
     def __post_init__(self):
         if self.data is None:
@@ -65,14 +68,17 @@ class Notification:
         if self.metadata is None:
             self.metadata = {}
 
+
 @dataclass
 class EmailTemplate:
     """Email template configuration"""
+
     subject: str
     html_body: str
     text_body: str
     from_email: str = None
     reply_to: str = None
+
 
 class NotificationService:
     """
@@ -90,57 +96,50 @@ class NotificationService:
         self.email_templates = self._load_email_templates()
         self.notification_queue = []  # In production, use Redis/RabbitMQ
 
-    def _load_email_templates(self) -> Dict[NotificationType, EmailTemplate]:
+    def _load_email_templates(self) -> dict[NotificationType, EmailTemplate]:
         """Load email templates for different notification types"""
 
         return {
             NotificationType.TEAM_INVITATION: EmailTemplate(
                 subject="You've been invited to join a team!",
                 html_body=self._get_team_invitation_template(),
-                text_body="You've been invited to join a team on PsychSync."
+                text_body="You've been invited to join a team on PsychSync.",
             ),
-
             NotificationType.TEAM_OPTIMIZATION_COMPLETE: EmailTemplate(
                 subject="Team Optimization Results Ready",
                 html_body=self._get_optimization_complete_template(),
-                text_body="Your team optimization analysis is complete."
+                text_body="Your team optimization analysis is complete.",
             ),
-
             NotificationType.ASSESSMENT_COMPLETED: EmailTemplate(
                 subject="Assessment Results Available",
                 html_body=self._get_assessment_complete_template(),
-                text_body="Your assessment results are now available."
+                text_body="Your assessment results are now available.",
             ),
-
             NotificationType.ASSESSMENT_REMINDER: EmailTemplate(
                 subject="Assessment Reminder",
                 html_body=self._get_assessment_reminder_template(),
-                text_body="You have an assessment waiting to be completed."
+                text_body="You have an assessment waiting to be completed.",
             ),
-
             NotificationType.PASSWORD_RESET: EmailTemplate(
                 subject="Reset Your Password",
                 html_body=self._get_password_reset_template(),
-                text_body="Use this link to reset your password."
+                text_body="Use this link to reset your password.",
             ),
-
             NotificationType.EMAIL_VERIFICATION: EmailTemplate(
                 subject="Verify Your Email Address",
                 html_body=self._get_email_verification_template(),
-                text_body="Please verify your email address to activate your account."
+                text_body="Please verify your email address to activate your account.",
             ),
-
             NotificationType.TEAM_RECOMMENDATION: EmailTemplate(
                 subject="New Team Recommendations",
                 html_body=self._get_team_recommendation_template(),
-                text_body="We have new team recommendations for you."
+                text_body="We have new team recommendations for you.",
             ),
-
             NotificationType.DEADLINE_REMINDER: EmailTemplate(
                 subject="Deadline Reminder",
                 html_body=self._get_deadline_reminder_template(),
-                text_body="You have an upcoming deadline."
-            )
+                text_body="You have an upcoming deadline.",
+            ),
         }
 
     async def send_notification(self, notification: Notification) -> bool:
@@ -173,17 +172,17 @@ class NotificationService:
                     elif channel == NotificationChannel.WEBHOOK:
                         await self._send_webhook_notification(notification)
                 except Exception as e:
-                    logger.error(f"Failed to send {channel} notification: {str(e)}")
+                    logger.error(f"Failed to send {channel} notification: {e!s}")
                     success = False
 
             logger.info(f"Notification {notification.id} processed with success: {success}")
             return success
 
         except Exception as e:
-            logger.error(f"Error sending notification: {str(e)}", exc_info=True)
+            logger.error(f"Error sending notification: {e!s}", exc_info=True)
             return False
 
-    async def send_bulk_notifications(self, notifications: List[Notification]) -> Dict[str, int]:
+    async def send_bulk_notifications(self, notifications: list[Notification]) -> dict[str, int]:
         """
         Send multiple notifications in batch
 
@@ -198,7 +197,7 @@ class NotificationService:
         # Process in batches to avoid overwhelming systems
         batch_size = 50
         for i in range(0, len(notifications), batch_size):
-            batch = notifications[i:i + batch_size]
+            batch = notifications[i : i + batch_size]
 
             # Send all notifications in batch concurrently
             tasks = [self.send_notification(notification) for notification in batch]
@@ -211,11 +210,19 @@ class NotificationService:
                 else:
                     results["failed"] += 1
 
-        logger.info(f"Bulk notification complete: {results['success']} success, {results['failed']} failed")
+        logger.info(
+            f"Bulk notification complete: {results['success']} success, {results['failed']} failed"
+        )
         return results
 
-    def notify_user_email(self, user_email: str, subject: str, body: str,
-                         html_body: str = None, from_email: str = None) -> bool:
+    def notify_user_email(
+        self,
+        user_email: str,
+        subject: str,
+        body: str,
+        html_body: str = None,
+        from_email: str = None,
+    ) -> bool:
         """
         Simple email notification wrapper
 
@@ -235,13 +242,13 @@ class NotificationService:
                 subject=subject,
                 body=body,
                 html_body=html_body,
-                from_email=from_email
+                from_email=from_email,
             )
         except Exception as e:
-            logger.error(f"Failed to send email to {user_email}: {str(e)}")
+            logger.error(f"Failed to send email to {user_email}: {e!s}")
             return False
 
-    def notify_event(self, user_id: int, event: str, payload: Dict[str, Any]) -> bool:
+    def notify_event(self, user_id: int, event: str, payload: dict[str, Any]) -> bool:
         """
         Simple in-app event notification
 
@@ -261,7 +268,7 @@ class NotificationService:
                 title=f"Event: {event}",
                 message=str(payload),
                 data=payload,
-                channels=[NotificationChannel.IN_APP]
+                channels=[NotificationChannel.IN_APP],
             )
 
             # In production, this would be stored in database or cache
@@ -269,12 +276,17 @@ class NotificationService:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to create event notification: {str(e)}")
+            logger.error(f"Failed to create event notification: {e!s}")
             return False
 
-    async def create_team_invitation_notification(self, user_id: int, team_name: str,
-                                                inviter_name: str, inviter_email: str,
-                                                user_email: str = None) -> Notification:
+    async def create_team_invitation_notification(
+        self,
+        user_id: int,
+        team_name: str,
+        inviter_name: str,
+        inviter_email: str,
+        user_email: str = None,
+    ) -> Notification:
         """Create team invitation notification"""
 
         notification = Notification(
@@ -285,43 +297,47 @@ class NotificationService:
             data={
                 "team_name": team_name,
                 "inviter_name": inviter_name,
-                "inviter_email": inviter_email
+                "inviter_email": inviter_email,
             },
             channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
-            priority="high"
+            priority="high",
         )
 
         if user_email:
             template = self.email_templates[NotificationType.TEAM_INVITATION]
             html_body = template.html_body.format(
-                team_name=team_name,
-                inviter_name=inviter_name,
-                inviter_email=inviter_email
+                team_name=team_name, inviter_name=inviter_name, inviter_email=inviter_email
             )
 
             await self.send_email_notification(notification, user_email, html_body)
 
         return notification
 
-    async def create_optimization_complete_notification(self, user_id: int, team_name: str,
-                                                       optimization_score: float,
-                                                       user_email: str = None) -> Notification:
+    async def create_optimization_complete_notification(
+        self, user_id: int, team_name: str, optimization_score: float, user_email: str = None
+    ) -> Notification:
         """Create optimization complete notification"""
 
-        score_text = "Excellent" if optimization_score > 0.8 else "Good" if optimization_score > 0.6 else "Fair"
+        score_text = (
+            "Excellent"
+            if optimization_score > 0.8
+            else "Good"
+            if optimization_score > 0.6
+            else "Fair"
+        )
 
         notification = Notification(
             user_id=user_id,
             type=NotificationType.TEAM_OPTIMIZATION_COMPLETE,
-            title=f"Team Optimization Complete",
+            title="Team Optimization Complete",
             message=f"Your '{team_name}' team optimization is complete. Score: {score_text} ({optimization_score:.1%})",
             data={
                 "team_name": team_name,
                 "optimization_score": optimization_score,
-                "score_text": score_text
+                "score_text": score_text,
             },
             channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
-            priority="normal"
+            priority="normal",
         )
 
         if user_email:
@@ -329,7 +345,7 @@ class NotificationService:
             html_body = template.html_body.format(
                 team_name=team_name,
                 score_text=score_text,
-                optimization_score=f"{optimization_score:.1%}"
+                optimization_score=f"{optimization_score:.1%}",
             )
 
             await self.send_email_notification(notification, user_email, html_body)
@@ -342,8 +358,9 @@ class NotificationService:
         logger.info(f"In-app notification: {notification.title} for user {notification.user_id}")
         return True
 
-    async def _send_email_notification(self, notification: Notification,
-                                     user_email: str = None, custom_html: str = None) -> bool:
+    async def _send_email_notification(
+        self, notification: Notification, user_email: str = None, custom_html: str = None
+    ) -> bool:
         """Send email notification"""
 
         try:
@@ -370,11 +387,11 @@ class NotificationService:
                 to=user_email or f"user_{notification.user_id}@example.com",  # Would get real email
                 subject=notification.title,
                 body=notification.message,
-                html_body=html_body
+                html_body=html_body,
             )
 
         except Exception as e:
-            logger.error(f"Failed to send email notification: {str(e)}")
+            logger.error(f"Failed to send email notification: {e!s}")
             return False
 
     async def _send_push_notification(self, notification: Notification) -> bool:
@@ -392,6 +409,7 @@ class NotificationService:
     def _generate_notification_id(self) -> str:
         """Generate unique notification ID"""
         import uuid
+
         return str(uuid.uuid4())
 
     def _get_team_invitation_template(self) -> str:
@@ -574,17 +592,23 @@ class NotificationService:
         </html>
         """
 
+
 # Singleton instance
 notification_service = NotificationService()
 
+
 # Convenience functions
-def notify_user_email(user_email: str, subject: str, body: str, html_body: str = None, from_email: str = None) -> bool:
+def notify_user_email(
+    user_email: str, subject: str, body: str, html_body: str = None, from_email: str = None
+) -> bool:
     """Simple email notification wrapper"""
     return notification_service.notify_user_email(user_email, subject, body, html_body, from_email)
 
-def notify_event(user_id: int, event: str, payload: Dict[str, Any]) -> bool:
+
+def notify_event(user_id: int, event: str, payload: dict[str, Any]) -> bool:
     """Simple in-app event notification"""
     return notification_service.notify_event(user_id, event, payload)
+
 
 async def send_notification(notification: Notification) -> bool:
     """Send notification through channels"""

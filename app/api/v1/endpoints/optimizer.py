@@ -36,27 +36,27 @@ class OptimizeTeamRequest(BaseModel):
     """Request model for team optimization"""
     team_id: Optional[int] = None
     team_name: str = Field(..., min_length=1, max_length=200)
-    
+
     # Size requirements
     min_size: int = Field(3, ge=1, le=50)
     max_size: int = Field(10, ge=1, le=50)
     target_size: int = Field(5, ge=1, le=50)
-    
+
     # Role requirements
     required_roles: Dict[str, int] = Field(default_factory=dict)
     optional_roles: Dict[str, int] = Field(default_factory=dict)
-    
+
     # Skill requirements
     required_skills: Dict[str, float] = Field(default_factory=dict)
     desired_skills: Dict[str, float] = Field(default_factory=dict)
-    
+
     # Diversity settings
     min_personality_diversity: float = Field(0.3, ge=0, le=1)
     max_personality_similarity: float = Field(0.7, ge=0, le=1)
     max_same_department: Optional[int] = None
     min_senior_members: Optional[int] = None
     max_junior_members: Optional[int] = None
-    
+
     # Candidate pool
     candidate_user_ids: Optional[List[int]] = None
     include_existing_members: bool = False
@@ -79,15 +79,15 @@ class TeamMemberResponse(BaseModel):
     department: str
     seniority_level: str
     availability: float
-    
+
     # Scores
     compatibility_score: float
     skill_match_score: float
     diversity_contribution: float
-    
+
     # Personality summary
     personality_summary: Dict[str, float]
-    
+
     class Config:
         from_attributes = True
 
@@ -97,29 +97,29 @@ class OptimizedTeamResponse(BaseModel):
     team_id: int
     team_name: str
     members: List[TeamMemberResponse]
-    
+
     # Scores
     overall_score: float
     compatibility_score: float
     skill_coverage_score: float
     diversity_score: float
     balance_score: float
-    
+
     # Statistics
     avg_performance: float
     avg_collaboration: float
     total_availability: float
-    
+
     # Analysis
     role_distribution: Dict[str, int]
     skill_coverage: Dict[str, float]
     personality_profile: Dict[str, float]
-    
+
     # Insights
     strengths: List[str]
     gaps: List[str]
     recommendations: List[str]
-    
+
     class Config:
         from_attributes = True
 
@@ -151,7 +151,7 @@ class CompatibilityCheckResponse(BaseModel):
 # =================================================================
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/optimize", response_model=OptimizedTeamResponse)
 async def optimize_team(
     request: OptimizeTeamRequest,
@@ -160,14 +160,14 @@ async def optimize_team(
 ):
     """
     Optimize team composition based on requirements
-    
+
     Creates an optimized team by analyzing:
     - Personality compatibility
     - Skill requirements
     - Role distribution
     - Diversity metrics
     - Performance history
-    
+
     Returns optimized team with detailed analysis
     """
     try:
@@ -175,20 +175,20 @@ async def optimize_team(
             f"User {current_user.id} requesting team optimization: "
             f"{request.team_name}"
         )
-        
+
         # Build candidate pool
         candidates = await _build_candidate_pool(
             db,
             current_user,
             request.candidate_user_ids
         )
-        
+
         if not candidates:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No eligible candidates found for optimization"
             )
-        
+
         # Get existing team members if applicable
         existing_members = []
         if request.team_id and request.include_existing_members:
@@ -196,7 +196,7 @@ async def optimize_team(
                 db,
                 request.team_id
             )
-        
+
         # Create requirements object
         requirements = TeamRequirements(
             team_id=request.team_id or 0,
@@ -214,7 +214,7 @@ async def optimize_team(
             min_senior_members=request.min_senior_members,
             max_junior_members=request.max_junior_members
         )
-        
+
         # Run optimization
         optimizer = TeamOptimizationEngine()
         optimized_team = optimizer.optimize_team(
@@ -222,17 +222,17 @@ async def optimize_team(
             requirements,
             existing_members
         )
-        
+
         # Convert to response model
         response = _convert_to_response(optimized_team)
-        
+
         logger.info(
             f"Team optimization complete: {len(response.members)} members, "
             f"score: {response.overall_score:.2f}"
         )
-        
+
         return response
-        
+
     except ValueError as e:
         logger.error(f"Validation error in team optimization: {str(e)}")
         raise HTTPException(
@@ -243,8 +243,8 @@ async def optimize_team(
         logger.error(f"Error optimizing team: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-     
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
        detail="Failed to optimize team composition"
         )
 
@@ -257,7 +257,7 @@ async def analyze_team(
 ):
     """
     Analyze existing team composition
-    
+
     Provides detailed analysis of current team including:
     - Compatibility scores
     - Skill coverage
@@ -270,7 +270,7 @@ async def analyze_team(
             f"User {current_user.id} requesting analysis for team "
             f"{request.team_id}"
         )
-        
+
         # Get team using service
         team = await optimizer_service.get_team_by_id_and_org(
             db, request.team_id, current_user.organization_id
@@ -281,7 +281,7 @@ async def analyze_team(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Team {request.team_id} not found"
             )
-        
+
         # Get team members using service
         team_members_db = await optimizer_service.get_team_members_by_team_id(db, team.id)
 
@@ -291,13 +291,13 @@ async def analyze_team(
             if tm.user and tm.user.is_active:
                 profile = await optimizer_service.user_to_profile(db, tm.user)
                 members.append(profile)
-        
+
         if not members:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Team has no members to analyze"
             )
-        
+
         # Create mock requirements for analysis
         requirements = TeamRequirements(
             team_id=team.id,
@@ -312,7 +312,7 @@ async def analyze_team(
             min_personality_diversity=0.3,
             max_personality_similarity=0.7
         )
-        
+
         # Run analysis using optimizer
         optimizer = TeamOptimizationEngine()
         analysis_result = optimizer._create_team_result(
@@ -320,23 +320,23 @@ async def analyze_team(
             requirements,
             overall_score=85.0  # Placeholder
         )
-        
+
         # Convert to response
         response = _convert_to_response(analysis_result)
-        
+
         logger.info(
             f"Team analysis complete: {team.name}, "
             f"score: {response.overall_score:.2f}"
         )
-        
+
         return response
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error analyzing team: {str(e)}", exc_info=True)
         raise HTTPEx
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ception(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze team"
@@ -351,7 +351,7 @@ async def check_compatibility(
 ):
     """
     Check compatibility between two team members
-    
+
     Analyzes personality compatibility and provides recommendations
     for working together effectively
     """
@@ -360,7 +360,7 @@ async def check_compatibility(
             f"Checking compatibility between users "
             f"{request.user_id_1} and {request.user_id_2}"
         )
-        
+
         # Get both users using service
         user1 = await optimizer_service.get_user_by_id_and_org(
             db, request.user_id_1, current_user.organization_id
@@ -375,18 +375,18 @@ async def check_compatibility(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="One or both users not found"
             )
-        
+
         # Convert to profiles using service
         profile1 = await optimizer_service.user_to_profile(db, user1)
         profile2 = await optimizer_service.user_to_profile(db, user2)
-        
+
         # Calculate compatibility
         optimizer = TeamOptimizationEngine()
         compatibility_score = optimizer._calculate_personality_compatibility(
             profile1,
             profile2
         )
-        
+
         # Determine compatibility level
         if compatibility_score >= 75:
             compatibility_level = "High"
@@ -394,7 +394,7 @@ async def check_compatibility(
             compatibility_level = "Medium"
         else:
             compatibility_level = "Low"
-        
+
         # Generate analysis and recommendations
         analysis = _generate_compatibility_analysis(profile1, profile2)
         recommendations = _generate_collaboration_recommendations(
@@ -402,7 +402,7 @@ async def check_compatibility(
             profile2,
             compatibility_score
         )
-        
+
         response = CompatibilityCheckResponse(
             user_1={
                 "id": user1.id,
@@ -431,14 +431,14 @@ async def check_compatibility(
             analysis=analysis,
             recommendations=recommendations
         )
-        
+
         logger.info(
             f"Compatibility check complete: {compatibility_score:.2f} "
             f"({compatibility_level})"
         )
-        
+
         return response
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -460,7 +460,7 @@ async def get_optimization_candidates(
 ):
     """
     Get list of candidates available for team optimization
-    
+
     Filters users based on:
     - Availability
     - Required skills
@@ -470,7 +470,7 @@ async def get_optimization_candidates(
         logger.info(
             f"Fetching optimization candidates for user {current_user.id}"
         )
-        
+
         # Get active users using service
         users = await optimizer_service.get_active_users_by_org(
             db, current_user.organization_id, limit
@@ -482,7 +482,7 @@ async def get_optimization_candidates(
             profile = await optimizer_service.user_to_profile(db, user)
             if profile.availability >= min_availability:
                 profiles.append(profile)
-        
+
         # Convert to response
         candidates = [
             TeamMemberResponse(
@@ -505,11 +505,11 @@ async def get_optimization_candidates(
             )
             for p in profiles
         ]
-        
+
         logger.info(f"Found {len(candidates)} eligible candidates")
-        
+
         return candidates
-        
+
     except Exception as e:
         logger.error(f"Error fetching candidates: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -572,7 +572,7 @@ def _convert_to_response(
         )
         for m in optimized_team.members
     ]
-    
+
     return OptimizedTeamResponse(
         team_id=optimized_team.team_id,
         team_name=optimized_team.team_name,
@@ -625,7 +625,7 @@ def _generate_collaboration_recommendations(
 ) -> List[str]:
     """Generate recommendations for effective collaboration"""
     recommendations = []
-    
+
     if compatibility_score >= 75:
         recommendations.append(
             "Excellent compatibility - leverage natural synergy"
@@ -650,16 +650,16 @@ def _generate_collaboration_recommendations(
         recommendations.append(
             "Provide mediation support if conflicts arise"
         )
-    
+
     # Personality-specific recommendations
     if abs(profile1.extraversion - profile2.extraversion) > 40:
         recommendations.append(
             "Balance meeting styles to accommodate introvert-extravert differences"
         )
-    
+
     if profile1.conscientiousness > 75 and profile2.conscientiousness < 50:
         recommendations.append(
             "Align on quality standards and deadline expectations early"
         )
-    
+
     return recommendations

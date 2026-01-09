@@ -4,23 +4,26 @@ Intelligent Caching Strategy for PsychSync
 Provides automated caching for frequently accessed data with intelligent invalidation
 """
 
+import asyncio
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from functools import wraps
+import hashlib
 import json
 import pickle
-import hashlib
-from functools import wraps
-from typing import Any, Optional, Callable, Union, Dict, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-import asyncio
-from enum import Enum
+from typing import Any
 
-from app.core.cache import cache_get, cache_set, cache_delete, cache_delete_pattern
-from app.core.structured_logging import get_logger, EventType
+from app.core.cache import cache_delete, cache_delete_pattern, cache_get, cache_set
+from app.core.structured_logging import EventType, get_logger
 
 logger = get_logger(__name__)
 
+
 class CacheStrategy(Enum):
     """Different caching strategies for different data types"""
+
     USER_PROFILE = "user_profile"
     TEAM_DATA = "team_data"
     ASSESSMENT_DATA = "assessment_data"
@@ -30,67 +33,71 @@ class CacheStrategy(Enum):
     API_RESPONSES = "api_responses"
     SESSION_DATA = "session_data"
 
+
 @dataclass
 class CacheConfig:
     """Configuration for caching strategies"""
+
     ttl_seconds: int
-    max_size: Optional[int] = None
+    max_size: int | None = None
     warm_on_startup: bool = False
     invalidate_on_change: bool = True
     compress_large_objects: bool = True
     version: int = 1
 
+
 # Cache configurations for different data types
-CACHE_CONFIGS: Dict[CacheStrategy, CacheConfig] = {
+CACHE_CONFIGS: dict[CacheStrategy, CacheConfig] = {
     CacheStrategy.USER_PROFILE: CacheConfig(
         ttl_seconds=300,  # 5 minutes
         max_size=10000,
         warm_on_startup=True,
-        invalidate_on_change=True
+        invalidate_on_change=True,
     ),
     CacheStrategy.TEAM_DATA: CacheConfig(
         ttl_seconds=600,  # 10 minutes
         max_size=5000,
         warm_on_startup=False,
-        invalidate_on_change=True
+        invalidate_on_change=True,
     ),
     CacheStrategy.ASSESSMENT_DATA: CacheConfig(
         ttl_seconds=1800,  # 30 minutes
         max_size=2000,
         warm_on_startup=False,
-        invalidate_on_change=True
+        invalidate_on_change=True,
     ),
     CacheStrategy.ASSESSMENT_RESULTS: CacheConfig(
         ttl_seconds=3600,  # 1 hour
         max_size=10000,
         warm_on_startup=False,
-        invalidate_on_change=False  # Results don't change
+        invalidate_on_change=False,  # Results don't change
     ),
     CacheStrategy.ORGANIZATION_DATA: CacheConfig(
         ttl_seconds=3600,  # 1 hour
         max_size=1000,
         warm_on_startup=True,
-        invalidate_on_change=True
+        invalidate_on_change=True,
     ),
     CacheStrategy.AUTH_TOKENS: CacheConfig(
         ttl_seconds=1800,  # 30 minutes
         max_size=50000,
         warm_on_startup=False,
-        invalidate_on_change=True
+        invalidate_on_change=True,
     ),
     CacheStrategy.API_RESPONSES: CacheConfig(
         ttl_seconds=60,  # 1 minute
         max_size=1000,
         warm_on_startup=False,
-        invalidate_on_change=True
+        invalidate_on_change=True,
     ),
     CacheStrategy.SESSION_DATA: CacheConfig(
         ttl_seconds=7200,  # 2 hours
         max_size=10000,
         warm_on_startup=False,
-        invalidate_on_change=True
-    )
+        invalidate_on_change=True,
+    ),
 }
+
 
 class IntelligentCache:
     """
@@ -98,14 +105,8 @@ class IntelligentCache:
     """
 
     def __init__(self):
-        self.cache_stats = {
-            "hits": 0,
-            "misses": 0,
-            "sets": 0,
-            "deletes": 0,
-            "invalidations": 0
-        }
-        self.cache_keys: Dict[str, datetime] = {}
+        self.cache_stats = {"hits": 0, "misses": 0, "sets": 0, "deletes": 0, "invalidations": 0}
+        self.cache_keys: dict[str, datetime] = {}
         self.running = True
 
     def generate_cache_key(self, strategy: CacheStrategy, operation: str, **kwargs) -> str:
@@ -114,13 +115,13 @@ class IntelligentCache:
         key_data = {
             "strategy": strategy.value,
             "operation": operation,
-            "params": sorted(kwargs.items())
+            "params": sorted(kwargs.items()),
         }
         key_string = json.dumps(key_data, sort_keys=True, default=str)
         key_hash = hashlib.md5(key_string.encode()).hexdigest()[:16]
         return f"{strategy.value}:{operation}:{key_hash}"
 
-    async def get(self, strategy: CacheStrategy, operation: str, **kwargs) -> Optional[Any]:
+    async def get(self, strategy: CacheStrategy, operation: str, **kwargs) -> Any | None:
         """Get data from cache with statistics tracking"""
         cache_key = self.generate_cache_key(strategy, operation, **kwargs)
 
@@ -136,30 +137,24 @@ class IntelligentCache:
                     f"Cache hit for {strategy.value}:{operation}",
                     operation_name="cache_hit",
                     cache_key=cache_key,
-                    strategy=strategy.value
+                    strategy=strategy.value,
                 )
 
                 return cached_data
-            else:
-                self.cache_stats["misses"] += 1
+            self.cache_stats["misses"] += 1
 
-                logger.debug(
-                    EventType.DATABASE_OPERATION,
-                    f"Cache miss for {strategy.value}:{operation}",
-                    operation_name="cache_miss",
-                    cache_key=cache_key,
-                    strategy=strategy.value
-                )
+            logger.debug(
+                EventType.DATABASE_OPERATION,
+                f"Cache miss for {strategy.value}:{operation}",
+                operation_name="cache_miss",
+                cache_key=cache_key,
+                strategy=strategy.value,
+            )
 
-                return None
+            return None
 
         except Exception as e:
-            logger.log_error(
-                e,
-                operation="cache_get",
-                cache_key=cache_key,
-                strategy=strategy.value
-            )
+            logger.log_error(e, operation="cache_get", cache_key=cache_key, strategy=strategy.value)
             return None
 
     async def set(self, strategy: CacheStrategy, operation: str, data: Any, **kwargs) -> bool:
@@ -172,11 +167,7 @@ class IntelligentCache:
             if config.compress_large_objects and self._should_compress(data):
                 data = self._compress_data(data)
 
-            success = await cache_set(
-                cache_key,
-                data,
-                ttl=config.ttl_seconds
-            )
+            success = await cache_set(cache_key, data, ttl=config.ttl_seconds)
 
             if success:
                 self.cache_stats["sets"] += 1
@@ -188,18 +179,13 @@ class IntelligentCache:
                     operation_name="cache_set",
                     cache_key=cache_key,
                     strategy=strategy.value,
-                    ttl=config.ttl_seconds
+                    ttl=config.ttl_seconds,
                 )
 
             return success
 
         except Exception as e:
-            logger.log_error(
-                e,
-                operation="cache_set",
-                cache_key=cache_key,
-                strategy=strategy.value
-            )
+            logger.log_error(e, operation="cache_set", cache_key=cache_key, strategy=strategy.value)
             return False
 
     async def invalidate(self, strategy: CacheStrategy, pattern: str = None, **kwargs):
@@ -209,7 +195,13 @@ class IntelligentCache:
                 # Invalidate by pattern
                 cache_key_pattern = f"{strategy.value}:{pattern}:*"
                 await cache_delete_pattern(cache_key_pattern)
-                invalidated_count = len([k for k in self.cache_keys.keys() if k.startswith(f"{strategy.value}:{pattern}:")])
+                invalidated_count = len(
+                    [
+                        k
+                        for k in self.cache_keys.keys()
+                        if k.startswith(f"{strategy.value}:{pattern}:")
+                    ]
+                )
             else:
                 # Invalidate specific key
                 cache_key = self.generate_cache_key(strategy, pattern or "invalidate", **kwargs)
@@ -224,15 +216,12 @@ class IntelligentCache:
                 operation_name="cache_invalidate",
                 strategy=strategy.value,
                 pattern=pattern,
-                invalidated_count=invalidated_count
+                invalidated_count=invalidated_count,
             )
 
         except Exception as e:
             logger.log_error(
-                e,
-                operation="cache_invalidate",
-                strategy=strategy.value,
-                pattern=pattern
+                e, operation="cache_invalidate", strategy=strategy.value, pattern=pattern
             )
 
     async def warm_cache(self, strategy: CacheStrategy, data_loader: Callable):
@@ -247,7 +236,7 @@ class IntelligentCache:
                 EventType.SYSTEM_EVENT,
                 f"Warming cache for {strategy.value}",
                 operation_name="cache_warm",
-                strategy=strategy.value
+                strategy=strategy.value,
             )
 
             # Load data based on strategy
@@ -257,11 +246,7 @@ class IntelligentCache:
                 await self._warm_organization_cache(data_loader)
 
         except Exception as e:
-            logger.log_error(
-                e,
-                operation="cache_warm",
-                strategy=strategy.value
-            )
+            logger.log_error(e, operation="cache_warm", strategy=strategy.value)
 
     async def _warm_user_cache(self, data_loader: Callable):
         """Warm user profile cache"""
@@ -270,12 +255,9 @@ class IntelligentCache:
 
         tasks = []
         for user in active_users:
-            tasks.append(self.set(
-                CacheStrategy.USER_PROFILE,
-                "profile",
-                user,
-                user_id=str(user.id)
-            ))
+            tasks.append(
+                self.set(CacheStrategy.USER_PROFILE, "profile", user, user_id=str(user.id))
+            )
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -284,7 +266,7 @@ class IntelligentCache:
                 EventType.SYSTEM_EVENT,
                 f"Warmed cache with {len(active_users)} user profiles",
                 operation_name="cache_warm_users",
-                user_count=len(active_users)
+                user_count=len(active_users),
             )
 
     async def _warm_organization_cache(self, data_loader: Callable):
@@ -294,12 +276,9 @@ class IntelligentCache:
 
         tasks = []
         for org in organizations:
-            tasks.append(self.set(
-                CacheStrategy.ORGANIZATION_DATA,
-                "profile",
-                org,
-                org_id=str(org.id)
-            ))
+            tasks.append(
+                self.set(CacheStrategy.ORGANIZATION_DATA, "profile", org, org_id=str(org.id))
+            )
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -308,7 +287,7 @@ class IntelligentCache:
                 EventType.SYSTEM_EVENT,
                 f"Warmed cache with {len(organizations)} organizations",
                 operation_name="cache_warm_organizations",
-                org_count=len(organizations)
+                org_count=len(organizations),
             )
 
     def _should_compress(self, data: Any) -> bool:
@@ -328,7 +307,7 @@ class IntelligentCache:
         """Decompress data from pickle"""
         return pickle.loads(compressed_data)
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache performance statistics"""
         total_requests = self.cache_stats["hits"] + self.cache_stats["misses"]
         hit_rate = (self.cache_stats["hits"] / max(total_requests, 1)) * 100
@@ -338,10 +317,10 @@ class IntelligentCache:
             "hit_rate_percent": round(hit_rate, 2),
             "total_requests": total_requests,
             "active_keys": len(self.cache_keys),
-            "cache_keys_by_strategy": self._get_keys_by_strategy()
+            "cache_keys_by_strategy": self._get_keys_by_strategy(),
         }
 
-    def _get_keys_by_strategy(self) -> Dict[str, int]:
+    def _get_keys_by_strategy(self) -> dict[str, int]:
         """Get count of cache keys by strategy"""
         strategy_counts = {}
 
@@ -369,11 +348,13 @@ class IntelligentCache:
                 EventType.SYSTEM_EVENT,
                 f"Cleaned up {len(expired_keys)} expired cache keys",
                 operation_name="cache_cleanup",
-                expired_keys_count=len(expired_keys)
+                expired_keys_count=len(expired_keys),
             )
+
 
 # Global cache instance
 intelligent_cache = IntelligentCache()
+
 
 def cached(strategy: CacheStrategy, operation: str = None, ttl_override: int = None):
     """
@@ -384,6 +365,7 @@ def cached(strategy: CacheStrategy, operation: str = None, ttl_override: int = N
         operation: Operation name for cache key (defaults to function name)
         ttl_override: Override default TTL for this function
     """
+
     def decorator(func: Callable) -> Callable:
         operation_name = operation or func.__name__
 
@@ -393,8 +375,8 @@ def cached(strategy: CacheStrategy, operation: str = None, ttl_override: int = N
             cache_kwargs = {}
 
             # Extract meaningful parameters for cache key
-            if hasattr(func, '__code__'):
-                param_names = func.__code__.co_varnames[:func.__code__.co_argcount]
+            if hasattr(func, "__code__"):
+                param_names = func.__code__.co_varnames[: func.__code__.co_argcount]
                 for i, param_name in enumerate(param_names):
                     if i < len(args):
                         cache_kwargs[param_name] = args[i]
@@ -404,8 +386,7 @@ def cached(strategy: CacheStrategy, operation: str = None, ttl_override: int = N
 
             # Remove non-serializable arguments
             cache_kwargs = {
-                k: v for k, v in cache_kwargs.items()
-                if k not in ['db'] and not callable(v)
+                k: v for k, v in cache_kwargs.items() if k not in ["db"] and not callable(v)
             }
 
             # Try to get from cache
@@ -429,11 +410,14 @@ def cached(strategy: CacheStrategy, operation: str = None, ttl_override: int = N
             return result
 
         return wrapper
+
     return decorator
+
 
 # ✅ IMPLEMENTED: Advanced cache invalidation strategies
 # Provides intelligent cache invalidation based on data relationships
 # and business events with cache tagging and hierarchical invalidation.
+
 
 class CacheInvalidationManager:
     """
@@ -442,21 +426,21 @@ class CacheInvalidationManager:
 
     def __init__(self):
         # Enhanced dependency graph with hierarchical relationships
-        self.dependency_graph: Dict[str, List[str]] = {
+        self.dependency_graph: dict[str, list[str]] = {
             "user_profile": ["user_teams", "user_assessments", "user_permissions"],
             "team_data": ["team_members", "team_assessments", "team_analytics"],
             "assessment_data": ["assessment_results", "assessment_analytics"],
-            "organization_data": ["org_teams", "org_users", "org_assessments"]
+            "organization_data": ["org_teams", "org_users", "org_assessments"],
         }
 
         # Cache tagging system for multi-dimensional invalidation
-        self.cache_tags: Dict[str, set] = {}
-        self.tag_index: Dict[str, set] = {}  # Reverse index for fast tag lookups
+        self.cache_tags: dict[str, set] = {}
+        self.tag_index: dict[str, set] = {}  # Reverse index for fast tag lookups
 
         self.invalidation_queue = asyncio.Queue()
         self.processing = False
 
-    def add_cache_tags(self, cache_key: str, tags: List[str]):
+    def add_cache_tags(self, cache_key: str, tags: list[str]):
         """
         Add tags to a cache key for intelligent invalidation
 
@@ -474,7 +458,7 @@ class CacheInvalidationManager:
                 self.tag_index[tag] = set()
             self.tag_index[tag].add(cache_key)
 
-    async def invalidate_by_tags(self, tags: List[str]) -> int:
+    async def invalidate_by_tags(self, tags: list[str]) -> int:
         """
         Invalidate all cache entries associated with the given tags
 
@@ -504,7 +488,9 @@ class CacheInvalidationManager:
         logger.info(f"Invalidated {len(cache_keys_to_invalidate)} cache entries by tags: {tags}")
         return len(cache_keys_to_invalidate)
 
-    async def invalidate_related_caches(self, entity_type: str, entity_id: str, operation: str = "update"):
+    async def invalidate_related_caches(
+        self, entity_type: str, entity_id: str, operation: str = "update"
+    ):
         """
         Invalidate caches related to a specific entity
 
@@ -551,7 +537,7 @@ class CacheInvalidationManager:
             entity_type=entity_type,
             entity_id=entity_id,
             operation_type=operation,
-            related_caches=related_caches
+            related_caches=related_caches,
         )
 
     async def _queue_invalidation(self, strategy: CacheStrategy, pattern: str):
@@ -590,6 +576,7 @@ class CacheInvalidationManager:
     async def invalidate_organization_caches(self, org_id: str):
         """Invalidate all caches related to an organization"""
         await self.invalidate_related_caches("organization", org_id)
+
 
 # Global cache invalidation manager
 cache_invalidation_manager = CacheInvalidationManager()

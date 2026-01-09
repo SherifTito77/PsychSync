@@ -3,26 +3,20 @@ Beta User Feedback Collection Service
 Comprehensive system for collecting, analyzing, and managing beta user feedback
 """
 
-from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-import json
+from statistics import mean
+from typing import Any
 import uuid
-from statistics import mean, median
-
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, or_
-
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class FeedbackType(Enum):
     """Types of feedback that can be collected"""
+
     BUG_REPORT = "bug_report"
     FEATURE_REQUEST = "feature_request"
     USABILITY_ISSUE = "usability_issue"
@@ -35,6 +29,7 @@ class FeedbackType(Enum):
 
 class FeedbackCategory(Enum):
     """Categories for organizing feedback"""
+
     USER_INTERFACE = "user_interface"
     USER_EXPERIENCE = "user_experience"
     PERFORMANCE = "performance"
@@ -49,6 +44,7 @@ class FeedbackCategory(Enum):
 
 class FeedbackPriority(Enum):
     """Priority levels for feedback items"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -57,6 +53,7 @@ class FeedbackPriority(Enum):
 
 class UserSegment(Enum):
     """User segments for targeted feedback analysis"""
+
     NEW_USERS = "new_users"
     POWER_USERS = "power_users"
     TEAM_ADMINS = "team_admins"
@@ -68,6 +65,7 @@ class UserSegment(Enum):
 
 class SatisfactionScale(Enum):
     """Satisfaction rating scales"""
+
     VERY_DISSATISFIED = 1
     DISSATISFIED = 2
     NEUTRAL = 3
@@ -78,6 +76,7 @@ class SatisfactionScale(Enum):
 @dataclass
 class FeedbackSubmission:
     """Individual feedback submission from beta user"""
+
     id: str
     user_id: str
     user_segment: UserSegment
@@ -86,13 +85,13 @@ class FeedbackSubmission:
     title: str
     description: str
     priority: FeedbackPriority
-    satisfaction_rating: Optional[int] = None
-    feature_context: Optional[str] = None  # Where in the app the feedback was submitted
-    device_info: Optional[Dict[str, Any]] = None
-    browser_info: Optional[Dict[str, Any]] = None
-    session_context: Optional[Dict[str, Any]] = None
-    attachments: List[str] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
+    satisfaction_rating: int | None = None
+    feature_context: str | None = None  # Where in the app the feedback was submitted
+    device_info: dict[str, Any] | None = None
+    browser_info: dict[str, Any] | None = None
+    session_context: dict[str, Any] | None = None
+    attachments: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.utcnow)
     status: str = "new"  # new, reviewed, in_progress, resolved, closed
 
@@ -100,64 +99,68 @@ class FeedbackSubmission:
 @dataclass
 class FeedbackSession:
     """Context for a feedback collection session"""
+
     session_id: str
     user_id: str
     start_time: datetime
-    end_time: Optional[datetime] = None
-    current_page: Optional[str] = None
-    user_actions: List[Dict[str, Any]] = field(default_factory=list)
+    end_time: datetime | None = None
+    current_page: str | None = None
+    user_actions: list[dict[str, Any]] = field(default_factory=list)
     feedback_prompted: bool = False
-    session_duration: Optional[float] = None
+    session_duration: float | None = None
 
 
 @dataclass
 class FeedbackPattern:
     """Identified patterns in feedback data"""
+
     pattern_type: str  # "frequent_issue", "feature_request_cluster", "sentiment_trend"
     description: str
-    affected_users: List[str]
+    affected_users: list[str]
     frequency: int
     confidence_score: float
     recommended_action: str
-    related_feedback: List[str] = field(default_factory=list)
+    related_feedback: list[str] = field(default_factory=list)
 
 
 @dataclass
 class FeedbackAnalysis:
     """Analysis of collected feedback data"""
-    analysis_period: Dict[str, datetime]
+
+    analysis_period: dict[str, datetime]
     total_submissions: int
     unique_users: int
     satisfaction_score: float
-    top_categories: List[Dict[str, Any]]
-    sentiment_trends: Dict[str, float]
-    priority_distribution: Dict[str, int]
-    identified_patterns: List[FeedbackPattern]
-    recommendations: List[str]
+    top_categories: list[dict[str, Any]]
+    sentiment_trends: dict[str, float]
+    priority_distribution: dict[str, int]
+    identified_patterns: list[FeedbackPattern]
+    recommendations: list[str]
 
 
 @dataclass
 class BetaCohort:
     """Beta testing cohort management"""
+
     cohort_id: str
     name: str
     description: str
-    user_ids: List[str]
-    target_features: List[str]
+    user_ids: list[str]
+    target_features: list[str]
     start_date: datetime
-    end_date: Optional[datetime] = None
-    engagement_goals: Dict[str, float] = field(default_factory=dict)
-    feedback_targets: Dict[str, int] = field(default_factory=dict)
+    end_date: datetime | None = None
+    engagement_goals: dict[str, float] = field(default_factory=dict)
+    feedback_targets: dict[str, int] = field(default_factory=dict)
 
 
 class BetaFeedbackService:
     """Comprehensive beta feedback management service"""
 
     def __init__(self):
-        self.feedback_storage: Dict[str, FeedbackSubmission] = {}
-        self.feedback_sessions: Dict[str, FeedbackSession] = {}
-        self.beta_cohorts: Dict[str, BetaCohort] = {}
-        self.feedback_patterns: Dict[str, FeedbackPattern] = {}
+        self.feedback_storage: dict[str, FeedbackSubmission] = {}
+        self.feedback_sessions: dict[str, FeedbackSession] = {}
+        self.beta_cohorts: dict[str, BetaCohort] = {}
+        self.feedback_patterns: dict[str, FeedbackPattern] = {}
 
         # Initialize default cohorts
         self._initialize_default_cohorts()
@@ -176,14 +179,14 @@ class BetaFeedbackService:
             engagement_goals={
                 "weekly_active_days": 3,
                 "feature_usage_rate": 0.7,
-                "feedback_submissions_per_week": 2
+                "feedback_submissions_per_week": 2,
             },
             feedback_targets={
                 "total_submissions": 50,
                 "bug_reports": 15,
                 "feature_requests": 20,
-                "usability_issues": 10
-            }
+                "usability_issues": 10,
+            },
         )
 
         self.beta_cohorts["power_users"] = BetaCohort(
@@ -196,21 +199,18 @@ class BetaFeedbackService:
             engagement_goals={
                 "weekly_active_days": 5,
                 "feature_usage_rate": 0.9,
-                "feedback_submissions_per_week": 3
+                "feedback_submissions_per_week": 3,
             },
             feedback_targets={
                 "total_submissions": 40,
                 "feature_requests": 25,
                 "performance_issues": 8,
-                "integration_issues": 5
-            }
+                "integration_issues": 5,
+            },
         )
 
     async def submit_feedback(
-        self,
-        user_id: str,
-        feedback_data: Dict[str, Any],
-        session_id: Optional[str] = None
+        self, user_id: str, feedback_data: dict[str, Any], session_id: str | None = None
     ) -> FeedbackSubmission:
         """Submit new feedback from beta user"""
         try:
@@ -233,7 +233,7 @@ class BetaFeedbackService:
                 browser_info=feedback_data.get("browser_info"),
                 session_context=feedback_data.get("session_context"),
                 attachments=feedback_data.get("attachments", []),
-                tags=feedback_data.get("tags", [])
+                tags=feedback_data.get("tags", []),
             )
 
             # Store feedback
@@ -250,7 +250,7 @@ class BetaFeedbackService:
             return submission
 
         except Exception as e:
-            logger.error(f"Error submitting feedback: {str(e)}")
+            logger.error(f"Error submitting feedback: {e!s}")
             raise
 
     async def _determine_user_segment(self, user_id: str) -> UserSegment:
@@ -260,9 +260,7 @@ class BetaFeedbackService:
         return UserSegment.BETA_TESTERS
 
     async def start_feedback_session(
-        self,
-        user_id: str,
-        context: Optional[Dict[str, Any]] = None
+        self, user_id: str, context: dict[str, Any] | None = None
     ) -> str:
         """Start a new feedback tracking session"""
         session_id = str(uuid.uuid4())
@@ -272,7 +270,7 @@ class BetaFeedbackService:
             user_id=user_id,
             start_time=datetime.utcnow(),
             current_page=context.get("current_page") if context else None,
-            user_actions=context.get("user_actions", []) if context else []
+            user_actions=context.get("user_actions", []) if context else [],
         )
 
         self.feedback_sessions[session_id] = session
@@ -280,7 +278,7 @@ class BetaFeedbackService:
 
         return session_id
 
-    async def end_feedback_session(self, session_id: str) -> Optional[FeedbackSession]:
+    async def end_feedback_session(self, session_id: str) -> FeedbackSession | None:
         """End feedback tracking session and calculate duration"""
         if session_id not in self.feedback_sessions:
             return None
@@ -295,10 +293,10 @@ class BetaFeedbackService:
     async def get_user_feedback(
         self,
         user_id: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        feedback_type: Optional[FeedbackType] = None
-    ) -> List[FeedbackSubmission]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        feedback_type: FeedbackType | None = None,
+    ) -> list[FeedbackSubmission]:
         """Get feedback submissions for a specific user"""
         feedback_list = []
 
@@ -323,9 +321,9 @@ class BetaFeedbackService:
     async def get_feedback_by_category(
         self,
         category: FeedbackCategory,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> List[FeedbackSubmission]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[FeedbackSubmission]:
         """Get feedback submissions by category"""
         feedback_list = []
 
@@ -344,35 +342,33 @@ class BetaFeedbackService:
         return sorted(feedback_list, key=lambda x: x.timestamp, reverse=True)
 
     async def get_high_priority_feedback(
-        self,
-        priority_threshold: FeedbackPriority = FeedbackPriority.HIGH
-    ) -> List[FeedbackSubmission]:
+        self, priority_threshold: FeedbackPriority = FeedbackPriority.HIGH
+    ) -> list[FeedbackSubmission]:
         """Get high-priority feedback items"""
         priority_order = {
             FeedbackPriority.CRITICAL: 4,
             FeedbackPriority.HIGH: 3,
             FeedbackPriority.MEDIUM: 2,
-            FeedbackPriority.LOW: 1
+            FeedbackPriority.LOW: 1,
         }
 
         threshold_value = priority_order[priority_threshold]
 
         high_priority = [
-            feedback for feedback in self.feedback_storage.values()
+            feedback
+            for feedback in self.feedback_storage.values()
             if priority_order[feedback.priority] >= threshold_value
         ]
 
         return sorted(
-            high_priority,
-            key=lambda x: (priority_order[x.priority], x.timestamp),
-            reverse=True
+            high_priority, key=lambda x: (priority_order[x.priority], x.timestamp), reverse=True
         )
 
     async def analyze_feedback_data(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        user_segment: Optional[UserSegment] = None
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        user_segment: UserSegment | None = None,
     ) -> FeedbackAnalysis:
         """Analyze collected feedback data and generate insights"""
         # Set default date range if not provided
@@ -400,35 +396,53 @@ class BetaFeedbackService:
                 sentiment_trends={},
                 priority_distribution={},
                 identified_patterns=[],
-                recommendations=[]
+                recommendations=[],
             )
 
         # Calculate metrics
         unique_users = len(set(f.user_id for f in filtered_feedback))
-        satisfaction_scores = [f.satisfaction_rating for f in filtered_feedback if f.satisfaction_rating]
+        satisfaction_scores = [
+            f.satisfaction_rating for f in filtered_feedback if f.satisfaction_rating
+        ]
         avg_satisfaction = mean(satisfaction_scores) if satisfaction_scores else 0.0
 
         # Category analysis
         category_counts = {}
         for feedback in filtered_feedback:
-            category_counts[feedback.category.value] = category_counts.get(feedback.category.value, 0) + 1
+            category_counts[feedback.category.value] = (
+                category_counts.get(feedback.category.value, 0) + 1
+            )
 
         top_categories = sorted(
             [{"category": cat, "count": count} for cat, count in category_counts.items()],
             key=lambda x: x["count"],
-            reverse=True
+            reverse=True,
         )[:10]
 
         # Priority distribution
         priority_dist = {}
         for feedback in filtered_feedback:
-            priority_dist[feedback.priority.value] = priority_dist.get(feedback.priority.value, 0) + 1
+            priority_dist[feedback.priority.value] = (
+                priority_dist.get(feedback.priority.value, 0) + 1
+            )
 
         # Sentiment trends (simplified)
         sentiment_trends = {
-            "positive": len([f for f in filtered_feedback if f.satisfaction_rating and f.satisfaction_rating >= 4]),
+            "positive": len(
+                [
+                    f
+                    for f in filtered_feedback
+                    if f.satisfaction_rating and f.satisfaction_rating >= 4
+                ]
+            ),
             "neutral": len([f for f in filtered_feedback if f.satisfaction_rating == 3]),
-            "negative": len([f for f in filtered_feedback if f.satisfaction_rating and f.satisfaction_rating <= 2])
+            "negative": len(
+                [
+                    f
+                    for f in filtered_feedback
+                    if f.satisfaction_rating and f.satisfaction_rating <= 2
+                ]
+            ),
         }
 
         # Identify patterns
@@ -446,13 +460,12 @@ class BetaFeedbackService:
             sentiment_trends=sentiment_trends,
             priority_distribution=priority_dist,
             identified_patterns=patterns,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     async def _identify_feedback_patterns(
-        self,
-        feedback_list: List[FeedbackSubmission]
-    ) -> List[FeedbackPattern]:
+        self, feedback_list: list[FeedbackSubmission]
+    ) -> list[FeedbackPattern]:
         """Identify patterns in feedback data"""
         patterns = []
 
@@ -476,12 +489,14 @@ class BetaFeedbackService:
                     frequency=len(related_feedback),
                     confidence_score=min(1.0, len(related_feedback) / 10.0),
                     recommended_action=f"Investigate and address issues related to {issue}",
-                    related_feedback=[f.id for f in related_feedback]
+                    related_feedback=[f.id for f in related_feedback],
                 )
                 patterns.append(pattern)
 
         # Check for feature request clusters
-        feature_requests = [f for f in feedback_list if f.feedback_type == FeedbackType.FEATURE_REQUEST]
+        feature_requests = [
+            f for f in feedback_list if f.feedback_type == FeedbackType.FEATURE_REQUEST
+        ]
         if feature_requests:
             feature_clusters = {}
             for feedback in feature_requests:
@@ -501,27 +516,62 @@ class BetaFeedbackService:
                         frequency=len(related_requests),
                         confidence_score=min(1.0, len(related_requests) / 8.0),
                         recommended_action=f"Consider developing features related to {feature}",
-                        related_feedback=[f.id for f in related_requests]
+                        related_feedback=[f.id for f in related_requests],
                     )
                     patterns.append(pattern)
 
         return patterns
 
-    def _extract_key_words(self, text: str) -> List[str]:
+    def _extract_key_words(self, text: str) -> list[str]:
         """Extract key words from text for pattern analysis"""
         # Simple keyword extraction (in production, would use NLP)
-        common_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "be", "been", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "can", "must"}
+        common_words = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "can",
+            "must",
+        }
 
         words = text.lower().replace("-", " ").replace("_", " ").split()
-        key_words = [word.strip(".,!?;:") for word in words if len(word) > 3 and word not in common_words]
+        key_words = [
+            word.strip(".,!?;:") for word in words if len(word) > 3 and word not in common_words
+        ]
 
         return list(set(key_words))  # Remove duplicates
 
     async def _generate_recommendations(
-        self,
-        feedback_list: List[FeedbackSubmission],
-        patterns: List[FeedbackPattern]
-    ) -> List[str]:
+        self, feedback_list: list[FeedbackSubmission], patterns: list[FeedbackPattern]
+    ) -> list[str]:
         """Generate recommendations based on feedback analysis"""
         recommendations = []
 
@@ -534,7 +584,9 @@ class BetaFeedbackService:
             )
 
         # Low satisfaction
-        satisfaction_scores = [f.satisfaction_rating for f in feedback_list if f.satisfaction_rating]
+        satisfaction_scores = [
+            f.satisfaction_rating for f in feedback_list if f.satisfaction_rating
+        ]
         if satisfaction_scores and mean(satisfaction_scores) < 3.0:
             recommendations.append(
                 f"User satisfaction is low ({mean(satisfaction_scores):.1f}/5.0). "
@@ -555,7 +607,9 @@ class BetaFeedbackService:
                 recommendations.append(pattern.recommended_action)
 
         # Feature requests
-        feature_requests = [f for f in feedback_list if f.feedback_type == FeedbackType.FEATURE_REQUEST]
+        feature_requests = [
+            f for f in feedback_list if f.feedback_type == FeedbackType.FEATURE_REQUEST
+        ]
         if feature_requests:
             top_requested = {}
             for feedback in feature_requests:
@@ -580,13 +634,10 @@ class BetaFeedbackService:
         """Analyze new feedback for patterns and update stored patterns"""
         # This would integrate with machine learning for pattern detection
         # For now, using simple keyword-based clustering
-        pass
 
     async def get_feedback_summary(
-        self,
-        days: int = 7,
-        user_segment: Optional[UserSegment] = None
-    ) -> Dict[str, Any]:
+        self, days: int = 7, user_segment: UserSegment | None = None
+    ) -> dict[str, Any]:
         """Get summary of recent feedback"""
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
@@ -607,7 +658,7 @@ class BetaFeedbackService:
             "by_priority": {},
             "by_category": {},
             "average_satisfaction": 0.0,
-            "trending_issues": []
+            "trending_issues": [],
         }
 
         # Type breakdown
@@ -626,12 +677,18 @@ class BetaFeedbackService:
             summary["by_category"][category] = summary["by_category"].get(category, 0) + 1
 
         # Average satisfaction
-        satisfaction_scores = [f.satisfaction_rating for f in filtered_feedback if f.satisfaction_rating]
+        satisfaction_scores = [
+            f.satisfaction_rating for f in filtered_feedback if f.satisfaction_rating
+        ]
         if satisfaction_scores:
             summary["average_satisfaction"] = mean(satisfaction_scores)
 
         # Trending issues (simplified)
-        recent_issues = [f for f in filtered_feedback if f.feedback_type in [FeedbackType.BUG_REPORT, FeedbackType.USABILITY_ISSUE]]
+        recent_issues = [
+            f
+            for f in filtered_feedback
+            if f.feedback_type in [FeedbackType.BUG_REPORT, FeedbackType.USABILITY_ISSUE]
+        ]
         if recent_issues:
             issue_words = {}
             for feedback in recent_issues:
@@ -640,9 +697,13 @@ class BetaFeedbackService:
                     issue_words[word] = issue_words.get(word, 0) + 1
 
             summary["trending_issues"] = sorted(
-                [{"issue": word, "count": count} for word, count in issue_words.items() if count >= 2],
+                [
+                    {"issue": word, "count": count}
+                    for word, count in issue_words.items()
+                    if count >= 2
+                ],
                 key=lambda x: x["count"],
-                reverse=True
+                reverse=True,
             )[:5]
 
         return summary
@@ -651,9 +712,9 @@ class BetaFeedbackService:
         self,
         cohort_id: str,
         action: str,
-        user_ids: Optional[List[str]] = None,
-        updates: Optional[Dict[str, Any]] = None
-    ) -> Optional[BetaCohort]:
+        user_ids: list[str] | None = None,
+        updates: dict[str, Any] | None = None,
+    ) -> BetaCohort | None:
         """Manage beta testing cohorts"""
         if cohort_id not in self.beta_cohorts:
             return None
@@ -681,11 +742,8 @@ class BetaFeedbackService:
         return cohort
 
     async def get_cohort_feedback(
-        self,
-        cohort_id: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
-    ) -> List[FeedbackSubmission]:
+        self, cohort_id: str, start_date: datetime | None = None, end_date: datetime | None = None
+    ) -> list[FeedbackSubmission]:
         """Get feedback from specific beta cohort"""
         if cohort_id not in self.beta_cohorts:
             return []
@@ -708,10 +766,8 @@ class BetaFeedbackService:
         return sorted(cohort_feedback, key=lambda x: x.timestamp, reverse=True)
 
     async def generate_feedback_report(
-        self,
-        report_type: str = "comprehensive",
-        filters: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, report_type: str = "comprehensive", filters: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Generate comprehensive feedback report"""
         filters = filters or {}
 
@@ -719,7 +775,7 @@ class BetaFeedbackService:
         analysis = await self.analyze_feedback_data(
             start_date=filters.get("start_date"),
             end_date=filters.get("end_date"),
-            user_segment=filters.get("user_segment")
+            user_segment=filters.get("user_segment"),
         )
 
         report = {
@@ -730,12 +786,18 @@ class BetaFeedbackService:
                 "total_feedback": analysis.total_submissions,
                 "unique_contributors": analysis.unique_users,
                 "overall_satisfaction": analysis.satisfaction_score,
-                "critical_issues": len([f for f in self.feedback_storage.values() if f.priority == FeedbackPriority.CRITICAL])
+                "critical_issues": len(
+                    [
+                        f
+                        for f in self.feedback_storage.values()
+                        if f.priority == FeedbackPriority.CRITICAL
+                    ]
+                ),
             },
             "detailed_analysis": {
                 "feedback_by_category": analysis.top_categories,
                 "priority_distribution": analysis.priority_distribution,
-                "sentiment_breakdown": analysis.sentiment_trends
+                "sentiment_breakdown": analysis.sentiment_trends,
             },
             "identified_patterns": [
                 {
@@ -744,12 +806,12 @@ class BetaFeedbackService:
                     "affected_users": len(pattern.affected_users),
                     "frequency": pattern.frequency,
                     "confidence": pattern.confidence_score,
-                    "recommended_action": pattern.recommended_action
+                    "recommended_action": pattern.recommended_action,
                 }
                 for pattern in analysis.identified_patterns
             ],
             "recommendations": analysis.recommendations,
-            "action_items": await self._generate_action_items(analysis)
+            "action_items": await self._generate_action_items(analysis),
         }
 
         if report_type == "cohort_specific" and filters.get("cohort_id"):
@@ -764,35 +826,54 @@ class BetaFeedbackService:
                     "feedback_from_cohort": len(cohort_feedback),
                     "engagement_metrics": {
                         "active_users": len(set(f.user_id for f in cohort_feedback)),
-                        "average_feedback_per_user": len(cohort_feedback) / len(set(f.user_id for f in cohort_feedback)) if cohort_feedback else 0
+                        "average_feedback_per_user": len(cohort_feedback)
+                        / len(set(f.user_id for f in cohort_feedback))
+                        if cohort_feedback
+                        else 0,
                     },
                     "target_progress": {
-                        "total_feedback_progress": len(cohort_feedback) / cohort.feedback_targets.get("total_submissions", 1),
-                        "bug_report_progress": len([f for f in cohort_feedback if f.feedback_type == FeedbackType.BUG_REPORT]) / cohort.feedback_targets.get("bug_reports", 1)
-                    }
+                        "total_feedback_progress": len(cohort_feedback)
+                        / cohort.feedback_targets.get("total_submissions", 1),
+                        "bug_report_progress": len(
+                            [
+                                f
+                                for f in cohort_feedback
+                                if f.feedback_type == FeedbackType.BUG_REPORT
+                            ]
+                        )
+                        / cohort.feedback_targets.get("bug_reports", 1),
+                    },
                 }
 
         return report
 
-    async def _generate_action_items(self, analysis: FeedbackAnalysis) -> List[Dict[str, Any]]:
+    async def _generate_action_items(self, analysis: FeedbackAnalysis) -> list[dict[str, Any]]:
         """Generate specific action items based on feedback analysis"""
         action_items = []
 
         # Critical issues
-        critical_feedback = [f for f in self.feedback_storage.values() if f.priority == FeedbackPriority.CRITICAL]
+        critical_feedback = [
+            f for f in self.feedback_storage.values() if f.priority == FeedbackPriority.CRITICAL
+        ]
         for feedback in critical_feedback[:5]:  # Top 5 critical issues
-            action_items.append({
-                "type": "urgent_fix",
-                "title": f"Fix critical issue: {feedback.title}",
-                "description": feedback.description,
-                "priority": "critical",
-                "affected_users": 1,  # Would be calculated based on actual impact
-                "estimated_effort": "high",
-                "feedback_id": feedback.id
-            })
+            action_items.append(
+                {
+                    "type": "urgent_fix",
+                    "title": f"Fix critical issue: {feedback.title}",
+                    "description": feedback.description,
+                    "priority": "critical",
+                    "affected_users": 1,  # Would be calculated based on actual impact
+                    "estimated_effort": "high",
+                    "feedback_id": feedback.id,
+                }
+            )
 
         # Feature requests with high demand
-        feature_requests = [f for f in self.feedback_storage.values() if f.feedback_type == FeedbackType.FEATURE_REQUEST]
+        feature_requests = [
+            f
+            for f in self.feedback_storage.values()
+            if f.feedback_type == FeedbackType.FEATURE_REQUEST
+        ]
         feature_demand = {}
         for feedback in feature_requests:
             key_words = self._extract_key_words(feedback.description + " " + feedback.title)
@@ -803,28 +884,36 @@ class BetaFeedbackService:
 
         for feature, requests in feature_demand.items():
             if len(requests) >= 3:
-                action_items.append({
-                    "type": "feature_development",
-                    "title": f"Develop '{feature}' feature",
-                    "description": f"Feature requested by {len(requests)} users",
-                    "priority": "medium",
-                    "affected_users": len(set(r.user_id for r in requests)),
-                    "estimated_effort": "medium",
-                    "related_feedback": [r.id for r in requests]
-                })
+                action_items.append(
+                    {
+                        "type": "feature_development",
+                        "title": f"Develop '{feature}' feature",
+                        "description": f"Feature requested by {len(requests)} users",
+                        "priority": "medium",
+                        "affected_users": len(set(r.user_id for r in requests)),
+                        "estimated_effort": "medium",
+                        "related_feedback": [r.id for r in requests],
+                    }
+                )
 
         # Usability improvements
-        usability_issues = [f for f in self.feedback_storage.values() if f.feedback_type == FeedbackType.USABILITY_ISSUE]
+        usability_issues = [
+            f
+            for f in self.feedback_storage.values()
+            if f.feedback_type == FeedbackType.USABILITY_ISSUE
+        ]
         if len(usability_issues) > 5:
-            action_items.append({
-                "type": "usability_improvement",
-                "title": "Improve user experience based on feedback",
-                "description": f"Address {len(usability_issues)} usability issues reported by users",
-                "priority": "medium",
-                "affected_users": len(set(u.user_id for u in usability_issues)),
-                "estimated_effort": "medium",
-                "related_feedback": [u.id for u in usability_issues]
-            })
+            action_items.append(
+                {
+                    "type": "usability_improvement",
+                    "title": "Improve user experience based on feedback",
+                    "description": f"Address {len(usability_issues)} usability issues reported by users",
+                    "priority": "medium",
+                    "affected_users": len(set(u.user_id for u in usability_issues)),
+                    "estimated_effort": "medium",
+                    "related_feedback": [u.id for u in usability_issues],
+                }
+            )
 
         return action_items
 

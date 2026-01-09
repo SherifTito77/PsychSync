@@ -1,11 +1,13 @@
 # app/db/models/assessment.py
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean, Enum as SQLEnum, JSON, Integer
+import enum
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.core.database import Base
-import enum
 
+from app.core.database import Base
 
 
 class AssessmentCategory(enum.Enum):
@@ -14,10 +16,12 @@ class AssessmentCategory(enum.Enum):
     BEHAVIORAL = "behavioral"
     COGNITIVE = "cognitive"
 
+
 class AssessmentStatus(enum.Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
     ARCHIVED = "archived"
+
 
 class Assessment(Base):
     __tablename__ = "assessments"
@@ -35,27 +39,19 @@ class Assessment(Base):
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     created_by = relationship(
-        "User",
-        back_populates="assessments_created",
-        foreign_keys=[created_by_id],
-        lazy="select"
+        "User", back_populates="assessments_created", foreign_keys=[created_by_id], lazy="select"
     )
 
-    team = relationship(
-        "Team",
-        back_populates="assessments",
-        foreign_keys=[team_id],
-        lazy="select"
-    )
-    
+    team = relationship("Team", back_populates="assessments", foreign_keys=[team_id], lazy="select")
+
     sections = relationship(
         "AssessmentSection",
         back_populates="assessment",
         cascade="all, delete-orphan",
-        order_by="AssessmentSection.order"
+        order_by="AssessmentSection.order",
     )
 
     # Direct relationship to questions (through AssessmentSection)
@@ -64,14 +60,14 @@ class Assessment(Base):
         secondary="assessment_sections",
         primaryjoin="and_(Assessment.id == AssessmentSection.assessment_id, AssessmentQuestion.section_id == AssessmentSection.id)",
         viewonly=True,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
     responses = relationship(
         "AssessmentResponse",
         back_populates="assessment",
         cascade="all, delete-orphan",
-        foreign_keys="[AssessmentResponse.assessment_id]"
+        foreign_keys="[AssessmentResponse.assessment_id]",
     )
 
 
@@ -83,13 +79,13 @@ class AssessmentSection(Base):
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     order = Column(Integer, default=0)
-    
+
     assessment = relationship("Assessment", back_populates="sections")
     questions = relationship(
         "AssessmentQuestion",
         back_populates="section",
         cascade="all, delete-orphan",
-        order_by="AssessmentQuestion.order"
+        order_by="AssessmentQuestion.order",
     )
 
 
@@ -103,14 +99,10 @@ class AssessmentQuestion(Base):
     order = Column(Integer, default=0)
     is_required = Column(Boolean, default=True)
     config = Column(JSON, nullable=True)
-    
+
     section = relationship("AssessmentSection", back_populates="questions")
 
-    responses = relationship(
-        "Response",
-        back_populates="question",
-        cascade="all, delete-orphan"
-    )
+    responses = relationship("Response", back_populates="question", cascade="all, delete-orphan")
 
 
 class ResponseStatus(enum.Enum):
@@ -129,12 +121,12 @@ class AssessmentResponse(Base):
     responses = Column(JSON, nullable=True)
     started_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime, nullable=True)
-    
-    assessment = relationship("Assessment", back_populates="responses", foreign_keys=[assessment_id])
-    respondent = relationship(
-        "User",
-        foreign_keys=[respondent_id]
+
+    assessment = relationship(
+        "Assessment", back_populates="responses", foreign_keys=[assessment_id]
     )
+    respondent = relationship("User", foreign_keys=[respondent_id])
+
 
 class AssessmentAssignment(Base):
     __tablename__ = "assessment_assignments"

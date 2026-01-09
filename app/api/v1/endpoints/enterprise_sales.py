@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/enterprise", tags=["Enterprise Sales & Success"])
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/accounts/create")
 async def create_enterprise_account(
     organization_id: int,
@@ -147,7 +147,7 @@ async def get_account_health(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             d
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 etail=f"Failed to retrieve account health: {str(e)}"
         )
 

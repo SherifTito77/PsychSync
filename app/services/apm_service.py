@@ -3,31 +3,26 @@ Application Performance Monitoring (APM) Service
 Provides comprehensive application performance monitoring, tracing, and analytics
 """
 
-from typing import Dict, List, Any, Optional, Union, Callable
+import asyncio
+from collections import defaultdict, deque
+from collections.abc import Callable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
-from dataclasses import dataclass, field
-import json
-import uuid
-import asyncio
-import time
-from collections import defaultdict, deque
-from contextlib import asynccontextmanager
 from functools import wraps
+import logging
+from typing import Any
+import uuid
+
 import psutil
-import threading
-
-from sqlalchemy.orm import Session
-from fastapi import Request, Response
-
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class MetricType(Enum):
     """APM metric types"""
+
     COUNTER = "counter"
     GAUGE = "gauge"
     HISTOGRAM = "histogram"
@@ -36,6 +31,7 @@ class MetricType(Enum):
 
 class PerformanceLevel(Enum):
     """Performance levels for alerts"""
+
     EXCELLENT = "excellent"
     GOOD = "good"
     ACCEPTABLE = "acceptable"
@@ -45,6 +41,7 @@ class PerformanceLevel(Enum):
 
 class AlertType(Enum):
     """Alert types"""
+
     SLOW_REQUEST = "slow_request"
     HIGH_ERROR_RATE = "high_error_rate"
     MEMORY_USAGE = "memory_usage"
@@ -57,31 +54,34 @@ class AlertType(Enum):
 @dataclass
 class PerformanceMetric:
     """Individual performance metric"""
+
     name: str
     metric_type: MetricType
     value: float
     unit: str
     timestamp: datetime
-    tags: Dict[str, str] = field(default_factory=dict)
-    dimensions: Dict[str, str] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
+    dimensions: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class PerformanceThreshold:
     """Performance threshold configuration"""
+
     name: str
     metric_type: MetricType
-    warning_threshold: Optional[float] = None
+    warning_threshold: float | None = None
     critical_threshold: float
     comparison_operator: str = "greater_than"  # greater_than, less_than, equals
     evaluation_window: int = 300  # seconds
     enabled: bool = True
-    tags: Dict[str, str] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class PerformanceAlert:
     """Performance alert"""
+
     id: str
     name: str
     alert_type: AlertType
@@ -90,36 +90,38 @@ class PerformanceAlert:
     current_value: float
     threshold: float
     triggered_at: datetime
-    resolved_at: Optional[datetime] = None
-    acknowledged_at: Optional[datetime] = None
-    acknowledged_by: Optional[str] = None
-    tags: Dict[str, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    resolved_at: datetime | None = None
+    acknowledged_at: datetime | None = None
+    acknowledged_by: str | None = None
+    tags: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class TraceSpan:
     """Distributed tracing span"""
+
     span_id: str
     trace_id: str
-    parent_span_id: Optional[str]
+    parent_span_id: str | None
     operation_name: str
     start_time: datetime
-    end_time: Optional[datetime] = None
-    duration_ms: Optional[float] = None
-    status_code: Optional[int] = None
+    end_time: datetime | None = None
+    duration_ms: float | None = None
+    status_code: int | None = None
     status: str = "ok"  # ok, error, timeout, cancelled
     service_name: str
     resource: str
-    tags: Dict[str, str] = field(default_factory=dict)
-    logs: List[str] = field(default_factory=list)
-    metrics: Dict[str, float] = field(default_factory=dict)
-    baggage: Dict[str, str] = field(default_factory=dict)
+    tags: dict[str, str] = field(default_factory=dict)
+    logs: list[str] = field(default_factory=list)
+    metrics: dict[str, float] = field(default_factory=dict)
+    baggage: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
 class PerformanceProfile:
     """Performance profiling data"""
+
     profile_id: str
     operation_name: str
     service_name: str
@@ -131,20 +133,20 @@ class PerformanceProfile:
     cache_hits: int
     cache_misses: int
     external_api_calls: int
-    spans: List[TraceSpan] = field(default_factory=list)
-    tags: Dict[str, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    spans: list[TraceSpan] = field(default_factory=list)
+    tags: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class APMService:
     """Comprehensive Application Performance Monitoring service"""
 
     def __init__(self):
-        self.metrics_store: Dict[str, deque] = defaultdict(lambda: deque(maxlen=10000))
-        self.thresholds: Dict[str, PerformanceThreshold] = {}
-        self.alerts: Dict[str, PerformanceAlert] = {}
-        self.active_traces: Dict[str, List[TraceSpan]] = {}
-        self.performance_profiles: Dict[str, PerformanceProfile] = {}
+        self.metrics_store: dict[str, deque] = defaultdict(lambda: deque(maxlen=10000))
+        self.thresholds: dict[str, PerformanceThreshold] = {}
+        self.alerts: dict[str, PerformanceAlert] = {}
+        self.active_traces: dict[str, list[TraceSpan]] = {}
+        self.performance_profiles: dict[str, PerformanceProfile] = {}
         self.collection_enabled = True
         self.sampling_rate = 1.0
         self.background_tasks = []
@@ -164,7 +166,7 @@ class APMService:
                 warning_threshold=1000.0,  # 1 second
                 critical_threshold=5000.0,  # 5 seconds
                 comparison_operator="greater_than",
-                tags={"endpoint": "*"}
+                tags={"endpoint": "*"},
             ),
             PerformanceThreshold(
                 name="cpu_usage",
@@ -172,7 +174,7 @@ class APMService:
                 warning_threshold=70.0,
                 critical_threshold=90.0,
                 comparison_operator="greater_than",
-                tags={"host": "*"}
+                tags={"host": "*"},
             ),
             PerformanceThreshold(
                 name="memory_usage",
@@ -180,7 +182,7 @@ class APMService:
                 warning_threshold=80.0,
                 critical_threshold=95.0,
                 comparison_operator="greater_than",
-                tags={"host": "*"}
+                tags={"host": "*"},
             ),
             PerformanceThreshold(
                 name="error_rate",
@@ -188,7 +190,7 @@ class APMService:
                 warning_threshold=5.0,  # 5%
                 critical_threshold=10.0,  # 10%
                 comparison_operator="greater_than",
-                tags={"service": "*"}
+                tags={"service": "*"},
             ),
             PerformanceThreshold(
                 name="database_query_time",
@@ -196,7 +198,7 @@ class APMService:
                 warning_threshold=500.0,  # 500ms
                 critical_threshold=2000.0,  # 2 seconds
                 comparison_operator="greater_than",
-                tags={"query_type": "*"}
+                tags={"query_type": "*"},
             ),
             PerformanceThreshold(
                 name="queue_length",
@@ -204,8 +206,8 @@ class APMService:
                 warning_threshold=100,
                 critical_threshold=500,
                 comparison_operator="greater_than",
-                tags={"queue": "*"}
-            )
+                tags={"queue": "*"},
+            ),
         ]
 
         for threshold in default_thresholds:
@@ -231,7 +233,7 @@ class APMService:
                 await self._collect_system_metrics()
                 await asyncio.sleep(30)  # Collect every 30 seconds
             except Exception as e:
-                logger.error(f"Error collecting system metrics: {str(e)}")
+                logger.error(f"Error collecting system metrics: {e!s}")
                 await asyncio.sleep(60)
 
     async def _check_thresholds_loop(self):
@@ -241,7 +243,7 @@ class APMService:
                 await self._check_all_thresholds()
                 await asyncio.sleep(60)  # Check every minute
             except Exception as e:
-                logger.error(f"Error checking thresholds: {str(e)}")
+                logger.error(f"Error checking thresholds: {e!s}")
                 await asyncio.sleep(60)
 
     async def _cleanup_old_data_loop(self):
@@ -251,7 +253,7 @@ class APMService:
                 await self._cleanup_old_data()
                 await asyncio.sleep(3600)  # Clean every hour
             except Exception as e:
-                logger.error(f"Error cleaning up old data: {str(e)}")
+                logger.error(f"Error cleaning up old data: {e!s}")
                 await asyncio.sleep(3600)
 
     async def _collect_system_metrics(self):
@@ -266,7 +268,7 @@ class APMService:
             value=cpu_percent,
             unit="percent",
             timestamp=timestamp,
-            tags={"host": "localhost", "service": "psychsync-api"}
+            tags={"host": "localhost", "service": "psychsync-api"},
         )
 
         # Memory metrics
@@ -277,18 +279,18 @@ class APMService:
             value=memory.percent,
             unit="percent",
             timestamp=timestamp,
-            tags={"host": "localhost", "service": "psychsync-api"}
+            tags={"host": "localhost", "service": "psychsync-api"},
         )
 
         # Disk metrics
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage("/")
         await self.record_metric(
             name="disk_usage",
             metric_type=MetricType.GAUGE,
             value=(disk.used / disk.total) * 100,
             unit="percent",
             timestamp=timestamp,
-            tags={"host": "localhost", "service": "psychsync-api"}
+            tags={"host": "localhost", "service": "psychsync-api"},
         )
 
         # Network metrics
@@ -299,7 +301,7 @@ class APMService:
             value=network.bytes_sent,
             unit="bytes",
             timestamp=timestamp,
-            tags={"host": "localhost", "service": "psychsync-api", "direction": "outbound"}
+            tags={"host": "localhost", "service": "psychsync-api", "direction": "outbound"},
         )
 
         await self.record_metric(
@@ -308,7 +310,7 @@ class APMService:
             value=network.bytes_recv,
             unit="bytes",
             timestamp=timestamp,
-            tags={"host": "localhost", "service": "psychsync-api", "direction": "inbound"}
+            tags={"host": "localhost", "service": "psychsync-api", "direction": "inbound"},
         )
 
     async def _check_all_thresholds(self):
@@ -337,7 +339,9 @@ class APMService:
                 elif threshold.metric_type == MetricType.COUNTER:
                     # Rate calculation for counters
                     if len(recent_metrics) >= 2:
-                        time_diff = (recent_metrics[-1].timestamp - recent_metrics[0].timestamp).total_seconds()
+                        time_diff = (
+                            recent_metrics[-1].timestamp - recent_metrics[0].timestamp
+                        ).total_seconds()
                         if time_diff > 0:
                             value_diff = recent_metrics[-1].value - recent_metrics[0].value
                             current_value = value_diff / time_diff
@@ -356,41 +360,38 @@ class APMService:
                     if current_value >= threshold.critical_threshold:
                         should_alert = True
                         alert_level = "critical"
-                    elif threshold.warning_threshold and current_value >= threshold.warning_threshold:
+                    elif (
+                        threshold.warning_threshold and current_value >= threshold.warning_threshold
+                    ):
                         should_alert = True
                         alert_level = "warning"
                 elif threshold.comparison_operator == "less_than":
                     if current_value <= threshold.critical_threshold:
                         should_alert = True
                         alert_level = "critical"
-                    elif threshold.warning_threshold and current_value <= threshold.warning_threshold:
+                    elif (
+                        threshold.warning_threshold and current_value <= threshold.warning_threshold
+                    ):
                         should_alert = True
                         alert_level = "warning"
 
                 if should_alert:
                     await self._create_or_update_alert(
-                        threshold_name,
-                        current_value,
-                        threshold,
-                        alert_level
+                        threshold_name, current_value, threshold, alert_level
                     )
                 else:
                     # Check if existing alert should be resolved
-                    await self._resolve_alert_if_resolved(
-                        threshold_name,
-                        current_value,
-                        threshold
-                    )
+                    await self._resolve_alert_if_resolved(threshold_name, current_value, threshold)
 
             except Exception as e:
-                logger.error(f"Error checking threshold {threshold_name}: {str(e)}")
+                logger.error(f"Error checking threshold {threshold_name}: {e!s}")
 
     async def _create_or_update_alert(
         self,
         threshold_name: str,
         current_value: float,
         threshold: PerformanceThreshold,
-        alert_level: str
+        alert_level: str,
     ):
         """Create or update performance alert"""
         alert_id = f"{threshold_name}_alert"
@@ -407,9 +408,11 @@ class APMService:
                     level=alert_level,
                     message=f"{threshold_name} threshold exceeded",
                     current_value=current_value,
-                    threshold=threshold.critical_threshold if alert_level == "critical" else threshold.warning_threshold,
+                    threshold=threshold.critical_threshold
+                    if alert_level == "critical"
+                    else threshold.warning_threshold,
                     triggered_at=datetime.utcnow(),
-                    tags=threshold.tags
+                    tags=threshold.tags,
                 )
                 self.alerts[alert_id] = new_alert
                 await self._send_alert_notification(new_alert)
@@ -422,9 +425,11 @@ class APMService:
                 level=alert_level,
                 message=f"{threshold_name} threshold exceeded",
                 current_value=current_value,
-                threshold=threshold.critical_threshold if alert_level == "critical" else threshold.warning_threshold,
+                threshold=threshold.critical_threshold
+                if alert_level == "critical"
+                else threshold.warning_threshold,
                 triggered_at=datetime.utcnow(),
-                tags=threshold.tags
+                tags=threshold.tags,
             )
             self.alerts[alert_id] = alert
             await self._send_alert_notification(alert)
@@ -433,24 +438,20 @@ class APMService:
         """Get alert type based on threshold name"""
         if "response_time" in threshold_name or "duration" in threshold_name:
             return AlertType.SLOW_REQUEST
-        elif "error_rate" in threshold_name:
+        if "error_rate" in threshold_name:
             return AlertType.HIGH_ERROR_RATE
-        elif "memory" in threshold_name:
+        if "memory" in threshold_name:
             return AlertType.MEMORY_USAGE
-        elif "cpu" in threshold_name:
+        if "cpu" in threshold_name:
             return AlertType.CPU_USAGE
-        elif "database" in threshold_name:
+        if "database" in threshold_name:
             return AlertType.DATABASE_SLOW
-        elif "queue" in threshold_name:
+        if "queue" in threshold_name:
             return AlertType.QUEUE_BACKLOG
-        else:
-            return AlertType.EXTERNAL_API_SLOW
+        return AlertType.EXTERNAL_API_SLOW
 
     async def _resolve_alert_if_resolved(
-        self,
-        threshold_name: str,
-        current_value: float,
-        threshold: PerformanceThreshold
+        self, threshold_name: str, current_value: float, threshold: PerformanceThreshold
     ):
         """Resolve alert if metric value is back within normal range"""
         alert_id = f"{threshold_name}_alert"
@@ -494,19 +495,19 @@ class APMService:
             alert.metadata["notification_sent"] = True
 
         except Exception as e:
-            logger.error(f"Failed to send performance alert notification: {str(e)}")
+            logger.error(f"Failed to send performance alert notification: {e!s}")
 
     async def _send_alert_resolution_notification(self, alert: PerformanceAlert):
         """Send alert resolution notification"""
         try:
             message = f" Performance Alert Resolved: {alert.name}\n"
-            message += f"Value returned to normal range\n"
+            message += "Value returned to normal range\n"
             message += f"Resolved: {alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
 
             logger.info(f"PERFORMANCE ALERT RESOLVED: {message}")
 
         except Exception as e:
-            logger.error(f"Failed to send alert resolution notification: {str(e)}")
+            logger.error(f"Failed to send alert resolution notification: {e!s}")
 
     async def _cleanup_old_data(self):
         """Clean up old metrics and alerts"""
@@ -515,16 +516,14 @@ class APMService:
 
         for metric_name in list(self.metrics_store.keys()):
             metrics = self.metrics_store[metric_name]
-            recent_metrics = deque(
-                (m for m in metrics if m.timestamp >= cutoff_time),
-                maxlen=10000
-            )
+            recent_metrics = deque((m for m in metrics if m.timestamp >= cutoff_time), maxlen=10000)
             self.metrics_store[metric_name] = recent_metrics
 
         # Clean up resolved alerts older than 7 days
         old_alert_cutoff = datetime.utcnow() - timedelta(days=7)
         resolved_alerts_to_remove = [
-            alert_id for alert_id, alert in self.alerts.items()
+            alert_id
+            for alert_id, alert in self.alerts.items()
             if alert.resolved_at and alert.resolved_at < old_alert_cutoff
         ]
 
@@ -534,7 +533,8 @@ class APMService:
         # Clean up old performance profiles
         profile_cutoff = datetime.utcnow() - timedelta(hours=6)
         old_profiles_to_remove = [
-            profile_id for profile_id, profile in self.performance_profiles.items()
+            profile_id
+            for profile_id, profile in self.performance_profiles.items()
             if profile.start_time < profile_cutoff
         ]
 
@@ -547,9 +547,9 @@ class APMService:
         metric_type: MetricType,
         value: float,
         unit: str,
-        timestamp: Optional[datetime] = None,
-        tags: Optional[Dict[str, str]] = None,
-        dimensions: Optional[Dict[str, str]] = None
+        timestamp: datetime | None = None,
+        tags: dict[str, str] | None = None,
+        dimensions: dict[str, str] | None = None,
     ):
         """Record a performance metric"""
         if not self.collection_enabled:
@@ -562,19 +562,17 @@ class APMService:
             unit=unit,
             timestamp=timestamp or datetime.utcnow(),
             tags=tags or {},
-            dimensions=dimensions or {}
+            dimensions=dimensions or {},
         )
 
         self.metrics_store[name].append(metric)
 
-    def trace_request(
-        self,
-        operation_name: str,
-        service_name: str = "psychsync-api"
-    ) -> Callable:
+    def trace_request(self, operation_name: str, service_name: str = "psychsync-api") -> Callable:
         """Decorator for tracing function execution"""
+
         def decorator(func):
             if asyncio.iscoroutinefunction(func):
+
                 @wraps(func)
                 async def async_wrapper(*args, **kwargs):
                     trace_id = str(uuid.uuid4())
@@ -591,10 +589,7 @@ class APMService:
                         start_time=start_time,
                         service_name=service_name,
                         resource=func.__name__,
-                        tags={
-                            "function": func.__name__,
-                            "module": func.__module__
-                        }
+                        tags={"function": func.__name__, "module": func.__module__},
                     )
 
                     # Add to active traces
@@ -619,8 +614,8 @@ class APMService:
                             tags={
                                 "function": func.__name__,
                                 "module": func.__module__,
-                                "operation": operation_name
-                            }
+                                "operation": operation_name,
+                            },
                         )
 
                         return result
@@ -631,7 +626,7 @@ class APMService:
                         span.end_time = end_time
                         span.duration_ms = (end_time - start_time).total_seconds() * 1000
                         span.status = "error"
-                        span.logs.append(f"Error: {str(e)}")
+                        span.logs.append(f"Error: {e!s}")
 
                         # Record error metrics
                         await self.record_metric(
@@ -643,8 +638,8 @@ class APMService:
                                 "function": func.__name__,
                                 "module": func.__module__,
                                 "operation": operation_name,
-                                "error_type": type(e).__name__
-                            }
+                                "error_type": type(e).__name__,
+                            },
                         )
 
                         raise
@@ -656,91 +651,89 @@ class APMService:
 
                 return async_wrapper
 
-            else:
-                @wraps(func)
-                def sync_wrapper(*args, **kwargs):
-                    trace_id = str(uuid.uuid4())
-                    span_id = str(uuid.uuid4())[:8]
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                trace_id = str(uuid.uuid4())
+                span_id = str(uuid.uuid4())[:8]
 
-                    start_time = datetime.utcnow()
+                start_time = datetime.utcnow()
 
-                    # Create initial span
-                    span = TraceSpan(
-                        span_id=span_id,
-                        trace_id=trace_id,
-                        parent_span_id=None,
-                        operation_name=operation_name,
-                        start_time=start_time,
-                        service_name=service_name,
-                        resource=func.__name__,
+                # Create initial span
+                span = TraceSpan(
+                    span_id=span_id,
+                    trace_id=trace_id,
+                    parent_span_id=None,
+                    operation_name=operation_name,
+                    start_time=start_time,
+                    service_name=service_name,
+                    resource=func.__name__,
+                    tags={"function": func.__name__, "module": func.__module__},
+                )
+
+                # Add to active traces
+                self.active_traces[trace_id] = [span]
+
+                try:
+                    # Execute function
+                    result = func(*args, **kwargs)
+
+                    # Update span with success
+                    end_time = datetime.utcnow()
+                    span.end_time = end_time
+                    span.duration_ms = (end_time - start_time).total_seconds() * 1000
+                    span.status = "ok"
+
+                    # Record performance metrics
+                    self._record_metric_sync(
+                        name="function_execution_time",
+                        metric_type=MetricType.TIMER,
+                        value=span.duration_ms,
+                        unit="milliseconds",
                         tags={
                             "function": func.__name__,
-                            "module": func.__module__
-                        }
+                            "module": func.__module__,
+                            "operation": operation_name,
+                        },
                     )
 
-                    # Add to active traces
-                    self.active_traces[trace_id] = [span]
+                    return result
 
-                    try:
-                        # Execute function
-                        result = func(*args, **kwargs)
+                except Exception as e:
+                    # Update span with error
+                    end_time = datetime.utcnow()
+                    span.end_time = end_time
+                    span.duration_ms = (end_time - start_time).total_seconds() * 1000
+                    span.status = "error"
+                    span.logs.append(f"Error: {e!s}")
 
-                        # Update span with success
-                        end_time = datetime.utcnow()
-                        span.end_time = end_time
-                        span.duration_ms = (end_time - start_time).total_seconds() * 1000
-                        span.status = "ok"
+                    # Record error metrics
+                    self._record_metric_sync(
+                        name="function_errors",
+                        metric_type=MetricType.COUNTER,
+                        value=1,
+                        unit="count",
+                        tags={
+                            "function": func.__name__,
+                            "module": func.__module__,
+                            "operation": operation_name,
+                            "error_type": type(e).__name__,
+                        },
+                    )
 
-                        # Record performance metrics
-                        self._record_metric_sync(
-                            name="function_execution_time",
-                            metric_type=MetricType.TIMER,
-                            value=span.duration_ms,
-                            unit="milliseconds",
-                            tags={
-                                "function": func.__name__,
-                                "module": func.__module__,
-                                "operation": operation_name
-                            }
-                        )
+                    raise
 
-                        return result
+                finally:
+                    # Remove from active traces
+                    if trace_id in self.active_traces:
+                        del self.active_traces[trace_id]
 
-                    except Exception as e:
-                        # Update span with error
-                        end_time = datetime.utcnow()
-                        span.end_time = end_time
-                        span.duration_ms = (end_time - start_time).total_seconds() * 1000
-                        span.status = "error"
-                        span.logs.append(f"Error: {str(e)}")
-
-                        # Record error metrics
-                        self._record_metric_sync(
-                            name="function_errors",
-                            metric_type=MetricType.COUNTER,
-                            value=1,
-                            unit="count",
-                            tags={
-                                "function": func.__name__,
-                                "module": func.__module__,
-                                "operation": operation_name,
-                                "error_type": type(e).__name__
-                            }
-                        )
-
-                        raise
-
-                    finally:
-                        # Remove from active traces
-                        if trace_id in self.active_traces:
-                            del self.active_traces[trace_id]
-
-                return sync_wrapper
+            return sync_wrapper
 
         return decorator
 
-    def _record_metric_sync(self, name: str, metric_type: MetricType, value: float, unit: str, **kwargs):
+    def _record_metric_sync(
+        self, name: str, metric_type: MetricType, value: float, unit: str, **kwargs
+    ):
         """Synchronous version of record_metric for use in sync functions"""
         try:
             loop = asyncio.get_event_loop()
@@ -759,7 +752,7 @@ class APMService:
         self,
         operation_name: str,
         service_name: str = "psychsync-api",
-        tags: Optional[Dict[str, str]] = None
+        tags: dict[str, str] | None = None,
     ):
         """Context manager for profiling operations"""
         profile_id = str(uuid.uuid4())
@@ -781,7 +774,7 @@ class APMService:
             cache_hits=0,
             cache_misses=0,
             external_api_calls=0,
-            tags=tags or {}
+            tags=tags or {},
         )
 
         self.performance_profiles[profile_id] = profile
@@ -805,10 +798,7 @@ class APMService:
             if profile_id in self.performance_profiles:
                 del self.performance_profiles[profile_id]
 
-    async def get_performance_summary(
-        self,
-        hours: int = 24
-    ) -> Dict[str, Any]:
+    async def get_performance_summary(self, hours: int = 24) -> dict[str, Any]:
         """Get comprehensive performance summary"""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
 
@@ -824,7 +814,7 @@ class APMService:
                     "min": min(values),
                     "max": max(values),
                     "last_value": recent_metrics[-1].value,
-                    "trend": self._calculate_trend(values)
+                    "trend": self._calculate_trend(values),
                 }
 
         # Alert summary
@@ -833,16 +823,15 @@ class APMService:
             "active": len([a for a in self.alerts.values() if not a.resolved_at]),
             "by_level": {
                 "critical": len([a for a in self.alerts.values() if a.level == "critical"]),
-                "warning": len([a for a in self.alerts.values() if a.level == "warning"])
+                "warning": len([a for a in self.alerts.values() if a.level == "warning"]),
             },
-            "by_type": {}
+            "by_type": {},
         }
 
         for alert_type in AlertType:
-            alert_summary["by_type"][alert_type.value] = len([
-                a for a in self.alerts.values()
-                if a.alert_type == alert_type
-            ])
+            alert_summary["by_type"][alert_type.value] = len(
+                [a for a in self.alerts.values() if a.alert_type == alert_type]
+            )
 
         # Performance level assessment
         performance_level = self._assess_performance_level(metrics_summary, alert_summary)
@@ -854,31 +843,28 @@ class APMService:
             "performance_level": performance_level.value,
             "active_traces": len(self.active_traces),
             "performance_profiles": len(self.performance_profiles),
-            "recommendations": self._generate_recommendations(metrics_summary, alert_summary)
+            "recommendations": self._generate_recommendations(metrics_summary, alert_summary),
         }
 
-    def _calculate_trend(self, values: List[float]) -> str:
+    def _calculate_trend(self, values: list[float]) -> str:
         """Calculate trend from a list of values"""
         if len(values) < 2:
             return "stable"
 
-        first_half = values[:len(values)//2]
-        second_half = values[len(values)//2:]
+        first_half = values[: len(values) // 2]
+        second_half = values[len(values) // 2 :]
 
         first_avg = mean(first_half)
         second_avg = mean(second_half)
 
         if second_avg > first_avg * 1.1:
             return "increasing"
-        elif second_avg < first_avg * 0.9:
+        if second_avg < first_avg * 0.9:
             return "decreasing"
-        else:
-            return "stable"
+        return "stable"
 
     def _assess_performance_level(
-        self,
-        metrics_summary: Dict[str, Any],
-        alert_summary: Dict[str, Any]
+        self, metrics_summary: dict[str, Any], alert_summary: dict[str, Any]
     ) -> PerformanceLevel:
         """Assess overall performance level"""
         critical_alerts = alert_summary["by_level"]["critical"]
@@ -886,20 +872,17 @@ class APMService:
 
         if critical_alerts > 0 or active_alerts > 10:
             return PerformanceLevel.CRITICAL
-        elif active_alerts > 5:
+        if active_alerts > 5:
             return PerformanceLevel.POOR
-        elif active_alerts > 0:
+        if active_alerts > 0:
             return PerformanceLevel.ACCEPTABLE
-        elif metrics_summary.get("cpu_usage", {}).get("average", 0) > 70:
+        if metrics_summary.get("cpu_usage", {}).get("average", 0) > 70:
             return PerformanceLevel.GOOD
-        else:
-            return PerformanceLevel.EXCELLENT
+        return PerformanceLevel.EXCELLENT
 
     def _generate_recommendations(
-        self,
-        metrics_summary: Dict[str, Any],
-        alert_summary: Dict[str, Any]
-    ) -> List[str]:
+        self, metrics_summary: dict[str, Any], alert_summary: dict[str, Any]
+    ) -> list[str]:
         """Generate performance optimization recommendations"""
         recommendations = []
 
@@ -907,45 +890,60 @@ class APMService:
         if "cpu_usage" in metrics_summary:
             cpu_avg = metrics_summary["cpu_usage"]["average"]
             if cpu_avg > 80:
-                recommendations.append("High CPU usage detected. Consider optimizing CPU-intensive operations or scaling horizontally.")
+                recommendations.append(
+                    "High CPU usage detected. Consider optimizing CPU-intensive operations or scaling horizontally."
+                )
             elif cpu_avg > 60:
-                recommendations.append("CPU usage is elevated. Monitor for potential performance bottlenecks.")
+                recommendations.append(
+                    "CPU usage is elevated. Monitor for potential performance bottlenecks."
+                )
 
         # Memory usage recommendations
         if "memory_usage" in metrics_summary:
             mem_avg = metrics_summary["memory_usage"]["average"]
             if mem_avg > 85:
-                recommendations.append("High memory usage detected. Consider optimizing memory usage or adding more memory.")
+                recommendations.append(
+                    "High memory usage detected. Consider optimizing memory usage or adding more memory."
+                )
             elif mem_avg > 70:
-                recommendations.append("Memory usage is elevated. Monitor for potential memory leaks.")
+                recommendations.append(
+                    "Memory usage is elevated. Monitor for potential memory leaks."
+                )
 
         # Response time recommendations
         if "function_execution_time" in metrics_summary:
             response_avg = metrics_summary["function_execution_time"]["average"]
             if response_avg > 2000:  # 2 seconds
-                recommendations.append("Slow function execution detected. Consider optimizing algorithms or implementing caching.")
+                recommendations.append(
+                    "Slow function execution detected. Consider optimizing algorithms or implementing caching."
+                )
             elif response_avg > 1000:  # 1 second
-                recommendations.append("Function execution could be optimized for better performance.")
+                recommendations.append(
+                    "Function execution could be optimized for better performance."
+                )
 
         # Error rate recommendations
         if "function_errors" in metrics_summary:
             error_count = metrics_summary["function_errors"]["count"]
             if error_count > 50:
-                recommendations.append("High error rate detected. Review error logs and fix critical issues.")
+                recommendations.append(
+                    "High error rate detected. Review error logs and fix critical issues."
+                )
             elif error_count > 10:
-                recommendations.append("Multiple errors detected. Investigate and resolve recurring issues.")
+                recommendations.append(
+                    "Multiple errors detected. Investigate and resolve recurring issues."
+                )
 
         # Alert-based recommendations
         if alert_summary["active"] > 5:
-            recommendations.append(f"There are {alert_summary['active']} active performance alerts. Address critical issues first.")
+            recommendations.append(
+                f"There are {alert_summary['active']} active performance alerts. Address critical issues first."
+            )
 
         return recommendations
 
     async def acknowledge_alert(
-        self,
-        alert_id: str,
-        acknowledged_by: str,
-        notes: Optional[str] = None
+        self, alert_id: str, acknowledged_by: str, notes: str | None = None
     ) -> bool:
         """Acknowledge a performance alert"""
         if alert_id not in self.alerts:
@@ -962,11 +960,7 @@ class APMService:
         return True
 
     async def update_threshold(
-        self,
-        name: str,
-        warning_threshold: Optional[float],
-        critical_threshold: float,
-        **kwargs
+        self, name: str, warning_threshold: float | None, critical_threshold: float, **kwargs
     ) -> PerformanceThreshold:
         """Update performance threshold"""
         threshold = PerformanceThreshold(
@@ -974,15 +968,17 @@ class APMService:
             metric_type=kwargs.get("metric_type", MetricType.GAUGE),
             warning_threshold=warning_threshold,
             critical_threshold=critical_threshold,
-            **kwargs
+            **kwargs,
         )
 
         self.thresholds[name] = threshold
-        logger.info(f"Updated performance threshold for {name}: warning={warning_threshold}, critical={critical_threshold}")
+        logger.info(
+            f"Updated performance threshold for {name}: warning={warning_threshold}, critical={critical_threshold}"
+        )
 
         return threshold
 
-    def get_active_alerts(self) -> List[PerformanceAlert]:
+    def get_active_alerts(self) -> list[PerformanceAlert]:
         """Get all active (unresolved) alerts"""
         return [alert for alert in self.alerts.values() if not alert.resolved_at]
 

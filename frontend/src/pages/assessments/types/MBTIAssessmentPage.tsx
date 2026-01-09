@@ -337,25 +337,25 @@ export default function MBTIAssessmentPage() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className={`p-3 rounded ${results.dimensions?.['E'] > results.dimensions?.['I'] ? 'bg-blue-100 border-blue-300' : 'bg-gray-50'}`}>
                         <strong>Energy Direction: {results.dimensions?.['E'] > results.dimensions?.['I'] ? 'Extraversion (E)' : 'Introversion (I)'}</strong>
-                        <p>{results.dimensions?.['E'] > results.dimensions?.I'] ?
+                        <p>{results.dimensions?.['E'] > results.dimensions?.['I'] ?
                           'You gain energy from social interaction and external activities' :
                           'You gain energy from solitude and internal reflection'}</p>
                       </div>
                       <div className={`p-3 rounded ${results.dimensions?.['S'] > results.dimensions?.['N'] ? 'bg-green-100 border-green-300' : 'bg-gray-50'}`}>
                         <strong>Information Processing: {results.dimensions?.['S'] > results.dimensions?.['N'] ? 'Sensing (S)' : 'Intuition (N)'}</strong>
-                        <p>{results.dimensions?.['S'] > results.dimensions?.N'] ?
+                        <p>{results.dimensions?.['S'] > results.dimensions?.['N'] ?
                           'You focus on concrete facts and practical details' :
                           'You focus on patterns, possibilities, and future implications'}</p>
                       </div>
                       <div className={`p-3 rounded ${results.dimensions?.['T'] > results.dimensions?.['F'] ? 'bg-purple-100 border-purple-300' : 'bg-gray-50'}`}>
                         <strong>Decision Making: {results.dimensions?.['T'] > results.dimensions?.['F'] ? 'Thinking (T)' : 'Feeling (F)'}</strong>
-                        <p>{results?.dimensions?.['T'] > results?.dimensions?.F'] ?
+                        <p>{results?.dimensions?.['T'] > results?.dimensions?.['F'] ?
                           'You make decisions based on logical analysis and objective criteria' :
                           'You make decisions based on values and impact on people'}</p>
                       </div>
                       <div className={`p-3 rounded ${results?.dimensions?.['J'] > results?.['P'] ? 'bg-orange-100 border-orange-300' : 'bg-gray-50'}`}>
                         <strong>Lifestyle Approach: {results?.dimensions?.['J'] > results?.['P'] ? 'Judging (J)' : 'Perceiving (P)'}</strong>
-                        <p>{results?.dimensions?.['J'] > results?.dimensions?.P'] ?
+                        <p>{results?.dimensions?.['J'] > results?.dimensions?.['P'] ?
                           'You prefer structure, plans, and closure' :
                           'You prefer flexibility, spontaneity, and keeping options open'}</p>
                       </div>
@@ -427,7 +427,7 @@ export default function MBTIAssessmentPage() {
                     <ul className="text-sm space-y-1 text-blue-800 bg-blue-50 p-4 rounded">
                       <li>• MBTI indicates preferences, not abilities - all types can develop all preferences</li>
                       <li>• Your type may change over time as you grow and have different life experiences</li>
-                        • Results reflect your current state, not fixed identity</li>
+                      <li>• Results reflect your current state, not fixed identity</li>
                       <li>• Use MBTI as a tool for self-understanding, not for limiting your potential</li>
                       <li>• Every type brings valuable perspectives and strengths to teams and relationships</li>
                       <li>• The goal is self-awareness and growth, not stereotyping yourself or others</li>

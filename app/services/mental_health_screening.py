@@ -3,27 +3,27 @@ Mental Health Screening Service
 Provides clinical assessment processing for PHQ-9, GAD-7, and other evidence-based screenings
 """
 
-import logging
-from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from enum import Enum
-import json
+import logging
+from typing import Any
 
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
 
-from app.db.models.user import User
 from app.db.models.response import Response
-from app.db.models.assessment import Assessment
+from app.db.models.user import User
 from app.services.ai_enhanced_analytics import AIEnhancedAnalyticsService
 
 logger = logging.getLogger(__name__)
 
+
 class AssessmentType(Enum):
     PHQ9 = "phq9"  # Depression screening
     GAD7 = "gad7"  # Anxiety screening
-    W5 = "w5"      # Wellbeing assessment
-    PSS = "pss"    # Perceived Stress Scale
+    W5 = "w5"  # Wellbeing assessment
+    PSS = "pss"  # Perceived Stress Scale
+
 
 class RiskLevel(Enum):
     MINIMAL = "minimal"
@@ -31,6 +31,7 @@ class RiskLevel(Enum):
     MODERATE = "moderate"
     MODERATE_SEVERE = "moderate_severe"
     SEVERE = "severe"
+
 
 class MentalHealthScreeningService:
     """
@@ -48,20 +49,20 @@ class MentalHealthScreeningService:
             RiskLevel.MILD: (5, 9),
             RiskLevel.MODERATE: (10, 14),
             RiskLevel.MODERATE_SEVERE: (15, 19),
-            RiskLevel.SEVERE: (20, 27)
+            RiskLevel.SEVERE: (20, 27),
         }
 
         self.gad7_thresholds = {
             RiskLevel.MINIMAL: (0, 4),
             RiskLevel.MILD: (5, 9),
             RiskLevel.MODERATE: (10, 14),
-            RiskLevel.SEVERE: (15, 21)
+            RiskLevel.SEVERE: (15, 21),
         }
 
         # Assessment question configurations
         self.assessment_questions = self._load_assessment_questions()
 
-    def _load_assessment_questions(self) -> Dict[str, List[Dict[str, Any]]]:
+    def _load_assessment_questions(self) -> dict[str, list[dict[str, Any]]]:
         """Load validated clinical assessment questions"""
         return {
             AssessmentType.PHQ9.value: [
@@ -72,8 +73,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_2",
@@ -82,8 +83,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_3",
@@ -92,8 +93,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_4",
@@ -102,8 +103,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_5",
@@ -112,8 +113,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_6",
@@ -122,8 +123,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_7",
@@ -132,8 +133,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_8",
@@ -142,8 +143,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "phq9_9",
@@ -152,9 +153,9 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
-                }
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
+                },
             ],
             AssessmentType.GAD7.value: [
                 {
@@ -164,8 +165,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "gad7_2",
@@ -174,8 +175,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "gad7_3",
@@ -184,8 +185,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "gad7_4",
@@ -194,8 +195,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "gad7_5",
@@ -204,8 +205,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "gad7_6",
@@ -214,8 +215,8 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
                 },
                 {
                     "id": "gad7_7",
@@ -224,13 +225,13 @@ class MentalHealthScreeningService:
                         {"value": 0, "text": "Not at all"},
                         {"value": 1, "text": "Several days"},
                         {"value": 2, "text": "More than half the days"},
-                        {"value": 3, "text": "Nearly every day"}
-                    ]
-                }
-            ]
+                        {"value": 3, "text": "Nearly every day"},
+                    ],
+                },
+            ],
         }
 
-    async def get_assessment_questions(self, assessment_type: str) -> Dict[str, Any]:
+    async def get_assessment_questions(self, assessment_type: str) -> dict[str, Any]:
         """Get questions for a specific assessment type"""
         questions = self.assessment_questions.get(assessment_type)
         if not questions:
@@ -240,14 +241,14 @@ class MentalHealthScreeningService:
             "title": self._get_assessment_title(assessment_type),
             "description": self._get_assessment_description(assessment_type),
             "estimated_time": self._get_assessment_time(assessment_type),
-            "validation": self._get_assessment_validation(assessment_type)
+            "validation": self._get_assessment_validation(assessment_type),
         }
 
         return {
             "assessment_type": assessment_type,
             "metadata": metadata,
             "questions": questions,
-            "total_questions": len(questions)
+            "total_questions": len(questions),
         }
 
     def _get_assessment_title(self, assessment_type: str) -> str:
@@ -256,7 +257,7 @@ class MentalHealthScreeningService:
             AssessmentType.PHQ9.value: "PHQ-9: Depression Screening",
             AssessmentType.GAD7.value: "GAD-7: Anxiety Screening",
             AssessmentType.W5.value: "W-5: Wellbeing Assessment",
-            AssessmentType.PSS.value: "PSS: Perceived Stress Scale"
+            AssessmentType.PSS.value: "PSS: Perceived Stress Scale",
         }
         return titles.get(assessment_type, "Assessment")
 
@@ -266,7 +267,7 @@ class MentalHealthScreeningService:
             AssessmentType.PHQ9.value: "Evidenced-based screening tool for depression symptoms",
             AssessmentType.GAD7.value: "Validated anxiety assessment for generalized anxiety disorder",
             AssessmentType.W5.value: "Comprehensive wellbeing and quality life assessment",
-            AssessmentType.PSS.value: "Measures perceived stress levels over the past month"
+            AssessmentType.PSS.value: "Measures perceived stress levels over the past month",
         }
         return descriptions.get(assessment_type, "Clinical assessment tool")
 
@@ -276,25 +277,21 @@ class MentalHealthScreeningService:
             AssessmentType.PHQ9.value: "3-5 minutes",
             AssessmentType.GAD7.value: "2-3 minutes",
             AssessmentType.W5.value: "5-7 minutes",
-            AssessmentType.PSS.value: "3-4 minutes"
+            AssessmentType.PSS.value: "3-4 minutes",
         }
         return times.get(assessment_type, "5 minutes")
 
-    def _get_assessment_validation(self, assessment_type: str) -> Dict[str, Any]:
+    def _get_assessment_validation(self, assessment_type: str) -> dict[str, Any]:
         """Get assessment validation information"""
         return {
             "reliability": "Cronbach's α > 0.85",
             "validity": "Clinically validated",
             "sensitivity": "> 0.85",
             "specificity": "> 0.80",
-            "clinical_use": "Widely used in clinical practice"
+            "clinical_use": "Widely used in clinical practice",
         }
 
-    async def verify_screening_consent(
-        self,
-        user: User,
-        assessment_type: str
-    ) -> bool:
+    async def verify_screening_consent(self, user: User, assessment_type: str) -> bool:
         """
         Verify that user has given appropriate consent for mental health screening
         """
@@ -307,13 +304,17 @@ class MentalHealthScreeningService:
             # 4. Age verification and capacity assessment
 
             # Check if user has any previous consent records
-            consent_query = select(Response).where(
-                and_(
-                    Response.user_id == user.id,
-                    Response.assessment_type == assessment_type,
-                    Response.created_at >= datetime.utcnow() - timedelta(days=30)
+            consent_query = (
+                select(Response)
+                .where(
+                    and_(
+                        Response.user_id == user.id,
+                        Response.assessment_type == assessment_type,
+                        Response.created_at >= datetime.utcnow() - timedelta(days=30),
+                    )
                 )
-            ).limit(1)
+                .limit(1)
+            )
 
             result = await self.db.execute(consent_query)
             existing_consent = result.scalar_one_or_none()
@@ -324,20 +325,22 @@ class MentalHealthScreeningService:
 
             # For new users, we'll require explicit consent
             # This is a simplified implementation - production would need proper consent management
-            logger.info(f"Consent verification required for user {user.id} - assessment {assessment_type}")
+            logger.info(
+                f"Consent verification required for user {user.id} - assessment {assessment_type}"
+            )
             return False  # Require explicit consent
 
         except Exception as e:
-            logger.error(f"Consent verification failed: {str(e)}")
+            logger.error(f"Consent verification failed: {e!s}")
             return False
 
     async def process_assessment_responses(
         self,
         user: User,
         assessment_type: str,
-        responses: Dict[str, int],
-        additional_notes: Optional[str] = None
-    ) -> Dict[str, Any]:
+        responses: dict[str, int],
+        additional_notes: str | None = None,
+    ) -> dict[str, Any]:
         """
         Process assessment responses and generate clinical insights
         """
@@ -381,16 +384,13 @@ class MentalHealthScreeningService:
                     "crisis_alert": crisis_alert,
                     "ai_insights": ai_insights,
                     "completed_at": datetime.utcnow().isoformat(),
-                    "next_recommended_screening": self._calculate_next_screening_date(risk_level)
-                }
+                    "next_recommended_screening": self._calculate_next_screening_date(risk_level),
+                },
             }
 
         except Exception as e:
             logger.error(f"Error processing assessment responses: {e}")
-            return {
-                "success": False,
-                "error": f"Failed to process assessment: {str(e)}"
-            }
+            return {"success": False, "error": f"Failed to process assessment: {e!s}"}
 
     def _calculate_risk_level(self, assessment_type: str, score: int) -> RiskLevel:
         """Calculate risk level based on assessment score"""
@@ -407,22 +407,53 @@ class MentalHealthScreeningService:
 
         return RiskLevel.SEVERE
 
-    def _generate_interpretation(self, assessment_type: str, score: int, risk_level: RiskLevel) -> str:
+    def _generate_interpretation(
+        self, assessment_type: str, score: int, risk_level: RiskLevel
+    ) -> str:
         """Generate clinical interpretation of assessment results"""
         interpretations = {
-            (AssessmentType.PHQ9.value, RiskLevel.MINIMAL): "No significant depressive symptoms detected. Continue maintaining good mental health practices.",
-            (AssessmentType.PHQ9.value, RiskLevel.MILD): "Mild depressive symptoms present. Consider self-care strategies and monitoring.",
-            (AssessmentType.PHQ9.value, RiskLevel.MODERATE): "Moderate depressive symptoms detected. Professional consultation recommended.",
-            (AssessmentType.PHQ9.value, RiskLevel.MODERATE_SEVERE): "Moderately severe depressive symptoms. Professional treatment strongly recommended.",
-            (AssessmentType.PHQ9.value, RiskLevel.SEVERE): "Severe depressive symptoms detected. Immediate professional evaluation recommended.",
-
-            (AssessmentType.GAD7.value, RiskLevel.MINIMAL): "No significant anxiety symptoms detected. Continue healthy coping strategies.",
-            (AssessmentType.GAD7.value, RiskLevel.MILD): "Mild anxiety symptoms present. Stress management techniques may be helpful.",
-            (AssessmentType.GAD7.value, RiskLevel.MODERATE): "Moderate anxiety symptoms detected. Professional consultation recommended.",
-            (AssessmentType.GAD7.value, RiskLevel.SEVERE): "Severe anxiety symptoms. Professional treatment strongly recommended."
+            (
+                AssessmentType.PHQ9.value,
+                RiskLevel.MINIMAL,
+            ): "No significant depressive symptoms detected. Continue maintaining good mental health practices.",
+            (
+                AssessmentType.PHQ9.value,
+                RiskLevel.MILD,
+            ): "Mild depressive symptoms present. Consider self-care strategies and monitoring.",
+            (
+                AssessmentType.PHQ9.value,
+                RiskLevel.MODERATE,
+            ): "Moderate depressive symptoms detected. Professional consultation recommended.",
+            (
+                AssessmentType.PHQ9.value,
+                RiskLevel.MODERATE_SEVERE,
+            ): "Moderately severe depressive symptoms. Professional treatment strongly recommended.",
+            (
+                AssessmentType.PHQ9.value,
+                RiskLevel.SEVERE,
+            ): "Severe depressive symptoms detected. Immediate professional evaluation recommended.",
+            (
+                AssessmentType.GAD7.value,
+                RiskLevel.MINIMAL,
+            ): "No significant anxiety symptoms detected. Continue healthy coping strategies.",
+            (
+                AssessmentType.GAD7.value,
+                RiskLevel.MILD,
+            ): "Mild anxiety symptoms present. Stress management techniques may be helpful.",
+            (
+                AssessmentType.GAD7.value,
+                RiskLevel.MODERATE,
+            ): "Moderate anxiety symptoms detected. Professional consultation recommended.",
+            (
+                AssessmentType.GAD7.value,
+                RiskLevel.SEVERE,
+            ): "Severe anxiety symptoms. Professional treatment strongly recommended.",
         }
 
-        return interpretations.get((assessment_type, risk_level), "Consult with a healthcare professional for interpretation.")
+        return interpretations.get(
+            (assessment_type, risk_level),
+            "Consult with a healthcare professional for interpretation.",
+        )
 
     async def _generate_recommendations(
         self,
@@ -430,59 +461,65 @@ class MentalHealthScreeningService:
         assessment_type: str,
         score: int,
         risk_level: RiskLevel,
-        responses: Dict[str, int]
-    ) -> List[Dict[str, Any]]:
+        responses: dict[str, int],
+    ) -> list[dict[str, Any]]:
         """Generate personalized recommendations based on assessment results"""
         recommendations = []
 
         # Base recommendations by risk level
         if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD]:
-            recommendations.extend([
-                {
-                    "type": "self_help",
-                    "title": "Continue Mental Wellness Practices",
-                    "description": "Maintain regular exercise, healthy sleep, and social connections",
-                    "priority": "medium"
-                },
-                {
-                    "type": "monitoring",
-                    "title": "Regular Self-Monitoring",
-                    "description": "Complete this screening again in 2-4 weeks",
-                    "priority": "medium"
-                }
-            ])
+            recommendations.extend(
+                [
+                    {
+                        "type": "self_help",
+                        "title": "Continue Mental Wellness Practices",
+                        "description": "Maintain regular exercise, healthy sleep, and social connections",
+                        "priority": "medium",
+                    },
+                    {
+                        "type": "monitoring",
+                        "title": "Regular Self-Monitoring",
+                        "description": "Complete this screening again in 2-4 weeks",
+                        "priority": "medium",
+                    },
+                ]
+            )
 
         elif risk_level == RiskLevel.MODERATE:
-            recommendations.extend([
-                {
-                    "type": "professional",
-                    "title": "Consider Professional Consultation",
-                    "description": "Speak with a mental health professional about your symptoms",
-                    "priority": "high"
-                },
-                {
-                    "type": "self_help",
-                    "title": "Evidence-Based Self-Help",
-                    "description": "Consider CBT-based self-help resources or apps",
-                    "priority": "medium"
-                }
-            ])
+            recommendations.extend(
+                [
+                    {
+                        "type": "professional",
+                        "title": "Consider Professional Consultation",
+                        "description": "Speak with a mental health professional about your symptoms",
+                        "priority": "high",
+                    },
+                    {
+                        "type": "self_help",
+                        "title": "Evidence-Based Self-Help",
+                        "description": "Consider CBT-based self-help resources or apps",
+                        "priority": "medium",
+                    },
+                ]
+            )
 
         elif risk_level in [RiskLevel.MODERATE_SEVERE, RiskLevel.SEVERE]:
-            recommendations.extend([
-                {
-                    "type": "professional",
-                    "title": "Professional Treatment Recommended",
-                    "description": "Schedule an appointment with a mental health professional",
-                    "priority": "urgent"
-                },
-                {
-                    "type": "support",
-                    "title": "Build Support Network",
-                    "description": "Reach out to trusted friends, family, or support groups",
-                    "priority": "high"
-                }
-            ])
+            recommendations.extend(
+                [
+                    {
+                        "type": "professional",
+                        "title": "Professional Treatment Recommended",
+                        "description": "Schedule an appointment with a mental health professional",
+                        "priority": "urgent",
+                    },
+                    {
+                        "type": "support",
+                        "title": "Build Support Network",
+                        "description": "Reach out to trusted friends, family, or support groups",
+                        "priority": "high",
+                    },
+                ]
+            )
 
         # AI-enhanced personalized recommendations
         try:
@@ -496,7 +533,7 @@ class MentalHealthScreeningService:
                 current_score=score,
                 risk_level=risk_level.value,
                 response_pattern=responses,
-                historical_data=user_history
+                historical_data=user_history,
             )
 
             if ai_recommendations:
@@ -507,7 +544,9 @@ class MentalHealthScreeningService:
 
         return recommendations
 
-    def _check_crisis_indicators(self, assessment_type: str, responses: Dict[str, int]) -> Optional[Dict[str, Any]]:
+    def _check_crisis_indicators(
+        self, assessment_type: str, responses: dict[str, int]
+    ) -> dict[str, Any] | None:
         """Check for immediate crisis indicators requiring urgent attention"""
         # Check PHQ-9 question 9 (suicidal thoughts)
         if assessment_type == AssessmentType.PHQ9.value:
@@ -521,9 +560,9 @@ class MentalHealthScreeningService:
                     "resources": [
                         {"name": "National Suicide Prevention Lifeline", "phone": "988"},
                         {"name": "Crisis Text Line", "text": "HOME to 741741"},
-                        {"name": "Emergency Services", "phone": "911"}
+                        {"name": "Emergency Services", "phone": "911"},
                     ],
-                    "recommendation": "Please contact a mental health professional or crisis support immediately."
+                    "recommendation": "Please contact a mental health professional or crisis support immediately.",
                 }
 
         return None
@@ -532,11 +571,11 @@ class MentalHealthScreeningService:
         self,
         user: User,
         assessment_type: str,
-        responses: Dict[str, int],
+        responses: dict[str, int],
         total_score: int,
         risk_level: RiskLevel,
-        additional_notes: Optional[str] = None
-    ) -> Optional[Response]:
+        additional_notes: str | None = None,
+    ) -> Response | None:
         """Save assessment results to database"""
         try:
             # Create response record
@@ -546,7 +585,7 @@ class MentalHealthScreeningService:
                 "total_score": total_score,
                 "risk_level": risk_level.value,
                 "additional_notes": additional_notes,
-                "completed_at": datetime.utcnow().isoformat()
+                "completed_at": datetime.utcnow().isoformat(),
             }
 
             # For now, return mock data (would integrate with actual Response model)
@@ -558,12 +597,8 @@ class MentalHealthScreeningService:
             return None
 
     async def _generate_ai_insights(
-        self,
-        user: User,
-        assessment_type: str,
-        responses: Dict[str, int],
-        risk_level: RiskLevel
-    ) -> Dict[str, Any]:
+        self, user: User, assessment_type: str, responses: dict[str, int], risk_level: RiskLevel
+    ) -> dict[str, Any]:
         """Generate AI-enhanced insights based on assessment data"""
         try:
             # Analyze response patterns
@@ -578,44 +613,58 @@ class MentalHealthScreeningService:
                 "pattern_analysis": pattern_analysis,
                 "predictive_insights": predictive_insights,
                 "confidence_level": 0.85,
-                "generated_at": datetime.utcnow().isoformat()
+                "generated_at": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
             logger.warning(f"Could not generate AI insights: {e}")
             return {}
 
-    def _analyze_response_patterns(self, responses: Dict[str, Any]) -> Dict[str, Any]:
+    def _analyze_response_patterns(self, responses: dict[str, Any]) -> dict[str, Any]:
         """Analyze patterns in assessment responses"""
         response_values = list(responses.values())
 
         return {
             "average_response": sum(response_values) / len(response_values),
-            "response_variance": sum((x - sum(response_values)/len(response_values))**2 for x in response_values) / len(response_values),
-            "highest_scoring_items": sorted(responses.items(), key=lambda x: x[1], reverse=True)[:3],
-            "consistency_score": "high" if len(set(response_values)) <= 2 else "moderate" if len(set(response_values)) <= 3 else "variable"
+            "response_variance": sum(
+                (x - sum(response_values) / len(response_values)) ** 2 for x in response_values
+            )
+            / len(response_values),
+            "highest_scoring_items": sorted(responses.items(), key=lambda x: x[1], reverse=True)[
+                :3
+            ],
+            "consistency_score": "high"
+            if len(set(response_values)) <= 2
+            else "moderate"
+            if len(set(response_values)) <= 3
+            else "variable",
         }
 
     async def _generate_predictive_insights(
-        self,
-        user: User,
-        assessment_type: str,
-        risk_level: RiskLevel
-    ) -> Dict[str, Any]:
+        self, user: User, assessment_type: str, risk_level: RiskLevel
+    ) -> dict[str, Any]:
         """Generate predictive insights based on current assessment"""
         # This would integrate with the AI analytics service for predictive modeling
         return {
-            "predicted_trajectory": "stable" if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD] else "declining" if risk_level == RiskLevel.SEVERE else "improving_with_intervention",
-            "probability_of_improvement": 0.7 if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD] else 0.4 if risk_level == RiskLevel.MODERATE else 0.2,
+            "predicted_trajectory": "stable"
+            if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD]
+            else "declining"
+            if risk_level == RiskLevel.SEVERE
+            else "improving_with_intervention",
+            "probability_of_improvement": 0.7
+            if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD]
+            else 0.4
+            if risk_level == RiskLevel.MODERATE
+            else 0.2,
             "key_factors": [
                 "Early detection and intervention",
                 "Consistent monitoring",
-                "Professional support engagement"
+                "Professional support engagement",
             ],
-            "timeline_to_improvement": "4-6 weeks with appropriate intervention"
+            "timeline_to_improvement": "4-6 weeks with appropriate intervention",
         }
 
-    async def _get_user_assessment_history(self, user: User) -> List[Dict[str, Any]]:
+    async def _get_user_assessment_history(self, user: User) -> list[dict[str, Any]]:
         """Get user's previous assessment results for trend analysis"""
         # This would query actual assessment history from the database
         return []
@@ -627,7 +676,7 @@ class MentalHealthScreeningService:
             RiskLevel.MILD: "4 weeks",
             RiskLevel.MODERATE: "2 weeks",
             RiskLevel.MODERATE_SEVERE: "1 week",
-            RiskLevel.SEVERE: "3-5 days"
+            RiskLevel.SEVERE: "3-5 days",
         }
 
         return screening_intervals.get(risk_level, "4 weeks")

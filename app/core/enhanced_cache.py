@@ -7,23 +7,23 @@ Enhanced Redis Caching Strategy with Multiple Cache Patterns
 - Distributed cache locks
 """
 
-import json
-import pickle
-import hashlib
-import time
 import asyncio
-from typing import Any, Optional, Union, Dict, List, Callable
+from collections.abc import Callable
 from functools import wraps
-from datetime import datetime, timedelta
+import hashlib
+import json
+import logging
+import pickle
+import time
+from typing import Any
 
 import redis.asyncio as redis
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 class CacheKey:
     """Standardized cache key generation"""
@@ -41,7 +41,7 @@ class CacheKey:
         return f"assessment:{assessment_id}:{data_type}"
 
     @staticmethod
-    def api_response(endpoint: str, params: Dict = None) -> str:
+    def api_response(endpoint: str, params: dict = None) -> str:
         param_hash = hashlib.md5(json.dumps(params or {}, sort_keys=True).encode()).hexdigest()
         return f"api:{endpoint}:{param_hash}"
 
@@ -70,7 +70,7 @@ class EnhancedCacheManager:
         self.max_retries = 3
         self.retry_delay = 0.1
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Get value from cache with error handling"""
         try:
             for attempt in range(self.max_retries):
@@ -84,13 +84,15 @@ class EnhancedCacheManager:
                             try:
                                 return pickle.loads(value)
                             except (pickle.PickleError, TypeError):
-                                return value.decode('utf-8')
+                                return value.decode("utf-8")
                     return None
                 except redis.ConnectionError as e:
                     if attempt == self.max_retries - 1:
-                        logger.error(f"Cache connection failed after {self.max_retries} attempts: {e}")
+                        logger.error(
+                            f"Cache connection failed after {self.max_retries} attempts: {e}"
+                        )
                         return None
-                    await asyncio.sleep(self.retry_delay * (2 ** attempt))
+                    await asyncio.sleep(self.retry_delay * (2**attempt))
         except Exception as e:
             logger.error(f"Cache get error for key {key}: {e}")
             return None
@@ -99,8 +101,8 @@ class EnhancedCacheManager:
         self,
         key: str,
         value: Any,
-        ttl: Optional[int] = None,
-        serialize_as: str = "json"  # "json" or "pickle"
+        ttl: int | None = None,
+        serialize_as: str = "json",  # "json" or "pickle"
     ) -> bool:
         """Set value in cache with error handling"""
         try:
@@ -123,9 +125,11 @@ class EnhancedCacheManager:
                     return result
                 except redis.ConnectionError as e:
                     if attempt == self.max_retries - 1:
-                        logger.error(f"Cache connection failed after {self.max_retries} attempts: {e}")
+                        logger.error(
+                            f"Cache connection failed after {self.max_retries} attempts: {e}"
+                        )
                         return False
-                    await asyncio.sleep(self.retry_delay * (2 ** attempt))
+                    await asyncio.sleep(self.retry_delay * (2**attempt))
         except Exception as e:
             logger.error(f"Cache set error for key {key}: {e}")
             return False
@@ -160,7 +164,7 @@ class EnhancedCacheManager:
             logger.error(f"Cache exists error for key {key}: {e}")
             return False
 
-    async def increment(self, key: str, amount: int = 1, ttl: Optional[int] = None) -> Optional[int]:
+    async def increment(self, key: str, amount: int = 1, ttl: int | None = None) -> int | None:
         """Increment counter in cache"""
         try:
             pipe = self.redis.pipeline()
@@ -201,9 +205,9 @@ class CacheDecorator:
     def cache_result(
         self,
         key_prefix: str,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
         serialize_as: str = "json",
-        cache_key_func: Optional[Callable] = None
+        cache_key_func: Callable | None = None,
     ):
         """
         Cache function result decorator
@@ -214,6 +218,7 @@ class CacheDecorator:
             serialize_as: Serialization method ('json' or 'pickle')
             cache_key_func: Function to generate custom cache key
         """
+
         def decorator(func):
             @wraps(func)
             async def wrapper(*args, **kwargs):
@@ -225,15 +230,15 @@ class CacheDecorator:
                     key_parts = [key_prefix]
                     # Add positional args (skip self and db session)
                     for arg in args[2:]:  # Skip self and db session
-                        if hasattr(arg, 'id'):
+                        if hasattr(arg, "id"):
                             key_parts.append(str(arg.id))
                         elif isinstance(arg, (str, int, float)):
                             key_parts.append(str(arg))
                     # Add keyword args
                     for k, v in sorted(kwargs.items()):
-                        if k != 'db' and hasattr(v, 'id'):
+                        if k != "db" and hasattr(v, "id"):
                             key_parts.append(f"{k}:{v.id}")
-                        elif k != 'db' and isinstance(v, (str, int, float)):
+                        elif k != "db" and isinstance(v, (str, int, float)):
                             key_parts.append(f"{k}:{v}")
 
                     cache_key = ":".join(key_parts)
@@ -250,31 +255,39 @@ class CacheDecorator:
                 await self.cache.set(cache_key, result, ttl, serialize_as)
 
                 return result
+
             return wrapper
+
         return decorator
 
-    def cache_user_data(self, data_type: str, ttl: Optional[int] = None):
+    def cache_user_data(self, data_type: str, ttl: int | None = None):
         """Cache user-specific data"""
         return self.cache_result(
             key_prefix=f"user_data:{data_type}",
             ttl=ttl or settings.CACHE_USER_EXPIRE,
-            cache_key_func=lambda self, db, user_id, *args, **kwargs: CacheKey.user(user_id, data_type)
+            cache_key_func=lambda self, db, user_id, *args, **kwargs: CacheKey.user(
+                user_id, data_type
+            ),
         )
 
-    def cache_team_data(self, data_type: str, ttl: Optional[int] = None):
+    def cache_team_data(self, data_type: str, ttl: int | None = None):
         """Cache team-specific data"""
         return self.cache_result(
             key_prefix=f"team_data:{data_type}",
             ttl=ttl or settings.CACHE_TEAM_EXPIRE,
-            cache_key_func=lambda self, db, team_id, *args, **kwargs: CacheKey.team(team_id, data_type)
+            cache_key_func=lambda self, db, team_id, *args, **kwargs: CacheKey.team(
+                team_id, data_type
+            ),
         )
 
-    def cache_assessment_data(self, data_type: str, ttl: Optional[int] = None):
+    def cache_assessment_data(self, data_type: str, ttl: int | None = None):
         """Cache assessment-specific data"""
         return self.cache_result(
             key_prefix=f"assessment_data:{data_type}",
             ttl=ttl or settings.CACHE_ASSESSMENT_EXPIRE,
-            cache_key_func=lambda self, db, assessment_id, *args, **kwargs: CacheKey.assessment(assessment_id, data_type)
+            cache_key_func=lambda self, db, assessment_id, *args, **kwargs: CacheKey.assessment(
+                assessment_id, data_type
+            ),
         )
 
 
@@ -287,12 +300,8 @@ class RateLimiter:
         self.cache = cache_manager
 
     async def is_allowed(
-        self,
-        identifier: str,
-        limit: int,
-        window: int,
-        window_unit: str = "seconds"
-    ) -> tuple[bool, Dict[str, Any]]:
+        self, identifier: str, limit: int, window: int, window_unit: str = "seconds"
+    ) -> tuple[bool, dict[str, Any]]:
         """
         Check if request is allowed based on rate limit
 
@@ -332,13 +341,15 @@ class RateLimiter:
             if current_requests >= limit:
                 # Get oldest request to calculate reset time
                 oldest = await self.cache.redis.zrange(key, 0, 0, withscores=True)
-                reset_time = int(oldest[0][1]) + window_seconds if oldest else current_time + window_seconds
+                reset_time = (
+                    int(oldest[0][1]) + window_seconds if oldest else current_time + window_seconds
+                )
 
                 return False, {
                     "remaining": 0,
                     "reset_time": reset_time,
                     "total": limit,
-                    "current": current_requests
+                    "current": current_requests,
                 }
 
             # Add current request
@@ -352,7 +363,7 @@ class RateLimiter:
                 "remaining": max(0, remaining),
                 "reset_time": reset_time,
                 "total": limit,
-                "current": current_requests + 1
+                "current": current_requests + 1,
             }
 
         except Exception as e:
@@ -362,35 +373,33 @@ class RateLimiter:
                 "remaining": limit - 1,
                 "reset_time": current_time + window_seconds,
                 "total": limit,
-                "current": 1
+                "current": 1,
             }
 
 
 # Global cache instance
-_cache_manager: Optional[EnhancedCacheManager] = None
-_cache_decorator: Optional[CacheDecorator] = None
-_rate_limiter: Optional[RateLimiter] = None
+_cache_manager: EnhancedCacheManager | None = None
+_cache_decorator: CacheDecorator | None = None
+_rate_limiter: RateLimiter | None = None
 
 # Cache statistics for performance monitoring
-_cache_stats = {
-    "hits": 0,
-    "misses": 0,
-    "sets": 0,
-    "hit_ratio": 0.0,
-    "target_hit_ratio": 80.0
-}
+_cache_stats = {"hits": 0, "misses": 0, "sets": 0, "hit_ratio": 0.0, "target_hit_ratio": 80.0}
+
 
 def get_cache_manager() -> EnhancedCacheManager:
     """Get global cache manager instance"""
     return _cache_manager
 
+
 def get_cache_decorator() -> CacheDecorator:
     """Get global cache decorator instance"""
     return _cache_decorator
 
+
 def get_rate_limiter() -> RateLimiter:
     """Get global rate limiter instance"""
     return _rate_limiter
+
 
 async def init_cache(redis_client: Redis):
     """Initialize cache manager"""
@@ -404,18 +413,20 @@ async def init_cache(redis_client: Redis):
 
 
 # Cache utility functions
-async def cache_user_profile(user_id: str, profile_data: Dict):
+async def cache_user_profile(user_id: str, profile_data: dict):
     """Cache user profile data"""
     cache = get_cache_manager()
     if cache:
         await cache.set(CacheKey.user(user_id, "profile"), profile_data, cache.user_ttl)
 
-async def get_cached_user_profile(user_id: str) -> Optional[Dict]:
+
+async def get_cached_user_profile(user_id: str) -> dict | None:
     """Get cached user profile data"""
     cache = get_cache_manager()
     if cache:
         return await cache.get(CacheKey.user(user_id, "profile"))
     return None
+
 
 async def invalidate_user_cache(user_id: str):
     """Invalidate all user cache entries"""

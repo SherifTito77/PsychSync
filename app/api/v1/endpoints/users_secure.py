@@ -18,40 +18,41 @@ Security Features:
 - Secure error handling without information disclosure
 """
 
-import asyncio
+from datetime import datetime
 import logging
 import re
-import time
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Response
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, text
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field, validator
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.audit import audit_action, log_security_event
+from app.core.cache import cache_result, invalidate_user_cache
 
 # Core dependencies and utilities
 from app.core.deps import get_async_db, get_current_user
-from app.core.security import (
-    verify_password, hash_password, generate_password_reset_token,
-    validate_password_strength, check_password_history
-)
 from app.core.rate_limiting import RateLimiter, rate_limit
-from app.core.audit import audit_action, log_security_event
 from app.core.response import (
-    StandardResponse, create_success_response, create_error_response,
-    create_paginated_response
+    StandardResponse,
+    create_error_response,
+    create_paginated_response,
+    create_success_response,
 )
-from app.core.cache import cache_result, invalidate_user_cache
-from app.core.validation import sanitize_input, validate_uuid, validate_email
+from app.core.security import (
+    check_password_history,
+    hash_password,
+    validate_password_strength,
+    verify_password,
+)
 from app.core.tracing import trace_operation
+from app.core.validation import sanitize_input, validate_uuid
 
 # Models and schemas
 from app.db.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserUpdate, UserResponse
+from app.schemas.user import UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -60,22 +61,23 @@ password_rate_limiter = RateLimiter(
     prefix="password_change",
     limit=3,  # 3 attempts
     window=900,  # 15 minutes
-    penalty_exponential=True
+    penalty_exponential=True,
 )
 
 registration_rate_limiter = RateLimiter(
     prefix="registration",
     limit=5,  # 5 registrations
     window=3600,  # 1 hour
-    penalty_exponential=True
+    penalty_exponential=True,
 )
+
 
 # Request/Response schemas with enhanced validation
 class SecurePasswordChange(BaseModel):
     current_password: str = Field(..., min_length=1, max_length=128)
     new_password: str = Field(..., min_length=8, max_length=128)
 
-    @validator('new_password')
+    @validator("new_password")
     def validate_new_password(cls, v):
         """Validate password strength"""
         if not validate_password_strength(v):
@@ -85,13 +87,14 @@ class SecurePasswordChange(BaseModel):
             )
         return v
 
+
 class SecureUserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-    full_name: Optional[str] = Field(None, max_length=100)
-    organization_id: Optional[UUID] = None
+    full_name: str | None = Field(None, max_length=100)
+    organization_id: UUID | None = None
 
-    @validator('password')
+    @validator("password")
     def validate_password(cls, v):
         if not validate_password_strength(v):
             raise ValueError(
@@ -100,41 +103,44 @@ class SecureUserCreate(BaseModel):
             )
         return v
 
-    @validator('full_name')
+    @validator("full_name")
     def validate_name(cls, v):
         if v:
             # Remove any potentially dangerous characters
-            v = re.sub(r'[<>"\']', '', v)
-            if not re.match(r'^[a-zA-Z\s\-\.]+$', v.strip()):
+            v = re.sub(r'[<>"\']', "", v)
+            if not re.match(r"^[a-zA-Z\s\-\.]+$", v.strip()):
                 raise ValueError("Full name contains invalid characters")
         return v.strip() if v else v
+
 
 class SecureUserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    full_name: Optional[str] = Field(None, max_length=100)
-    is_active: Optional[bool] = None
-    timezone: Optional[str] = Field(None, max_length=50)
-    locale: Optional[str] = Field(None, max_length=10)
-    preferences: Optional[Dict[str, Any]] = None
+    email: EmailStr | None = None
+    full_name: str | None = Field(None, max_length=100)
+    is_active: bool | None = None
+    timezone: str | None = Field(None, max_length=50)
+    locale: str | None = Field(None, max_length=10)
+    preferences: dict[str, Any] | None = None
 
-    @validator('full_name')
+    @validator("full_name")
     def validate_name(cls, v):
         if v:
-            v = re.sub(r'[<>"\']', '', v)
-            if not re.match(r'^[a-zA-Z\s\-\.]+$', v.strip()):
+            v = re.sub(r'[<>"\']', "", v)
+            if not re.match(r"^[a-zA-Z\s\-\.]+$", v.strip()):
                 raise ValueError("Full name contains invalid characters")
         return v.strip() if v else v
 
-    @validator('timezone')
+    @validator("timezone")
     def validate_timezone(cls, v):
         if v:
             # Basic timezone validation
-            valid_timezone_pattern = r'^[A-Za-z_]+/[A-Za-z_]+$'
+            valid_timezone_pattern = r"^[A-Za-z_]+/[A-Za-z_]+$"
             if not re.match(valid_timezone_pattern, v):
                 raise ValueError("Invalid timezone format")
         return v
 
+
 router = APIRouter(prefix="/users", tags=["users"])
+
 
 @router.get("/me", response_model=StandardResponse[UserResponse])
 @rate_limit(limit=30, window=60)  # 30 requests per minute
@@ -142,9 +148,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 @cache_result(ttl=300, key_prefix="user_profile")
 @audit_action("user_profile_viewed")
 async def get_user_profile(
-    request: Request,
-    response: Response,
-    current_user: User = Depends(get_current_user)
+    request: Request, response: Response, current_user: User = Depends(get_current_user)
 ) -> StandardResponse[UserResponse]:
     """
     Retrieve the profile of the currently authenticated user.
@@ -160,22 +164,21 @@ async def get_user_profile(
         user_data = UserResponse.model_validate(current_user)
 
         return create_success_response(
-            data=user_data,
-            message="User profile retrieved successfully"
+            data=user_data, message="User profile retrieved successfully"
         )
 
     except Exception as e:
-        logger.error(f"Failed to retrieve user profile for user {current_user.id}: {str(e)}")
-        log_security_event("profile_retrieval_failed", {
-            "user_id": str(current_user.id),
-            "error": str(e)
-        })
+        logger.error(f"Failed to retrieve user profile for user {current_user.id}: {e!s}")
+        log_security_event(
+            "profile_retrieval_failed", {"user_id": str(current_user.id), "error": str(e)}
+        )
 
         return create_error_response(
             message="Failed to retrieve profile",
             error_code="PROFILE_RETRIEVAL_FAILED",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 @router.post("/change-password", response_model=StandardResponse[None])
 @rate_limit(limit=3, window=900)  # 3 attempts per 15 minutes
@@ -185,7 +188,7 @@ async def change_password(
     request: Request,
     password_change: SecurePasswordChange,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[None]:
     """
     Change the password for the currently authenticated user.
@@ -204,14 +207,14 @@ async def change_password(
             retry_after = await password_rate_limiter.get_retry_after(str(current_user.id))
             response.headers["Retry-After"] = str(retry_after)
 
-            log_security_event("password_change_rate_limited", {
-                "user_id": str(current_user.id),
-                "ip_address": request.client.host
-            })
+            log_security_event(
+                "password_change_rate_limited",
+                {"user_id": str(current_user.id), "ip_address": request.client.host},
+            )
 
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many password change attempts. Please try again later."
+                detail="Too many password change attempts. Please try again later.",
             )
 
         # Verify current password with constant-time comparison
@@ -219,30 +222,32 @@ async def change_password(
             # Apply penalty for failed attempt
             await password_rate_limiter.record_failure(str(current_user.id))
 
-            log_security_event("password_change_failed", {
-                "user_id": str(current_user.id),
-                "reason": "invalid_current_password",
-                "ip_address": request.client.host
-            })
+            log_security_event(
+                "password_change_failed",
+                {
+                    "user_id": str(current_user.id),
+                    "reason": "invalid_current_password",
+                    "ip_address": request.client.host,
+                },
+            )
 
             # Generic error message to prevent user enumeration
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid current password"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid current password"
             )
 
         # Check if new password is the same as current
         if verify_password(password_change.new_password, current_user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="New password must be different from current password"
+                detail="New password must be different from current password",
             )
 
         # Check password history to prevent reuse
         if await check_password_history(db, current_user.id, password_change.new_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password has been used recently. Please choose a different password."
+                detail="Password has been used recently. Please choose a different password.",
             )
 
         # Hash the new password securely
@@ -265,10 +270,10 @@ async def change_password(
         # Clear rate limiting on success
         await password_rate_limiter.clear(str(current_user.id))
 
-        log_security_event("password_changed_success", {
-            "user_id": str(current_user.id),
-            "ip_address": request.client.host
-        })
+        log_security_event(
+            "password_changed_success",
+            {"user_id": str(current_user.id), "ip_address": request.client.host},
+        )
 
         return create_success_response(
             message="Password updated successfully. You will be logged out from other devices."
@@ -277,36 +282,34 @@ async def change_password(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Password change failed for user {current_user.id}: {str(e)}")
+        logger.error(f"Password change failed for user {current_user.id}: {e!s}")
 
-        log_security_event("password_change_error", {
-            "user_id": str(current_user.id),
-            "error": str(e)
-        })
+        log_security_event(
+            "password_change_error", {"user_id": str(current_user.id), "error": str(e)}
+        )
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Password change failed. Please try again."
+            detail="Password change failed. Please try again.",
         )
 
-@router.get("/", response_model=StandardResponse[List[UserResponse]])
+
+@router.get("/", response_model=StandardResponse[list[UserResponse]])
 @rate_limit(limit=20, window=60)
 @trace_operation("list_users")
 @audit_action("users_listed")
 async def list_users(
     request: Request,
-    pagination: Dict[str, Any] = Depends(lambda: {
-        "page": 1, "size": 20, "offset": 0
-    }),
+    pagination: dict[str, Any] = Depends(lambda: {"page": 1, "size": 20, "offset": 0}),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
-    search: Optional[str] = Query(None, min_length=1, max_length=100),
-    is_active: Optional[bool] = Query(None),
-    organization_id: Optional[UUID] = Query(None),
-    role: Optional[UserRole] = Query(None),
-    sort_by: Optional[str] = Query("created_at"),
-    sort_order: Optional[str] = Query("desc")
-) -> StandardResponse[List[UserResponse]]:
+    search: str | None = Query(None, min_length=1, max_length=100),
+    is_active: bool | None = Query(None),
+    organization_id: UUID | None = Query(None),
+    role: UserRole | None = Query(None),
+    sort_by: str | None = Query("created_at"),
+    sort_order: str | None = Query("desc"),
+) -> StandardResponse[list[UserResponse]]:
     """
     Get paginated list of users with advanced filtering and sorting.
 
@@ -320,15 +323,18 @@ async def list_users(
     try:
         # Authorization check - only admins can list users
         if current_user.role not in [UserRole.ADMIN]:
-            log_security_event("unauthorized_user_list_access", {
-                "user_id": str(current_user.id),
-                "role": current_user.value,
-                "ip_address": request.client.host
-            })
+            log_security_event(
+                "unauthorized_user_list_access",
+                {
+                    "user_id": str(current_user.id),
+                    "role": current_user.value,
+                    "ip_address": request.client.host,
+                },
+            )
 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to list users"
+                detail="Insufficient permissions to list users",
             )
 
         # Validate pagination parameters
@@ -341,13 +347,12 @@ async def list_users(
         if sort_by not in allowed_sort_fields:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid sort field. Allowed fields: {', '.join(allowed_sort_fields)}"
+                detail=f"Invalid sort field. Allowed fields: {', '.join(allowed_sort_fields)}",
             )
 
         if sort_order.lower() not in ["asc", "desc"]:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Sort order must be 'asc' or 'desc'"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Sort order must be 'asc' or 'desc'"
             )
 
         # Build base query
@@ -361,16 +366,10 @@ async def list_users(
             if sanitized_search:
                 search_pattern = f"%{sanitized_search}%"
                 query = query.where(
-                    or_(
-                        User.full_name.ilike(search_pattern),
-                        User.email.ilike(search_pattern)
-                    )
+                    or_(User.full_name.ilike(search_pattern), User.email.ilike(search_pattern))
                 )
                 count_query = count_query.where(
-                    or_(
-                        User.full_name.ilike(search_pattern),
-                        User.email.ilike(search_pattern)
-                    )
+                    or_(User.full_name.ilike(search_pattern), User.email.ilike(search_pattern))
                 )
 
         if is_active is not None:
@@ -380,8 +379,7 @@ async def list_users(
         if organization_id:
             if not validate_uuid(str(organization_id)):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid organization ID format"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid organization ID format"
                 )
             query = query.where(User.organization_id == organization_id)
             count_query = count_query.where(User.organization_id == organization_id)
@@ -416,18 +414,18 @@ async def list_users(
             page=page,
             size=size,
             total=total_count,
-            message="Users retrieved successfully"
+            message="Users retrieved successfully",
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to list users: {str(e)}")
+        logger.error(f"Failed to list users: {e!s}")
 
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve users"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve users"
         )
+
 
 @router.get("/{user_id}", response_model=StandardResponse[UserResponse])
 @rate_limit(limit=30, window=60)
@@ -437,7 +435,7 @@ async def get_user_by_id(
     request: Request,
     user_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[UserResponse]:
     """
     Get user details by ID.
@@ -452,54 +450,48 @@ async def get_user_by_id(
         # Validate UUID format
         if not validate_uuid(str(user_id)):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid user ID format"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID format"
             )
 
         # Authorization check - users can view their own profile or admins can view any
         if user_id != current_user.id and current_user.role not in [UserRole.ADMIN]:
-            log_security_event("unauthorized_user_access", {
-                "user_id": str(current_user.id),
-                "target_user_id": str(user_id),
-                "role": current_user.value,
-                "ip_address": request.client.host
-            })
+            log_security_event(
+                "unauthorized_user_access",
+                {
+                    "user_id": str(current_user.id),
+                    "target_user_id": str(user_id),
+                    "role": current_user.value,
+                    "ip_address": request.client.host,
+                },
+            )
 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view this user profile"
+                detail="Not authorized to view this user profile",
             )
 
         # Get user from database
-        result = await db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
 
         if not user:
             # Generic error message to prevent user enumeration
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         # Serialize user data
         user_data = UserResponse.model_validate(user)
 
-        return create_success_response(
-            data=user_data,
-            message="User retrieved successfully"
-        )
+        return create_success_response(data=user_data, message="User retrieved successfully")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get user {user_id}: {str(e)}")
+        logger.error(f"Failed to get user {user_id}: {e!s}")
 
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve user"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve user"
         )
+
 
 @router.put("/me", response_model=StandardResponse[UserResponse])
 @rate_limit(limit=10, window=60)
@@ -509,7 +501,7 @@ async def update_user_profile(
     request: Request,
     user_update: SecureUserUpdate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[UserResponse]:
     """
     Update the profile of the currently authenticated user.
@@ -526,16 +518,12 @@ async def update_user_profile(
         if user_update.email and user_update.email != current_user.email:
             existing_user = await db.execute(
                 select(User).where(
-                    and_(
-                        User.email == user_update.email.lower(),
-                        User.id != current_user.id
-                    )
+                    and_(User.email == user_update.email.lower(), User.id != current_user.id)
                 )
             )
             if existing_user.scalar_one_or_none():
                 raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Email already exists"
+                    status_code=status.HTTP_409_CONFLICT, detail="Email already exists"
                 )
 
         # Update user with transaction
@@ -556,31 +544,31 @@ async def update_user_profile(
         # Serialize updated user
         user_data = UserResponse.model_validate(current_user)
 
-        return create_success_response(
-            data=user_data,
-            message="Profile updated successfully"
-        )
+        return create_success_response(data=user_data, message="Profile updated successfully")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update user profile for {current_user.id}: {str(e)}")
+        logger.error(f"Failed to update user profile for {current_user.id}: {e!s}")
 
         await db.rollback()
 
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update profile"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update profile"
         )
 
-@router.post("/", response_model=StandardResponse[UserResponse], status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_user)])
+
+@router.post(
+    "/",
+    response_model=StandardResponse[UserResponse],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_current_user)],
+)
 @rate_limit(limit=5, window=3600)  # 5 registrations per hour
 @trace_operation("create_user")
 @audit_action("user_registered")
 async def create_user(
-    request: Request,
-    user_create: SecureUserCreate,
-    db: AsyncSession = Depends(get_async_db)
+    request: Request, user_create: SecureUserCreate, db: AsyncSession = Depends(get_async_db)
 ) -> StandardResponse[UserResponse]:
     """
     Register a new user account.
@@ -598,14 +586,13 @@ async def create_user(
         if not await registration_rate_limiter.is_allowed(client_ip, request):
             retry_after = await registration_rate_limiter.get_retry_after(client_ip)
 
-            log_security_event("registration_rate_limited", {
-                "ip_address": client_ip,
-                "email": user_create.email
-            })
+            log_security_event(
+                "registration_rate_limited", {"ip_address": client_ip, "email": user_create.email}
+            )
 
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many registration attempts. Please try again later."
+                detail="Too many registration attempts. Please try again later.",
             )
 
         # Check if email already exists
@@ -616,14 +603,14 @@ async def create_user(
             # Don't reveal if email exists to prevent enumeration
             await registration_rate_limiter.record_failure(client_ip)
 
-            log_security_event("registration_duplicate_email", {
-                "ip_address": client_ip,
-                "email": user_create.email
-            })
+            log_security_event(
+                "registration_duplicate_email",
+                {"ip_address": client_ip, "email": user_create.email},
+            )
 
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registration failed. Please try again."
+                detail="Registration failed. Please try again.",
             )
 
         # Hash password securely
@@ -639,7 +626,7 @@ async def create_user(
             is_verified=False,  # Require email verification
             role=UserRole.USER,
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         # Save user with transaction
@@ -650,11 +637,10 @@ async def create_user(
         # Clear rate limiting on success
         await registration_rate_limiter.clear(client_ip)
 
-        log_security_event("user_created", {
-            "user_id": str(new_user.id),
-            "email": user_create.email,
-            "ip_address": client_ip
-        })
+        log_security_event(
+            "user_created",
+            {"user_id": str(new_user.id), "email": user_create.email, "ip_address": client_ip},
+        )
 
         # TODO: Send verification email
 
@@ -664,29 +650,29 @@ async def create_user(
         return create_success_response(
             data=user_data,
             message="User registered successfully. Please check your email for verification.",
-            status_code=status.HTTP_201_CREATED
+            status_code=status.HTTP_201_CREATED,
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"User registration failed: {str(e)}")
+        logger.error(f"User registration failed: {e!s}")
 
         await db.rollback()
 
         # Record failure for rate limiting
         await registration_rate_limiter.record_failure(client_ip)
 
-        log_security_event("registration_error", {
-            "ip_address": client_ip,
-            "email": user_create.email,
-            "error": str(e)
-        })
+        log_security_event(
+            "registration_error",
+            {"ip_address": client_ip, "email": user_create.email, "error": str(e)},
+        )
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed. Please try again."
+            detail="Registration failed. Please try again.",
         )
+
 
 @router.delete("/me", response_model=StandardResponse[None])
 @rate_limit(limit=1, window=3600)  # 1 deletion per hour
@@ -696,7 +682,7 @@ async def delete_user_account(
     request: Request,
     password: str = Field(..., min_length=1),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[None]:
     """
     Delete the currently authenticated user's account.
@@ -711,16 +697,16 @@ async def delete_user_account(
     try:
         # Verify password
         if not verify_password(password, current_user.password_hash):
-            log_security_event("account_deletion_failed", {
-                "user_id": str(current_user.id),
-                "reason": "invalid_password",
-                "ip_address": request.client.host
-            })
-
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid password"
+            log_security_event(
+                "account_deletion_failed",
+                {
+                    "user_id": str(current_user.id),
+                    "reason": "invalid_password",
+                    "ip_address": request.client.host,
+                },
             )
+
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid password")
 
         # Soft delete user (mark as deleted but keep data for compliance)
         async with db.begin():
@@ -736,23 +722,19 @@ async def delete_user_account(
         # Invalidate cache
         await invalidate_user_cache(str(current_user.id))
 
-        log_security_event("account_deleted", {
-            "user_id": str(current_user.id),
-            "ip_address": request.client.host
-        })
-
-        return create_success_response(
-            message="Account deleted successfully"
+        log_security_event(
+            "account_deleted", {"user_id": str(current_user.id), "ip_address": request.client.host}
         )
+
+        return create_success_response(message="Account deleted successfully")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to delete user account {current_user.id}: {str(e)}")
+        logger.error(f"Failed to delete user account {current_user.id}: {e!s}")
 
         await db.rollback()
 
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete account"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete account"
         )

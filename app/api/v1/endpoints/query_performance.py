@@ -24,7 +24,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.get("/query-performance/stats", summary="Real-time Query Performance Stats")
 async def get_query_performance_stats(
     request: Request,
@@ -54,7 +54,7 @@ async def get_query_performance_stats(
         logger.log_error(e, operation="get_query_stats", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to retrieve query performance statist
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ics",
             request_id=get_request_id(request)
         )
@@ -87,7 +87,7 @@ async def get_performance_dashboard(
     except Exception as e:
         logger.log_error(e, operation="get_performance_dashboard", user_id=str(current_user.id))
         return APIResponse.s
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 erver_error(
             message="Failed to retrieve dashboard data",
             request_id=get_request_id(request)

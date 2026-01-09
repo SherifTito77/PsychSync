@@ -27,17 +27,17 @@ logger = logging.getLogger(__name__)
 
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/events")
 async def handle_slack_events(request: Request):
     """
     Handle Slack events and interactions
-    
+
     This endpoint receives:
     - Slash commands (/psychsync, /checkin, /wellness)
     - Interactive components (buttons, modals)
     - Event subscriptions (app mentions, messages)
-    
+
     Slack sends events to this URL which must be configured in:
     Slack App Settings → Event Subscriptions → Request URL
     """
@@ -46,7 +46,7 @@ async def handle_slack_events(request: Request):
         return await slack_bot.get_handler().handle(request)
     except Exception as e:
         logger.error(f"Error handling Sla
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 ck event: {str(e)}")
         return Response(status_code=500)
 
@@ -55,7 +55,7 @@ ck event: {str(e)}")
 async def handle_slack_interactions(request: Request):
     """
     Handle interactive components
-    
+
     Handles:
     - Button clicks
     - Modal submissions
@@ -65,7 +65,7 @@ async def handle_slack_interactions(request: Request):
     try:
         return await slack_bot.get_handler().handle(request)
     except
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
  Exception as e:
         logger.error(f"Error handling Slack interaction: {str(e)}")
         return Response(status_code=500)
@@ -75,7 +75,7 @@ async def handle_slack_interactions(request: Request):
 async def handle_slack_commands(request: Request):
     """
     Handle slash commands
-    
+
     Commands handled:
     - /psychsync [action]
     - /checkin
@@ -97,11 +97,11 @@ async def slack_oauth_callback(
 ):
     """
     Handle Slack OAuth callback
-    
+
     Called when:
     - Workspace installs the PsychSync app
     - User authorizes the bot
-    
+
     Process:
     1. Exchange code for access token
     2. Save workspace credentials
@@ -111,39 +111,39 @@ async def slack_oauth_callback(
     try:
         from slack_sdk.oauth import AuthorizeUrlGenerator
         from slack_sdk.web import WebClient
-        
+
         client = WebClient()
-        
+
         # Exchange code for token
         response = client.oauth_v2_access(
             client_id=settings.SLACK_CLIENT_ID,
             client_secret=settings.SLACK_CLIENT_SECRET,
             code=code
         )
-        
+
         # Extract workspace info
         team_id = response["team"]["id"]
         team_name = response["team"]["name"]
         access_token = response["access_token"]
         bot_user_id = response["bot_user_id"]
-        
+
         # Save to database
         # TODO: Create SlackWorkspace model to store credentials
         logger.info(f"Slack workspace installed: {team_name} ({team_id})")
-        
+
         # Send welcome message
         welcome_client = WebClient(token=access_token)
         welcome_client.chat_postMessage(
             channel=bot_user_id,
             text="🎉 PsychSync installed successfully! Type `/psychsync help` to get started."
         )
-        
+
         return {
             "status": "success",
             "team": team_name,
             "message": "PsychSync installed successfully!"
         }
-        
+
     except Exception as e:
         logger.error(f"OAuth callback error: {str(e)}")
         raise HTTPException(status_code=500, detail="OAuth installation failed")
@@ -155,18 +155,18 @@ async def test_slack_connection(
 ):
     """
     Test Slack connection
-    
+
     Admin only - sends test message to verify bot works
     """
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
-    
+
     try:
         client = SlackClient()
-        
+
         if not client.is_configured():
             raise HTTPException(status_code=400, detail="Slack not configured")
-        
+
         # Send test message
         response = await client.send_message(
             channel=settings.SLACK_TEST_CHANNEL or "#general",
@@ -181,14 +181,14 @@ async def test_slack_connection(
                 }
             ]
         )
-        
+
         return {
             "status": "success",
             "message": "Test message sent successfully",
             "channel": settings.SLACK_TEST_CHANNEL,
             "ts": response.get("ts") if response else None
         }
-        
+
     except Exception as e:
         logger.error(f"Slack test failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
@@ -204,7 +204,7 @@ async def send_slack_notification(
 ):
     """
     Send custom notification to Slack channel
-    
+
     Used by:
     - Admin notifications
     - System alerts
@@ -212,19 +212,19 @@ async def send_slack_notification(
     """
     try:
         client = SlackClient()
-        
+
         # Queue notification to avoid blocking
         background_tasks.add_task(
             client.send_message,
             channel=channel,
             text=message
         )
-        
+
         return {
             "status": "queued",
             "message": "Notification queued for delivery"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to queue notification: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to send notification")
@@ -236,22 +236,22 @@ async def list_slack_channels(
 ):
     """
     List available Slack channels
-    
+
     Used for:
     - Channel selection in UI
     - Notification routing configuration
     """
     try:
         client = SlackClient()
-        
+
         if not client.is_configured():
             raise HTTPException(status_code=400, detail="Slack not configured")
-        
+
         response = client.client.conversations_list(
             types="public_channel,private_channel",
             exclude_archived=True
         )
-        
+
         channels = [
             {
                 "id": ch["id"],
@@ -261,12 +261,12 @@ async def list_slack_channels(
             }
             for ch in response["channels"]
         ]
-        
+
         return {
             "channels": channels,
             "count": len(channels)
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to list channels: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch channels")
@@ -276,7 +276,7 @@ async def list_slack_channels(
 async def get_slack_status():
     """
     Get Slack integration status
-    
+
     Returns:
     - Whether Slack is configured
     - Bot connection status
@@ -284,16 +284,16 @@ async def get_slack_status():
     """
     try:
         client = SlackClient()
-        
+
         if not client.is_configured():
             return {
                 "status": "not_configured",
                 "message": "Slack bot token not configured"
             }
-        
+
         # Test auth
         auth_response = client.client.auth_test()
-        
+
         return {
             "status": "connected",
             "bot_user_id": auth_response.get("user_id"),
@@ -301,7 +301,7 @@ async def get_slack_status():
             "team_name": auth_response.get("team"),
             "team_id": auth_response.get("team_id")
         }
-        
+
     except Exception as e:
         return {
             "status": "error",
@@ -315,14 +315,14 @@ async def get_slack_install_url(
 ):
     """
     Generate Slack installation URL
-    
+
     For distributing app to other workspaces
     """
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
-    
+
     from slack_sdk.oauth import AuthorizeUrlGenerator
-    
+
     generator = AuthorizeUrlGenerator(
         client_id=settings.SLACK_CLIENT_ID,
         scopes=[
@@ -337,9 +337,9 @@ async def get_slack_install_url(
         ],
         user_scopes=[]
     )
-    
+
     url = generator.generate(state="random_state_string")
-    
+
     return {
         "install_url": url,
         "instructions": "Share this URL to install PsychSync in other workspaces"
@@ -354,23 +354,23 @@ async def uninstall_slack_workspace(
 ):
     """
     Remove Slack workspace integration
-    
+
     Called when:
     - Workspace uninstalls app
     - Admin manually removes integration
     """
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
-    
+
     try:
         # TODO: Delete workspace credentials from database
         logger.info(f"Uninstalling Slack workspace: {team_id}")
-        
+
         return {
             "status": "success",
             "message": f"Workspace {team_id} uninstalled"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to uninstall workspace: {str(e)}")
         raise HTTPException(status_code=500, detail="Uninstall failed")
@@ -380,7 +380,7 @@ async def uninstall_slack_workspace(
 async def send_daily_reminders():
     """
     Send daily assessment reminders via Slack
-    
+
     Called by scheduled job at configured time
     """
     # TODO: Implement scheduled reminder logic
@@ -390,7 +390,7 @@ async def send_daily_reminders():
 async def send_team_digest():
     """
     Send daily/weekly team wellness digest
-    
+
     Called by scheduled job
     """
     # TODO: Implement digest logic

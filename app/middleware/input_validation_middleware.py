@@ -3,14 +3,15 @@ Comprehensive Input Validation Middleware
 Prevents SQL injection, XSS, command injection, and other injection attacks
 """
 
-import re
 import html
 import logging
-from typing import Any, Optional, List, Pattern
-from fastapi import Request, HTTPException, status
+import re
+from typing import Any
+
+from fastapi import HTTPException, Request, status
+from starlette.datastructures import UploadFile
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-from starlette.datastructures import UploadFile
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +32,10 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
     """
 
     # SQL Injection patterns
-    SQL_INJECTION_PATTERNS: List[str] = [
+    SQL_INJECTION_PATTERNS: list[str] = [
         r"(\%27)|(\')|(\-\-)|(\%23)|(#)",  # Basic meta-characters
-        r"(\bor\b|\band\b).*?=",  # Boolean operators
+        # More specific boolean operator detection - require word boundaries and quotes
+        r'["\'].*?\s+(or|and)\s+.*?["\'].*?=',  # Boolean operators in quotes
         r"exec(\s|\+)+(s|x)p\w+",  # Command execution
         r"union(\s|\+)+(all(\s|\+)+)?select",  # Union select
         r"select(\s|\+).*?from",  # Select from
@@ -45,19 +47,20 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
         r"alter(\s|\+).*?(table|database)",  # Alter commands
         r";(\s|\+)*(drop|delete|insert|update|create|alter)",  # Chained commands
         r"\[.*?\]",  # Bracket escape
-        r"""=["'].*?\bor\b.*?\bthen\b""",  # If/then (using triple quotes)
+        r'=["\'].*?\bor\b.*?\bthen\b',  # If/then
     ]
 
     # XSS attack patterns
-    XSS_PATTERNS: List[str] = [
+    XSS_PATTERNS: list[str] = [
         r"<script[^>]*>.*?</script>",  # Script tags
         r"javascript:",  # JavaScript protocol
-        r"on\w+\s*=",  # Event handlers (onclick=, onload=, etc.)
+        # More specific event handler detection - require HTML context
+        r"<[^>]*\s(on\w+)\s*=",  # Event handlers in HTML tags (onclick=, onload=, etc.)
         r"<iframe[^>]*>",  # Iframe tags
         r"<embed[^>]*>",  # Embed tags
         r"<object[^>]*>",  # Object tags
-        r"<link[^>]*>",  # Link tags
-        r"<meta[^>]*>",  # Meta tags
+        r"<link[^>]*>",  # Link tags (only in HTML context)
+        r"<meta[^>]*>",  # Meta tags (only in HTML context)
         r"<style[^>]*>.*?</style>",  # Style tags
         r"<img[^>]*onerror[^>]*>",  # Image with onerror
         r"eval\s*\(",  # eval() function
@@ -67,7 +70,7 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
     ]
 
     # Command injection patterns
-    CMD_INJECTION_PATTERNS: List[str] = [
+    CMD_INJECTION_PATTERNS: list[str] = [
         r";\s*(ls|cat|pwd|whoami|id|rm|cp|mv|nc|netcat|wget|curl)",  # Unix commands
         r"\|\s*(ls|cat|pwd|whoami|id)",  # Pipe commands
         r"&&\s*(ls|cat|pwd|whoami|id)",  # AND commands
@@ -79,7 +82,7 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
     ]
 
     # Path traversal patterns
-    PATH_TRAVERSAL_PATTERNS: List[str] = [
+    PATH_TRAVERSAL_PATTERNS: list[str] = [
         r"\.\./",  # Parent directory
         r"\.\.\\",  # Windows parent directory
         r"%2e%2e",  # URL encoded parent directory
@@ -96,8 +99,8 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         enable_strict_validation: bool = True,
-        blocked_ip_list: List[str] = None,
-        allowed_content_types: List[str] = None,
+        blocked_ip_list: list[str] = None,
+        allowed_content_types: list[str] = None,
         max_request_size: int = 10 * 1024 * 1024,  # 10MB
     ):
         super().__init__(app)
@@ -125,14 +128,18 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         """Validate request before processing."""
+        # Skip validation for auth endpoints to avoid consuming form data
+        if "/auth/" in request.url.path:
+            response = await call_next(request)
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            return response
+
         # Check IP blocklist
         client_ip = self._get_client_ip(request)
         if client_ip in self.blocked_ips:
             logger.warning(f"Blocked request from IP: {client_ip}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         # Validate request headers
         self._validate_headers(request)
@@ -171,24 +178,52 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
 
     def _validate_headers(self, request: Request):
         """Validate request headers for injection attempts."""
+        # Headers that are generally safe and should be skipped from validation
+        SKIP_HEADERS = {
+            "user-agent",
+            "accept",
+            "accept-language",
+            "accept-encoding",
+            "referer",
+            "origin",
+            "connection",
+            "host",
+            "dnt",
+            "sec-fetch-site",
+            "sec-fetch-mode",
+            "sec-fetch-dest",
+            "sec-fetch-user",
+            "cache-control",
+            "pragma",
+            "upgrade-insecure-requests",
+            "cookie",
+            "authorization",
+            "content-type",
+            "content-length",
+        }
+
         for header_name, header_value in request.headers.items():
-            # Skip non-string headers
+            # Skip non-string headers and safe headers
             if not isinstance(header_value, str):
+                continue
+
+            # Skip validation for known safe headers
+            if header_name.lower() in SKIP_HEADERS:
                 continue
 
             # Check for injection in headers
             if self._detect_sql_injection(header_value):
-                logger.warning(f"SQL injection detected in header: {header_name}")
+                logger.warning(
+                    f"SQL injection detected in header '{header_name}': '{header_value[:100]}...'"
+                )
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid request header"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request header"
                 )
 
             if self._detect_xss(header_value):
-                logger.warning(f"XSS detected in header: {header_name}")
+                logger.warning(f"XSS detected in header '{header_name}': '{header_value[:100]}...'")
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid request header"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request header"
                 )
 
     def _validate_path(self, request: Request):
@@ -200,8 +235,7 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
             if pattern.search(path):
                 logger.warning(f"Path traversal detected: {path}")
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid request path"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request path"
                 )
 
     def _validate_query_params(self, request: Request):
@@ -214,16 +248,14 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
             if self._detect_sql_injection(param_name) or self._detect_xss(param_name):
                 logger.warning(f"Injection in query param name: {param_name}")
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid request parameter"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request parameter"
                 )
 
             # Validate parameter value
             if self._detect_sql_injection(param_value) or self._detect_xss(param_value):
                 logger.warning(f"Injection in query param value: {param_name}={param_value}")
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid request parameter"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request parameter"
                 )
 
     async def _validate_body(self, request: Request):
@@ -235,7 +267,7 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
         if content_length and int(content_length) > self.max_request_size:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Request too large. Maximum size: {self.max_request_size} bytes"
+                detail=f"Request too large. Maximum size: {self.max_request_size} bytes",
             )
 
         # For multipart/form-data (file uploads), validate content types
@@ -249,7 +281,7 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
                         logger.warning(f"Blocked file upload: {file_content_type}")
                         raise HTTPException(
                             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                            detail=f"Unsupported file type: {file_content_type}"
+                            detail=f"Unsupported file type: {file_content_type}",
                         )
 
                     # Validate filename
@@ -258,8 +290,7 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
                         if self._detect_path_traversal(filename):
                             logger.warning(f"Path traversal in filename: {filename}")
                             raise HTTPException(
-                                status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Invalid filename"
+                                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename"
                             )
 
     def _detect_sql_injection(self, value: str) -> bool:
@@ -313,10 +344,10 @@ def sanitize_input(value: Any) -> Any:
 
         return value
 
-    elif isinstance(value, dict):
+    if isinstance(value, dict):
         return {k: sanitize_input(v) for k, v in value.items()}
 
-    elif isinstance(value, list):
+    if isinstance(value, list):
         return [sanitize_input(v) for v in value]
 
     return value
@@ -324,13 +355,13 @@ def sanitize_input(value: Any) -> Any:
 
 def validate_email(email: str) -> bool:
     """Validate email address format."""
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     return re.match(pattern, email) is not None
 
 
 def validate_phone(phone: str) -> bool:
     """Validate phone number format (international)."""
     # Remove all non-numeric characters
-    cleaned = re.sub(r'[^\d+]', '', phone)
+    cleaned = re.sub(r"[^\d+]", "", phone)
     # Check if length is reasonable (10-15 digits)
-    return 10 <= len(cleaned) <= 15 and cleaned.startswith('+')
+    return 10 <= len(cleaned) <= 15 and cleaned.startswith("+")

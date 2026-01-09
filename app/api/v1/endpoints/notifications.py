@@ -19,11 +19,11 @@ class EmailNotificationRequest(BaseModel):
     body: str
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/send-event")
 async def send_notification(req: NotificationRequest, current_user=Depends(get_current_user)):
     notify_event(req.
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 user_id, req.event, req.payload)
     return {"status": "sent"}
 

@@ -1,6 +1,8 @@
 # app/backup.py
-import os, subprocess
 from datetime import datetime
+import os
+import subprocess
+
 
 def backup_database():
     db_url = os.getenv("DATABASE_URL")
@@ -13,6 +15,6 @@ def backup_database():
     subprocess.run(f"gzip {backup_file}", shell=True, check=True)
     print(f"Backup created: {backup_file}.gz")
 
+
 if __name__ == "__main__":
     backup_database()
-

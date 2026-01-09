@@ -4,27 +4,22 @@ Email Connector Service - Handles OAuth authentication and email fetching
 Supports Gmail, Outlook, Office365, Exchange, and IMAP connections
 """
 
-import json
 import base64
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-import os
-import imaplib
-import email
-from email.header import decode_header
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
-from app.db.models.email_connection import EmailConnection, EmailProvider
-from app.db.models.email_metadata import EmailMetadata
 from app.core.logging_config import logger
+from app.db.models.email_connection import EmailConnection, EmailProvider
 
 
 class EmailConnectorService:
@@ -42,8 +37,8 @@ class EmailConnectorService:
             "redirect_uri": settings.EMAIL_CALLBACK_URL,
             "scopes": [
                 "https://www.googleapis.com/auth/gmail.readonly",
-                "https://www.googleapis.com/auth/userinfo.email"
-            ]
+                "https://www.googleapis.com/auth/userinfo.email",
+            ],
         }
 
         self.outlook_config = {
@@ -52,18 +47,22 @@ class EmailConnectorService:
             "redirect_uri": settings.EMAIL_CALLBACK_URL,
             "scopes": [
                 "https://graph.microsoft.com/Mail.Read",
-                "https://graph.microsoft.com/User.Read"
+                "https://graph.microsoft.com/User.Read",
             ],
-            "authority": "https://login.microsoftonline.com"
+            "authority": "https://login.microsoftonline.com",
         }
 
     def _get_encryption_key(self) -> bytes:
         """Generate or retrieve encryption key for token storage"""
-        key_material = settings.ENCRYPTION_KEY.encode() if hasattr(settings, 'ENCRYPTION_KEY') else b'default-key-material-for-psychsync-email-encryption'
+        key_material = (
+            settings.ENCRYPTION_KEY.encode()
+            if hasattr(settings, "ENCRYPTION_KEY")
+            else b"default-key-material-for-psychsync-email-encryption"
+        )
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
-            salt=b'psychsync_email_salt',
+            salt=b"psychsync_email_salt",
             iterations=100000,
         )
         return base64.urlsafe_b64encode(kdf.derive(key_material))
@@ -80,10 +79,9 @@ class EmailConnectorService:
         """Generate OAuth authorization URL for email provider"""
         if provider == EmailProvider.GMAIL:
             return self._get_gmail_oauth_url(state)
-        elif provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
+        if provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
             return self._get_outlook_oauth_url(state)
-        else:
-            raise ValueError(f"OAuth not supported for provider: {provider}")
+        raise ValueError(f"OAuth not supported for provider: {provider}")
 
     def _get_gmail_oauth_url(self, state: str) -> str:
         """Generate Gmail OAuth URL"""
@@ -93,18 +91,15 @@ class EmailConnectorService:
                     "client_id": self.gmail_config["client_id"],
                     "client_secret": self.gmail_config["client_secret"],
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token"
+                    "token_uri": "https://oauth2.googleapis.com/token",
                 }
             },
             scopes=self.gmail_config["scopes"],
-            redirect_uri=self.gmail_config["redirect_uri"]
+            redirect_uri=self.gmail_config["redirect_uri"],
         )
 
         auth_url, _ = flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='true',
-            state=state,
-            prompt='consent'
+            access_type="offline", include_granted_scopes="true", state=state, prompt="consent"
         )
         return auth_url
 
@@ -117,22 +112,23 @@ class EmailConnectorService:
             "redirect_uri": self.outlook_config["redirect_uri"],
             "scope": " ".join(self.outlook_config["scopes"]),
             "state": state,
-            "response_mode": "query"
+            "response_mode": "query",
         }
 
         param_string = "&".join([f"{k}={v}" for k, v in params.items()])
         return f"{base_url}?{param_string}"
 
-    async def handle_oauth_callback(self, provider: EmailProvider, code: str, state: str) -> Tuple[str, str]:
+    async def handle_oauth_callback(
+        self, provider: EmailProvider, code: str, state: str
+    ) -> tuple[str, str]:
         """Handle OAuth callback and return access and refresh tokens"""
         if provider == EmailProvider.GMAIL:
             return await self._handle_gmail_callback(code)
-        elif provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
+        if provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
             return await self._handle_outlook_callback(code)
-        else:
-            raise ValueError(f"OAuth callback not supported for provider: {provider}")
+        raise ValueError(f"OAuth callback not supported for provider: {provider}")
 
-    async def _handle_gmail_callback(self, code: str) -> Tuple[str, str]:
+    async def _handle_gmail_callback(self, code: str) -> tuple[str, str]:
         """Handle Gmail OAuth callback"""
         flow = Flow.from_client_config(
             {
@@ -140,11 +136,11 @@ class EmailConnectorService:
                     "client_id": self.gmail_config["client_id"],
                     "client_secret": self.gmail_config["client_secret"],
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token"
+                    "token_uri": "https://oauth2.googleapis.com/token",
                 }
             },
             scopes=self.gmail_config["scopes"],
-            redirect_uri=self.gmail_config["redirect_uri"]
+            redirect_uri=self.gmail_config["redirect_uri"],
         )
 
         flow.fetch_token(code=code)
@@ -158,7 +154,7 @@ class EmailConnectorService:
 
         return access_token, refresh_token
 
-    async def _handle_outlook_callback(self, code: str) -> Tuple[str, str]:
+    async def _handle_outlook_callback(self, code: str) -> tuple[str, str]:
         """Handle Outlook OAuth callback"""
         token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
         data = {
@@ -167,7 +163,7 @@ class EmailConnectorService:
             "code": code,
             "redirect_uri": self.outlook_config["redirect_uri"],
             "grant_type": "authorization_code",
-            "scope": " ".join(self.outlook_config["scopes"])
+            "scope": " ".join(self.outlook_config["scopes"]),
         }
 
         async with httpx.AsyncClient() as client:
@@ -187,9 +183,9 @@ class EmailConnectorService:
         provider: EmailProvider,
         email_address: str,
         access_token: str,
-        refresh_token: Optional[str] = None,
-        account_name: Optional[str] = None,
-        privacy_settings: Optional[Dict] = None
+        refresh_token: str | None = None,
+        account_name: str | None = None,
+        privacy_settings: dict | None = None,
     ) -> EmailConnection:
         """Create new email connection with encrypted credentials"""
 
@@ -210,12 +206,13 @@ class EmailConnectorService:
             token_expires_at=token_expires_at,
             is_active=True,
             sync_status="pending",
-            privacy_settings=privacy_settings or {
+            privacy_settings=privacy_settings
+            or {
                 "analyze_internal_only": True,
                 "exclude_sensitive_subjects": True,
                 "min_message_age_days": 30,
-                "max_messages_per_batch": 1000
-            }
+                "max_messages_per_batch": 1000,
+            },
         )
 
         db.add(email_connection)
@@ -240,7 +237,7 @@ class EmailConnectorService:
                     refresh_token=refresh_token,
                     token_uri="https://oauth2.googleapis.com/token",
                     client_id=self.gmail_config["client_id"],
-                    client_secret=self.gmail_config["client_secret"]
+                    client_secret=self.gmail_config["client_secret"],
                 )
 
                 credentials.refresh(Request())
@@ -256,7 +253,7 @@ class EmailConnectorService:
                     "client_secret": self.outlook_config["client_secret"],
                     "refresh_token": refresh_token,
                     "grant_type": "refresh_token",
-                    "scope": " ".join(self.outlook_config["scopes"])
+                    "scope": " ".join(self.outlook_config["scopes"]),
                 }
 
                 async with httpx.AsyncClient() as client:
@@ -278,7 +275,7 @@ class EmailConnectorService:
         except Exception as e:
             logger.error(f"Failed to refresh token for connection {connection.id}: {e}")
             connection.sync_status = "error"
-            connection.sync_error_message = f"Token refresh failed: {str(e)}"
+            connection.sync_error_message = f"Token refresh failed: {e!s}"
             await db.commit()
             return False
 
@@ -292,9 +289,9 @@ class EmailConnectorService:
 
             if connection.provider == EmailProvider.GMAIL:
                 return await self._test_gmail_connection(connection)
-            elif connection.provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
+            if connection.provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
                 return await self._test_outlook_connection(connection)
-            elif connection.provider == EmailProvider.IMAP:
+            if connection.provider == EmailProvider.IMAP:
                 return await self._test_imap_connection(connection)
 
         except Exception as e:
@@ -309,9 +306,9 @@ class EmailConnectorService:
             access_token = self.decrypt_token(connection.access_token_encrypted)
             credentials = Credentials(access_token)
 
-            service = build('gmail', 'v1', credentials=credentials)
+            service = build("gmail", "v1", credentials=credentials)
             # Test by getting user profile
-            profile = service.users().getProfile(userId='me').execute()
+            profile = service.users().getProfile(userId="me").execute()
             return profile is not None
 
         except Exception as e:
@@ -324,15 +321,12 @@ class EmailConnectorService:
             access_token = self.decrypt_token(connection.access_token_encrypted)
 
             headers = {
-                'Authorization': f'Bearer {access_token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
             }
 
             # Test by getting user profile
-            response = requests.get(
-                'https://graph.microsoft.com/v1.0/me',
-                headers=headers
-            )
+            response = requests.get("https://graph.microsoft.com/v1.0/me", headers=headers)
             return response.status_code == 200
 
         except Exception as e:
@@ -345,7 +339,7 @@ class EmailConnectorService:
             # This is a simplified implementation
             # In practice, you'd need proper IMAP server configuration
             # For now, just validate the email format
-            if '@' not in connection.email_address:
+            if "@" not in connection.email_address:
                 return False
             return True
 
@@ -353,7 +347,7 @@ class EmailConnectorService:
             logger.error(f"IMAP connection test failed: {e}")
             return False
 
-    async def get_user_connections(self, db: AsyncSession, user_id: str) -> List[EmailConnection]:
+    async def get_user_connections(self, db: AsyncSession, user_id: str) -> list[EmailConnection]:
         """Get all email connections for a user"""
         result = await db.execute(query)
         return result.scalars().all()

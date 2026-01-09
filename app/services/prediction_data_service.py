@@ -4,36 +4,32 @@ Comprehensive service for collecting, preprocessing, and preparing data
 for machine learning model training and prediction analytics.
 """
 
-import asyncio
-import logging
-import json
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
+import json
+import logging
+from typing import Any
 
+import numpy as np
+import pandas as pd
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc, asc
-from sqlalchemy.dialects.postgresql import array_agg
 
 from app.core.database import get_db
-
-from app.core.path_utils import sanitize_path, safe_filename
-from app.db.models.user import User
 from app.db.models.assessment import Assessment
 from app.db.models.response import Response
-from app.db.models.team import Team
-from app.db.models.team import TeamMember
-from app.services.irt_service import IRTService, IRTModel
-from app.services.nlp_service import NLPService, TextAnalysis
+from app.db.models.team import Team, TeamMember
+from app.db.models.user import User
+from app.services.irt_service import IRTService
+from app.services.nlp_service import NLPService
 
 logger = logging.getLogger(__name__)
 
 
 class DataType(Enum):
     """Types of data for ML models"""
+
     ASSESSMENT_RESPONSES = "assessment_responses"
     USER_DEMOGRAPHICS = "user_demographics"
     TEAM_PERFORMANCE = "team_performance"
@@ -45,6 +41,7 @@ class DataType(Enum):
 
 class DataQualityLevel(Enum):
     """Data quality assessment levels"""
+
     EXCELLENT = "excellent"
     GOOD = "good"
     ACCEPTABLE = "acceptable"
@@ -55,17 +52,18 @@ class DataQualityLevel(Enum):
 @dataclass
 class FeatureDefinition:
     """Definition of a feature for ML models"""
+
     name: str
     feature_type: str
     data_type: DataType
     description: str
     calculation_method: str
     aggregation_method: str
-    validation_rules: Dict[str, Any] = field(default_factory=dict)
+    validation_rules: dict[str, Any] = field(default_factory=dict)
     category: str = ""
     importance_weight: float = 1.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "feature_type": self.feature_type,
@@ -75,25 +73,26 @@ class FeatureDefinition:
             "aggregation_method": self.aggregation_method,
             "validation_rules": self.validation_rules,
             "category": self.category,
-            "importance_weight": self.importance_weight
+            "importance_weight": self.importance_weight,
         }
 
 
 @dataclass
 class DatasetStatistics:
     """Statistics for a collected dataset"""
+
     dataset_name: str
     record_count: int
     feature_count: int
-    time_period: Tuple[datetime, datetime]
+    time_period: tuple[datetime, datetime]
     quality_level: DataQualityLevel
     completeness_score: float
-    data_range: Dict[str, Tuple[float, float]]
-    correlation_matrix: Dict[str, float] = field(default_factory=dict)
-    summary_stats: Dict[str, Any] = field(default_factory=dict)
+    data_range: dict[str, tuple[float, float]]
+    correlation_matrix: dict[str, float] = field(default_factory=dict)
+    summary_stats: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "dataset_name": self.dataset_name,
             "record_count": self.record_count,
@@ -104,7 +103,7 @@ class DatasetStatistics:
             "data_range": self.data_range,
             "correlation_matrix": self.correlation_matrix,
             "summary_stats": self.summary_stats,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
 
 
@@ -125,12 +124,12 @@ class PredictionDataCollectionService:
             "min_items_per_assessment": 10,
             "quality_check_enabled": True,
             "outlier_detection_enabled": True,
-            "data_retention_days": 365
+            "data_retention_days": 365,
         }
 
         logger.info("Prediction Data Collection Service initialized")
 
-    def _initialize_feature_definitions(self) -> List[FeatureDefinition]:
+    def _initialize_feature_definitions(self) -> list[FeatureDefinition]:
         """Initialize default feature definitions"""
         return [
             # Assessment response features
@@ -143,7 +142,7 @@ class PredictionDataCollectionService:
                 aggregation_method="sum",
                 validation_rules={"min": 0, "max": None},
                 category="performance",
-                importance_weight=1.0
+                importance_weight=1.0,
             ),
             FeatureDefinition(
                 name="total_responses",
@@ -154,7 +153,7 @@ class PredictionDataCollectionService:
                 aggregation_method="sum",
                 validation_rules={"min": 5, "max": None},
                 category="engagement",
-                importance_weight=0.8
+                importance_weight=0.8,
             ),
             FeatureDefinition(
                 name="accuracy_rate",
@@ -165,7 +164,7 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": 0.0, "max": 1.0},
                 category="performance",
-                importance_weight=1.2
+                importance_weight=1.2,
             ),
             FeatureDefinition(
                 name="difficulty_adjusted_score",
@@ -176,9 +175,8 @@ class PredictionDataCollectionService:
                 aggregation_method="sum",
                 validation_rules={"min": 0.0, "max": 100.0},
                 category="performance",
-                importance_weight=1.5
+                importance_weight=1.5,
             ),
-
             # IRT model features
             FeatureDefinition(
                 name="estimated_ability",
@@ -189,7 +187,7 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": -4.0, "max": 4.0},
                 category="psychometric",
-                importance_weight=1.0
+                importance_weight=1.0,
             ),
             FeatureDefinition(
                 name="measurement_error",
@@ -200,9 +198,8 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": 0.0, "max": 2.0},
                 category="psychometric",
-                importance_weight=0.8
+                importance_weight=0.8,
             ),
-
             # Response time features
             FeatureDefinition(
                 name="mean_response_time",
@@ -213,7 +210,7 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": 0.1, "max": 300.0},
                 category="behavioral",
-                importance_weight=0.6
+                importance_weight=0.6,
             ),
             FeatureDefinition(
                 name="response_time_variance",
@@ -224,9 +221,8 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": 0.01, "max": 10000.0},
                 category="behavioral",
-                importance_weight=0.4
+                importance_weight=0.4,
             ),
-
             # Text analytics features
             FeatureDefinition(
                 name="text_complexity",
@@ -237,7 +233,7 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": 10, "max": 50},
                 category="linguistic",
-                importance_weight=0.7
+                importance_weight=0.7,
             ),
             FeatureDefinition(
                 name="response_length",
@@ -248,7 +244,7 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": 5, "max": 500},
                 category="linguistic",
-                importance_weight=0.5
+                importance_weight=0.5,
             ),
             FeatureDefinition(
                 name="sentiment_score",
@@ -259,9 +255,8 @@ class PredictionDataCollectionService:
                 aggregation_method="mean",
                 validation_rules={"min": -1.0, "max": 1.0},
                 category="affective",
-                importance_weight=0.8
+                importance_weight=0.8,
             ),
-
             # Team performance features
             FeatureDefinition(
                 name="team_avg_performance",
@@ -272,7 +267,7 @@ class PredictionDataCollectionService:
                 aggregation_method="team_level",
                 validation_rules={"min": 0.0, "max": 100.0},
                 category="team",
-                importance_weight=1.2
+                importance_weight=1.2,
             ),
             FeatureDefinition(
                 name="team_performance_variance",
@@ -283,19 +278,19 @@ class PredictionDataCollectionService:
                 aggregation_method="team_level",
                 validation_rules={"min": 0.0, "max": 100.0},
                 category="team",
-                importance_weight=0.8
+                importance_weight=0.8,
             ),
         ]
 
     async def collect_assessment_data(
         self,
         db: Session,
-        assessment_ids: Optional[List[int]] = None,
-        team_ids: Optional[List[int]] = None,
-        user_ids: Optional[List[str]] = None,
-        date_range: Optional[Tuple[datetime, datetime]] = None,
-        min_responses: Optional[int] = None
-    ) -> Dict[str, Any]:
+        assessment_ids: list[int] | None = None,
+        team_ids: list[int] | None = None,
+        user_ids: list[str] | None = None,
+        date_range: tuple[datetime, datetime] | None = None,
+        min_responses: int | None = None,
+    ) -> dict[str, Any]:
         """Collect assessment response data for ML training"""
         try:
             # Build query filters
@@ -323,26 +318,30 @@ class PredictionDataCollectionService:
             # Convert to pandas DataFrame
             data_list = []
             for response in responses:
-                data_list.append({
-                    "response_id": response.id,
-                    "user_id": response.user_id,
-                    "assessment_id": response.assessment_id,
-                    "team_id": response.assessment.team_id,
-                    "item_id": response.item_id,
-                    "response": response.response,
-                    "response_time": response.response_time,
-                    "created_at": response.created_at,
-                    "updated_at": response.updated_at
-                })
+                data_list.append(
+                    {
+                        "response_id": response.id,
+                        "user_id": response.user_id,
+                        "assessment_id": response.assessment_id,
+                        "team_id": response.assessment.team_id,
+                        "item_id": response.item_id,
+                        "response": response.response,
+                        "response_time": response.response_time,
+                        "created_at": response.created_at,
+                        "updated_at": response.updated_at,
+                    }
+                )
 
             df = pd.DataFrame(data_list)
 
             # Apply quality filters
             if min_responses:
                 # Filter assessments with minimum responses
-                assessment_counts = df.groupby('assessment_id')['response_id'].count()
-                valid_assessments = assessment_counts[assessment_counts >= min_responses].index.tolist()
-                df = df[df['assessment_id'].isin(valid_assessments)]
+                assessment_counts = df.groupby("assessment_id")["response_id"].count()
+                valid_assessments = assessment_counts[
+                    assessment_counts >= min_responses
+                ].index.tolist()
+                df = df[df["assessment_id"].isin(valid_assessments)]
 
             if df.empty:
                 return {"data": [], "statistics": self._create_empty_statistics()}
@@ -357,21 +356,18 @@ class PredictionDataCollectionService:
             quality_score = self._calculate_data_quality_score(df_cleaned)
 
             return {
-                "data": df_cleaned.to_dict('records'),
+                "data": df_cleaned.to_dict("records"),
                 "statistics": statistics.to_dict(),
-                "quality_score": quality_score
+                "quality_score": quality_score,
             }
 
         except Exception as e:
-            logger.error(f"Error collecting assessment data: {str(e)}")
+            logger.error(f"Error collecting assessment data: {e!s}")
             return {"data": [], "statistics": self._create_empty_statistics()}
 
     async def collect_user_demographics(
-        self,
-        db: Session,
-        user_ids: Optional[List[str]] = None,
-        include_inactive: bool = False
-    ) -> Dict[str, Any]:
+        self, db: Session, user_ids: list[str] | None = None, include_inactive: bool = False
+    ) -> dict[str, Any]:
         """Collect user demographic data"""
         try:
             # Build query
@@ -391,18 +387,20 @@ class PredictionDataCollectionService:
             # Convert to DataFrame
             data_list = []
             for user in users:
-                data_list.append({
-                    "user_id": user.id,
-                    "email": user.email,
-                    "age": user.age,
-                    "gender": user.gender,
-                    "education_level": user.education_level,
-                    "department": user.department,
-                    "location": user.location,
-                    "years_experience": user.years_experience,
-                    "created_at": user.created_at,
-                    "last_login": user.last_login
-                })
+                data_list.append(
+                    {
+                        "user_id": user.id,
+                        "email": user.email,
+                        "age": user.age,
+                        "gender": user.gender,
+                        "education_level": user.education_level,
+                        "department": user.department,
+                        "location": user.location,
+                        "years_experience": user.years_experience,
+                        "created_at": user.created_at,
+                        "last_login": user.last_login,
+                    }
+                )
 
             df = pd.DataFrame(data_list)
 
@@ -410,27 +408,31 @@ class PredictionDataCollectionService:
             df_cleaned = self._clean_demographic_data(df)
 
             return {
-                "data": df_cleaned.to_dict('records'),
-                "statistics": self._calculate_basic_statistics(df_cleaned, DataType.USER_DEMOGRAPHICS)
+                "data": df_cleaned.to_dict("records"),
+                "statistics": self._calculate_basic_statistics(
+                    df_cleaned, DataType.USER_DEMOGRAPHICS
+                ),
             }
 
         except Exception as e:
-            logger.error(f"Error collecting user demographics: {str(e)}")
+            logger.error(f"Error collecting user demographics: {e!s}")
             return {"data": [], "statistics": self._create_empty_statistics()}
 
     async def collect_team_performance_data(
         self,
         db: Session,
-        team_ids: Optional[List[int]] = None,
-        date_range: Optional[Tuple[datetime, datetime]] = None
-    ) -> Dict[str, Any]:
+        team_ids: list[int] | None = None,
+        date_range: tuple[datetime, datetime] | None = None,
+    ) -> dict[str, Any]:
         """Collect team performance data"""
         try:
             # This would typically aggregate from assessment results
             # For now, we'll simulate team performance from assessment data
 
             # First collect assessment data with team information
-            assessment_data = await self.collect_assessment_data(db, team_ids=team_ids, date_range=date_range)
+            assessment_data = await self.collect_assessment_data(
+                db, team_ids=team_ids, date_range=date_range
+            )
 
             if not assessment_data["data"]:
                 return {"data": [], "statistics": self._create_empty_statistics()}
@@ -438,40 +440,52 @@ class PredictionDataCollectionService:
             df_assessments = pd.DataFrame(assessment_data["data"])
 
             # Aggregate by team
-            team_performance = df_assessessments.groupby(['team_id', 'user_id']).agg({
-                'total_correct': ('response', 'sum'),
-                'total_responses': ('response', 'count'),
-                'mean_response_time': ('response_time', 'mean'),
-                'assessment_count': ('assessment_id', 'nunique')
-            }).reset_index()
+            team_performance = (
+                df_assessessments.groupby(["team_id", "user_id"])
+                .agg(
+                    {
+                        "total_correct": ("response", "sum"),
+                        "total_responses": ("response", "count"),
+                        "mean_response_time": ("response_time", "mean"),
+                        "assessment_count": ("assessment_id", "nunique"),
+                    }
+                )
+                .reset_index()
+            )
 
             # Calculate team-level metrics
-            team_level_stats = team_performance.groupby('team_id').agg({
-                'team_avg_correct': ('total_correct', 'sum'),
-                'team_total_responses': ('total_responses', 'sum'),
-                'team_performance': ('total_correct', 'sum') / ('total_responses', 'sum'),
-                'team_response_time': ('mean_response_time', 'mean'),
-                'team_member_count': ('user_id', 'nunique'),
-                'assessment_count': ('assessment_count', 'sum')
-            }).reset_index()
+            team_level_stats = (
+                team_performance.groupby("team_id")
+                .agg(
+                    {
+                        "team_avg_correct": ("total_correct", "sum"),
+                        "team_total_responses": ("total_responses", "sum"),
+                        "team_performance": ("total_correct", "sum") / ("total_responses", "sum"),
+                        "team_response_time": ("mean_response_time", "mean"),
+                        "team_member_count": ("user_id", "nunique"),
+                        "assessment_count": ("assessment_count", "sum"),
+                    }
+                )
+                .reset_index()
+            )
 
             return {
-                "data": team_level_stats.to_dict('records'),
+                "data": team_level_stats.to_dict("records"),
                 "statistics": self._calculate_basic_statistics(
                     team_level_stats, DataType.TEAM_PERFORMANCE
-                )
+                ),
             }
 
         except Exception as e:
-            logger.error(f"Error collecting team performance data: {str(e)}")
+            logger.error(f"Error collecting team performance data: {e!s}")
             return {"data": [], "statistics": self._create_empty_statistics()}
 
     async def collect_item_analytics(
         self,
         db: Session,
-        item_ids: Optional[List[int]] = None,
-        assessment_ids: Optional[List[int]] = None
-    ) -> Dict[str, Any]:
+        item_ids: list[int] | None = None,
+        assessment_ids: list[int] | None = None,
+    ) -> dict[str, Any]:
         """Collect item-level analytics"""
         try:
             # This would analyze item difficulty, discrimination, etc.
@@ -485,31 +499,37 @@ class PredictionDataCollectionService:
             df_assessments = pd.DataFrame(assessment_data["data"])
 
             # Item-level statistics
-            item_stats = df_assessments.groupby('item_id').agg({
-                'total_correct': ('response', 'sum'),
-                'total_attempts': ('response', 'count'),
-                'accuracy_rate': ('response', 'mean'),
-                'mean_response_time': ('response_time', 'mean'),
-                'response_time_variance': ('response_time', 'variance')
-            }).reset_index()
+            item_stats = (
+                df_assessments.groupby("item_id")
+                .agg(
+                    {
+                        "total_correct": ("response", "sum"),
+                        "total_attempts": ("response", "count"),
+                        "accuracy_rate": ("response", "mean"),
+                        "mean_response_time": ("response_time", "mean"),
+                        "response_time_variance": ("response_time", "variance"),
+                    }
+                )
+                .reset_index()
+            )
 
             return {
-                "data": item_stats.to_dict('records'),
-                "statistics": self._calculate_basic_statistics(item_stats, DataType.ITEM_ANALYTICS)
+                "data": item_stats.to_dict("records"),
+                "statistics": self._calculate_basic_statistics(item_stats, DataType.ITEM_ANALYTICS),
             }
 
         except Exception as e:
-            logger.error(f"Error collecting item analytics: {str(e)}")
+            logger.error(f"Error collecting item analytics: {e!s}")
             return {"data": [], "statistics": self._create_empty_statistics()}
 
     async def prepare_training_dataset(
         self,
-        data_config: Dict[str, Any],
+        data_config: dict[str, Any],
         include_irt_features: bool = True,
         include_text_features: bool = True,
         include_demographic_features: bool = True,
-        include_team_features: bool = False
-    ) -> Dict[str, Any]:
+        include_team_features: bool = False,
+    ) -> dict[str, Any]:
         """Prepare comprehensive training dataset for ML models"""
         try:
             db = get_db()
@@ -524,18 +544,19 @@ class PredictionDataCollectionService:
                     assessment_ids=data_config.get("assessment_ids"),
                     team_ids=data_config.get("team_ids"),
                     user_ids=data_config.get("user_ids"),
-                    date_range=data_config.get("date_range")
+                    date_range=data_config.get("date_range"),
                 )
                 dataset_parts["assessment_responses"] = assessment_data["data"]
 
                 # Calculate IRT features if requested
                 if include_irt_features:
-                    irt_features = await self._extract_irt_features(
-                        assessment_data["data"]
-                    )
+                    irt_features = await self._extract_irt_features(assessment_data["data"])
                     feature_matrices["irt_features"] = irt_features
 
-            if data_config.get("include_demographic_features", True) and include_demographic_features:
+            if (
+                data_config.get("include_demographic_features", True)
+                and include_demographic_features
+            ):
                 demographics_data = await self.collect_user_demographics(db)
                 dataset_parts["user_demographics"] = demographics_data["data"]
 
@@ -543,7 +564,7 @@ class PredictionDataCollectionService:
                 team_data = await self.collect_team_performance_data(
                     db,
                     team_ids=data_config.get("team_ids"),
-                    date_range=data_config.get("date_range")
+                    date_range=data_config.get("date_range"),
                 )
                 dataset_parts["team_performance"] = team_data["data"]
 
@@ -551,7 +572,7 @@ class PredictionDataCollectionService:
                 item_data = await self.collect_item_analytics(
                     db,
                     item_ids=data_config.get("item_ids"),
-                    assessment_ids=data_config.get("assessment_ids")
+                    assessment_ids=data_config.get("assessment_ids"),
                 )
                 dataset_parts["item_analytics"] = item_data["data"]
 
@@ -575,20 +596,21 @@ class PredictionDataCollectionService:
                 "quality_score": quality_score,
                 "metadata": {
                     "data_types": list(dataset_parts.keys()),
-                    "feature_count": len(final_dataset.columns) if hasattr(final_dataset, 'columns') else 0,
+                    "feature_count": len(final_dataset.columns)
+                    if hasattr(final_dataset, "columns")
+                    else 0,
                     "record_count": len(final_dataset),
-                    "created_at": datetime.utcnow().isoformat()
-                }
+                    "created_at": datetime.utcnow().isoformat(),
+                },
             }
 
         except Exception as e:
-            logger.error(f"Error preparing training dataset: {str(e)}")
+            logger.error(f"Error preparing training dataset: {e!s}")
             return {"dataset": None, "feature_matrices": {}, "metadata": {}}
 
     async def _extract_irt_features(
-        self,
-        response_data: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, response_data: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Extract IRT-based features from response data"""
         try:
             # This would use the calibrated IRT model
@@ -601,19 +623,28 @@ class PredictionDataCollectionService:
                 return []
 
             # Group by user and assessment for IRT estimation
-            user_assessments = df.groupby(['user_id', 'assessment_id']).agg({
-                'correct_responses': ('response', 'sum'),
-                'total_responses': ('response', 'count'),
-                'difficulty_estimate': ('response', 'mean')  # Simplified difficulty estimate
-            }).reset_index()
+            user_assessments = (
+                df.groupby(["user_id", "assessment_id"])
+                .agg(
+                    {
+                        "correct_responses": ("response", "sum"),
+                        "total_responses": ("response", "count"),
+                        "difficulty_estimate": (
+                            "response",
+                            "mean",
+                        ),  # Simplified difficulty estimate
+                    }
+                )
+                .reset_index()
+            )
 
             # Calculate IRT-like features
             irt_features = []
             for _, row in user_assessments.iterrows():
-                if row['total_responses'] > 0:
-                    accuracy = row['correct_responses'] / row['total_responses']
+                if row["total_responses"] > 0:
+                    accuracy = row["correct_responses"] / row["total_responses"]
                     # Use logit transformation
-                    difficulty_estimate = row['difficulty_estimate']
+                    difficulty_estimate = row["difficulty_estimate"]
                     if difficulty_estimate == 0:
                         difficulty_estimate = 0.01  # Avoid log(0)
 
@@ -626,37 +657,44 @@ class PredictionDataCollectionService:
                     else:
                         ability_estimate = math.log(difficulty_estimate / (1 - difficulty_estimate))
 
-                    irt_features.append({
-                        "user_id": row['user_id'],
-                        "assessment_id": row['assessment_id'],
-                        "estimated_ability": ability_estimate,
-                        "accuracy_rate": accuracy,
-                        "item_count": row['total_responses'],
-                        "logit_difficulty": math.log(row['difficulty_estimate'] / (1 - row['difficulty_estimate'])) if 0 < row['difficulty_estimate'] < 1 else 3.0
-                    })
+                    irt_features.append(
+                        {
+                            "user_id": row["user_id"],
+                            "assessment_id": row["assessment_id"],
+                            "estimated_ability": ability_estimate,
+                            "accuracy_rate": accuracy,
+                            "item_count": row["total_responses"],
+                            "logit_difficulty": math.log(
+                                row["difficulty_estimate"] / (1 - row["difficulty_estimate"])
+                            )
+                            if 0 < row["difficulty_estimate"] < 1
+                            else 3.0,
+                        }
+                    )
 
             return irt_features
 
         except Exception as e:
-            logger.error(f"Error extracting IRT features: {str(e)}")
+            logger.error(f"Error extracting IRT features: {e!s}")
             return []
 
     async def _extract_text_features(
-        self,
-        response_data: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, response_data: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Extract text analytics features from response data"""
         try:
             # Collect text responses
             text_responses = []
 
             for response in response_data:
-                if response.get('text_response'):
-                    text_responses.append({
-                        "user_id": response['user_id'],
-                        "assessment_id": response['assessment_id'],
-                        "text": response['text_response']
-                    })
+                if response.get("text_response"):
+                    text_responses.append(
+                        {
+                            "user_id": response["user_id"],
+                            "assessment_id": response["assessment_id"],
+                            "text": response["text_response"],
+                        }
+                    )
 
             if not text_responses:
                 return []
@@ -669,34 +707,36 @@ class PredictionDataCollectionService:
                         text_response["text"],
                         include_sentiment=True,
                         include_themes=True,
-                        include_phrases=True
+                        include_phrases=True,
                     )
 
-                    text_analyses.append({
-                        "user_id": text_response["user_id"],
-                        "assessment_id": text_response["assessment_id"],
-                        "text_length": analysis.word_count,
-                        "readability_score": analysis.readability_score,
-                        "complexity": analysis.complexity.value,
-                        "sentiment_score": analysis.sentiment.polarity,
-                        "sentiment_confidence": analysis.sentiment.confidence,
-                        "theme_count": len(analysis.themes),
-                        "key_phrase_count": len(analysis.key_phrases)
-                    })
+                    text_analyses.append(
+                        {
+                            "user_id": text_response["user_id"],
+                            "assessment_id": text_response["assessment_id"],
+                            "text_length": analysis.word_count,
+                            "readability_score": analysis.readability_score,
+                            "complexity": analysis.complexity.value,
+                            "sentiment_score": analysis.sentiment.polarity,
+                            "sentiment_confidence": analysis.sentiment.confidence,
+                            "theme_count": len(analysis.themes),
+                            "key_phrase_count": len(analysis.key_phrases),
+                        }
+                    )
                 except Exception as e:
-                    logger.warning(f"Error analyzing text: {str(e)}")
+                    logger.warning(f"Error analyzing text: {e!s}")
                     continue
 
             return text_analyses
 
         except Exception as e:
-            logger.error(f"Error extracting text features: {str(e)}")
+            logger.error(f"Error extracting text features: {e!s}")
             return []
 
     def _combine_datasets(
         self,
-        dataset_parts: Dict[str, List[Dict[str, Any]]],
-        feature_matrices: Dict[str, List[Dict[str, Any]]]
+        dataset_parts: dict[str, list[dict[str, Any]]],
+        feature_matrices: dict[str, list[dict[str, Any]]],
     ) -> pd.DataFrame:
         """Combine different data parts into final training dataset"""
         try:
@@ -709,100 +749,80 @@ class PredictionDataCollectionService:
             # Add user demographic features
             if "user_demographics" in dataset_parts:
                 demo_df = pd.DataFrame(dataset_parts["user_demographics"])
-                df = pd.merge(
-                    df, demo_df,
-                    left_on='user_id',
-                    how='left'
-                )
+                df = pd.merge(df, demo_df, left_on="user_id", how="left")
 
             # Add IRT features
-            if "irt_features" in feature_matrices and feature_matrices["irt_features"]:
+            if feature_matrices.get("irt_features"):
                 irt_df = pd.DataFrame(feature_matrices["irt_features"])
-                df = pd.merge(
-                    df, irt_df,
-                    left_on=['user_id', 'assessment_id'],
-                    how='left'
-                )
+                df = pd.merge(df, irt_df, left_on=["user_id", "assessment_id"], how="left")
 
             # Add text features
-            if "text_features" in feature_matrices and feature_matrices["text_features"]:
+            if feature_matrices.get("text_features"):
                 text_df = pd.DataFrame(feature_matrices["text_features"])
-                df = pd.merge(
-                    df, text_df,
-                    left_on=['user_id', 'assessment_id'],
-                    how='left'
-                )
+                df = pd.merge(df, text_df, left_on=["user_id", "assessment_id"], how="left")
 
             # Add team features
             if "team_performance" in dataset_parts:
                 team_df = pd.DataFrame(dataset_parts["team_performance"])
-                df = pd.merge(
-                    df, team_df,
-                    left_on='team_id',
-                    how='left'
-                )
+                df = pd.merge(df, team_df, left_on="team_id", how="left")
 
             # Add item features
             if "item_analytics" in dataset_parts:
                 item_df = pd.DataFrame(dataset_parts["item_analytics"])
-                df = pd.merge(
-                    df, item_df,
-                    left_on='item_id',
-                    how='left'
-                )
+                df = pd.merge(df, item_df, left_on="item_id", how="left")
 
             return df
 
         except Exception as e:
-            logger.error(f"Error combining datasets: {str(e)}")
+            logger.error(f"Error combining datasets: {e!s}")
             return pd.DataFrame()
 
     def _clean_response_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Clean and validate response data"""
         try:
             # Remove completely empty rows
-            df = df.dropna(subset=['user_id', 'item_id', 'response'])
+            df = df.dropna(subset=["user_id", "item_id", "response"])
 
             # Validate response values
-            df = df[(df['response'].isin([0, 1]))]
+            df = df[(df["response"].isin([0, 1]))]
 
             # Filter responses with valid timing
-            if 'response_time' in df.columns:
-                df = df[(df['response_time'] > 0) & (df['response_time'] < 300)]  # 5 minutes max
+            if "response_time" in df.columns:
+                df = df[(df["response_time"] > 0) & (df["response_time"] < 300)]  # 5 minutes max
 
             # Remove duplicate responses (same user, item, assessment)
-            df = df.drop_duplicates(subset=['user_id', 'item_id', 'assessment_id'])
+            df = df.drop_duplicates(subset=["user_id", "item_id", "assessment_id"])
 
             return df
 
         except Exception as e:
-            logger.error(f"Error cleaning response data: {str(e)}")
+            logger.error(f"Error cleaning response data: {e!s}")
             return df
 
     def _clean_demographic_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Clean demographic data"""
         try:
             # Handle missing values
-            if 'age' in df.columns:
-                df['age'] = df['age'].fillna(df['age'].median())
+            if "age" in df.columns:
+                df["age"] = df["age"].fillna(df["age"].median())
 
-            if 'years_experience' in df.columns:
-                df['years_experience'] = df['years_experience'].fillna(df['years_experience'].median())
+            if "years_experience" in df.columns:
+                df["years_experience"] = df["years_experience"].fillna(
+                    df["years_experience"].median()
+                )
 
             # Validate ranges
-            if 'age' in df.columns:
-                df = df[(df['age'] >= 18) & (df['age'] <= 80)]  # Reasonable working age range
+            if "age" in df.columns:
+                df = df[(df["age"] >= 18) & (df["age"] <= 80)]  # Reasonable working age range
 
             return df
 
         except Exception as e:
-            logger.error(f"Error cleaning demographic data: {str(e)}")
+            logger.error(f"Error cleaning demographic data: {e!s}")
             return df
 
     def _calculate_basic_statistics(
-        self,
-        df: pd.DataFrame,
-        data_type: DataType
+        self, df: pd.DataFrame, data_type: DataType
     ) -> DatasetStatistics:
         """Calculate basic statistics for a dataset"""
         try:
@@ -810,16 +830,16 @@ class PredictionDataCollectionService:
                 return self._create_empty_statistics()
 
             # Calculate time range
-            if 'created_at' in df.columns:
-                min_date = df['created_at'].min()
-                max_date = df['created_at'].max()
+            if "created_at" in df.columns:
+                min_date = df["created_at"].min()
+                max_date = df["created_at"].max()
             else:
                 min_date = datetime.utcnow()
                 max_date = datetime.utcnow()
 
             # Calculate data ranges
             data_range = {}
-            numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns
+            numeric_columns = df.select_dtypes(include=["int64", "float64"]).columns
             for col in numeric_columns:
                 if col in df.columns and not df[col].empty():
                     data_range[col] = (float(df[col].min()), float(df[col].max()))
@@ -828,7 +848,7 @@ class PredictionDataCollectionService:
             summary_stats = {
                 "row_count": len(df),
                 "column_count": len(df.columns),
-                "missing_values": df.isnull().sum().sum()
+                "missing_values": df.isnull().sum().sum(),
             }
 
             return DatasetStatistics(
@@ -840,11 +860,11 @@ class PredictionDataCollectionService:
                 completeness_score=self._calculate_completeness_score(df),
                 data_range=data_range,
                 correlation_matrix={},
-                summary_stats=summary_stats
+                summary_stats=summary_stats,
             )
 
         except Exception as e:
-            logger.error(f"Error calculating statistics: {str(e)}")
+            logger.error(f"Error calculating statistics: {e!s}")
             return self._create_empty_statistics()
 
     def _calculate_data_quality_score(self, df: pd.DataFrame) -> float:
@@ -861,7 +881,7 @@ class PredictionDataCollectionService:
             duplicate_score = max(0, 1 - duplicate_ratio)
 
             # Calculate outlier ratio (simplified)
-            numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns
+            numeric_columns = df.select_dtypes(include=["int64", "float64"]).columns
             outlier_count = 0
             total_numeric_values = 0
 
@@ -873,7 +893,9 @@ class PredictionDataCollectionService:
                     outliers = ((df[col] < (q1 - 1.5 * iqr)) | (df[col] > (q3 + 1.5 * iqr))).sum()
                     total_numeric_values += len(df[col].dropna())
 
-            outlier_score = 1 - (outlier_count / total_numeric_values) if total_numeric_values > 0 else 1
+            outlier_score = (
+                1 - (outlier_count / total_numeric_values) if total_numeric_values > 0 else 1
+            )
 
             # Calculate missing data ratio
             missing_ratio = df.isnull().sum().sum() / (df.size * len(df.columns))
@@ -881,16 +903,16 @@ class PredictionDataCollectionService:
 
             # Combine scores with weights
             quality_score = (
-                completeness_score * 0.4 +
-                duplicate_score * 0.3 +
-                outlier_score * 0.2 +
-                missing_score * 0.1
+                completeness_score * 0.4
+                + duplicate_score * 0.3
+                + outlier_score * 0.2
+                + missing_score * 0.1
             )
 
             return quality_score
 
         except Exception as e:
-            logger.error(f"Error calculating quality score: {str(e)}")
+            logger.error(f"Error calculating quality score: {e!s}")
             return 0.0
 
     def _calculate_completeness_score(self, df: pd.DataFrame) -> float:
@@ -906,7 +928,7 @@ class PredictionDataCollectionService:
             return completeness_score
 
         except Exception as e:
-            logger.error(f"Error calculating completeness score: {str(e)}")
+            logger.error(f"Error calculating completeness score: {e!s}")
             return 0.0
 
     def _create_empty_statistics(self) -> DatasetStatistics:
@@ -920,13 +942,10 @@ class PredictionDataCollectionService:
             completeness_score=0.0,
             data_range={},
             correlation_matrix={},
-            summary_stats={}
+            summary_stats={},
         )
 
-    async def get_feature_importance(
-        self,
-        feature_name: str
-    ) -> float:
+    async def get_feature_importance(self, feature_name: str) -> float:
         """Get importance weight for a feature"""
         for feature_def in self.feature_definitions:
             if feature_def.name == feature_name:
@@ -934,18 +953,12 @@ class PredictionDataCollectionService:
         return 1.0  # Default weight
 
     async def validate_dataset(
-        self,
-        dataset: pd.DataFrame,
-        validation_rules: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, dataset: pd.DataFrame, validation_rules: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Validate dataset against provided rules"""
         try:
             if dataset.empty:
-                    return {
-                        "valid": False,
-                        "issues": ["Dataset is empty"],
-                        "quality_score": 0.0
-                    }
+                return {"valid": False, "issues": ["Dataset is empty"], "quality_score": 0.0}
 
             issues = []
 
@@ -956,14 +969,16 @@ class PredictionDataCollectionService:
 
             # Validate feature completeness
             completeness_score = self._calculate_completeness_score(dataset)
-            min_completeness = validation_rules.get("min_completeness", 0.9) if validation_rules else 0.9
+            min_completeness = (
+                validation_rules.get("min_completeness", 0.9) if validation_rules else 0.9
+            )
             if completeness_score < min_completeness:
                 issues.append(f"Low completeness: {completeness_score:.3f} < {min_completeness}")
 
             # Validate data types
             for col in dataset.columns:
-                if col not in ['id', 'user_id', 'assessment_id', 'team_id', 'item_id']:
-                    if dataset[col].dtype not in ['int64', 'float64', 'object', 'bool']:
+                if col not in ["id", "user_id", "assessment_id", "team_id", "item_id"]:
+                    if dataset[col].dtype not in ["int64", "float64", "object", "bool"]:
                         issues.append(f"Invalid data type for column: {col}")
 
             # Validate ranges
@@ -983,50 +998,46 @@ class PredictionDataCollectionService:
             return {
                 "valid": len(issues) == 0,
                 "issues": issues,
-                "quality_score": self._calculate_data_quality_score(dataset)
+                "quality_score": self._calculate_data_quality_score(dataset),
             }
 
         except Exception as e:
-            logger.error(f"Error validating dataset: {str(e)}")
+            logger.error(f"Error validating dataset: {e!s}")
             return {"valid": False, "issues": [str(e)]}
 
     async def export_dataset(
-        self,
-        dataset: pd.DataFrame,
-        export_format: str = "json",
-        filename: Optional[str] = None
+        self, dataset: pd.DataFrame, export_format: str = "json", filename: str | None = None
     ) -> str:
         """Export dataset to specified format"""
         try:
             if export_format == "json":
-                json_data = dataset.to_dict('records')
+                json_data = dataset.to_dict("records")
                 json_str = json.dumps(json_data, indent=2, ensure_ascii=False)
 
                 if filename:
-                    with open(filename, 'w') as f:
+                    with open(filename, "w") as f:
                         f.write(json_str)
 
                 return json_str
-            else:
-                raise ValueError(f"Unsupported export format: {export_format}")
+            raise ValueError(f"Unsupported export format: {export_format}")
 
         except Exception as e:
-            logger.error(f"Error exporting dataset: {str(e)}")
+            logger.error(f"Error exporting dataset: {e!s}")
             return ""
 
     async def create_feature_importance_report(
         self,
         dataset: pd.DataFrame,
-        target_variable: Optional[str] = None,
-        feature_correlation_threshold: float = 0.1
-    ) -> Dict[str, Any]:
+        target_variable: str | None = None,
+        feature_correlation_threshold: float = 0.1,
+    ) -> dict[str, Any]:
         """Create report on feature importance and correlation"""
         try:
             if dataset.empty:
                 return {"error": "Empty dataset"}
 
             # Calculate correlation matrix for numeric features
-            numeric_features = dataset.select_dtypes(include=['int64', 'float64']).columns
+            numeric_features = dataset.select_dtypes(include=["int64", "float64"]).columns
             correlation_matrix = dataset[numeric_features].corr()
 
             # Calculate feature importance based on correlation with target
@@ -1046,11 +1057,7 @@ class PredictionDataCollectionService:
                     weighted_scores[feature_def.name] = correlation * weight
 
             # Sort features by importance
-            sorted_features = sorted(
-                sorted_features.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )
+            sorted_features = sorted(sorted_features.items(), key=lambda x: x[1], reverse=True)
 
             return {
                 "feature_correlation": correlation_matrix.to_dict(),
@@ -1058,20 +1065,18 @@ class PredictionDataCollectionService:
                 "weighted_importance": weighted_scores,
                 "top_features": sorted_features[:20],
                 "feature_categories": self._categorize_features(sorted_features),
-                "quality_score": self._calculate_data_quality_score(dataset)
+                "quality_score": self._calculate_data_quality_score(dataset),
             }
 
         except Exception as e:
-            logger.error(f"Error creating feature report: {str(e)}")
+            logger.error(f"Error creating feature report: {e!s}")
             return {"error": str(e)}
 
-    def _categorize_features(self, sorted_features: List[Tuple[str, float]]) -> Dict[str, List[str]]:
+    def _categorize_features(
+        self, sorted_features: list[tuple[str, float]]
+    ) -> dict[str, list[str]]:
         """Categorize features by type and importance level"""
-        categories = {
-            "high_importance": [],
-            "medium_importance": [],
-            "low_importance": []
-        }
+        categories = {"high_importance": [], "medium_importance": [], "low_importance": []}
 
         for feature, score in sorted_features:
             if score >= 0.7:
@@ -1086,25 +1091,21 @@ class PredictionDataCollectionService:
     async def get_data_collection_summary(
         self,
         db: Session,
-        time_period: int = 30  # days
-    ) -> Dict[str, Any]:
+        time_period: int = 30,  # days
+    ) -> dict[str, Any]:
         """Get summary of data collection activity"""
         try:
             # Get counts for different data types
             end_date = datetime.utcnow()
             start_date = end_date - timedelta(days=time_period)
 
-            assessment_count = db.query(Assessment).filter(
-                Assessment.created_at >= start_date
-            ).count()
+            assessment_count = (
+                db.query(Assessment).filter(Assessment.created_at >= start_date).count()
+            )
 
-            response_count = db.query(Response).filter(
-                Response.created_at >= start_date
-            ).count()
+            response_count = db.query(Response).filter(Response.created_at >= start_date).count()
 
-            user_count = db.query(User).filter(
-                User.created_at >= start_date
-            ).count()
+            user_count = db.query(User).filter(User.created_at >= start_date).count()
 
             team_count = db.query(Team).count()
 
@@ -1119,32 +1120,30 @@ class PredictionDataCollectionService:
                     "user_demographics",
                     "team_performance",
                     "item_analytics",
-                    "text_analytics"
+                    "text_analytics",
                 ],
-                "collection_date": datetime.utcnow().isoformat()
+                "collection_date": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
-            logger.error(f"Error getting collection summary: {str(e)}")
+            logger.error(f"Error getting collection summary: {e!s}")
             return {}
 
-    def export_feature_definitions(self) -> List[Dict[str, Any]]:
+    def export_feature_definitions(self) -> list[dict[str, Any]]:
         """Export feature definitions for documentation"""
         return [feature_def.to_dict() for feature_def in self.feature_definitions]
 
-    def get_model_status(self) -> Dict[str, Any]:
+    def get_model_status(self) -> dict[str, Any]:
         """Get model service status"""
         return {
             "service": "Prediction Data Collection Service",
             "initialized": True,
             "feature_count": len(self.feature_definitions),
             "config": self.config,
-            "available_data_types": [dt.value for dt in DataType]
+            "available_data_types": [dt.value for dt in DataType],
         }
 
-    async def collect_team_prediction_data(self,
-                                          db: Session,
-                                          team_id: int) -> Dict[str, Any]:
+    async def collect_team_prediction_data(self, db: Session, team_id: int) -> dict[str, Any]:
         """
         Collect team-specific data for prediction.
 
@@ -1169,14 +1168,10 @@ class PredictionDataCollectionService:
                 return {"success": False, "error": f"No members found for team {team_id}"}
 
             # Collect team performance data
-            performance_data = await self.collect_team_performance_data(
-                db, team_ids=[team_id]
-            )
+            performance_data = await self.collect_team_performance_data(db, team_ids=[team_id])
 
             # Collect assessment response data for team members
-            assessment_data = await self.collect_assessment_data(
-                db, user_ids=user_ids
-            )
+            assessment_data = await self.collect_assessment_data(db, user_ids=user_ids)
 
             # Extract features for prediction
             features = {}
@@ -1195,17 +1190,25 @@ class PredictionDataCollectionService:
                 response_df = assessment_data["data"]
                 if not response_df.empty:
                     # Aggregate by user and then compute team-level features
-                    user_features = response_df.groupby('user_id').agg({
-                        'response_score': ['mean', 'std', 'min', 'max'],
-                        'IRT_ability': ['mean', 'std'],
-                        'IRT_se': ['mean'],
-                        'difficulty_match_score': ['mean'],
-                        'discrimination_score': ['mean'],
-                        'point_biserial': ['mean']
-                    }).fillna(0)
+                    user_features = (
+                        response_df.groupby("user_id")
+                        .agg(
+                            {
+                                "response_score": ["mean", "std", "min", "max"],
+                                "IRT_ability": ["mean", "std"],
+                                "IRT_se": ["mean"],
+                                "difficulty_match_score": ["mean"],
+                                "discrimination_score": ["mean"],
+                                "point_biserial": ["mean"],
+                            }
+                        )
+                        .fillna(0)
+                    )
 
                     # Flatten column names
-                    user_features.columns = [f"user_{col[0]}_{col[1]}" for col in user_features.columns]
+                    user_features.columns = [
+                        f"user_{col[0]}_{col[1]}" for col in user_features.columns
+                    ]
 
                     # Aggregate to team level
                     team_assessment_features = user_features.mean()
@@ -1217,16 +1220,14 @@ class PredictionDataCollectionService:
                     features["team_assessment_variability"] = user_features.std().mean()
 
             # Add team-level demographic features
-            team_demo_data = await self.collect_demographics_data(
-                db, user_ids=user_ids
-            )
+            team_demo_data = await self.collect_demographics_data(db, user_ids=user_ids)
 
             if team_demo_data["success"]:
                 demo_df = team_demo_data["data"]
                 if not demo_df.empty:
                     # Calculate demographic diversity metrics
                     for col in demo_df.columns:
-                        if col != "user_id" and demo_df[col].dtype in ['object', 'category']:
+                        if col != "user_id" and demo_df[col].dtype in ["object", "category"]:
                             # Diversity as proportion of unique categories
                             diversity = len(demo_df[col].unique()) / len(demo_df)
                             features[f"demo_{col}_diversity"] = diversity
@@ -1236,23 +1237,25 @@ class PredictionDataCollectionService:
                 "team_id": team_id,
                 "features": features,
                 "feature_count": len(features),
-                "data_collection_time": datetime.now().isoformat()
+                "data_collection_time": datetime.now().isoformat(),
             }
 
         except Exception as e:
-            logger.error(f"Error collecting team prediction data for team {team_id}: {str(e)}")
+            logger.error(f"Error collecting team prediction data for team {team_id}: {e!s}")
             return {"success": False, "error": str(e)}
 
-    async def collect_training_data(self,
-                                  db: Session,
-                                  include_assessment_responses: bool = True,
-                                  include_team_performance: bool = True,
-                                  include_demographics: bool = False,
-                                  include_response_patterns: bool = True,
-                                  team_ids: Optional[List[int]] = None,
-                                  user_ids: Optional[List[str]] = None,
-                                  min_data_quality: float = 0.5,
-                                  date_range: Optional[Tuple[datetime, datetime]] = None) -> Dict[str, Any]:
+    async def collect_training_data(
+        self,
+        db: Session,
+        include_assessment_responses: bool = True,
+        include_team_performance: bool = True,
+        include_demographics: bool = False,
+        include_response_patterns: bool = True,
+        team_ids: list[int] | None = None,
+        user_ids: list[str] | None = None,
+        min_data_quality: float = 0.5,
+        date_range: tuple[datetime, datetime] | None = None,
+    ) -> dict[str, Any]:
         """
         Collect comprehensive training data for ML models.
 
@@ -1276,10 +1279,7 @@ class PredictionDataCollectionService:
             # Collect assessment response data
             if include_assessment_responses:
                 assessment_data = await self.collect_assessment_data(
-                    db=db,
-                    team_ids=team_ids,
-                    user_ids=user_ids,
-                    date_range=date_range
+                    db=db, team_ids=team_ids, user_ids=user_ids, date_range=date_range
                 )
                 if assessment_data["success"]:
                     df_assessment = assessment_data["data"]
@@ -1289,8 +1289,7 @@ class PredictionDataCollectionService:
             # Collect team performance data
             if include_team_performance:
                 performance_data = await self.collect_team_performance_data(
-                    db=db,
-                    team_ids=team_ids
+                    db=db, team_ids=team_ids
                 )
                 if performance_data["success"]:
                     df_performance = performance_data["data"]
@@ -1299,10 +1298,7 @@ class PredictionDataCollectionService:
 
             # Collect demographics data
             if include_demographics:
-                demographics_data = await self.collect_demographics_data(
-                    db=db,
-                    user_ids=user_ids
-                )
+                demographics_data = await self.collect_demographics_data(db=db, user_ids=user_ids)
                 if demographics_data["success"]:
                     df_demographics = demographics_data["data"]
                     if not df_demographics.empty:
@@ -1311,10 +1307,7 @@ class PredictionDataCollectionService:
             # Collect response pattern data
             if include_response_patterns:
                 patterns_data = await self.collect_response_patterns(
-                    db=db,
-                    team_ids=team_ids,
-                    user_ids=user_ids,
-                    date_range=date_range
+                    db=db, team_ids=team_ids, user_ids=user_ids, date_range=date_range
                 )
                 if patterns_data["success"]:
                     df_patterns = patterns_data["data"]
@@ -1323,10 +1316,7 @@ class PredictionDataCollectionService:
 
             # Merge all dataframes
             if not all_dataframes:
-                return {
-                    "success": False,
-                    "error": "No data collected for training"
-                }
+                return {"success": False, "error": "No data collected for training"}
 
             # Start with the first dataframe
             merged_df = all_dataframes[0]
@@ -1334,10 +1324,10 @@ class PredictionDataCollectionService:
             # Merge with remaining dataframes
             for df in all_dataframes[1:]:
                 # Try different merge strategies
-                if 'user_id' in merged_df.columns and 'user_id' in df.columns:
-                    merged_df = pd.merge(merged_df, df, on='user_id', how='outer')
-                elif 'team_id' in merged_df.columns and 'team_id' in df.columns:
-                    merged_df = pd.merge(merged_df, df, on='team_id', how='outer')
+                if "user_id" in merged_df.columns and "user_id" in df.columns:
+                    merged_df = pd.merge(merged_df, df, on="user_id", how="outer")
+                elif "team_id" in merged_df.columns and "team_id" in df.columns:
+                    merged_df = pd.merge(merged_df, df, on="team_id", how="outer")
                 else:
                     # Concatenate if no common keys
                     merged_df = pd.concat([merged_df, df], axis=1)
@@ -1350,8 +1340,8 @@ class PredictionDataCollectionService:
             numeric_columns = merged_df.select_dtypes(include=[np.number]).columns
             merged_df[numeric_columns] = merged_df[numeric_columns].fillna(0)
 
-            categorical_columns = merged_df.select_dtypes(include=['object', 'category']).columns
-            merged_df[categorical_columns] = merged_df[categorical_columns].fillna('unknown')
+            categorical_columns = merged_df.select_dtypes(include=["object", "category"]).columns
+            merged_df[categorical_columns] = merged_df[categorical_columns].fillna("unknown")
 
             return {
                 "success": True,
@@ -1359,27 +1349,29 @@ class PredictionDataCollectionService:
                 "rows": len(merged_df),
                 "columns": len(merged_df.columns),
                 "data_sources": [
-                    source for source, included in [
+                    source
+                    for source, included in [
                         ("assessment_responses", include_assessment_responses),
                         ("team_performance", include_team_performance),
                         ("demographics", include_demographics),
-                        ("response_patterns", include_response_patterns)
-                    ] if included
+                        ("response_patterns", include_response_patterns),
+                    ]
+                    if included
                 ],
-                "collection_time": datetime.now().isoformat()
+                "collection_time": datetime.now().isoformat(),
             }
 
         except Exception as e:
-            logger.error(f"Error collecting training data: {str(e)}")
+            logger.error(f"Error collecting training data: {e!s}")
             return {"success": False, "error": str(e)}
 
 
 # Export the main service class
 __all__ = [
-    "PredictionDataCollectionService",
+    "DataQualityLevel",
+    "DataType",
     "DatasetStatistics",
     "FeatureDefinition",
-    "DataType",
-    "DataQualityLevel",
-    "ModelStatus"
+    "ModelStatus",
+    "PredictionDataCollectionService",
 ]

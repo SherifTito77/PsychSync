@@ -4,8 +4,7 @@ Provides safe query construction and input validation for NoSQL databases
 """
 
 import re
-from typing import Any, Dict, List, Union
-import json
+from typing import Any
 
 
 class NoSQLInjectionPreventer:
@@ -15,20 +14,37 @@ class NoSQLInjectionPreventer:
 
     # Dangerous MongoDB operators that should never come from user input
     DANGEROUS_OPERATORS = {
-        '$where', '$regex', '$expr', '$jsonSchema',
-        '$ne', '$nin', '$in', '$exists', '$type',
-        '$mod', '$size', '$all', '$and', '$or', '$not', '$nor',
-        '$elemMatch', '$gt', '$gte', '$lt', '$lte',
+        "$where",
+        "$regex",
+        "$expr",
+        "$jsonSchema",
+        "$ne",
+        "$nin",
+        "$in",
+        "$exists",
+        "$type",
+        "$mod",
+        "$size",
+        "$all",
+        "$and",
+        "$or",
+        "$not",
+        "$nor",
+        "$elemMatch",
+        "$gt",
+        "$gte",
+        "$lt",
+        "$lte",
     }
 
     # Characters/patterns that indicate injection attempts
     INJECTION_PATTERNS = [
-        r'\$where',
-        r'\$ne\s*:',
-        r'\$regex\s*:',
-        r'\$expr\s*:',
-        r'\{.*\$.*\}',
-        r'\'.*\$.*\'',
+        r"\$where",
+        r"\$ne\s*:",
+        r"\$regex\s*:",
+        r"\$expr\s*:",
+        r"\{.*\$.*\}",
+        r"\'.*\$.*\'",
         r'".*\$.*"',
     ]
 
@@ -61,7 +77,7 @@ class NoSQLInjectionPreventer:
                     raise ValueError(f"Potential injection pattern detected: {pattern}")
 
             # Escape special characters
-            return user_input.replace('$', '\\$')
+            return user_input.replace("$", "\\$")
 
         if isinstance(user_input, list):
             return [cls.sanitize_query_input(item) for item in user_input]
@@ -72,7 +88,7 @@ class NoSQLInjectionPreventer:
         raise TypeError(f"Unsupported input type: {type(user_input)}")
 
     @classmethod
-    def sanitize_dict(cls, query_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def sanitize_dict(cls, query_dict: dict[str, Any]) -> dict[str, Any]:
         """
         Recursively sanitize dictionary queries
 
@@ -88,12 +104,12 @@ class NoSQLInjectionPreventer:
         sanitized = {}
         for key, value in query_dict.items():
             # Check key for dangerous operators
-            if key.startswith('$'):
+            if key.startswith("$"):
                 if key not in cls.DANGEROUS_OPERATORS:
                     # Unknown operator - reject
                     raise ValueError(f"Unknown operator: {key}")
                 # Known dangerous operator - only allow in specific contexts
-                if key in {'$where', '$regex', '$expr'}:
+                if key in {"$where", "$regex", "$expr"}:
                     raise ValueError(f"Dangerous operator '{key}' not allowed from user input")
 
             # Recursively sanitize values
@@ -102,7 +118,7 @@ class NoSQLInjectionPreventer:
         return sanitized
 
     @classmethod
-    def build_safe_query(cls, field: str, operator: str, value: Any) -> Dict[str, Any]:
+    def build_safe_query(cls, field: str, operator: str, value: Any) -> dict[str, Any]:
         """
         Build a safe MongoDB query with proper sanitization
 
@@ -115,25 +131,24 @@ class NoSQLInjectionPreventer:
             Safe query dictionary
         """
         # Sanitize field name
-        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', field):
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", field):
             raise ValueError(f"Invalid field name: {field}")
 
         # Validate operator
-        if operator not in {'$eq', '$gt', '$gte', '$lt', '$lte', '$ne', '$in', '$nin'}:
-            if operator != '$eq':  # $eq is default
+        if operator not in {"$eq", "$gt", "$gte", "$lt", "$lte", "$ne", "$in", "$nin"}:
+            if operator != "$eq":  # $eq is default
                 raise ValueError(f"Operator '{operator}' not allowed")
 
         # Sanitize value
         safe_value = cls.sanitize_query_input(value)
 
         # Build query
-        if operator == '$eq':
+        if operator == "$eq":
             return {field: safe_value}
-        else:
-            return {field: {operator: safe_value}}
+        return {field: {operator: safe_value}}
 
     @classmethod
-    def validate_find_query(cls, query: Dict[str, Any]) -> bool:
+    def validate_find_query(cls, query: dict[str, Any]) -> bool:
         """
         Validate a MongoDB find query for safety
 
@@ -169,16 +184,33 @@ class NoSQLInjectionPreventer:
         if isinstance(node, dict):
             for key, value in node.items():
                 # Check for dangerous operators
-                if key.startswith('$'):
-                    if key in {'$where', '$expr', '$jsonSchema'}:
+                if key.startswith("$"):
+                    if key in {"$where", "$expr", "$jsonSchema"}:
                         raise ValueError(f"Dangerous operator '{key}' detected")
 
                     # Only allow safe operators
                     safe_operators = {
-                        '$eq', '$gt', '$gte', '$lt', '$lte', '$ne',
-                        '$in', '$nin', '$and', '$or', '$not', '$nor',
-                        '$exists', '$type', '$mod', '$regex', '$size',
-                        '$all', '$elemMatch', '$set', '$unset',
+                        "$eq",
+                        "$gt",
+                        "$gte",
+                        "$lt",
+                        "$lte",
+                        "$ne",
+                        "$in",
+                        "$nin",
+                        "$and",
+                        "$or",
+                        "$not",
+                        "$nor",
+                        "$exists",
+                        "$type",
+                        "$mod",
+                        "$regex",
+                        "$size",
+                        "$all",
+                        "$elemMatch",
+                        "$set",
+                        "$unset",
                     }
                     if key not in safe_operators:
                         raise ValueError(f"Unsafe operator '{key}' detected")
@@ -200,53 +232,49 @@ class SafeMongoQueryBuilder:
         self.preventer = NoSQLInjectionPreventer()
         self.query = {}
 
-    def equals(self, field: str, value: Any) -> 'SafeMongoQueryBuilder':
+    def equals(self, field: str, value: Any) -> "SafeMongoQueryBuilder":
         """Add equals condition"""
         self.query[field] = self.preventer.sanitize_query_input(value)
         return self
 
-    def greater_than(self, field: str, value: Any) -> 'SafeMongoQueryBuilder':
+    def greater_than(self, field: str, value: Any) -> "SafeMongoQueryBuilder":
         """Add greater than condition"""
         safe_value = self.preventer.sanitize_query_input(value)
-        self.query[field] = {'$gt': safe_value}
+        self.query[field] = {"$gt": safe_value}
         return self
 
-    def less_than(self, field: str, value: Any) -> 'SafeMongoQueryBuilder':
+    def less_than(self, field: str, value: Any) -> "SafeMongoQueryBuilder":
         """Add less than condition"""
         safe_value = self.preventer.sanitize_query_input(value)
-        self.query[field] = {'$lt': safe_value}
+        self.query[field] = {"$lt": safe_value}
         return self
 
-    def in_list(self, field: str, values: List[Any]) -> 'SafeMongoQueryBuilder':
+    def in_list(self, field: str, values: list[Any]) -> "SafeMongoQueryBuilder":
         """Add in-list condition"""
         safe_values = [self.preventer.sanitize_query_input(v) for v in values]
-        self.query[field] = {'$in': safe_values}
+        self.query[field] = {"$in": safe_values}
         return self
 
-    def and_condition(self, *conditions: Dict[str, Any]) -> 'SafeMongoQueryBuilder':
+    def and_condition(self, *conditions: dict[str, Any]) -> "SafeMongoQueryBuilder":
         """Add AND condition"""
-        validated_conditions = [
-            self.preventer.sanitize_dict(c) for c in conditions
-        ]
-        self.query['$and'] = validated_conditions
+        validated_conditions = [self.preventer.sanitize_dict(c) for c in conditions]
+        self.query["$and"] = validated_conditions
         return self
 
-    def or_condition(self, *conditions: Dict[str, Any]) -> 'SafeMongoQueryBuilder':
+    def or_condition(self, *conditions: dict[str, Any]) -> "SafeMongoQueryBuilder":
         """Add OR condition"""
-        validated_conditions = [
-            self.preventer.sanitize_dict(c) for c in conditions
-        ]
-        self.query['$or'] = validated_conditions
+        validated_conditions = [self.preventer.sanitize_dict(c) for c in conditions]
+        self.query["$or"] = validated_conditions
         return self
 
-    def build(self) -> Dict[str, Any]:
+    def build(self) -> dict[str, Any]:
         """Build and validate the final query"""
         self.preventer.validate_find_query(self.query)
         return self.query
 
 
 # Convenience functions
-def safe_find(collection, query: Dict[str, Any]) -> Any:
+def safe_find(collection, query: dict[str, Any]) -> Any:
     """
     Safely execute a MongoDB find query
 
@@ -269,7 +297,7 @@ def safe_find(collection, query: Dict[str, Any]) -> Any:
     return collection.find(sanitized)
 
 
-def safe_find_one(collection, query: Dict[str, Any]) -> Any:
+def safe_find_one(collection, query: dict[str, Any]) -> Any:
     """
     Safely execute a MongoDB findOne query
 
@@ -288,7 +316,7 @@ def safe_find_one(collection, query: Dict[str, Any]) -> Any:
     return collection.find_one(sanitized)
 
 
-def safe_update(collection, query: Dict[str, Any], update: Dict[str, Any]) -> Any:
+def safe_update(collection, query: dict[str, Any], update: dict[str, Any]) -> Any:
     """
     Safely execute a MongoDB update operation
 
@@ -306,10 +334,10 @@ def safe_update(collection, query: Dict[str, Any], update: Dict[str, Any]) -> An
     sanitized_update = NoSQLInjectionPreventer.sanitize_dict(update)
 
     # Execute update
-    return collection.update_many(sanitized_query, {'$set': sanitized_update})
+    return collection.update_many(sanitized_query, {"$set": sanitized_update})
 
 
-def safe_insert(collection, document: Dict[str, Any]) -> Any:
+def safe_insert(collection, document: dict[str, Any]) -> Any:
     """
     Safely execute a MongoDB insert operation
 
@@ -335,13 +363,13 @@ if __name__ == "__main__":
     # Test 1: Safe query building
     print("\n✅ Test 1: Safe Query Building")
     builder = SafeMongoQueryBuilder()
-    query = builder.equals('username', 'john').greater_than('age', 18).build()
+    query = builder.equals("username", "john").greater_than("age", 18).build()
     print(f"Query: {query}")
 
     # Test 2: Dangerous operator detection
     print("\n⚠️  Test 2: Dangerous Operator Detection")
     try:
-        NoSQLInjectionPreventer.sanitize_query_input({'$where': 'this.password == "123"'})
+        NoSQLInjectionPreventer.sanitize_query_input({"$where": 'this.password == "123"'})
         print("❌ FAILED - Should have detected dangerous operator")
     except ValueError as e:
         print(f"✅ Detected dangerous operator: {e}")
@@ -349,12 +377,12 @@ if __name__ == "__main__":
     # Test 3: Input sanitization
     print("\n✅ Test 3: Input Sanitization")
     safe_input = NoSQLInjectionPreventer.sanitize_query_input("test$user")
-    print(f"Original: test$user")
+    print("Original: test$user")
     print(f"Sanitized: {safe_input}")
 
     # Test 4: Query validation
     print("\n✅ Test 4: Query Validation")
-    safe_query = {'username': 'john', 'age': {'$gt': 18}}
+    safe_query = {"username": "john", "age": {"$gt": 18}}
     if NoSQLInjectionPreventer.validate_find_query(safe_query):
         print("✅ Safe query validated")
 

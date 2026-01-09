@@ -28,7 +28,8 @@ interface UserResponse {
 // Function to handle user login
 export const login = async (credentials: LoginCredentials): Promise<{ user: User; tokens: LoginResponse }> => {
   // Use the secure token-fixed endpoint with httpOnly cookies
-  const formData = new FormData();
+  // Use URLSearchParams for application/x-www-form-urlencoded (OAuth2 compatible)
+  const formData = new URLSearchParams();
   formData.append('username', credentials.email);
   formData.append('password', credentials.password);
 

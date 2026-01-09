@@ -15,24 +15,25 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import logging
-from typing import Callable, Optional
+from collections.abc import Callable
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from app.dependency_injection.service_registrations import (
-    register_all_services,
-    dispose_services,
-    is_services_registered
-)
 from app.dependency_injection.container import container
 from app.dependency_injection.fastapi_adapter import adapter
+from app.dependency_injection.service_registrations import (
+    dispose_services,
+    is_services_registered,
+    register_all_services,
+)
 
 # Initialize integration logger
 integration_logger = logging.getLogger("app.di.integration")
+
 
 class DIMiddleware(BaseHTTPMiddleware):
     """
@@ -49,6 +50,7 @@ class DIMiddleware(BaseHTTPMiddleware):
         finally:
             # Clean up scoped services at the end of each request
             container.clear_scoped()
+
 
 @asynccontextmanager
 async def di_lifespan(app: FastAPI):
@@ -77,10 +79,11 @@ async def di_lifespan(app: FastAPI):
     finally:
         # Clean up services during shutdown
         try:
-            dispose_services()
+            await dispose_services()
             integration_logger.info("DI system shutdown completed")
         except Exception as e:
             integration_logger.error(f"Error during DI shutdown: {e}")
+
 
 def setup_di_integration(app: FastAPI) -> None:
     """
@@ -104,6 +107,7 @@ def setup_di_integration(app: FastAPI) -> None:
         integration_logger.error(f"Failed to setup DI integration: {e}")
         raise
 
+
 def get_di_integration_status() -> dict:
     """Get the status of DI integration"""
     try:
@@ -112,20 +116,23 @@ def get_di_integration_status() -> dict:
         return {
             "services_registered": len(service_info) > 0,
             "total_services": len(service_info),
-            "singletons": sum(1 for info in service_info.values() if info["lifetime"] == "singleton"),
+            "singletons": sum(
+                1 for info in service_info.values() if info["lifetime"] == "singleton"
+            ),
             "scoped": sum(1 for info in service_info.values() if info["lifetime"] == "scoped"),
-            "transient": sum(1 for info in service_info.values() if info["lifetime"] == "transient"),
+            "transient": sum(
+                1 for info in service_info.values() if info["lifetime"] == "transient"
+            ),
             "container_healthy": container is not None,
-            "adapter_available": adapter is not None
+            "adapter_available": adapter is not None,
         }
     except Exception as e:
         integration_logger.error(f"Error getting DI integration status: {e}")
-        return {
-            "services_registered": False,
-            "error": str(e)
-        }
+        return {"services_registered": False, "error": str(e)}
+
 
 # Convenience functions for common integration patterns
+
 
 def inject_service(service_type: type):
     """
@@ -134,25 +141,31 @@ def inject_service(service_type: type):
     """
     return adapter.get_provider(service_type)
 
+
 def inject_scoped_service(service_type: type):
     """Decorator for injecting scoped services"""
     return adapter.get_scoped_provider(service_type)
+
 
 def inject_async_service(service_type: type):
     """Decorator for injecting async services"""
     return adapter.get_async_provider(service_type)
 
+
 # Development and testing helpers
+
 
 def reset_di_container():
     """Reset DI container (useful for testing)"""
     try:
         integration_logger.warning("Resetting DI container...")
         import asyncio
+
         asyncio.run(container.dispose())
         integration_logger.info("DI container reset completed")
     except Exception as e:
         integration_logger.error(f"Error resetting DI container: {e}")
+
 
 def create_test_di_container():
     """Create a fresh DI container for testing"""
@@ -165,7 +178,9 @@ def create_test_di_container():
         integration_logger.error(f"Failed to create test DI container: {e}")
         raise
 
+
 # Health check integration
+
 
 async def di_health_check() -> dict:
     """Health check for the DI system"""
@@ -180,16 +195,14 @@ async def di_health_check() -> dict:
             "status": "healthy" if not validation_errors else "degraded",
             "services_count": len(service_info),
             "validation_errors": validation_errors,
-            "container_status": "active"
+            "container_status": "active",
         }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "container_status": "error"
-        }
+        return {"status": "unhealthy", "error": str(e), "container_status": "error"}
+
 
 # Performance monitoring integration
+
 
 def get_di_performance_metrics() -> dict:
     """Get performance metrics for the DI system"""
@@ -205,7 +218,7 @@ def get_di_performance_metrics() -> dict:
             "total_services": len(service_info),
             "service_distribution": lifetimes,
             "memory_usage": "unknown",  # Could be implemented with psutil
-            "resolution_time_avg": "unknown"  # Could be measured
+            "resolution_time_avg": "unknown",  # Could be measured
         }
     except Exception as e:
         integration_logger.error(f"Error getting DI performance metrics: {e}")

@@ -4,18 +4,18 @@ Structured Request/Response Logging Middleware
 Provides comprehensive logging for all API calls with correlation IDs
 """
 
+from collections.abc import Callable
+import logging
 import time
 import uuid
-import json
-import logging
-from typing import Callable
+
 from fastapi import Request, Response
-from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 # Configure structured logger
 logger = logging.getLogger("psychsync.api")
+
 
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
     """
@@ -28,7 +28,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         exclude_paths: list = None,
         log_headers: bool = True,
         log_body: bool = False,
-        max_body_size: int = 10000
+        max_body_size: int = 10000,
     ):
         super().__init__(app)
         self.exclude_paths = exclude_paths or [
@@ -36,7 +36,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             "/metrics",
             "/docs",
             "/openapi.json",
-            "/favicon.ico"
+            "/favicon.ico",
         ]
         self.log_headers = log_headers
         self.log_body = log_body
@@ -69,7 +69,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             "query_params": str(request.query_params),
             "client_ip": client_ip,
             "user_agent": user_agent,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         # Add headers if enabled
@@ -77,13 +77,16 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             request_log["headers"] = dict(request.headers)
 
         # Add body if enabled (for POST/PUT/PATCH)
-        if self.log_body and request.method in ["POST", "PUT", "PATCH"]:
+        # Skip logging for auth endpoints to avoid consuming the body before OAuth2PasswordRequestForm reads it
+        skip_body_logging = "/auth/" in request.url.path or "/token" in request.url.path
+
+        if self.log_body and request.method in ["POST", "PUT", "PATCH"] and not skip_body_logging:
             try:
                 body = await request.body()
                 if body:
-                    body_str = body.decode('utf-8')
+                    body_str = body.decode("utf-8", errors="replace")
                     if len(body_str) > self.max_body_size:
-                        body_str = body_str[:self.max_body_size] + "...[truncated]"
+                        body_str = body_str[: self.max_body_size] + "...[truncated]"
                     request_log["body"] = body_str
             except Exception:
                 request_log["body"] = "[Unable to read body]"
@@ -102,7 +105,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             response_size = 0
 
             # Try to get response size
-            if hasattr(response, 'body'):
+            if hasattr(response, "body"):
                 try:
                     response_size = len(response.body) if response.body else 0
                 except:
@@ -119,7 +122,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 "duration_ms": round(duration * 1000, 2),
                 "response_size": response_size,
                 "content_type": response_content_type,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             # Add response headers if enabled
@@ -153,7 +156,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 "duration_ms": round(duration * 1000, 2),
                 "error_type": type(e).__name__,
                 "error_message": str(e),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
             logger.error("API Request Failed", extra=error_log, exc_info=True)
             raise
@@ -181,7 +184,9 @@ class SecurityEventLogger:
     """
 
     @staticmethod
-    def log_login_attempt(email: str, success: bool, ip: str, user_agent: str, correlation_id: str = None):
+    def log_login_attempt(
+        email: str, success: bool, ip: str, user_agent: str, correlation_id: str = None
+    ):
         """Log login attempt"""
         event_log = {
             "event": "security_login_attempt",
@@ -190,7 +195,7 @@ class SecurityEventLogger:
             "success": success,
             "ip": ip,
             "user_agent": user_agent,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         if success:
@@ -207,7 +212,7 @@ class SecurityEventLogger:
             "user_id": user_id,
             "success": success,
             "ip": ip,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         if success:
@@ -216,7 +221,9 @@ class SecurityEventLogger:
             logger.warning("Password Change Failed", extra=event_log)
 
     @staticmethod
-    def log_permission_denied(user_id: str, resource: str, action: str, ip: str, correlation_id: str = None):
+    def log_permission_denied(
+        user_id: str, resource: str, action: str, ip: str, correlation_id: str = None
+    ):
         """Log permission denied event"""
         event_log = {
             "event": "security_permission_denied",
@@ -225,12 +232,14 @@ class SecurityEventLogger:
             "resource": resource,
             "action": action,
             "ip": ip,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
         logger.warning("Permission Denied", extra=event_log)
 
     @staticmethod
-    def log_suspicious_activity(description: str, details: dict, severity: str = "medium", correlation_id: str = None):
+    def log_suspicious_activity(
+        description: str, details: dict, severity: str = "medium", correlation_id: str = None
+    ):
         """Log suspicious activity"""
         event_log = {
             "event": "security_suspicious_activity",
@@ -238,7 +247,7 @@ class SecurityEventLogger:
             "description": description,
             "severity": severity,
             "details": details,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         if severity == "high":
@@ -262,7 +271,7 @@ def setup_logging():
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -271,8 +280,4 @@ def setup_logging():
     )
 
     # Configure standard library logging
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=logging.INFO
-    )
+    logging.basicConfig(format="%(message)s", stream=sys.stdout, level=logging.INFO)

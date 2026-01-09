@@ -13,82 +13,64 @@ Features:
 - Configuration change tracking
 """
 
-import os
-import json
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
-from pydantic import BaseSettings, Field, validator, root_validator
-from enum import Enum
-import logging
 from datetime import datetime
+from enum import Enum
 import hashlib
+import json
+import logging
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseSettings, Field, root_validator, validator
 
 logger = logging.getLogger(__name__)
 
+
 class Environment(str, Enum):
     """Supported environment types"""
+
     DEVELOPMENT = "development"
     STAGING = "staging"
     PRODUCTION = "production"
     TESTING = "testing"
 
+
 class PerformanceTier(str, Enum):
     """Performance optimization tiers"""
-    BASIC = "basic"        # Essential optimizations only
+
+    BASIC = "basic"  # Essential optimizations only
     STANDARD = "standard"  # Recommended for most use cases
     AGGRESSIVE = "aggressive"  # Maximum performance
     CONSERVATIVE = "conservative"  # Minimal resource usage
+
 
 class DatabaseConfig(BaseSettings):
     """Database performance configuration"""
 
     # Connection pool settings
-    pool_size: int = Field(
-        default=20,
-        ge=1,
-        le=100,
-        description="Database connection pool size"
-    )
+    pool_size: int = Field(default=20, ge=1, le=100, description="Database connection pool size")
     max_overflow: int = Field(
-        default=30,
-        ge=0,
-        le=100,
-        description="Maximum number of connections beyond pool_size"
+        default=30, ge=0, le=100, description="Maximum number of connections beyond pool_size"
     )
     pool_recycle: int = Field(
-        default=1800,
-        ge=300,
-        le=7200,
-        description="Connection recycling time in seconds"
+        default=1800, ge=300, le=7200, description="Connection recycling time in seconds"
     )
-    pool_pre_ping: bool = Field(
-        default=True,
-        description="Validate connections before use"
-    )
+    pool_pre_ping: bool = Field(default=True, description="Validate connections before use")
     pool_timeout: int = Field(
-        default=30,
-        ge=5,
-        le=300,
-        description="Timeout for getting connection from pool"
+        default=30, ge=5, le=300, description="Timeout for getting connection from pool"
     )
 
     # Query optimization
     statement_timeout: int = Field(
-        default=300,
-        ge=30,
-        le=3600,
-        description="Default statement timeout in seconds"
+        default=300, ge=30, le=3600, description="Default statement timeout in seconds"
     )
     query_cache_size: int = Field(
-        default=1000,
-        ge=0,
-        le=10000,
-        description="Query result cache size"
+        default=1000, ge=0, le=10000, description="Query result cache size"
     )
 
-    @validator('max_overflow')
+    @validator("max_overflow")
     def validate_pool_vs_overflow(cls, v, values):
-        if 'pool_size' in values and v > values['pool_size'] * 5:
+        if "pool_size" in values and v > values["pool_size"] * 5:
             raise ValueError("max_overflow should not exceed 5x pool_size")
         return v
 
@@ -96,256 +78,158 @@ class DatabaseConfig(BaseSettings):
         env_prefix = "DB_"
         case_sensitive = False
 
+
 class CacheConfig(BaseSettings):
     """Caching performance configuration"""
 
     # Redis settings
-    redis_host: str = Field(
-        default="localhost",
-        description="Redis server host"
-    )
-    redis_port: int = Field(
-        default=6379,
-        ge=1,
-        le=65535,
-        description="Redis server port"
-    )
-    redis_db: int = Field(
-        default=0,
-        ge=0,
-        le=15,
-        description="Redis database number"
-    )
+    redis_host: str = Field(default="localhost", description="Redis server host")
+    redis_port: int = Field(default=6379, ge=1, le=65535, description="Redis server port")
+    redis_db: int = Field(default=0, ge=0, le=15, description="Redis database number")
     redis_max_connections: int = Field(
-        default=50,
-        ge=1,
-        le=200,
-        description="Maximum Redis connections"
+        default=50, ge=1, le=200, description="Maximum Redis connections"
     )
 
     # Cache settings
     default_ttl: int = Field(
-        default=300,
-        ge=60,
-        le=3600,
-        description="Default cache TTL in seconds"
+        default=300, ge=60, le=3600, description="Default cache TTL in seconds"
     )
-    max_memory_policy: str = Field(
-        default="allkeys-lru",
-        description="Redis max memory policy"
-    )
-    cache_prefix: str = Field(
-        default="psychsync",
-        description="Cache key prefix"
-    )
+    max_memory_policy: str = Field(default="allkeys-lru", description="Redis max memory policy")
+    cache_prefix: str = Field(default="psychsync", description="Cache key prefix")
 
     class Config:
         env_prefix = "CACHE_"
         case_sensitive = False
+
 
 class FrontendConfig(BaseSettings):
     """Frontend performance configuration"""
 
     # Bundle optimization
     bundle_size_target_kb: int = Field(
-        default=500,
-        ge=100,
-        le=2000,
-        description="Target bundle size in KB"
+        default=500, ge=100, le=2000, description="Target bundle size in KB"
     )
     chunk_size_target_kb: int = Field(
-        default=100,
-        ge=50,
-        le=500,
-        description="Target chunk size in KB"
+        default=100, ge=50, le=500, description="Target chunk size in KB"
     )
-    enable_source_maps: bool = Field(
-        default=False,
-        description="Enable source maps in production"
-    )
+    enable_source_maps: bool = Field(default=False, description="Enable source maps in production")
     minification_level: str = Field(
-        default="terser",
-        regex="^(none|basic|terser)$",
-        description="Minification level"
+        default="terser", regex="^(none|basic|terser)$", description="Minification level"
     )
 
     # Performance features
-    enable_lazy_loading: bool = Field(
-        default=True,
-        description="Enable lazy loading of components"
-    )
+    enable_lazy_loading: bool = Field(default=True, description="Enable lazy loading of components")
     enable_virtual_scrolling: bool = Field(
-        default=True,
-        description="Enable virtual scrolling for large lists"
+        default=True, description="Enable virtual scrolling for large lists"
     )
     enable_service_worker: bool = Field(
-        default=False,
-        description="Enable service worker for caching"
+        default=False, description="Enable service worker for caching"
     )
 
     class Config:
         env_prefix = "FRONTEND_"
         case_sensitive = False
 
+
 class APIConfig(BaseSettings):
     """API performance configuration"""
 
     # Response optimization
-    enable_compression: bool = Field(
-        default=True,
-        description="Enable response compression"
-    )
+    enable_compression: bool = Field(default=True, description="Enable response compression")
     compression_threshold: int = Field(
-        default=1024,
-        ge=100,
-        le=10240,
-        description="Minimum response size for compression"
+        default=1024, ge=100, le=10240, description="Minimum response size for compression"
     )
-    enable_http_caching: bool = Field(
-        default=True,
-        description="Enable HTTP caching headers"
-    )
+    enable_http_caching: bool = Field(default=True, description="Enable HTTP caching headers")
     default_cache_max_age: int = Field(
-        default=300,
-        ge=60,
-        le=86400,
-        description="Default cache max-age in seconds"
+        default=300, ge=60, le=86400, description="Default cache max-age in seconds"
     )
 
     # Rate limiting
-    enable_rate_limiting: bool = Field(
-        default=True,
-        description="Enable API rate limiting"
-    )
+    enable_rate_limiting: bool = Field(default=True, description="Enable API rate limiting")
     rate_limit_requests: int = Field(
-        default=100,
-        ge=10,
-        le=10000,
-        description="Rate limit requests per window"
+        default=100, ge=10, le=10000, description="Rate limit requests per window"
     )
     rate_limit_window: int = Field(
-        default=60,
-        ge=30,
-        le=3600,
-        description="Rate limit window in seconds"
+        default=60, ge=30, le=3600, description="Rate limit window in seconds"
     )
 
     class Config:
         env_prefix = "API_"
         case_sensitive = False
 
+
 class MonitoringConfig(BaseSettings):
     """Performance monitoring configuration"""
 
     # Metrics collection
-    enable_metrics: bool = Field(
-        default=True,
-        description="Enable performance metrics collection"
-    )
+    enable_metrics: bool = Field(default=True, description="Enable performance metrics collection")
     metrics_sample_rate: float = Field(
-        default=1.0,
-        ge=0.1,
-        le=1.0,
-        description="Metrics sampling rate"
+        default=1.0, ge=0.1, le=1.0, description="Metrics sampling rate"
     )
     enable_real_time_monitoring: bool = Field(
-        default=True,
-        description="Enable real-time performance monitoring"
+        default=True, description="Enable real-time performance monitoring"
     )
 
     # Alerting
-    enable_alerts: bool = Field(
-        default=True,
-        description="Enable performance alerts"
-    )
+    enable_alerts: bool = Field(default=True, description="Enable performance alerts")
     alert_threshold_cpu: float = Field(
-        default=80.0,
-        ge=50.0,
-        le=100.0,
-        description="CPU usage alert threshold percentage"
+        default=80.0, ge=50.0, le=100.0, description="CPU usage alert threshold percentage"
     )
     alert_threshold_memory: float = Field(
-        default=85.0,
-        ge=50.0,
-        le=100.0,
-        description="Memory usage alert threshold percentage"
+        default=85.0, ge=50.0, le=100.0, description="Memory usage alert threshold percentage"
     )
     alert_threshold_response_time: int = Field(
-        default=1000,
-        ge=100,
-        le=10000,
-        description="Response time alert threshold in milliseconds"
+        default=1000, ge=100, le=10000, description="Response time alert threshold in milliseconds"
     )
 
     class Config:
         env_prefix = "MONITORING_"
         case_sensitive = False
 
+
 class PerformanceThresholds(BaseSettings):
     """Performance thresholds for monitoring"""
 
     # Database thresholds (milliseconds)
     database_query_threshold: int = Field(
-        default=100,
-        ge=10,
-        le=1000,
-        description="Database query threshold in ms"
+        default=100, ge=10, le=1000, description="Database query threshold in ms"
     )
     database_connection_threshold: int = Field(
-        default=50,
-        ge=10,
-        le=500,
-        description="Database connection threshold in ms"
+        default=50, ge=10, le=500, description="Database connection threshold in ms"
     )
 
     # API thresholds (milliseconds)
     api_response_threshold: int = Field(
-        default=200,
-        ge=50,
-        le=2000,
-        description="API response threshold in ms"
+        default=200, ge=50, le=2000, description="API response threshold in ms"
     )
     authentication_threshold: int = Field(
-        default=50,
-        ge=10,
-        le=500,
-        description="Authentication threshold in ms"
+        default=50, ge=10, le=500, description="Authentication threshold in ms"
     )
 
     # Frontend thresholds
     frontend_load_threshold: int = Field(
-        default=2000,
-        ge=500,
-        le=10000,
-        description="Frontend load threshold in ms"
+        default=2000, ge=500, le=10000, description="Frontend load threshold in ms"
     )
     bundle_size_threshold_kb: int = Field(
-        default=500,
-        ge=100,
-        le=2000,
-        description="Bundle size threshold in KB"
+        default=500, ge=100, le=2000, description="Bundle size threshold in KB"
     )
 
     class Config:
         env_prefix = "THRESHOLD_"
         case_sensitive = False
 
+
 class PerformanceConfig(BaseSettings):
     """Unified performance configuration"""
 
     # Environment settings
     environment: Environment = Field(
-        default=Environment.DEVELOPMENT,
-        description="Runtime environment"
+        default=Environment.DEVELOPMENT, description="Runtime environment"
     )
     performance_tier: PerformanceTier = Field(
-        default=PerformanceTier.STANDARD,
-        description="Performance optimization tier"
+        default=PerformanceTier.STANDARD, description="Performance optimization tier"
     )
-    debug_performance: bool = Field(
-        default=False,
-        description="Enable performance debugging"
-    )
+    debug_performance: bool = Field(default=False, description="Enable performance debugging")
 
     # Sub-configurations
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
@@ -356,22 +240,18 @@ class PerformanceConfig(BaseSettings):
     thresholds: PerformanceThresholds = Field(default_factory=PerformanceThresholds)
 
     # Version tracking
-    config_version: str = Field(
-        default="1.0.0",
-        description="Configuration version"
-    )
-    last_updated: Optional[datetime] = Field(
-        default=None,
-        description="Last configuration update timestamp"
+    config_version: str = Field(default="1.0.0", description="Configuration version")
+    last_updated: datetime | None = Field(
+        default=None, description="Last configuration update timestamp"
     )
 
-    @validator('environment', pre=True)
+    @validator("environment", pre=True)
     def parse_environment(cls, v):
         if isinstance(v, str):
             return Environment(v.lower())
         return v
 
-    @validator('performance_tier', pre=True)
+    @validator("performance_tier", pre=True)
     def parse_tier(cls, v):
         if isinstance(v, str):
             return PerformanceTier(v.lower())
@@ -380,41 +260,46 @@ class PerformanceConfig(BaseSettings):
     @root_validator
     def apply_environment_defaults(cls, values):
         """Apply environment-specific defaults"""
-        environment = values.get('environment', Environment.DEVELOPMENT)
-        tier = values.get('performance_tier', PerformanceTier.STANDARD)
+        environment = values.get("environment", Environment.DEVELOPMENT)
+        tier = values.get("performance_tier", PerformanceTier.STANDARD)
 
         if environment == Environment.PRODUCTION:
             # Production optimizations
             if tier == PerformanceTier.AGGRESSIVE:
-                values.setdefault('database', DatabaseConfig(pool_size=50, max_overflow=75))
-                values.setdefault('cache', CacheConfig(default_ttl=600))
-                values.setdefault('frontend', FrontendConfig(enable_source_maps=False, minification_level="terser"))
+                values.setdefault("database", DatabaseConfig(pool_size=50, max_overflow=75))
+                values.setdefault("cache", CacheConfig(default_ttl=600))
+                values.setdefault(
+                    "frontend",
+                    FrontendConfig(enable_source_maps=False, minification_level="terser"),
+                )
             elif tier == PerformanceTier.CONSERVATIVE:
-                values.setdefault('database', DatabaseConfig(pool_size=10, max_overflow=15))
-                values.setdefault('cache', CacheConfig(default_ttl=1800))
+                values.setdefault("database", DatabaseConfig(pool_size=10, max_overflow=15))
+                values.setdefault("cache", CacheConfig(default_ttl=1800))
 
         elif environment == Environment.DEVELOPMENT:
             # Development defaults
-            values.setdefault('database', DatabaseConfig(pool_size=5, max_overflow=10))
-            values.setdefault('frontend', FrontendConfig(enable_source_maps=True, debug_performance=True))
-            values.setdefault('debug_performance', True)
+            values.setdefault("database", DatabaseConfig(pool_size=5, max_overflow=10))
+            values.setdefault(
+                "frontend", FrontendConfig(enable_source_maps=True, debug_performance=True)
+            )
+            values.setdefault("debug_performance", True)
 
         return values
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert configuration to dictionary"""
         return {
-            'environment': self.environment.value,
-            'performance_tier': self.performance_tier.value,
-            'debug_performance': self.debug_performance,
-            'config_version': self.config_version,
-            'last_updated': self.last_updated.isoformat() if self.last_updated else None,
-            'database': self.database.dict(),
-            'cache': self.cache.dict(),
-            'frontend': self.frontend.dict(),
-            'api': self.api.dict(),
-            'monitoring': self.monitoring.dict(),
-            'thresholds': self.thresholds.dict()
+            "environment": self.environment.value,
+            "performance_tier": self.performance_tier.value,
+            "debug_performance": self.debug_performance,
+            "config_version": self.config_version,
+            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
+            "database": self.database.dict(),
+            "cache": self.cache.dict(),
+            "frontend": self.frontend.dict(),
+            "api": self.api.dict(),
+            "monitoring": self.monitoring.dict(),
+            "thresholds": self.thresholds.dict(),
         }
 
     def get_config_hash(self) -> str:
@@ -422,7 +307,7 @@ class PerformanceConfig(BaseSettings):
         config_str = json.dumps(self.to_dict(), sort_keys=True)
         return hashlib.sha256(config_str.encode()).hexdigest()[:16]
 
-    def update_environment(self, environment: Union[str, Environment]):
+    def update_environment(self, environment: str | Environment):
         """Update environment and apply new defaults"""
         if isinstance(environment, str):
             environment = Environment(environment.lower())
@@ -435,7 +320,7 @@ class PerformanceConfig(BaseSettings):
         new_config = PerformanceConfig(
             environment=environment,
             performance_tier=self.performance_tier,
-            debug_performance=self.debug_performance
+            debug_performance=self.debug_performance,
         )
 
         # Update sub-configurations with new environment defaults
@@ -447,7 +332,7 @@ class PerformanceConfig(BaseSettings):
 
         logger.info(f"Updated environment to {environment.value}")
 
-    def validate_performance_tier(self) -> List[str]:
+    def validate_performance_tier(self) -> list[str]:
         """Validate configuration against performance tier"""
         issues = []
         tier = self.performance_tier
@@ -470,7 +355,7 @@ class PerformanceConfig(BaseSettings):
 
         return issues
 
-    def get_optimization_recommendations(self) -> List[str]:
+    def get_optimization_recommendations(self) -> list[str]:
         """Get optimization recommendations based on current settings"""
         recommendations = []
 
@@ -507,14 +392,15 @@ class PerformanceConfig(BaseSettings):
         case_sensitive = False
         extra = "forbid"  # Reject extra fields
 
+
 class ConfigurationManager:
     """Configuration manager with runtime updates and persistence"""
 
-    def __init__(self, config_file: Optional[str] = None):
+    def __init__(self, config_file: str | None = None):
         self.config_file = config_file or "performance_config.json"
-        self._config: Optional[PerformanceConfig] = None
-        self._config_hash: Optional[str] = None
-        self._change_callbacks: List[callable] = []
+        self._config: PerformanceConfig | None = None
+        self._config_hash: str | None = None
+        self._change_callbacks: list[callable] = []
 
     @property
     def config(self) -> PerformanceConfig:
@@ -530,7 +416,7 @@ class ConfigurationManager:
 
         if config_path.exists():
             try:
-                with open(config_path, 'r') as f:
+                with open(config_path) as f:
                     config_data = json.load(f)
 
                 logger.info(f"Loading performance config from {config_path}")
@@ -553,7 +439,7 @@ class ConfigurationManager:
         config_data = self._config.to_dict()
 
         try:
-            with open(config_path, 'w') as f:
+            with open(config_path, "w") as f:
                 json.dump(config_data, f, indent=2)
 
             logger.info(f"Saved performance config to {config_path}")
@@ -572,7 +458,7 @@ class ConfigurationManager:
             self._notify_config_change(old_config, new_config)
             logger.info("Configuration reloaded with changes")
 
-    def update_config(self, updates: Dict[str, Any]):
+    def update_config(self, updates: dict[str, Any]):
         """Update configuration with new values"""
         if not self._config:
             self._config = self.config  # Load if not loaded
@@ -623,46 +509,56 @@ class ConfigurationManager:
     def get_environment_specific_config(self, environment: Environment) -> PerformanceConfig:
         """Get configuration for specific environment"""
         config_data = self.config.to_dict()
-        config_data['environment'] = environment.value
+        config_data["environment"] = environment.value
 
         return PerformanceConfig(**config_data)
 
+
 # Global configuration instance
 config_manager = ConfigurationManager()
+
 
 # Convenience functions
 def get_performance_config() -> PerformanceConfig:
     """Get current performance configuration"""
     return config_manager.config
 
-def update_performance_config(updates: Dict[str, Any]):
+
+def update_performance_config(updates: dict[str, Any]):
     """Update performance configuration"""
     config_manager.update_config(updates)
+
 
 def reload_performance_config():
     """Reload performance configuration"""
     config_manager.reload_config()
+
 
 # Environment-specific configuration getters
 def get_database_config() -> DatabaseConfig:
     """Get database performance configuration"""
     return get_performance_config().database
 
+
 def get_cache_config() -> CacheConfig:
     """Get cache performance configuration"""
     return get_performance_config().cache
+
 
 def get_frontend_config() -> FrontendConfig:
     """Get frontend performance configuration"""
     return get_performance_config().frontend
 
+
 def get_api_config() -> APIConfig:
     """Get API performance configuration"""
     return get_performance_config().api
 
+
 def get_monitoring_config() -> MonitoringConfig:
     """Get monitoring performance configuration"""
     return get_performance_config().monitoring
+
 
 def get_performance_thresholds() -> PerformanceThresholds:
     """Get performance thresholds configuration"""

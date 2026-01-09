@@ -5,21 +5,20 @@ Transforms statistical analysis into actionable insights and recommendations.
 Generates comprehensive reports with executive summaries and detailed analytics.
 """
 
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
-import asyncio
+import logging
+from typing import Any
+
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc, asc
 
 from app.db.models.longitudinal_analysis import (
-    LongitudinalData, ChangeDetectionEvent, TrendAnalysis,
-    BehavioralBaseline, CohortAnalysis
+    ChangeDetectionEvent,
 )
-from app.services.longitudinal_analysis import LongitudinalAnalyzer, TrendDirection
 from app.services.change_detection import AdvancedChangeDetector
+from app.services.longitudinal_analysis import LongitudinalAnalyzer, TrendDirection
 
 logger = logging.getLogger(__name__)
 
@@ -50,21 +49,21 @@ class Insight:
     description: str
     metric_name: str
     current_value: float
-    previous_value: Optional[float]
-    percent_change: Optional[float]
+    previous_value: float | None
+    percent_change: float | None
     recommendation: str
     confidence_score: float
     timeframe: str
-    supporting_data: Dict[str, Any]
+    supporting_data: dict[str, Any]
 
 @dataclass
 class ExecutiveSummary:
     """Executive summary for trend analysis report"""
     overall_score: float
-    key_highlights: List[str]
-    critical_issues: List[str]
-    growth_opportunities: List[str]
-    predictive_insights: List[str]
+    key_highlights: list[str]
+    critical_issues: list[str]
+    growth_opportunities: list[str]
+    predictive_insights: list[str]
     data_quality_score: float
     analysis_period: str
     user_count: int
@@ -72,21 +71,21 @@ class ExecutiveSummary:
 @dataclass
 class DetailedStatistics:
     """Detailed statistical analysis"""
-    trend_analysis: Dict[str, Any]
-    change_point_analysis: Dict[str, Any]
-    seasonal_patterns: Dict[str, Any]
-    correlation_analysis: Dict[str, Any]
-    predictive_confidence: Dict[str, Any]
+    trend_analysis: dict[str, Any]
+    change_point_analysis: dict[str, Any]
+    seasonal_patterns: dict[str, Any]
+    correlation_analysis: dict[str, Any]
+    predictive_confidence: dict[str, Any]
 
 @dataclass
 class TrendReport:
     """Complete trend analysis report"""
     executive_summary: ExecutiveSummary
-    insights: List[Insight]
+    insights: list[Insight]
     detailed_statistics: DetailedStatistics
-    charts_data: Dict[str, Any]
-    recommendations: List[str]
-    metadata: Dict[str, Any]
+    charts_data: dict[str, Any]
+    recommendations: list[str]
+    metadata: dict[str, Any]
 
 class TrendReportingService:
     """Advanced trend reporting and insights generation"""
@@ -99,12 +98,12 @@ class TrendReportingService:
 
     async def generate_comprehensive_report(
         self,
-        user_id: Optional[str] = None,
-        team_id: Optional[str] = None,
-        organization_id: Optional[str] = None,
+        user_id: str | None = None,
+        team_id: str | None = None,
+        organization_id: str | None = None,
         start_date: datetime = None,
         end_date: datetime = None,
-        metrics: Optional[List[str]] = None
+        metrics: list[str] | None = None
     ) -> TrendReport:
         """Generate comprehensive trend analysis report"""
 
@@ -163,12 +162,12 @@ class TrendReportingService:
 
     async def _generate_executive_summary(
         self,
-        user_id: Optional[str],
-        team_id: Optional[str],
-        organization_id: Optional[str],
+        user_id: str | None,
+        team_id: str | None,
+        organization_id: str | None,
         start_date: datetime,
         end_date: datetime,
-        metrics: Optional[List[str]]
+        metrics: list[str] | None
     ) -> ExecutiveSummary:
         """Generate executive summary with key findings"""
 
@@ -249,13 +248,13 @@ class TrendReportingService:
 
     async def _generate_insights(
         self,
-        user_id: Optional[str],
-        team_id: Optional[str],
-        organization_id: Optional[str],
+        user_id: str | None,
+        team_id: str | None,
+        organization_id: str | None,
         start_date: datetime,
         end_date: datetime,
-        metrics: Optional[List[str]]
-    ) -> List[Insight]:
+        metrics: list[str] | None
+    ) -> list[Insight]:
         """Generate detailed insights across different categories"""
 
         insights = []
@@ -305,12 +304,12 @@ class TrendReportingService:
 
     async def _generate_performance_trend_insights(
         self,
-        user_id: Optional[str],
-        team_id: Optional[str],
+        user_id: str | None,
+        team_id: str | None,
         start_date: datetime,
         end_date: datetime,
-        metrics: Optional[List[str]]
-    ) -> List[Insight]:
+        metrics: list[str] | None
+    ) -> list[Insight]:
         """Generate insights based on performance trends"""
 
         insights = []
@@ -361,11 +360,11 @@ class TrendReportingService:
 
     async def _generate_behavioral_change_insights(
         self,
-        user_id: Optional[str],
-        team_id: Optional[str],
+        user_id: str | None,
+        team_id: str | None,
         start_date: datetime,
         end_date: datetime
-    ) -> List[Insight]:
+    ) -> list[Insight]:
         """Generate insights based on detected behavioral changes"""
 
         insights = []
@@ -412,12 +411,12 @@ class TrendReportingService:
 
     async def _generate_detailed_statistics(
         self,
-        user_id: Optional[str],
-        team_id: Optional[str],
-        organization_id: Optional[str],
+        user_id: str | None,
+        team_id: str | None,
+        organization_id: str | None,
         start_date: datetime,
         end_date: datetime,
-        metrics: Optional[List[str]]
+        metrics: list[str] | None
     ) -> DetailedStatistics:
         """Generate detailed statistical analysis"""
 
@@ -456,13 +455,13 @@ class TrendReportingService:
 
     async def _prepare_charts_data(
         self,
-        user_id: Optional[str],
-        team_id: Optional[str],
-        organization_id: Optional[str],
+        user_id: str | None,
+        team_id: str | None,
+        organization_id: str | None,
         start_date: datetime,
         end_date: datetime,
-        metrics: Optional[List[str]]
-    ) -> Dict[str, Any]:
+        metrics: list[str] | None
+    ) -> dict[str, Any]:
         """Prepare data for visualization charts"""
 
         charts_data = {}
@@ -496,9 +495,9 @@ class TrendReportingService:
 
     async def _generate_strategic_recommendations(
         self,
-        insights: List[Insight],
+        insights: list[Insight],
         detailed_stats: DetailedStatistics
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate strategic recommendations based on insights"""
 
         recommendations = []
@@ -556,7 +555,7 @@ class TrendReportingService:
         return recommendations[:10]  # Top 10 recommendations
 
     # Helper methods
-    def _calculate_overall_score(self, trend_results: List[Tuple[str, Any]]) -> float:
+    def _calculate_overall_score(self, trend_results: list[tuple[str, Any]]) -> float:
         """Calculate overall performance score from trend analysis"""
         if not trend_results:
             return 0.5  # Neutral score
@@ -587,19 +586,16 @@ class TrendReportingService:
         if direction == TrendDirection.DECLINING:
             if strength > 0.8:
                 return SeverityLevel.CRITICAL
-            elif strength > 0.6:
+            if strength > 0.6:
                 return SeverityLevel.HIGH
-            elif strength > 0.4:
+            if strength > 0.4:
                 return SeverityLevel.MEDIUM
-            else:
-                return SeverityLevel.LOW
-        else:  # IMPROVING
-            if strength > 0.7:
-                return SeverityLevel.LOW  # Good improvement
-            elif strength > 0.4:
-                return SeverityLevel.MEDIUM
-            else:
-                return SeverityLevel.INFO
+            return SeverityLevel.LOW
+        if strength > 0.7:
+            return SeverityLevel.LOW  # Good improvement
+        if strength > 0.4:
+            return SeverityLevel.MEDIUM
+        return SeverityLevel.INFO
 
     def _generate_trend_description(self, metric: str, trend_analysis: Any) -> str:
         """Generate human-readable trend description"""
@@ -609,19 +605,16 @@ class TrendReportingService:
         if direction == "improving":
             if strength > 0.7:
                 return f"Exceptional improvement in {metric.replace('_', ' ')} with strong positive momentum"
-            elif strength > 0.4:
+            if strength > 0.4:
                 return f"Solid improvement in {metric.replace('_', ' ')} showing consistent positive progress"
-            else:
-                return f"Mild improvement in {metric.replace('_', ' ')} with gradual positive trend"
-        elif direction == "declining":
+            return f"Mild improvement in {metric.replace('_', ' ')} with gradual positive trend"
+        if direction == "declining":
             if strength > 0.7:
                 return f"Significant decline in {metric.replace('_', ' ')} requiring immediate attention"
-            elif strength > 0.4:
+            if strength > 0.4:
                 return f"Concerning decline in {metric.replace('_', ' ')} that needs intervention"
-            else:
-                return f"Slight decline in {metric.replace('_', ' ')} worth monitoring"
-        else:
-            return f"{metric.replace('_', ' ')} remains stable with no significant trend"
+            return f"Slight decline in {metric.replace('_', ' ')} worth monitoring"
+        return f"{metric.replace('_', ' ')} remains stable with no significant trend"
 
     def _generate_trend_recommendation(self, metric: str, trend_analysis: Any) -> str:
         """Generate recommendation based on trend analysis"""
@@ -631,90 +624,86 @@ class TrendReportingService:
         if direction == TrendDirection.IMPROVING:
             if strength > 0.7:
                 return f"Maintain current strategies that are driving exceptional {metric} performance"
-            else:
-                return f"Continue positive momentum by reinforcing successful {metric} practices"
-        elif direction == TrendDirection.DECLINING:
+            return f"Continue positive momentum by reinforcing successful {metric} practices"
+        if direction == TrendDirection.DECLINING:
             if strength > 0.7:
                 return f"Immediate intervention required: conduct root cause analysis for {metric} decline"
-            else:
-                return f"Monitor {metric} closely and implement corrective measures"
-        else:
-            return f"Continue monitoring {metric} and explore optimization opportunities"
+            return f"Monitor {metric} closely and implement corrective measures"
+        return f"Continue monitoring {metric} and explore optimization opportunities"
 
     def _generate_change_recommendation(self, event: ChangeDetectionEvent) -> str:
         """Generate recommendation based on change detection event"""
         if event.change_type == "increase":
             return f"Investigate factors driving the increase in {event.metric_name} and leverage positive drivers"
-        elif event.change_type == "decrease":
+        if event.change_type == "decrease":
             return f"Address root causes of {event.metric_name} decrease and implement recovery plan"
-        elif event.change_type == "variance_change":
+        if event.change_type == "variance_change":
             return f"Review {event.metric_name} stability and implement consistency measures"
-        else:
-            return f"Further investigate the {event.change_type} in {event.metric_name}"
+        return f"Further investigate the {event.change_type} in {event.metric_name}"
 
     # Additional helper methods for data analysis
-    async def _count_users(self, user_id: Optional[str], team_id: Optional[str], organization_id: Optional[str]) -> int:
+    async def _count_users(self, user_id: str | None, team_id: str | None, organization_id: str | None) -> int:
         """Count users in the analysis scope"""
         # This is a simplified implementation
         # In practice, you'd query your user/team/organization tables
         return 1 if user_id else (10 if team_id else (100 if organization_id else 1))
 
-    async def _assess_data_quality(self, user_id: Optional[str], team_id: Optional[str],
-                                  organization_id: Optional[str], start_date: datetime, end_date: datetime) -> float:
+    async def _assess_data_quality(self, user_id: str | None, team_id: str | None,
+                                  organization_id: str | None, start_date: datetime, end_date: datetime) -> float:
         """Assess quality of data for analysis"""
         # This would check data completeness, consistency, and accuracy
         # Simplified implementation returns a high quality score
         return 0.92
 
-    async def _count_data_points(self, user_id: Optional[str], team_id: Optional[str],
-                                organization_id: Optional[str], start_date: datetime, end_date: datetime) -> int:
+    async def _count_data_points(self, user_id: str | None, team_id: str | None,
+                                organization_id: str | None, start_date: datetime, end_date: datetime) -> int:
         """Count total data points in analysis"""
         # Simplified implementation
         return 500
 
     # Placeholder methods for detailed analysis components
-    async def _analyze_trend_statistics(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _analyze_trend_statistics(self, *args, **kwargs) -> dict[str, Any]:
         return {"data_quality_score": 0.92, "trend_count": 15}
 
-    async def _analyze_change_point_statistics(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _analyze_change_point_statistics(self, *args, **kwargs) -> dict[str, Any]:
         return {"change_points_detected": 8, "significant_changes": 3}
 
-    async def _analyze_seasonal_patterns(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _analyze_seasonal_patterns(self, *args, **kwargs) -> dict[str, Any]:
         return {"seasonal_strength": 0.3, "peak_periods": ["monday", "friday"]}
 
-    async def _analyze_metric_correlations(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _analyze_metric_correlations(self, *args, **kwargs) -> dict[str, Any]:
         return {"strong_correlations": 5, "avg_correlation": 0.42}
 
-    async def _analyze_predictive_confidence(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _analyze_predictive_confidence(self, *args, **kwargs) -> dict[str, Any]:
         return {"high_confidence_predictions": 12, "avg_confidence": 0.78}
 
-    async def _get_time_series_chart_data(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _get_time_series_chart_data(self, *args, **kwargs) -> dict[str, Any]:
         return {"datasets": [], "labels": []}
 
-    async def _get_change_point_chart_data(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _get_change_point_chart_data(self, *args, **kwargs) -> dict[str, Any]:
         return {"change_points": [], "baseline": []}
 
-    async def _get_trend_comparison_data(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _get_trend_comparison_data(self, *args, **kwargs) -> dict[str, Any]:
         return {"metrics": [], "trends": []}
 
-    async def _get_distribution_data(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _get_distribution_data(self, *args, **kwargs) -> dict[str, Any]:
         return {"distributions": []}
 
-    async def _get_correlation_heatmap_data(self, *args, **kwargs) -> Dict[str, Any]:
+    async def _get_correlation_heatmap_data(self, *args, **kwargs) -> dict[str, Any]:
         return {"correlation_matrix": []}
 
     # Additional insight generation methods (simplified implementations)
-    async def _generate_anomaly_insights(self, *args, **kwargs) -> List[Insight]:
+    async def _generate_anomaly_insights(self, *args, **kwargs) -> list[Insight]:
         return []
 
-    async def _generate_growth_opportunity_insights(self, *args, **kwargs) -> List[Insight]:
+    async def _generate_growth_opportunity_insights(self, *args, **kwargs) -> list[Insight]:
         return []
 
-    async def _generate_risk_assessment_insights(self, *args, **kwargs) -> List[Insight]:
+    async def _generate_risk_assessment_insights(self, *args, **kwargs) -> list[Insight]:
         return []
 
-    async def _generate_comparative_insights(self, *args, **kwargs) -> List[Insight]:
+    async def _generate_comparative_insights(self, *args, **kwargs) -> list[Insight]:
         return []
 
-    async def _generate_predictive_insights(self, *args, **kwargs) -> List[Insight]:
+    async def _generate_predictive_insights(self, *args, **kwargs) -> list[Insight]:
         return []

@@ -5,6 +5,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { TeamProvider } from './contexts/TeamContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AssessmentProvider } from './contexts/AssessmentContext';
 import RequireAuth from './components/RequireAuth';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -204,7 +205,8 @@ const App: React.FC = memo(() => {
         <SecurityMonitor>
           <NotificationProvider>
             <TeamProvider>
-              {showDevNavigation && <OnboardingNavigation />}
+              <AssessmentProvider>
+                {showDevNavigation && <OnboardingNavigation />}
               <PWAInstaller
                 onInstallComplete={() => console.log('PWA installed successfully')}
                 onInstallDismissed={() => console.log('PWA install dismissed')}
@@ -1091,6 +1093,7 @@ const App: React.FC = memo(() => {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </TeamProvider>
+          </AssessmentProvider>
         </NotificationProvider>
       </SecurityMonitor>
     </ThemeProvider>

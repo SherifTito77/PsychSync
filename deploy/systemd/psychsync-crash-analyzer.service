@@ -1,0 +1,44 @@
+[Unit]
+Description=PsychSync Crash Log Analyzer
+Documentation=https://github.com/psychsync/psychsync/tree/main/agents
+After=network.target postgresql.service redis.service
+ConditionPathExists=/Users/sheriftito/Downloads/psychsync
+
+[Service]
+Type=simple
+User=sheriftito
+Group=staff
+WorkingDirectory=/Users/sheriftito/Downloads/psychsync
+
+# Environment
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="GITHUB_TOKEN=ghp_xxxxxxxxxxxx"
+Environment="GITHUB_REPOSITORY=psychsync/psychsync"
+EnvironmentFile=-/Users/sheriftito/Downloads/psychsync/.env.agents
+
+# Command
+ExecStart=/usr/bin/python3 /Users/sheriftito/Downloads/psychsync/agents/crash_log_analyzer.py watch /var/log/app/errors.log
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Restart policy
+Restart=always
+RestartSec=60
+StartLimitInterval=400
+StartLimitBurst=5
+
+# Logging
+StandardOutput=append:/Users/sheriftito/Downloads/psychsync/agents/logs/crash_analyzer.log
+StandardError=append:/Users/sheriftito/Downloads/psychsync/agents/logs/crash_analyzer_error.log
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/Users/sheriftito/Downloads/psychsync/agents/logs /var/log/app
+
+[Install]
+WantedBy=multi-user.target

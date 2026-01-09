@@ -4,20 +4,20 @@ Comprehensive audit logging system for security monitoring
 Tracks all critical security events with structured logging
 """
 
-import json
+from datetime import datetime
+from enum import Enum
+import hashlib
 import logging
 import time
-from datetime import datetime
-from typing import Optional, Dict, Any, Union
+from typing import Any
 from uuid import UUID
-import hashlib
-from enum import Enum
 
 logger = logging.getLogger(__name__)
 
 
 class SecurityEventType(Enum):
     """Security event types for categorization"""
+
     AUTHENTICATION_SUCCESS = "authentication_success"
     AUTHENTICATION_FAILURE = "authentication_failure"
     AUTHORIZATION_FAILURE = "authorization_failure"
@@ -49,20 +49,27 @@ class AuditLogger:
     def __init__(self):
         self.security_logger = self._setup_security_logger()
         self.sensitive_fields = {
-            'password', 'password_hash', 'token', 'secret', 'key', 'credit_card',
-            'ssn', 'social_security', 'bank_account', 'api_key', 'auth_token'
+            "password",
+            "password_hash",
+            "token",
+            "secret",
+            "key",
+            "credit_card",
+            "ssn",
+            "social_security",
+            "bank_account",
+            "api_key",
+            "auth_token",
         }
 
     def _setup_security_logger(self) -> logging.Logger:
         """Setup dedicated security logger with appropriate formatting"""
-        security_logger = logging.getLogger('security_audit')
+        security_logger = logging.getLogger("security_audit")
 
         # Prevent duplicate handlers
         if not security_logger.handlers:
             handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                '%(asctime)s - SECURITY - %(levelname)s - %(message)s'
-            )
+            formatter = logging.Formatter("%(asctime)s - SECURITY - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             security_logger.addHandler(handler)
             security_logger.setLevel(logging.INFO)
@@ -72,20 +79,20 @@ class AuditLogger:
     @classmethod
     def log_security_event(
         cls,
-        user_id: Optional[Union[str, UUID]] = None,
-        event_type: Optional[Union[str, SecurityEventType]] = None,
-        details: Optional[str] = None,
-        client_ip: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        endpoint: Optional[str] = None,
-        method: Optional[str] = None,
-        status_code: Optional[int] = None,
-        request_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        organization_id: Optional[Union[str, UUID]] = None,
-        additional_data: Optional[Dict[str, Any]] = None,
-        risk_score: Optional[int] = None,
-        severity: Optional[str] = "medium"
+        user_id: str | UUID | None = None,
+        event_type: str | SecurityEventType | None = None,
+        details: str | None = None,
+        client_ip: str | None = None,
+        user_agent: str | None = None,
+        endpoint: str | None = None,
+        method: str | None = None,
+        status_code: int | None = None,
+        request_id: str | None = None,
+        session_id: str | None = None,
+        organization_id: str | UUID | None = None,
+        additional_data: dict[str, Any] | None = None,
+        risk_score: int | None = None,
+        severity: str | None = "medium",
     ) -> None:
         """
         Log a security event with comprehensive context
@@ -111,25 +118,31 @@ class AuditLogger:
             audit_logger = cls()
 
             # Sanitize and structure the event data
-            event_data = audit_logger._sanitize_event_data({
-                "timestamp": datetime.utcnow().isoformat(),
-                "event_id": audit_logger._generate_event_id(),
-                "user_id": str(user_id) if user_id else None,
-                "event_type": event_type.value if isinstance(event_type, SecurityEventType) else event_type,
-                "details": details or "Security event occurred",
-                "client_ip": client_ip,
-                "user_agent": user_agent,
-                "endpoint": endpoint,
-                "method": method,
-                "status_code": status_code,
-                "request_id": request_id,
-                "session_id": session_id,
-                "organization_id": str(organization_id) if organization_id else None,
-                "additional_data": audit_logger._sanitize_additional_data(additional_data or {}),
-                "risk_score": risk_score,
-                "severity": severity,
-                "server_time": time.time()
-            })
+            event_data = audit_logger._sanitize_event_data(
+                {
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "event_id": audit_logger._generate_event_id(),
+                    "user_id": str(user_id) if user_id else None,
+                    "event_type": event_type.value
+                    if isinstance(event_type, SecurityEventType)
+                    else event_type,
+                    "details": details or "Security event occurred",
+                    "client_ip": client_ip,
+                    "user_agent": user_agent,
+                    "endpoint": endpoint,
+                    "method": method,
+                    "status_code": status_code,
+                    "request_id": request_id,
+                    "session_id": session_id,
+                    "organization_id": str(organization_id) if organization_id else None,
+                    "additional_data": audit_logger._sanitize_additional_data(
+                        additional_data or {}
+                    ),
+                    "risk_score": risk_score,
+                    "severity": severity,
+                    "server_time": time.time(),
+                }
+            )
 
             # Calculate risk score if not provided
             if risk_score is None:
@@ -147,14 +160,16 @@ class AuditLogger:
 
         except Exception as e:
             # Don't let audit logging failures break the application
-            logger.error(f"Audit logging failed: {str(e)}")
+            logger.error(f"Audit logging failed: {e!s}")
             # Try to log the failure itself
             try:
-                logger.error(f"Security audit failure: {event_type if event_type else 'unknown'} - {details if details else 'no details'}")
+                logger.error(
+                    f"Security audit failure: {event_type if event_type else 'unknown'} - {details if details else 'no details'}"
+                )
             except:
                 pass
 
-    def _sanitize_event_data(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_event_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """Sanitize event data to remove sensitive information"""
         sanitized = {}
 
@@ -170,7 +185,7 @@ class AuditLogger:
 
         return sanitized
 
-    def _sanitize_additional_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_additional_data(self, data: dict[str, Any]) -> dict[str, Any]:
         """Sanitize additional data dictionary"""
         sanitized = {}
         for key, value in data.items():
@@ -179,9 +194,13 @@ class AuditLogger:
             elif isinstance(value, dict):
                 sanitized[key] = self._sanitize_additional_data(value)
             elif isinstance(value, (list, tuple)):
-                sanitized[key] = [str(item)[:100] + "..." if len(str(item)) > 100 else str(item) for item in value]
+                sanitized[key] = [
+                    str(item)[:100] + "..." if len(str(item)) > 100 else str(item) for item in value
+                ]
             else:
-                sanitized[key] = str(value)[:500] + "..." if value and len(str(value)) > 500 else value
+                sanitized[key] = (
+                    str(value)[:500] + "..." if value and len(str(value)) > 500 else value
+                )
         return sanitized
 
     def _sanitize_string(self, text: str) -> str:
@@ -190,10 +209,10 @@ class AuditLogger:
             return text
 
         # Remove potential log injection characters
-        dangerous_chars = ['\n', '\r', '\t', '\\x00']
+        dangerous_chars = ["\n", "\r", "\t", "\\x00"]
         sanitized = text
         for char in dangerous_chars:
-            sanitized = sanitized.replace(char, '')
+            sanitized = sanitized.replace(char, "")
 
         # Limit length
         if len(sanitized) > 1000:
@@ -203,20 +222,29 @@ class AuditLogger:
 
     def _generate_event_id(self) -> str:
         """Generate unique event ID"""
-        return hashlib.sha256(f"{datetime.utcnow().isoformat()}{time.time()}".encode()).hexdigest()[:16]
+        return hashlib.sha256(f"{datetime.utcnow().isoformat()}{time.time()}".encode()).hexdigest()[
+            :16
+        ]
 
-    def _calculate_risk_score(self, event_data: Dict[str, Any]) -> int:
+    def _calculate_risk_score(self, event_data: dict[str, Any]) -> int:
         """Calculate risk score based on event characteristics"""
         base_score = 0
 
         # Event type risk scoring
         high_risk_events = {
-            "injection_attempt", "xss_attempt", "privilege_escalation",
-            "unauthorized_access", "malicious_request", "suspicious_activity"
+            "injection_attempt",
+            "xss_attempt",
+            "privilege_escalation",
+            "unauthorized_access",
+            "malicious_request",
+            "suspicious_activity",
         }
         medium_risk_events = {
-            "authentication_failure", "authorization_failure", "rate_limit_exceeded",
-            "api_abuse", "data_export"
+            "authentication_failure",
+            "authorization_failure",
+            "rate_limit_exceeded",
+            "api_abuse",
+            "data_export",
         }
 
         event_type = event_data.get("event_type", "").lower()
@@ -262,14 +290,13 @@ class AuditLogger:
         """Determine appropriate log level based on risk and severity"""
         if risk_score >= 80 or severity == "critical":
             return logging.CRITICAL
-        elif risk_score >= 60 or severity == "high":
+        if risk_score >= 60 or severity == "high":
             return logging.ERROR
-        elif risk_score >= 40 or severity == "medium":
+        if risk_score >= 40 or severity == "medium":
             return logging.WARNING
-        else:
-            return logging.INFO
+        return logging.INFO
 
-    def _log_event(self, event_data: Dict[str, Any], log_level: int) -> None:
+    def _log_event(self, event_data: dict[str, Any], log_level: int) -> None:
         """Log the security event with appropriate level"""
         log_message = self._format_log_message(event_data)
 
@@ -282,25 +309,25 @@ class AuditLogger:
         else:
             self.security_logger.info(log_message)
 
-    def _format_log_message(self, event_data: Dict[str, Any]) -> str:
+    def _format_log_message(self, event_data: dict[str, Any]) -> str:
         """Format log message for readability"""
         parts = [
             f"EVENT: {event_data.get('event_type', 'unknown')}",
             f"USER: {event_data.get('user_id', 'anonymous')}",
             f"IP: {event_data.get('client_ip', 'unknown')}",
             f"RISK: {event_data.get('risk_score', 0)}/100",
-            f"SEVERITY: {event_data.get('severity', 'unknown')}"
+            f"SEVERITY: {event_data.get('severity', 'unknown')}",
         ]
 
-        if event_data.get('details'):
+        if event_data.get("details"):
             parts.append(f"DETAILS: {event_data['details']}")
 
-        if event_data.get('endpoint'):
+        if event_data.get("endpoint"):
             parts.append(f"ENDPOINT: {event_data['endpoint']} {event_data.get('method', '')}")
 
         return " | ".join(parts)
 
-    def _trigger_security_alert(self, event_data: Dict[str, Any]) -> None:
+    def _trigger_security_alert(self, event_data: dict[str, Any]) -> None:
         """Trigger immediate security alert for high-risk events"""
         try:
             # This would integrate with alerting systems (PagerDuty, Slack, etc.)
@@ -313,11 +340,11 @@ class AuditLogger:
             # await send_security_alert(event_data)
 
         except Exception as e:
-            logger.error(f"Failed to trigger security alert: {str(e)}")
+            logger.error(f"Failed to trigger security alert: {e!s}")
 
 
 # Convenience functions for common events
-def log_auth_success(user_id: Union[str, UUID], client_ip: str, **kwargs):
+def log_auth_success(user_id: str | UUID, client_ip: str, **kwargs):
     """Log successful authentication"""
     AuditLogger.log_security_event(
         user_id=user_id,
@@ -325,11 +352,11 @@ def log_auth_success(user_id: Union[str, UUID], client_ip: str, **kwargs):
         client_ip=client_ip,
         risk_score=0,
         severity="low",
-        **kwargs
+        **kwargs,
     )
 
 
-def log_auth_failure(user_id: Optional[Union[str, UUID]], reason: str, client_ip: str, **kwargs):
+def log_auth_failure(user_id: str | UUID | None, reason: str, client_ip: str, **kwargs):
     """Log failed authentication"""
     AuditLogger.log_security_event(
         user_id=user_id,
@@ -338,11 +365,11 @@ def log_auth_failure(user_id: Optional[Union[str, UUID]], reason: str, client_ip
         client_ip=client_ip,
         risk_score=40,
         severity="medium",
-        **kwargs
+        **kwargs,
     )
 
 
-def log_data_access(user_id: Union[str, UUID], resource: str, action: str, **kwargs):
+def log_data_access(user_id: str | UUID, resource: str, action: str, **kwargs):
     """Log data access event"""
     AuditLogger.log_security_event(
         user_id=user_id,
@@ -350,7 +377,7 @@ def log_data_access(user_id: Union[str, UUID], resource: str, action: str, **kwa
         details=f"User accessed {resource} with action {action}",
         risk_score=10,
         severity="low",
-        **kwargs
+        **kwargs,
     )
 
 
@@ -362,11 +389,13 @@ def log_suspicious_activity(details: str, client_ip: str, risk_score: int = 70, 
         client_ip=client_ip,
         risk_score=risk_score,
         severity="high",
-        **kwargs
+        **kwargs,
     )
 
 
-def log_injection_attempt(user_id: Optional[Union[str, UUID]], injection_type: str, client_ip: str, **kwargs):
+def log_injection_attempt(
+    user_id: str | UUID | None, injection_type: str, client_ip: str, **kwargs
+):
     """Log injection attempt"""
     AuditLogger.log_security_event(
         user_id=user_id,
@@ -375,7 +404,7 @@ def log_injection_attempt(user_id: Optional[Union[str, UUID]], injection_type: s
         client_ip=client_ip,
         risk_score=90,
         severity="critical",
-        **kwargs
+        **kwargs,
     )
 
 

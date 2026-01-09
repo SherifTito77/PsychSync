@@ -9,19 +9,18 @@ Background Job Processing System
 """
 
 import asyncio
-import json
-import time
-import uuid
-import logging
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Callable, Union
-from dataclasses import dataclass, field, asdict
 from enum import Enum
 from functools import wraps
-import traceback
+import json
+import logging
+import time
+from typing import Any
+import uuid
 
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.enhanced_cache import get_cache_manager
@@ -29,8 +28,10 @@ from app.monitoring.apm import get_custom_metrics
 
 logger = logging.getLogger(__name__)
 
+
 class JobStatus(Enum):
     """Job status enumeration"""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -39,38 +40,42 @@ class JobStatus(Enum):
     CANCELLED = "cancelled"
     TIMEOUT = "timeout"
 
+
 class JobPriority(Enum):
     """Job priority levels"""
+
     LOW = 1
     NORMAL = 2
     HIGH = 3
     CRITICAL = 4
 
+
 @dataclass
 class Job:
     """Background job definition"""
+
     id: str
     task_name: str
-    args: List[Any] = field(default_factory=list)
-    kwargs: Dict[str, Any] = field(default_factory=dict)
+    args: list[Any] = field(default_factory=list)
+    kwargs: dict[str, Any] = field(default_factory=dict)
     status: JobStatus = JobStatus.PENDING
     priority: JobPriority = JobPriority.NORMAL
     max_retries: int = 3
     retry_count: int = 0
     created_at: datetime = field(default_factory=datetime.utcnow)
-    scheduled_at: Optional[datetime] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    scheduled_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     timeout_seconds: int = 300  # 5 minutes default
-    error: Optional[str] = None
-    result: Optional[Any] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    result: Any | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert job to dictionary"""
         data = asdict(self)
-        data['status'] = self.status.value
-        data['priority'] = self.priority.value
+        data["status"] = self.status.value
+        data["priority"] = self.priority.value
         # Convert datetime to ISO string
         for field_name, field_value in data.items():
             if isinstance(field_value, datetime):
@@ -80,10 +85,10 @@ class Job:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Job":
+    def from_dict(cls, data: dict[str, Any]) -> "Job":
         """Create job from dictionary"""
         # Handle datetime conversion
-        date_fields = ['created_at', 'scheduled_at', 'started_at', 'completed_at']
+        date_fields = ["created_at", "scheduled_at", "started_at", "completed_at"]
         for field_name in date_fields:
             if data.get(field_name):
                 try:
@@ -92,10 +97,11 @@ class Job:
                     data[field_name] = None
 
         # Handle enum conversion
-        data['status'] = JobStatus(data.get('status', JobStatus.PENDING.value))
-        data['priority'] = JobPriority(data.get('priority', JobPriority.NORMAL.value))
+        data["status"] = JobStatus(data.get("status", JobStatus.PENDING.value))
+        data["priority"] = JobPriority(data.get("priority", JobPriority.NORMAL.value))
 
         return cls(**data)
+
 
 class TaskQueue:
     """Redis-based task queue manager"""
@@ -119,26 +125,24 @@ class TaskQueue:
                 # Add to delayed queue
                 job.scheduled_at = datetime.utcnow() + timedelta(seconds=delay_seconds)
                 await self.redis.zadd(
-                    self.delayed_queue,
-                    {json.dumps(job_data): job.created_at.timestamp()}
+                    self.delayed_queue, {json.dumps(job_data): job.created_at.timestamp()}
                 )
-                logger.info(f"Enqueued delayed job {job.id} for {job.task_name} (delay: {delay_seconds}s)")
+                logger.info(
+                    f"Enqueued delayed job {job.id} for {job.task_name} (delay: {delay_seconds}s)"
+                )
             else:
                 # Add to main queue
                 job.scheduled_at = datetime.utcnow()
-                await self.redis.lpush(
-                    self.queue_name,
-                    json.dumps(job_data)
-                )
+                await self.redis.lpush(self.queue_name, json.dumps(job_data))
                 logger.info(f"Enqueued job {job.id} for {job.task_name}")
 
             return job.id
 
         except Exception as e:
-            logger.error(f"Failed to enqueue job {job.id}: {str(e)}")
+            logger.error(f"Failed to enqueue job {job.id}: {e!s}")
             raise
 
-    async def dequeue(self, timeout_seconds: int = 10) -> Optional[Job]:
+    async def dequeue(self, timeout_seconds: int = 10) -> Job | None:
         """Dequeue a job"""
         try:
             # First, move any delayed jobs whose time has come
@@ -146,17 +150,13 @@ class TaskQueue:
 
             # Try to get a job from the main queue
             job_data = await self.redis.brpop(
-                self.queue_name,
-                self.processing_queue,
-                timeout=timeout_seconds
+                self.queue_name, self.processing_queue, timeout=timeout_seconds
             )
 
             if job_data:
                 # Move job to processing queue with visibility timeout
                 await self.redis.zadd(
-                    self.processing_queue,
-                    {job_data: time.time()},
-                    xx=self.visibility_timeout
+                    self.processing_queue, {job_data: time.time()}, xx=self.visibility_timeout
                 )
 
                 job = Job.from_dict(json.loads(job_data))
@@ -169,7 +169,7 @@ class TaskQueue:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to dequeue job: {str(e)}")
+            logger.error(f"Failed to dequeue job: {e!s}")
             return None
 
     async def _move_delayed_jobs(self):
@@ -177,19 +177,12 @@ class TaskQueue:
         try:
             current_time = time.time()
             ready_jobs = await self.redis.zrangebyscore(
-                self.delayed_queue,
-                0,
-                current_time,
-                withscores=True
+                self.delayed_queue, 0, current_time, withscores=True
             )
 
             if ready_jobs:
                 # Remove from delayed queue
-                await self.redis.zremrangebyscore(
-                    self.delayed_queue,
-                    0,
-                    current_time
-                )
+                await self.redis.zremrangebyscore(self.delayed_queue, 0, current_time)
 
                 # Add to main queue in priority order
                 for job_data, score in ready_jobs:
@@ -199,7 +192,7 @@ class TaskQueue:
                 logger.info(f"Moved {len(ready_jobs)} delayed jobs to main queue")
 
         except Exception as e:
-            logger.error(f"Failed to move delayed jobs: {str(e)}")
+            logger.error(f"Failed to move delayed jobs: {e!s}")
 
     async def complete_job(self, job: Job, result: Any = None):
         """Mark a job as completed"""
@@ -219,25 +212,25 @@ class TaskQueue:
                 "job_id": job.id,
                 "status": job.status.value,
                 "completed_at": job.completed_at.isoformat(),
-                "duration_ms": (job.completed_at - job.started_at).total_seconds() * 1000 if job.started_at else 0,
-                "result": str(result)[:1000] if result else None
+                "duration_ms": (job.completed_at - job.started_at).total_seconds() * 1000
+                if job.started_at
+                else 0,
+                "result": str(result)[:1000] if result else None,
             }
 
-            await self.redis.setex(completion_key, 3600, json.dumps(completion_data))  # Keep for 1 hour
+            await self.redis.setex(
+                completion_key, 3600, json.dumps(completion_data)
+            )  # Keep for 1 hour
 
             logger.info(f"Completed job {job.id} for {job.task_name}")
 
             # Record metric
             await get_custom_metrics().increment_counter(
-                "job_completed",
-                tags={
-                    "task_name": job.task_name,
-                    "priority": job.priority.name
-                }
+                "job_completed", tags={"task_name": job.task_name, "priority": job.priority.name}
             )
 
         except Exception as e:
-            logger.error(f"Failed to complete job {job.id}: {str(e)}")
+            logger.error(f"Failed to complete job {job.id}: {e!s}")
 
     async def fail_job(self, job: Job, error: Exception):
         """Mark a job as failed and handle retries"""
@@ -255,7 +248,7 @@ class TaskQueue:
             if job.retry_count < job.max_retries:
                 job.status = JobStatus.RETRY
                 # Calculate exponential backoff delay
-                delay_seconds = min(300, 60 * (2 ** job.retry_count))
+                delay_seconds = min(300, 60 * (2**job.retry_count))
                 retry_at = datetime.utcnow() + timedelta(seconds=delay_seconds)
 
                 # Add to delayed queue for retry
@@ -263,14 +256,18 @@ class TaskQueue:
                 await self.redis.zadd(
                     self.delayed_queue,
                     {json.dumps(job.to_dict()): retry_at.timestamp()},
-                    xx=self.visibility_timeout * job.retry_count
+                    xx=self.visibility_timeout * job.retry_count,
                 )
 
-                logger.warning(f"Retrying job {job.id} (attempt {job.retry_count}/{job.max_retries}) for {job.task_name} in {delay_seconds}s")
+                logger.warning(
+                    f"Retrying job {job.id} (attempt {job.retry_count}/{job.max_retries}) for {job.task_name} in {delay_seconds}s"
+                )
             else:
                 # Max retries exceeded, move to failed queue
                 await self.redis.lpush(self.failed_queue, json.dumps(job.to_dict()))
-                logger.error(f"Job {job.id} failed permanently after {job.max_retries} attempts for {job.task_name}")
+                logger.error(
+                    f"Job {job.id} failed permanently after {job.max_retries} attempts for {job.task_name}"
+                )
 
             # Record error metric
             await get_custom_metrics().increment_counter(
@@ -278,14 +275,14 @@ class TaskQueue:
                 tags={
                     "task_name": job.task_name,
                     "error_type": type(error).__name__,
-                    "retry_count": job.retry_count
-                }
+                    "retry_count": job.retry_count,
+                },
             )
 
         except Exception as e:
-            logger.error(f"Failed to handle job failure for {job.id}: {str(e)}")
+            logger.error(f"Failed to handle job failure for {job.id}: {e!s}")
 
-    async def get_job_status(self, job_id: str) -> Optional[Job]:
+    async def get_job_status(self, job_id: str) -> Job | None:
         """Get current status of a job"""
         try:
             # Check completion info first
@@ -327,10 +324,10 @@ class TaskQueue:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to get job status for {job_id}: {str(e)}")
+            logger.error(f"Failed to get job status for {job_id}: {e!s}")
             return None
 
-    async def get_queue_stats(self) -> Dict[str, Any]:
+    async def get_queue_stats(self) -> dict[str, Any]:
         """Get queue statistics"""
         try:
             stats = {
@@ -339,7 +336,7 @@ class TaskQueue:
                 "processing_jobs": await self.redis.zcard(self.processing_queue),
                 "delayed_jobs": await self.redis.zcard(self.delayed_queue),
                 "failed_jobs": await self.redis.llen(self.failed_queue),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
             # Get job counts by status
@@ -365,8 +362,9 @@ class TaskQueue:
             return stats
 
         except Exception as e:
-            logger.error(f"Failed to get queue stats: {str(e)}")
+            logger.error(f"Failed to get queue stats: {e!s}")
             return {"error": str(e), "timestamp": datetime.utcnow().isoformat()}
+
 
 class BackgroundWorker:
     """Background job worker"""
@@ -377,7 +375,7 @@ class BackgroundWorker:
         task_queue: TaskQueue,
         max_concurrent_jobs: int = 1,
         poll_interval: float = 1.0,
-        shutdown_timeout: float = 30.0
+        shutdown_timeout: float = 30.0,
     ):
         self.worker_id = worker_id
         self.task_queue = task_queue
@@ -385,8 +383,8 @@ class BackgroundWorker:
         self.poll_interval = poll_interval
         self.shutdown_timeout = shutdown_timeout
         self.running = False
-        self.current_jobs: Dict[str, Job] = {}
-        self.registered_tasks: Dict[str, Callable] = {}
+        self.current_jobs: dict[str, Job] = {}
+        self.registered_tasks: dict[str, Callable] = {}
         self.job_semaphore = asyncio.Semaphore(max_concurrent_jobs)
 
     def register_task(self, task_name: str, task_func: Callable):
@@ -412,10 +410,12 @@ class BackgroundWorker:
                         await self._process_job(job)
                     elif job:
                         logger.warning(f"Unknown task: {job.task_name}")
-                        await self.task_queue.fail_job(job, ValueError(f"Task {job.task_name} not registered"))
+                        await self.task_queue.fail_job(
+                            job, ValueError(f"Task {job.task_name} not registered")
+                        )
 
         except Exception as e:
-            logger.error(f"Worker {self.worker_id} crashed: {str(e)}")
+            logger.error(f"Worker {self.worker_id} crashed: {e!s}")
         finally:
             logger.info(f"Worker {self.worker_id} stopped")
 
@@ -459,7 +459,9 @@ class BackgroundWorker:
 
         except Exception as e:
             execution_time = (time.time() - start_time) * 1000
-            logger.error(f"Worker {self.worker_id} failed job {job.id} in {execution_time:.2f}ms: {str(e)}")
+            logger.error(
+                f"Worker {self.worker_id} failed job {job.id} in {execution_time:.2f}ms: {e!s}"
+            )
 
             # Record the failure
             await self.task_queue.fail_job(job, e)
@@ -468,9 +470,11 @@ class BackgroundWorker:
             # Remove from current jobs
             self.current_jobs.pop(job.id, None)
 
+
 # Global task queue and workers
-_task_queue: Optional[TaskQueue] = None
-_workers: List[BackgroundWorker] = []
+_task_queue: TaskQueue | None = None
+_workers: list[BackgroundWorker] = []
+
 
 def get_task_queue() -> TaskQueue:
     """Get global task queue instance"""
@@ -481,9 +485,11 @@ def get_task_queue() -> TaskQueue:
             _task_queue = TaskQueue(redis_client)
     return _task_queue
 
-def get_workers() -> List[BackgroundWorker]:
+
+def get_workers() -> list[BackgroundWorker]:
     """Get list of active workers"""
     return _workers
+
 
 def create_worker(worker_id: str = None, max_concurrent_jobs: int = 1) -> BackgroundWorker:
     """Create a new background worker"""
@@ -491,15 +497,15 @@ def create_worker(worker_id: str = None, max_concurrent_jobs: int = 1) -> Backgr
         worker_id = f"worker_{uuid.uuid4().hex[:8]}"
 
     worker = BackgroundWorker(
-        worker_id=worker_id,
-        task_queue=get_task_queue(),
-        max_concurrent_jobs=max_concurrent_jobs
+        worker_id=worker_id, task_queue=get_task_queue(), max_concurrent_jobs=max_concurrent_jobs
     )
     _workers.append(worker)
     return worker
 
+
 def task(task_name: str, **kwargs):
     """Decorator to register a task function"""
+
     def decorator(func):
         # Register the task with all workers
         for worker in get_workers():
@@ -516,15 +522,16 @@ def task(task_name: str, **kwargs):
 
     return decorator
 
+
 async def enqueue_job(
     task_name: str,
-    args: List[Any] = None,
-    kwargs: Dict[str, Any] = None,
+    args: list[Any] = None,
+    kwargs: dict[str, Any] = None,
     priority: JobPriority = JobPriority.NORMAL,
     max_retries: int = 3,
     delay_seconds: int = 0,
     timeout_seconds: int = 300,
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None,
 ) -> str:
     """Enqueue a background job"""
     job_id = str(uuid.uuid4())
@@ -537,14 +544,14 @@ async def enqueue_job(
         priority=priority,
         max_retries=max_retries,
         timeout_seconds=timeout_seconds,
-        metadata=metadata or {}
+        metadata=metadata or {},
     )
 
     queue = get_task_queue()
     if queue:
         return await queue.enqueue(job, delay_seconds)
-    else:
-        raise RuntimeError("Task queue not available")
+    raise RuntimeError("Task queue not available")
+
 
 # Example task functions
 @task("send_email")
@@ -555,13 +562,15 @@ async def send_email_task(to_email: str, subject: str, body: str, template_id: s
     await asyncio.sleep(1)  # Simulate email sending
     return {"status": "sent", "to": to_email, "subject": subject}
 
+
 @task("generate_report")
-async def generate_report_task(user_id: str, report_type: str, filters: Dict[str, Any] = None):
+async def generate_report_task(user_id: str, report_type: str, filters: dict[str, Any] = None):
     """Example: Generate report task"""
     # Implement report generation logic here
     logger.info(f"Generating {report_type} report for user {user_id}")
     await asyncio.sleep(2)  # Simulate report generation
     return {"report_id": str(uuid.uuid4()), "type": report_type, "user_id": user_id}
+
 
 @task("cleanup_temp_files")
 async def cleanup_temp_files():
@@ -574,6 +583,7 @@ async def cleanup_temp_files():
 
 # Global worker instance for convenience
 _background_worker = None
+
 
 async def get_background_worker() -> BackgroundWorker:
     """Get or create the global background worker instance"""

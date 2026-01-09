@@ -24,10 +24,7 @@ class EmailService(ABC):
 
     @abstractmethod
     async def send_verification_email(
-        self,
-        to_email: str,
-        full_name: str,
-        verification_url: str
+        self, to_email: str, full_name: str, verification_url: str
     ) -> bool:
         """
         Send email verification to a user
@@ -40,15 +37,9 @@ class EmailService(ABC):
         Returns:
             True if email was sent successfully, False otherwise
         """
-        pass
 
     @abstractmethod
-    async def send_welcome_email(
-        self,
-        to_email: str,
-        full_name: str,
-        login_url: str
-    ) -> bool:
+    async def send_welcome_email(self, to_email: str, full_name: str, login_url: str) -> bool:
         """
         Send welcome email to a newly registered user
 
@@ -60,14 +51,10 @@ class EmailService(ABC):
         Returns:
             True if email was sent successfully, False otherwise
         """
-        pass
 
     @abstractmethod
     async def send_password_reset_email(
-        self,
-        to_email: str,
-        full_name: str,
-        reset_url: str
+        self, to_email: str, full_name: str, reset_url: str
     ) -> bool:
         """
         Send password reset email to a user
@@ -80,15 +67,10 @@ class EmailService(ABC):
         Returns:
             True if email was sent successfully, False otherwise
         """
-        pass
 
     @abstractmethod
     async def send_security_alert_email(
-        self,
-        to_email: str,
-        full_name: str,
-        alert_message: str,
-        recommendations: str
+        self, to_email: str, full_name: str, alert_message: str, recommendations: str
     ) -> bool:
         """
         Send security alert email to a user
@@ -102,4 +84,3 @@ class EmailService(ABC):
         Returns:
             True if email was sent successfully, False otherwise
         """
-        pass

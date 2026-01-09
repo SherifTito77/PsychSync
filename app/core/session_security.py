@@ -4,14 +4,13 @@ Session Security Manager for PsychSync
 Handles secure session management with fixation prevention and hijacking detection
 """
 
-import secrets
 import asyncio
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Set, List
-from dataclasses import dataclass, field
-
-from app.core.cache import cache_get, cache_set, cache_delete
 import logging
+import secrets
+
+from app.core.cache import cache_delete, cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SessionMetadata:
     """Session metadata for security tracking"""
+
     session_id: str
     user_id: str
     ip_address: str
@@ -46,15 +46,11 @@ class SessionSecurityManager:
         self.SUSPICIOUS_ACTIVITY_PREFIX = "suspicious_activity:"
 
         # Track active sessions in memory for quick access
-        self.active_sessions: Dict[str, SessionMetadata] = {}
+        self.active_sessions: dict[str, SessionMetadata] = {}
         self._lock = asyncio.Lock()
 
     async def create_secure_session(
-        self,
-        user_id: str,
-        ip_address: str,
-        user_agent: str,
-        prevent_fixation: bool = True
+        self, user_id: str, ip_address: str, user_agent: str, prevent_fixation: bool = True
     ) -> str:
         """
         Create secure session with fixation prevention
@@ -85,7 +81,7 @@ class SessionSecurityManager:
                     created_at=now,
                     last_activity=now,
                     expires_at=expires_at,
-                    fixation_prevented=prevent_fixation
+                    fixation_prevented=prevent_fixation,
                 )
 
                 # Store session metadata
@@ -98,14 +94,14 @@ class SessionSecurityManager:
                     "last_activity": now.isoformat(),
                     "expires_at": expires_at.isoformat(),
                     "is_active": True,
-                    "fixation_prevented": prevent_fixation
+                    "fixation_prevented": prevent_fixation,
                 }
 
                 # Store in cache
                 await cache_set(
                     f"{self.SESSION_PREFIX}{session_id}",
                     session_data,
-                    expire_seconds=self.session_timeout_minutes * 60
+                    expire_seconds=self.session_timeout_minutes * 60,
                 )
 
                 # Add to user's active sessions
@@ -126,12 +122,8 @@ class SessionSecurityManager:
                 raise RuntimeError("Session creation failed")
 
     async def validate_session(
-        self,
-        session_id: str,
-        user_id: str,
-        ip_address: str,
-        user_agent: str
-    ) -> Dict[str, Any]:
+        self, session_id: str, user_id: str, ip_address: str, user_agent: str
+    ) -> dict[str, Any]:
         """
         Validate session security and detect potential hijacking
 
@@ -153,7 +145,7 @@ class SessionSecurityManager:
                     "valid": False,
                     "reason": "session_not_found",
                     "security_score": 0,
-                    "action_required": "reauthenticate"
+                    "action_required": "reauthenticate",
                 }
 
             # Check if session belongs to user
@@ -162,13 +154,13 @@ class SessionSecurityManager:
                     user_id,
                     "session_user_mismatch",
                     f"Session {session_id[:8]}... accessed by wrong user",
-                    ip_address
+                    ip_address,
                 )
                 return {
                     "valid": False,
                     "reason": "user_mismatch",
                     "security_score": 0,
-                    "action_required": "reauthenticate"
+                    "action_required": "reauthenticate",
                 }
 
             # Check if session has expired
@@ -179,7 +171,7 @@ class SessionSecurityManager:
                     "valid": False,
                     "reason": "session_expired",
                     "security_score": 0,
-                    "action_required": "reauthenticate"
+                    "action_required": "reauthenticate",
                 }
 
             # Check for potential hijacking indicators
@@ -194,7 +186,7 @@ class SessionSecurityManager:
                     user_id,
                     "ip_address_change",
                     f"Session IP changed from {original_ip} to {ip_address}",
-                    ip_address
+                    ip_address,
                 )
                 security_score -= 30
                 warnings.append("ip_address_changed")
@@ -204,10 +196,7 @@ class SessionSecurityManager:
             if original_user_agent and original_user_agent != user_agent[:200]:
                 # User agent change - potential hijacking
                 await self._record_suspicious_activity(
-                    user_id,
-                    "user_agent_change",
-                    f"Session user agent changed",
-                    ip_address
+                    user_id, "user_agent_change", "Session user agent changed", ip_address
                 )
                 security_score -= 20
                 warnings.append("user_agent_changed")
@@ -224,7 +213,7 @@ class SessionSecurityManager:
             await cache_set(
                 f"{self.SESSION_PREFIX}{session_id}",
                 session_data,
-                expire_seconds=self.session_timeout_minutes * 60
+                expire_seconds=self.session_timeout_minutes * 60,
             )
 
             # Determine action based on security score
@@ -239,7 +228,7 @@ class SessionSecurityManager:
                 "security_score": security_score,
                 "warnings": warnings,
                 "action_required": action_required,
-                "session_age_minutes": int(session_age.total_seconds() / 60)
+                "session_age_minutes": int(session_age.total_seconds() / 60),
             }
 
         except Exception as e:
@@ -248,10 +237,12 @@ class SessionSecurityManager:
                 "valid": False,
                 "reason": "validation_error",
                 "security_score": 0,
-                "action_required": "reauthenticate"
+                "action_required": "reauthenticate",
             }
 
-    async def invalidate_session(self, session_id: str, user_id: str, reason: str = "logout") -> bool:
+    async def invalidate_session(
+        self, session_id: str, user_id: str, reason: str = "logout"
+    ) -> bool:
         """
         Securely invalidate a session
 
@@ -283,9 +274,7 @@ class SessionSecurityManager:
             return False
 
     async def invalidate_all_user_sessions(
-        self,
-        user_id: str,
-        reason: str = "security_action"
+        self, user_id: str, reason: str = "security_action"
     ) -> int:
         """
         Invalidate all sessions for a user
@@ -309,7 +298,9 @@ class SessionSecurityManager:
             # Clear user sessions list
             await cache_delete(user_sessions_key)
 
-            logger.info(f"Invalidated {invalidated_count} sessions for user: {user_id}. Reason: {reason}")
+            logger.info(
+                f"Invalidated {invalidated_count} sessions for user: {user_id}. Reason: {reason}"
+            )
 
             return invalidated_count
 
@@ -317,7 +308,7 @@ class SessionSecurityManager:
             logger.error(f"Failed to invalidate user sessions: {e}")
             return 0
 
-    async def get_user_sessions(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_user_sessions(self, user_id: str) -> list[dict[str, Any]]:
         """
         Get all active sessions for a user
 
@@ -339,15 +330,23 @@ class SessionSecurityManager:
                     created_at = datetime.fromisoformat(session_data["created_at"])
                     last_activity = datetime.fromisoformat(session_data["last_activity"])
 
-                    sessions.append({
-                        "session_id": session_id,
-                        "created_at": session_data["created_at"],
-                        "last_activity": session_data["last_activity"],
-                        "ip_address": session_data["ip_address"],
-                        "user_agent": session_data["user_agent"][:50] + "..." if len(session_data["user_agent"]) > 50 else session_data["user_agent"],
-                        "age_minutes": int((datetime.utcnow() - created_at).total_seconds() / 60),
-                        "inactive_minutes": int((datetime.utcnow() - last_activity).total_seconds() / 60)
-                    })
+                    sessions.append(
+                        {
+                            "session_id": session_id,
+                            "created_at": session_data["created_at"],
+                            "last_activity": session_data["last_activity"],
+                            "ip_address": session_data["ip_address"],
+                            "user_agent": session_data["user_agent"][:50] + "..."
+                            if len(session_data["user_agent"]) > 50
+                            else session_data["user_agent"],
+                            "age_minutes": int(
+                                (datetime.utcnow() - created_at).total_seconds() / 60
+                            ),
+                            "inactive_minutes": int(
+                                (datetime.utcnow() - last_activity).total_seconds() / 60
+                            ),
+                        }
+                    )
 
             return sorted(sessions, key=lambda x: x["last_activity"], reverse=True)
 
@@ -366,7 +365,7 @@ class SessionSecurityManager:
                 await cache_set(
                     user_sessions_key,
                     sessions,
-                    expire_seconds=86400 * 7  # 7 days
+                    expire_seconds=86400 * 7,  # 7 days
                 )
 
         except Exception as e:
@@ -380,11 +379,7 @@ class SessionSecurityManager:
 
             if session_id in sessions:
                 sessions.remove(session_id)
-                await cache_set(
-                    user_sessions_key,
-                    sessions,
-                    expire_seconds=86400 * 7
-                )
+                await cache_set(user_sessions_key, sessions, expire_seconds=86400 * 7)
 
         except Exception as e:
             logger.error(f"Failed to remove user session: {e}")
@@ -402,17 +397,15 @@ class SessionSecurityManager:
                 for session_id in sessions[:sessions_to_remove]:
                     await self.invalidate_session(session_id, user_id, "session_limit_exceeded")
 
-                logger.info(f"Removed {sessions_to_remove} old sessions for user: {user_id} due to limit")
+                logger.info(
+                    f"Removed {sessions_to_remove} old sessions for user: {user_id} due to limit"
+                )
 
         except Exception as e:
             logger.error(f"Failed to enforce session limit: {e}")
 
     async def _record_suspicious_activity(
-        self,
-        user_id: str,
-        activity_type: str,
-        description: str,
-        ip_address: str
+        self, user_id: str, activity_type: str, description: str, ip_address: str
     ):
         """Record suspicious activity for monitoring"""
         try:
@@ -423,7 +416,7 @@ class SessionSecurityManager:
                 "type": activity_type,
                 "description": description,
                 "ip_address": ip_address,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
             activities.append(activity)
@@ -435,12 +428,13 @@ class SessionSecurityManager:
             await cache_set(
                 suspicious_key,
                 activities,
-                expire_seconds=86400 * 30  # 30 days
+                expire_seconds=86400 * 30,  # 30 days
             )
 
             # Check if activity threshold is exceeded
             recent_activities = [
-                a for a in activities
+                a
+                for a in activities
                 if datetime.utcnow() - datetime.fromisoformat(a["timestamp"]) < timedelta(hours=24)
             ]
 

@@ -3,24 +3,23 @@ AI-Enhanced Email Service
 Integrates AI engine with email communications for personalization and optimization
 """
 
-import asyncio
-import re
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, desc, text
-import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
+import logging
+import re
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ai.processors.big_five import BigFiveProcessor
 
 # AI Engine imports
-from ai.processors.processors_base import PersonalityFrameworkProcessor
 from ai.processors.mbti_processor import MBTIProcessor
-from ai.processors.big_five import BigFiveProcessor
+from app.services.ai_behavioral_integration import AIBehavioralIntegrationService
 
 # Behavioral and email imports
 from app.services.behavioral_pattern_recognition import BehavioralPatternRecognizer
-from app.services.ai_behavioral_integration import AIBehavioralIntegrationService
 from app.services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
@@ -49,9 +48,9 @@ class AIEmailContent:
     body: str
     call_to_action: str
     personalization_level: PersonalizationLevel
-    personality_adaptations: Dict[str, str]
-    optimal_send_time: Optional[datetime] = None
-    engagement_prediction: Optional[float] = None
+    personality_adaptations: dict[str, str]
+    optimal_send_time: datetime | None = None
+    engagement_prediction: float | None = None
     tone: str = "professional"
 
 @dataclass
@@ -59,7 +58,7 @@ class EmailOptimizationInsight:
     """AI-generated insight for email optimization"""
     user_id: str
     email_type: EmailType
-    recommended_changes: List[str]
+    recommended_changes: list[str]
     predicted_engagement_increase: float
     reasoning: str
     confidence: float
@@ -79,15 +78,15 @@ class AIEnhancedEmailService:
         self.pattern_recognizer = BehavioralPatternRecognizer(db)
         self.base_email_service = EmailService()
         self.ai_processors = {
-            'mbti': MBTIProcessor(),
-            'big_five': BigFiveProcessor()
+            "mbti": MBTIProcessor(),
+            "big_five": BigFiveProcessor()
         }
 
     async def generate_personalized_email(
         self,
         user_id: str,
         email_type: EmailType,
-        base_content: Dict[str, Any],
+        base_content: dict[str, Any],
         personalization_level: PersonalizationLevel = PersonalizationLevel.PERSONALITY
     ) -> AIEmailContent:
         """
@@ -113,17 +112,16 @@ class AIEnhancedEmailService:
             if personalization_level == PersonalizationLevel.BASIC:
                 return await self._apply_basic_personalization(base_content, user_profile)
 
-            elif personalization_level == PersonalizationLevel.BEHAVIORAL:
+            if personalization_level == PersonalizationLevel.BEHAVIORAL:
                 return await self._apply_behavioral_personalization(user_id, email_type, base_content, user_profile)
 
-            elif personalization_level == PersonalizationLevel.PERSONALITY:
+            if personalization_level == PersonalizationLevel.PERSONALITY:
                 return await self._apply_personality_personalization(user_id, email_type, base_content, user_profile)
 
-            elif personalization_level == PersonalizationLevel.PREDICTIVE:
+            if personalization_level == PersonalizationLevel.PREDICTIVE:
                 return await self._apply_predictive_personalization(user_id, email_type, base_content, user_profile)
 
-            else:
-                return await self._apply_basic_personalization(base_content, user_profile)
+            return await self._apply_basic_personalization(base_content, user_profile)
 
         except Exception as e:
             logger.error(f"Error generating personalized email: {e}")
@@ -133,10 +131,10 @@ class AIEnhancedEmailService:
     async def optimize_email_campaign(
         self,
         campaign_id: str,
-        user_ids: List[str],
+        user_ids: list[str],
         email_type: EmailType,
-        base_template: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        base_template: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Optimize email campaign with AI-driven personalization and timing
 
@@ -212,9 +210,9 @@ class AIEnhancedEmailService:
 
     async def analyze_email_performance(
         self,
-        email_campaign_id: Optional[str] = None,
+        email_campaign_id: str | None = None,
         time_period_days: int = 30
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze email performance using AI to generate insights and recommendations
 
@@ -259,8 +257,8 @@ class AIEnhancedEmailService:
         self,
         user_id: str,
         email_type: EmailType,
-        base_content: Dict[str, Any],
-        user_profile: Dict[str, Any]
+        base_content: dict[str, Any],
+        user_profile: dict[str, Any]
     ) -> AIEmailContent:
         """Apply personality-based personalization to email content"""
 
@@ -334,7 +332,7 @@ class AIEnhancedEmailService:
         base_subject: str,
         extraversion: float,
         openness: float,
-        mbti_type: Optional[str]
+        mbti_type: str | None
     ) -> str:
         """Personalize email subject based on personality traits"""
 
@@ -349,7 +347,7 @@ class AIEnhancedEmailService:
                 subject = subject.replace("Results", "Your Personal Results Are Ready!")
         elif extraversion < 0.3:
             # More direct and less flamboyant for introverts
-            subject = re.sub(r'[!]+', '.', subject)  # Reduce exclamation points
+            subject = re.sub(r"[!]+", ".", subject)  # Reduce exclamation points
             subject = subject.replace("Exciting", "Important").replace("Amazing", "Updated")
 
         # Openness-based personalization
@@ -378,7 +376,7 @@ class AIEnhancedEmailService:
         openness: float,
         conscientiousness: float,
         agreeableness: float,
-        mbti_type: Optional[str]
+        mbti_type: str | None
     ) -> str:
         """Personalize email body content based on personality traits"""
 
@@ -437,18 +435,17 @@ class AIEnhancedEmailService:
 
         if extraversion > 0.7 and conscientiousness > 0.7:
             return "Join the Discussion & Plan Your Next Steps"
-        elif extraversion > 0.7:
+        if extraversion > 0.7:
             return "Share & Discuss Your Insights"
-        elif conscientiousness > 0.7:
+        if conscientiousness > 0.7:
             return "Access Your Action Plan"
-        else:
-            return "Explore Your Results"
+        return "Explore Your Results"
 
     async def _calculate_optimal_send_time_by_personality(
         self,
-        user_profile: Dict[str, Any],
+        user_profile: dict[str, Any],
         email_type: EmailType
-    ) -> Optional[datetime]:
+    ) -> datetime | None:
         """Calculate optimal email send time based on personality and behavioral patterns"""
 
         behavioral_analysis = user_profile.get("behavioral_analysis", {})
@@ -506,7 +503,7 @@ class AIEnhancedEmailService:
         return min(base_engagement, 0.95)
 
     # Helper methods
-    async def _get_user_email_profile(self, user_id: str) -> Dict[str, Any]:
+    async def _get_user_email_profile(self, user_id: str) -> dict[str, Any]:
         """Get user profile for email personalization"""
         try:
             return await self.behavioral_integration.get_comprehensive_user_profile(
@@ -516,7 +513,7 @@ class AIEnhancedEmailService:
             logger.warning(f"Error getting user profile for {user_id}: {e}")
             return {}
 
-    async def _apply_basic_personalization(self, base_content: Dict[str, Any], user_profile: Dict[str, Any]) -> AIEmailContent:
+    async def _apply_basic_personalization(self, base_content: dict[str, Any], user_profile: dict[str, Any]) -> AIEmailContent:
         """Apply basic personalization (name, etc.)"""
         return AIEmailContent(
             subject=base_content.get("subject", ""),
@@ -526,33 +523,33 @@ class AIEnhancedEmailService:
             personality_adaptations={}
         )
 
-    async def _apply_behavioral_personalization(self, user_id: str, email_type: EmailType, base_content: Dict[str, Any], user_profile: Dict[str, Any]) -> AIEmailContent:
+    async def _apply_behavioral_personalization(self, user_id: str, email_type: EmailType, base_content: dict[str, Any], user_profile: dict[str, Any]) -> AIEmailContent:
         """Apply behavioral pattern-based personalization"""
         # Implementation would use behavioral patterns from user_profile
         return await self._apply_basic_personalization(base_content, user_profile)
 
-    async def _apply_predictive_personalization(self, user_id: str, email_type: EmailType, base_content: Dict[str, Any], user_profile: Dict[str, Any]) -> AIEmailContent:
+    async def _apply_predictive_personalization(self, user_id: str, email_type: EmailType, base_content: dict[str, Any], user_profile: dict[str, Any]) -> AIEmailContent:
         """Apply AI-predictive personalization"""
         # Start with personality personalization as foundation
         return await self._apply_personality_personalization(user_id, email_type, base_content, user_profile)
 
-    async def _get_email_performance_data(self, campaign_id: Optional[str], time_period_days: int) -> Dict[str, Any]:
+    async def _get_email_performance_data(self, campaign_id: str | None, time_period_days: int) -> dict[str, Any]:
         """Get email performance data for analysis"""
         # This would query actual email performance metrics
         return {"placeholder": "email performance data"}
 
-    async def _generate_email_performance_insights(self, performance_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _generate_email_performance_insights(self, performance_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate AI insights from email performance data"""
         return [{"insight": "AI analysis of email performance", "confidence": 0.8}]
 
-    async def _identify_email_optimization_opportunities(self, performance_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _identify_email_optimization_opportunities(self, performance_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Identify opportunities for email optimization"""
         return [{"opportunity": "Personalize subject lines", "potential_impact": "high"}]
 
-    async def _predict_email_performance_trends(self, performance_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _predict_email_performance_trends(self, performance_data: dict[str, Any]) -> dict[str, Any]:
         """Predict future email performance trends"""
         return {"predicted_engagement": 0.75, "trend": "improving"}
 
-    async def _generate_email_optimization_actions(self, insights: List[Dict[str, Any]], opportunities: List[Dict[str, Any]]) -> List[str]:
+    async def _generate_email_optimization_actions(self, insights: list[dict[str, Any]], opportunities: list[dict[str, Any]]) -> list[str]:
         """Generate recommended actions for email optimization"""
         return ["Increase personalization", "Optimize send times", "A/B test subject lines"]

@@ -3,15 +3,16 @@
 Security utilities for input sanitization and XSS protection
 """
 
-import re
 import html
-from typing import Any, Dict, List, Union
 import logging
+import re
+from typing import Any
 
 # Try to import bleach, fallback to basic sanitization if not available
 try:
     from bleach import clean
     from bleach.css_sanitizer import CSSSanitizer
+
     BLEACH_AVAILABLE = True
 except ImportError:
     BLEACH_AVAILABLE = False
@@ -20,25 +21,54 @@ logger = logging.getLogger(__name__)
 
 # Configure allowed HTML tags and attributes
 ALLOWED_TAGS = [
-    'p', 'br', 'strong', 'em', 'u', 'i', 'b', 'ul', 'ol', 'li',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre'
+    "p",
+    "br",
+    "strong",
+    "em",
+    "u",
+    "i",
+    "b",
+    "ul",
+    "ol",
+    "li",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "blockquote",
+    "code",
+    "pre",
 ]
 
 ALLOWED_ATTRIBUTES = {
-    '*': ['class'],
-    'a': ['href', 'title'],
-    'img': ['src', 'alt', 'width', 'height'],
+    "*": ["class"],
+    "a": ["href", "title"],
+    "img": ["src", "alt", "width", "height"],
 }
 
 # CSS sanitizer for style attributes (only if bleach is available)
-css_sanitizer = CSSSanitizer(
-    allowed_css_properties=[
-        'color', 'background-color', 'font-size', 'font-weight',
-        'text-align', 'margin', 'padding', 'border', 'display'
-    ]
-) if BLEACH_AVAILABLE else None
+css_sanitizer = (
+    CSSSanitizer(
+        allowed_css_properties=[
+            "color",
+            "background-color",
+            "font-size",
+            "font-weight",
+            "text-align",
+            "margin",
+            "padding",
+            "border",
+            "display",
+        ]
+    )
+    if BLEACH_AVAILABLE
+    else None
+)
 
-def sanitize_html(input_value: str, allowed_tags: List[str] = None) -> str:
+
+def sanitize_html(input_value: str, allowed_tags: list[str] = None) -> str:
     """
     Sanitize HTML input to prevent XSS attacks
 
@@ -65,45 +95,36 @@ def sanitize_html(input_value: str, allowed_tags: List[str] = None) -> str:
                 tags=tags,
                 attributes=ALLOWED_ATTRIBUTES,
                 css_sanitizer=css_sanitizer,
-                strip=True
+                strip=True,
             )
         else:
             # Basic HTML sanitization without bleach
             # Remove script tags and dangerous attributes
-            sanitized = re.sub(r'<script[^>]*>.*?</script>', '', input_value, flags=re.IGNORECASE | re.DOTALL)
-            sanitized = re.sub(r'<iframe[^>]*>.*?</iframe>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
-            sanitized = re.sub(r'<object[^>]*>.*?</object>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
-            sanitized = re.sub(r'<embed[^>]*>', '', sanitized, flags=re.IGNORECASE)
-            sanitized = re.sub(r'<link[^>]*>', '', sanitized, flags=re.IGNORECASE)
-            sanitized = re.sub(r'<meta[^>]*>', '', sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(
+                r"<script[^>]*>.*?</script>", "", input_value, flags=re.IGNORECASE | re.DOTALL
+            )
+            sanitized = re.sub(
+                r"<iframe[^>]*>.*?</iframe>", "", sanitized, flags=re.IGNORECASE | re.DOTALL
+            )
+            sanitized = re.sub(
+                r"<object[^>]*>.*?</object>", "", sanitized, flags=re.IGNORECASE | re.DOTALL
+            )
+            sanitized = re.sub(r"<embed[^>]*>", "", sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(r"<link[^>]*>", "", sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(r"<meta[^>]*>", "", sanitized, flags=re.IGNORECASE)
 
             # Remove dangerous attributes
-            sanitized = re.sub(r'on\w+\s*=\s*["\'][^"\']*["\']', '', sanitized, flags=re.IGNORECASE)
-            sanitized = re.sub(r'javascript\s*:', '', sanitized, flags=re.IGNORECASE)
-            sanitized = re.sub(r'vbscript\s*:', '', sanitized, flags=re.IGNORECASE)
-            sanitized = re.sub(r'data\s*:', '', sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(r'on\w+\s*=\s*["\'][^"\']*["\']', "", sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(r"javascript\s*:", "", sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(r"vbscript\s*:", "", sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(r"data\s*:", "", sanitized, flags=re.IGNORECASE)
 
         # Additional regex patterns for edge cases
-        sanitized = re.sub(
-            r'javascript\s*:',
-            '',
-            sanitized,
-            flags=re.IGNORECASE
-        )
+        sanitized = re.sub(r"javascript\s*:", "", sanitized, flags=re.IGNORECASE)
 
-        sanitized = re.sub(
-            r'vbscript\s*:',
-            '',
-            sanitized,
-            flags=re.IGNORECASE
-        )
+        sanitized = re.sub(r"vbscript\s*:", "", sanitized, flags=re.IGNORECASE)
 
-        sanitized = re.sub(
-            r'on\w+\s*=',
-            '',
-            sanitized,
-            flags=re.IGNORECASE
-        )
+        sanitized = re.sub(r"on\w+\s*=", "", sanitized, flags=re.IGNORECASE)
 
         return sanitized.strip()
 
@@ -112,7 +133,8 @@ def sanitize_html(input_value: str, allowed_tags: List[str] = None) -> str:
         # Fallback to basic HTML escaping
         return html.escape(input_value, quote=True)
 
-def sanitize_string(input_value: Union[str, Any]) -> str:
+
+def sanitize_string(input_value: str | Any) -> str:
     """
     Sanitize string input by removing all HTML tags
 
@@ -134,22 +156,12 @@ def sanitize_string(input_value: Union[str, Any]) -> str:
             sanitized = clean(input_value, tags=[], strip=True)
         else:
             # Basic HTML tag removal without bleach
-            sanitized = re.sub(r'<[^>]+>', '', input_value)
+            sanitized = re.sub(r"<[^>]+>", "", input_value)
 
         # Remove any remaining potentially dangerous content
-        sanitized = re.sub(
-            r'javascript\s*:',
-            '',
-            sanitized,
-            flags=re.IGNORECASE
-        )
+        sanitized = re.sub(r"javascript\s*:", "", sanitized, flags=re.IGNORECASE)
 
-        sanitized = re.sub(
-            r'vbscript\s*:',
-            '',
-            sanitized,
-            flags=re.IGNORECASE
-        )
+        sanitized = re.sub(r"vbscript\s*:", "", sanitized, flags=re.IGNORECASE)
 
         return sanitized.strip()
 
@@ -157,9 +169,10 @@ def sanitize_string(input_value: Union[str, Any]) -> str:
         logger.error(f"Error sanitizing string: {e}")
         return html.escape(input_value, quote=True)
 
-def sanitize_dict(input_dict: Dict[str, Any],
-                 html_fields: List[str] = None,
-                 text_fields: List[str] = None) -> Dict[str, Any]:
+
+def sanitize_dict(
+    input_dict: dict[str, Any], html_fields: list[str] = None, text_fields: list[str] = None
+) -> dict[str, Any]:
     """
     Sanitize a dictionary of input values
 
@@ -188,8 +201,10 @@ def sanitize_dict(input_dict: Dict[str, Any],
             sanitized[key] = sanitize_dict(value, html_fields, text_fields)
         elif isinstance(value, list):
             sanitized[key] = [
-                sanitize_html(item) if isinstance(item, str) and key in html_fields
-                else sanitize_string(item) if isinstance(item, str)
+                sanitize_html(item)
+                if isinstance(item, str) and key in html_fields
+                else sanitize_string(item)
+                if isinstance(item, str)
                 else item
                 for item in value
             ]
@@ -197,6 +212,7 @@ def sanitize_dict(input_dict: Dict[str, Any],
             sanitized[key] = value
 
     return sanitized
+
 
 def validate_email(email: str) -> bool:
     """
@@ -211,8 +227,9 @@ def validate_email(email: str) -> bool:
     if not isinstance(email, str):
         return False
 
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     return re.match(email_pattern, email.strip()) is not None
+
 
 def validate_uuid(uuid_string: str) -> bool:
     """
@@ -227,8 +244,9 @@ def validate_uuid(uuid_string: str) -> bool:
     if not isinstance(uuid_string, str):
         return False
 
-    uuid_pattern = r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+    uuid_pattern = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
     return re.match(uuid_pattern, uuid_string.strip()) is not None
+
 
 def sanitize_filename(filename: str) -> str:
     """
@@ -244,29 +262,31 @@ def sanitize_filename(filename: str) -> str:
         return ""
 
     # Remove directory traversal attempts
-    sanitized = filename.replace('..', '').replace('/', '').replace('\\', '')
+    sanitized = filename.replace("..", "").replace("/", "").replace("\\", "")
 
     # Remove null bytes
-    sanitized = sanitized.replace('\x00', '')
+    sanitized = sanitized.replace("\x00", "")
 
     # Remove control characters
-    sanitized = re.sub(r'[\x00-\x1f\x7f]', '', sanitized)
+    sanitized = re.sub(r"[\x00-\x1f\x7f]", "", sanitized)
 
     # Limit length
     sanitized = sanitized[:255]
 
     return sanitized.strip()
 
+
 # Security headers configuration
 SECURITY_HEADERS = {
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 }
 
-def get_security_headers() -> Dict[str, str]:
+
+def get_security_headers() -> dict[str, str]:
     """
     Get security headers for HTTP responses
 

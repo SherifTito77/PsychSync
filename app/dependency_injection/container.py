@@ -17,34 +17,39 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import logging
 import asyncio
-from typing import TypeVar, Type, Dict, Any, Optional, Callable, Union, List, get_type_hints
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from dataclasses import dataclass, field
-from abc import ABC, abstractmethod
 import inspect
+import logging
+from typing import Any, TypeVar
 
 # Initialize DI container logger
 di_logger = logging.getLogger("app.di.container")
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class Lifetime(Enum):
     """Service lifetime options"""
+
     SINGLETON = "singleton"
     SCOPED = "scoped"
     TRANSIENT = "transient"
 
+
 @dataclass
 class ServiceDescriptor:
     """Service descriptor for dependency injection"""
-    service_type: Type[T]
+
+    service_type: type[T]
     lifetime: Lifetime = Lifetime.TRANSIENT
-    factory: Optional[Callable[[], T]] = None
-    instance: Optional[T] = None
-    dependencies: Optional[Dict[str, Type]] = None
-    on_resolve: Optional[Callable[[T], None]] = None
+    factory: Callable[[], T] | None = None
+    instance: T | None = None
+    dependencies: dict[str, type] | None = None
+    on_resolve: Callable[[T], None] | None = None
+
 
 class Container:
     """
@@ -52,45 +57,45 @@ class Container:
     """
 
     def __init__(self):
-        self._services: Dict[str, ServiceDescriptor] = {}
-        self._singletons: Dict[str, Any] = {}
-        self._scoped: Dict[str, Any] = {}
-        self._configuration: Dict[str, Any] = {}
+        self._services: dict[str, ServiceDescriptor] = {}
+        self._singletons: dict[str, Any] = {}
+        self._scoped: dict[str, Any] = {}
+        self._configuration: dict[str, Any] = {}
         self._lock = asyncio.Lock()
 
     def register_singleton(
         self,
-        service_type: Type[T],
-        factory: Optional[Callable[[], T]] = None,
-        dependencies: Optional[Dict[str, Type]] = None
+        service_type: type[T],
+        factory: Callable[[], T] | None = None,
+        dependencies: dict[str, type] | None = None,
     ) -> None:
         """Register singleton service"""
         self._register_service(service_type, Lifetime.SINGLETON, factory, dependencies)
 
     def register_scoped(
         self,
-        service_type: Type[T],
-        factory: Optional[Callable[[], T]] = None,
-        dependencies: Optional[Dict[str, Type]] = None
+        service_type: type[T],
+        factory: Callable[[], T] | None = None,
+        dependencies: dict[str, type] | None = None,
     ) -> None:
         """Register scoped service"""
         self._register_service(service_type, Lifetime.SCOPED, factory, dependencies)
 
     def register_transient(
         self,
-        service_type: Type[T],
-        factory: Optional[Callable[[], T]] = None,
-        dependencies: Optional[Dict[str, Type]] = None
+        service_type: type[T],
+        factory: Callable[[], T] | None = None,
+        dependencies: dict[str, type] | None = None,
     ) -> None:
         """Register transient service"""
         self._register_service(service_type, Lifetime.TRANSIENT, factory, dependencies)
 
     def _register_service(
         self,
-        service_type: Type[T],
+        service_type: type[T],
         lifetime: Lifetime,
-        factory: Optional[Callable[[], T]] = None,
-        dependencies: Optional[Dict[str, Type]] = None
+        factory: Callable[[], T] | None = None,
+        dependencies: dict[str, type] | None = None,
     ) -> None:
         """Internal service registration"""
         service_name = self._get_service_name(service_type)
@@ -99,23 +104,18 @@ class Container:
             di_logger.warning(f"Service {service_name} is already registered, overwriting")
 
         descriptor = ServiceDescriptor(
-            service_type=service_type,
-            lifetime=lifetime,
-            factory=factory,
-            dependencies=dependencies
+            service_type=service_type, lifetime=lifetime, factory=factory, dependencies=dependencies
         )
 
         self._services[service_name] = descriptor
         di_logger.info(f"Registered service: {service_name} ({lifetime.value})")
 
-    def register_instance(self, service_type: Type[T], instance: T) -> None:
+    def register_instance(self, service_type: type[T], instance: T) -> None:
         """Register a specific instance as singleton"""
         service_name = self._get_service_name(service_type)
 
         descriptor = ServiceDescriptor(
-            service_type=service_type,
-            lifetime=Lifetime.SINGLETON,
-            instance=instance
+            service_type=service_type, lifetime=Lifetime.SINGLETON, instance=instance
         )
 
         self._services[service_name] = descriptor
@@ -131,8 +131,8 @@ class Container:
     def register_singleton_by_name(
         self,
         service_name: str,
-        factory: Optional[Callable[[], Any]] = None,
-        dependencies: Optional[Dict[str, str]] = None
+        factory: Callable[[], Any] | None = None,
+        dependencies: dict[str, str] | None = None,
     ) -> None:
         """Register singleton service by name"""
         self._register_service_by_name(service_name, Lifetime.SINGLETON, factory, dependencies)
@@ -140,8 +140,8 @@ class Container:
     def register_scoped_by_name(
         self,
         service_name: str,
-        factory: Optional[Callable[[], Any]] = None,
-        dependencies: Optional[Dict[str, str]] = None
+        factory: Callable[[], Any] | None = None,
+        dependencies: dict[str, str] | None = None,
     ) -> None:
         """Register scoped service by name"""
         self._register_service_by_name(service_name, Lifetime.SCOPED, factory, dependencies)
@@ -149,8 +149,8 @@ class Container:
     def register_transient_by_name(
         self,
         service_name: str,
-        factory: Optional[Callable[[], Any]] = None,
-        dependencies: Optional[Dict[str, str]] = None
+        factory: Callable[[], Any] | None = None,
+        dependencies: dict[str, str] | None = None,
     ) -> None:
         """Register transient service by name"""
         self._register_service_by_name(service_name, Lifetime.TRANSIENT, factory, dependencies)
@@ -159,10 +159,11 @@ class Container:
         self,
         service_name: str,
         lifetime: Lifetime,
-        factory: Optional[Callable[[], Any]] = None,
-        dependencies: Optional[Dict[str, str]] = None
+        factory: Callable[[], Any] | None = None,
+        dependencies: dict[str, str] | None = None,
     ) -> None:
         """Internal service registration by name"""
+
         # Create a dummy type for string-based registration
         class StringService:
             pass
@@ -171,13 +172,13 @@ class Container:
             service_type=StringService,
             lifetime=lifetime,
             factory=factory,
-            dependencies=dependencies  # Keep as string dependencies for now
+            dependencies=dependencies,  # Keep as string dependencies for now
         )
 
         self._services[service_name] = descriptor
         di_logger.info(f"Registered service by name: {service_name} ({lifetime.value})")
 
-    async def resolve(self, service_type: Type[T]) -> T:
+    async def resolve(self, service_type: type[T]) -> T:
         """Resolve service dependency"""
         async with self._lock:
             service_name = self._get_service_name(service_type)
@@ -190,12 +191,12 @@ class Container:
             # Handle based on lifetime
             if descriptor.lifetime == Lifetime.SINGLETON:
                 return await self._resolve_singleton(descriptor)
-            elif descriptor.lifetime == Lifetime.SCOPED:
+            if descriptor.lifetime == Lifetime.SCOPED:
                 return await self._resolve_scoped(descriptor)
-            else:  # TRANSIENT
-                return await self._resolve_transient(descriptor)
+            # TRANSIENT
+            return await self._resolve_transient(descriptor)
 
-    def resolve_sync(self, service_type: Type[T]) -> T:
+    def resolve_sync(self, service_type: type[T]) -> T:
         """Resolve service dependency synchronously"""
         service_name = self._get_service_name(service_type)
 
@@ -207,12 +208,12 @@ class Container:
         # Handle based on lifetime
         if descriptor.lifetime == Lifetime.SINGLETON:
             return self._resolve_singleton_sync(descriptor)
-        elif descriptor.lifetime == Lifetime.SCOPED:
+        if descriptor.lifetime == Lifetime.SCOPED:
             return self._resolve_scoped_sync(descriptor)
-        else:  # TRANSIENT
-            return self._resolve_transient_sync(descriptor)
+        # TRANSIENT
+        return self._resolve_transient_sync(descriptor)
 
-    async def resolve_all(self, service_types: List[Type[T]]) -> List[T]:
+    async def resolve_all(self, service_types: list[type[T]]) -> list[T]:
         """Resolve multiple services"""
         resolved = []
         for service_type in service_types:
@@ -286,13 +287,17 @@ class Container:
     async def _resolve_transient(self, descriptor: ServiceDescriptor) -> T:
         """Resolve transient service (always new)"""
         instance = await self._create_instance(descriptor)
-        di_logger.debug(f"Created transient instance: {self._get_service_name(descriptor.service_type)}")
+        di_logger.debug(
+            f"Created transient instance: {self._get_service_name(descriptor.service_type)}"
+        )
         return instance
 
     def _resolve_transient_sync(self, descriptor: ServiceDescriptor) -> T:
         """Resolve transient service synchronously (always new)"""
         instance = self._create_instance_sync(descriptor)
-        di_logger.debug(f"Created transient instance (sync): {self._get_service_name(descriptor.service_type)}")
+        di_logger.debug(
+            f"Created transient instance (sync): {self._get_service_name(descriptor.service_type)}"
+        )
         return instance
 
     async def _create_instance(self, descriptor: ServiceDescriptor) -> T:
@@ -332,6 +337,7 @@ class Container:
             try:
                 if asyncio.iscoroutinefunction(descriptor.on_resolve):
                     import asyncio
+
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
                         # If we're in an async context, we can't await here
@@ -346,14 +352,14 @@ class Container:
 
         return instance
 
-    def _create_with_injection(self, service_type: Type[T]) -> T:
+    def _create_with_injection(self, service_type: type[T]) -> T:
         """Create instance with automatic constructor injection"""
         constructor_signature = inspect.signature(service_type.__init__)
 
         # Get constructor parameters
         parameters = {}
         for param_name, param in constructor_signature.parameters.items():
-            if param_name == 'self':
+            if param_name == "self":
                 continue
 
             # Try to resolve dependency
@@ -372,25 +378,24 @@ class Container:
             di_logger.error(f"Failed to create instance of {service_type.__name__}: {e}")
             raise
 
-    def _create_with_injection_sync(self, service_type: Type[T]) -> T:
+    def _create_with_injection_sync(self, service_type: type[T]) -> T:
         """Create instance with automatic constructor injection (synchronous)"""
         return self._create_with_injection(service_type)
 
-    def _get_service_name(self, service_type: Type) -> str:
+    def _get_service_name(self, service_type: type) -> str:
         """Get service name from type"""
-        if hasattr(service_type, '__name__'):
+        if hasattr(service_type, "__name__"):
             return service_type.__name__
-        elif hasattr(service_type, '__qualname__'):
+        if hasattr(service_type, "__qualname__"):
             return service_type.__qualname__
-        else:
-            return str(service_type)
+        return str(service_type)
 
     def clear_scoped(self):
         """Clear all scoped instances (typically called at end of request)"""
         self._scoped.clear()
         di_logger.debug("Cleared all scoped instances")
 
-    def get_service_info(self) -> Dict[str, Dict[str, Any]]:
+    def get_service_info(self) -> dict[str, dict[str, Any]]:
         """Get information about registered services"""
         info = {}
 
@@ -400,12 +405,14 @@ class Container:
                 "lifetime": descriptor.lifetime.value,
                 "has_factory": descriptor.factory is not None,
                 "has_instance": descriptor.instance is not None,
-                "dependencies": list(descriptor.dependencies.keys()) if descriptor.dependencies else []
+                "dependencies": list(descriptor.dependencies.keys())
+                if descriptor.dependencies
+                else [],
             }
 
         return info
 
-    def validate_dependencies(self) -> List[str]:
+    def validate_dependencies(self) -> list[str]:
         """Validate all registered dependencies"""
         validation_errors = []
 
@@ -418,7 +425,9 @@ class Container:
             if descriptor.dependencies:
                 for dep_name, dep_type in descriptor.dependencies.items():
                     if dep_name not in self._services:
-                        validation_errors.append(f"Invalid dependency {dep_name} for {service_name}")
+                        validation_errors.append(
+                            f"Invalid dependency {dep_name} for {service_name}"
+                        )
 
         return validation_errors
 
@@ -448,7 +457,7 @@ class Container:
 
         # Clear singletons (if they have dispose method)
         for service_name, instance in self._singletons.items():
-            if hasattr(instance, 'dispose'):
+            if hasattr(instance, "dispose"):
                 try:
                     if asyncio.iscoroutinefunction(instance.dispose):
                         await instance.dispose()
@@ -461,51 +470,87 @@ class Container:
         self._services.clear()
         self._configuration.clear()
 
+
 # Global container instance
 container = Container()
 
+
 # Convenience functions
-def register_singleton(service_type: Type[T], factory: Optional[Callable[[], T]] = None, dependencies: Optional[Dict[str, Type]] = None):
+def register_singleton(
+    service_type: type[T],
+    factory: Callable[[], T] | None = None,
+    dependencies: dict[str, type] | None = None,
+):
     """Convenience function to register singleton service"""
     container.register_singleton(service_type, factory, dependencies)
 
-def register_scoped(service_type: Type[T], factory: Optional[Callable[[], T]] = None, dependencies: Optional[Dict[str, Type]] = None):
+
+def register_scoped(
+    service_type: type[T],
+    factory: Callable[[], T] | None = None,
+    dependencies: dict[str, type] | None = None,
+):
     """Convenience function to register scoped service"""
     container.register_scoped(service_type, factory, dependencies)
 
-def register_transient(service_type: Type[T], factory: Optional[Callable[[], T]] = None, dependencies: Optional[Dict[str, Type]] = None):
+
+def register_transient(
+    service_type: type[T],
+    factory: Callable[[], T] | None = None,
+    dependencies: dict[str, type] | None = None,
+):
     """Convenience function to register transient service"""
     container.register_transient(service_type, factory, dependencies)
 
-def register_instance(service_type: Type[T], instance: T):
+
+def register_instance(service_type: type[T], instance: T):
     """Convenience function to register service instance"""
     container.register_instance(service_type, instance)
+
 
 def register_configuration(key: str, value: Any):
     """Convenience function to register configuration"""
     container.register_configuration(key, value)
 
-async def resolve(service_type: Type[T]) -> T:
+
+async def resolve(service_type: type[T]) -> T:
     """Convenience function to resolve service"""
     return await container.resolve(service_type)
 
-def resolve_sync(service_type: Type[T]) -> T:
+
+def resolve_sync(service_type: type[T]) -> T:
     """Convenience function to resolve service synchronously"""
     return container.resolve_sync(service_type)
+
 
 def get_configuration(key: str, default: Any = None) -> Any:
     """Convenience function to get configuration"""
     return container.resolve_configuration(key, default)
 
+
 # Convenience functions for string-based registration
-def register_singleton_by_name(service_name: str, factory: Optional[Callable[[], Any]] = None, dependencies: Optional[Dict[str, str]] = None):
+def register_singleton_by_name(
+    service_name: str,
+    factory: Callable[[], Any] | None = None,
+    dependencies: dict[str, str] | None = None,
+):
     """Convenience function to register singleton service by name"""
     container.register_singleton_by_name(service_name, factory, dependencies)
 
-def register_scoped_by_name(service_name: str, factory: Optional[Callable[[], Any]] = None, dependencies: Optional[Dict[str, str]] = None):
+
+def register_scoped_by_name(
+    service_name: str,
+    factory: Callable[[], Any] | None = None,
+    dependencies: dict[str, str] | None = None,
+):
     """Convenience function to register scoped service by name"""
     container.register_scoped_by_name(service_name, factory, dependencies)
 
-def register_transient_by_name(service_name: str, factory: Optional[Callable[[], Any]] = None, dependencies: Optional[Dict[str, str]] = None):
+
+def register_transient_by_name(
+    service_name: str,
+    factory: Callable[[], Any] | None = None,
+    dependencies: dict[str, str] | None = None,
+):
     """Convenience function to register transient service by name"""
     container.register_transient_by_name(service_name, factory, dependencies)

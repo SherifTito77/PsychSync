@@ -327,3 +327,27 @@ wheels/
 ENV/
 htmlcov/
 uploads/tmp/
+
+# ===== LINTING AND CODE QUALITY =====
+# Ruff
+.ruff_cache/
+__pycache__/
+*.pyc
+
+# mypy
+.mypy_cache/
+.pytype/
+
+# Pre-commit
+.pre-commit-cache/
+
+# Security scanning reports
+bandit-report.json
+safety-report.json
+semgrep-results/
+
+# Secrets detection baseline
+.secrets.baseline
+
+# Prettier
+.prettierignore

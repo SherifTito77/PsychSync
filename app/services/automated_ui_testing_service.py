@@ -3,32 +3,26 @@ Automated UI Testing Service
 Provides comprehensive automated UI testing integration with multiple testing frameworks
 """
 
-from typing import Dict, List, Any, Optional, Tuple, Union
+import asyncio
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
-from dataclasses import dataclass, field
-from pathlib import Path
 import json
-import uuid
-import asyncio
+import logging
+from pathlib import Path
 import subprocess
-import tempfile
 import traceback
-from statistics import mean, median
-
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, or_
+from typing import Any
+import uuid
 
 from app.core.config import settings
-
-from app.core.path_utils import sanitize_path, safe_filename
 
 logger = logging.getLogger(__name__)
 
 
 class TestFramework(Enum):
     """Supported automated testing frameworks"""
+
     SELENIUM = "selenium"
     PLAYWRIGHT = "playwright"
     CYPRESS = "cypress"
@@ -39,6 +33,7 @@ class TestFramework(Enum):
 
 class TestType(Enum):
     """Types of UI tests"""
+
     SMOKE = "smoke"
     REGRESSION = "regression"
     E2E = "e2e"
@@ -51,6 +46,7 @@ class TestType(Enum):
 
 class BrowserType(Enum):
     """Supported browsers for testing"""
+
     CHROME = "chrome"
     FIREFOX = "firefox"
     SAFARI = "safari"
@@ -60,6 +56,7 @@ class BrowserType(Enum):
 
 class TestStatus(Enum):
     """Test execution status"""
+
     PENDING = "pending"
     RUNNING = "running"
     PASSED = "passed"
@@ -71,6 +68,7 @@ class TestStatus(Enum):
 
 class PriorityLevel(Enum):
     """Test priority levels"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -80,21 +78,22 @@ class PriorityLevel(Enum):
 @dataclass
 class TestSuite:
     """Test suite configuration and metadata"""
+
     id: str
     name: str
     description: str
     framework: TestFramework
     test_type: TestType
-    target_browsers: List[BrowserType]
-    test_files: List[str]
-    setup_commands: List[str] = field(default_factory=list)
-    teardown_commands: List[str] = field(default_factory=list)
-    environment_config: Dict[str, Any] = field(default_factory=dict)
+    target_browsers: list[BrowserType]
+    test_files: list[str]
+    setup_commands: list[str] = field(default_factory=list)
+    teardown_commands: list[str] = field(default_factory=list)
+    environment_config: dict[str, Any] = field(default_factory=dict)
     timeout: int = 300  # 5 minutes default
     retry_count: int = 0
     parallel_execution: bool = True
     max_parallel_tests: int = 4
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -102,6 +101,7 @@ class TestSuite:
 @dataclass
 class TestCase:
     """Individual test case definition"""
+
     id: str
     suite_id: str
     name: str
@@ -110,39 +110,41 @@ class TestCase:
     test_type: TestType
     priority: PriorityLevel
     estimated_duration: int  # seconds
-    dependencies: List[str] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    expected_results: Dict[str, Any] = field(default_factory=dict)
-    test_data: Dict[str, Any] = field(default_factory=dict)
+    dependencies: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    parameters: dict[str, Any] = field(default_factory=dict)
+    expected_results: dict[str, Any] = field(default_factory=dict)
+    test_data: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class TestExecution:
     """Test execution record"""
+
     id: str
     test_suite_id: str
-    test_case_id: Optional[str]
+    test_case_id: str | None
     framework: TestFramework
     browser: BrowserType
     environment: str
     status: TestStatus
     start_time: datetime
-    end_time: Optional[datetime] = None
-    duration: Optional[float] = None
-    error_message: Optional[str] = None
-    stack_trace: Optional[str] = None
-    screenshots: List[str] = field(default_factory=list)
-    videos: List[str] = field(default_factory=list)
-    logs: List[str] = field(default_factory=list)
-    performance_metrics: Dict[str, float] = field(default_factory=dict)
+    end_time: datetime | None = None
+    duration: float | None = None
+    error_message: str | None = None
+    stack_trace: str | None = None
+    screenshots: list[str] = field(default_factory=list)
+    videos: list[str] = field(default_factory=list)
+    logs: list[str] = field(default_factory=list)
+    performance_metrics: dict[str, float] = field(default_factory=dict)
     retry_count: int = 0
-    execution_context: Dict[str, Any] = field(default_factory=dict)
+    execution_context: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class TestResult:
     """Complete test execution results"""
+
     execution_id: str
     test_suite: TestSuite
     total_tests: int
@@ -152,17 +154,18 @@ class TestResult:
     error_tests: int
     total_duration: float
     success_rate: float
-    browser_coverage: Dict[str, int]
+    browser_coverage: dict[str, int]
     framework_version: str
-    environment_info: Dict[str, Any]
-    detailed_results: List[TestExecution] = field(default_factory=list)
-    artifacts: Dict[str, List[str]] = field(default_factory=dict)
-    recommendations: List[str] = field(default_factory=list)
+    environment_info: dict[str, Any]
+    detailed_results: list[TestExecution] = field(default_factory=list)
+    artifacts: dict[str, list[str]] = field(default_factory=dict)
+    recommendations: list[str] = field(default_factory=list)
 
 
 @dataclass
 class VisualTestComparison:
     """Visual regression test comparison result"""
+
     test_id: str
     baseline_image: str
     current_image: str
@@ -177,11 +180,11 @@ class AutomatedUITestingService:
     """Comprehensive automated UI testing service"""
 
     def __init__(self):
-        self.test_suites: Dict[str, TestSuite] = {}
-        self.test_cases: Dict[str, TestCase] = {}
-        self.test_executions: Dict[str, TestExecution] = {}
-        self.test_results: Dict[str, TestResult] = {}
-        self.framework_configs: Dict[TestFramework, Dict[str, Any]] = {}
+        self.test_suites: dict[str, TestSuite] = {}
+        self.test_cases: dict[str, TestCase] = {}
+        self.test_executions: dict[str, TestExecution] = {}
+        self.test_results: dict[str, TestResult] = {}
+        self.framework_configs: dict[TestFramework, dict[str, Any]] = {}
 
         # Initialize framework configurations
         self._initialize_framework_configs()
@@ -203,15 +206,13 @@ class AutomatedUITestingService:
                     "browserName": "chrome",
                     "chromeOptions": {
                         "args": ["--headless", "--no-sandbox", "--disable-dev-shm-usage"]
-                    }
+                    },
                 },
                 "firefox": {
                     "browserName": "firefox",
-                    "moz:firefoxOptions": {
-                        "args": ["-headless"]
-                    }
-                }
-            }
+                    "moz:firefoxOptions": {"args": ["-headless"]},
+                },
+            },
         }
 
         self.framework_configs[TestFramework.PLAYWRIGHT] = {
@@ -225,8 +226,8 @@ class AutomatedUITestingService:
                 "Desktop Firefox",
                 "Desktop Safari",
                 "iPhone 12",
-                "iPad Pro"
-            ]
+                "iPad Pro",
+            ],
         }
 
         self.framework_configs[TestFramework.CYPRESS] = {
@@ -238,7 +239,7 @@ class AutomatedUITestingService:
             "video": true,
             "screenshotOnRunFailure": True,
             "chromeWebSecurity": False,
-            "projectId": "psychsync-uitests"
+            "projectId": "psychsync-uitests",
         }
 
     def _initialize_default_suites(self):
@@ -254,7 +255,7 @@ class AutomatedUITestingService:
             test_files=["tests/ui/smoke/login.test.js", "tests/ui/smoke/dashboard.test.js"],
             priority=["critical"],
             timeout=300,
-            retry_count=1
+            retry_count=1,
         )
         self.test_suites[smoke_suite.id] = smoke_suite
 
@@ -270,12 +271,12 @@ class AutomatedUITestingService:
                 "tests/ui/auth/auth_flow.test.js",
                 "tests/ui/assessments/assessment_workflow.test.js",
                 "tests/ui/team_management/team_features.test.js",
-                "tests/ui/reports/report_generation.test.js"
+                "tests/ui/reports/report_generation.test.js",
             ],
             timeout=600,
             retry_count=2,
             parallel_execution=True,
-            max_parallel_tests=3
+            max_parallel_tests=3,
         )
         self.test_suites[regression_suite.id] = regression_suite
 
@@ -287,10 +288,13 @@ class AutomatedUITestingService:
             framework=TestFramework.PLAYWRIGHT,
             test_type=TestType.VISUAL,
             target_browsers=[BrowserType.CHROME],
-            test_files=["tests/ui/visual/dashboard_visual.test.js", "tests/ui/visual/forms_visual.test.js"],
+            test_files=[
+                "tests/ui/visual/dashboard_visual.test.js",
+                "tests/ui/visual/forms_visual.test.js",
+            ],
             timeout=400,
             retry_count=1,
-            parallel_execution=False  # Visual tests typically run sequentially
+            parallel_execution=False,  # Visual tests typically run sequentially
         )
         self.test_suites[visual_suite.id] = visual_suite
 
@@ -305,7 +309,7 @@ class AutomatedUITestingService:
             test_files=["tests/ui/accessibility/a11y_compliance.test.js"],
             timeout=300,
             retry_count=1,
-            environment_config={"axe-core": True, "wcag": "2.1AA"}
+            environment_config={"axe-core": True, "wcag": "2.1AA"},
         )
         self.test_suites[accessibility_suite.id] = accessibility_suite
 
@@ -315,9 +319,9 @@ class AutomatedUITestingService:
         description: str,
         framework: TestFramework,
         test_type: TestType,
-        test_files: List[str],
-        target_browsers: List[BrowserType],
-        **kwargs
+        test_files: list[str],
+        target_browsers: list[BrowserType],
+        **kwargs,
     ) -> TestSuite:
         """Create a new test suite"""
         suite = TestSuite(
@@ -328,7 +332,7 @@ class AutomatedUITestingService:
             test_type=test_type,
             target_browsers=target_browsers,
             test_files=test_files,
-            **kwargs
+            **kwargs,
         )
 
         self.test_suites[suite.id] = suite
@@ -344,8 +348,8 @@ class AutomatedUITestingService:
         file_path: str,
         test_type: TestType,
         priority: PriorityLevel,
-        **kwargs
-    ) -> Optional[TestCase]:
+        **kwargs,
+    ) -> TestCase | None:
         """Add a test case to a test suite"""
         if suite_id not in self.test_suites:
             logger.error(f"Test suite not found: {suite_id}")
@@ -359,7 +363,7 @@ class AutomatedUITestingService:
             file_path=file_path,
             test_type=test_type,
             priority=priority,
-            **kwargs
+            **kwargs,
         )
 
         self.test_cases[test_case.id] = test_case
@@ -370,9 +374,9 @@ class AutomatedUITestingService:
     async def execute_test_suite(
         self,
         suite_id: str,
-        browsers: Optional[List[BrowserType]] = None,
+        browsers: list[BrowserType] | None = None,
         environment: str = "test",
-        parallel: Optional[bool] = None
+        parallel: bool | None = None,
     ) -> TestResult:
         """Execute a complete test suite"""
         if suite_id not in self.test_suites:
@@ -382,7 +386,9 @@ class AutomatedUITestingService:
         browsers = browsers or suite.target_browsers
         parallel = parallel if parallel is not None else suite.parallel_execution
 
-        logger.info(f"Starting test suite execution: {suite.name} on browsers {[b.value for b in browsers]}")
+        logger.info(
+            f"Starting test suite execution: {suite.name} on browsers {[b.value for b in browsers]}"
+        )
 
         start_time = datetime.utcnow()
         execution_id = str(uuid.uuid4())
@@ -394,9 +400,13 @@ class AutomatedUITestingService:
         test_executions = []
 
         if parallel:
-            test_executions = await self._execute_tests_parallel(suite, browsers, environment, execution_id)
+            test_executions = await self._execute_tests_parallel(
+                suite, browsers, environment, execution_id
+            )
         else:
-            test_executions = await self._execute_tests_sequential(suite, browsers, environment, execution_id)
+            test_executions = await self._execute_tests_sequential(
+                suite, browsers, environment, execution_id
+            )
 
         # Calculate results
         total_tests = len(test_executions)
@@ -434,12 +444,14 @@ class AutomatedUITestingService:
             environment_info=await self._get_environment_info(environment),
             detailed_results=test_executions,
             artifacts=artifacts,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
         self.test_results[execution_id] = result
 
-        logger.info(f"Test suite execution completed: {passed_tests}/{total_tests} passed ({success_rate:.1f}%)")
+        logger.info(
+            f"Test suite execution completed: {passed_tests}/{total_tests} passed ({success_rate:.1f}%)"
+        )
         return result
 
     async def _prepare_execution_environment(self, suite: TestSuite, environment: str):
@@ -453,7 +465,7 @@ class AutomatedUITestingService:
         env_vars = {
             "TEST_ENVIRONMENT": environment,
             "TEST_SUITE_ID": suite.id,
-            "TEST_FRAMEWORK": suite.framework.value
+            "TEST_FRAMEWORK": suite.framework.value,
         }
 
         # Merge suite environment config
@@ -466,28 +478,26 @@ class AutomatedUITestingService:
                     command,
                     env={**env_vars},
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
                 )
                 stdout, stderr = await process.communicate()
                 if process.returncode != 0:
                     raise subprocess.CalledProcessError(process.returncode, command)
             except subprocess.CalledProcessError as e:
-                logger.error(f"Setup command failed: {command} - {str(e)}")
+                logger.error(f"Setup command failed: {command} - {e!s}")
                 raise
 
     async def _execute_tests_parallel(
-        self,
-        suite: TestSuite,
-        browsers: List[BrowserType],
-        environment: str,
-        execution_id: str
-    ) -> List[TestExecution]:
+        self, suite: TestSuite, browsers: list[BrowserType], environment: str, execution_id: str
+    ) -> list[TestExecution]:
         """Execute tests in parallel across browsers"""
         tasks = []
 
         for browser in browsers:
             for test_file in suite.test_files:
-                task = self._execute_single_test(suite, test_file, browser, environment, execution_id)
+                task = self._execute_single_test(
+                    suite, test_file, browser, environment, execution_id
+                )
                 tasks.append(task)
 
                 # Limit parallel tasks
@@ -500,21 +510,23 @@ class AutomatedUITestingService:
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Collect and return all execution results
-        return [e for e in self.test_executions.values() if e.execution_context.get("execution_id") == execution_id]
+        return [
+            e
+            for e in self.test_executions.values()
+            if e.execution_context.get("execution_id") == execution_id
+        ]
 
     async def _execute_tests_sequential(
-        self,
-        suite: TestSuite,
-        browsers: List[BrowserType],
-        environment: str,
-        execution_id: str
-    ) -> List[TestExecution]:
+        self, suite: TestSuite, browsers: list[BrowserType], environment: str, execution_id: str
+    ) -> list[TestExecution]:
         """Execute tests sequentially"""
         executions = []
 
         for browser in browsers:
             for test_file in suite.test_files:
-                execution = await self._execute_single_test(suite, test_file, browser, environment, execution_id)
+                execution = await self._execute_single_test(
+                    suite, test_file, browser, environment, execution_id
+                )
                 executions.append(execution)
 
         return executions
@@ -525,7 +537,7 @@ class AutomatedUITestingService:
         test_file: str,
         browser: BrowserType,
         environment: str,
-        execution_id: str
+        execution_id: str,
     ) -> TestExecution:
         """Execute a single test"""
         execution = TestExecution(
@@ -537,7 +549,7 @@ class AutomatedUITestingService:
             environment=environment,
             status=TestStatus.RUNNING,
             start_time=datetime.utcnow(),
-            execution_context={"execution_id": execution_id, "test_file": test_file}
+            execution_context={"execution_id": execution_id, "test_file": test_file},
         )
 
         self.test_executions[execution.id] = execution
@@ -568,7 +580,7 @@ class AutomatedUITestingService:
             # Extract performance metrics if available
             execution.performance_metrics = await self._extract_performance_metrics(result)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             execution.status = TestStatus.TIMEOUT
             execution.end_time = datetime.utcnow()
             execution.duration = (execution.end_time - execution.start_time).total_seconds()
@@ -585,11 +597,7 @@ class AutomatedUITestingService:
         return execution
 
     async def _build_test_command(
-        self,
-        suite: TestSuite,
-        test_file: str,
-        browser: BrowserType,
-        environment: str
+        self, suite: TestSuite, test_file: str, browser: BrowserType, environment: str
     ) -> str:
         """Build test execution command based on framework"""
         config = self.framework_configs[suite.framework]
@@ -609,13 +617,13 @@ class AutomatedUITestingService:
             command = f"python -m pytest {test_file}"
             command += f" --browser={browser.value}"
             command += f" --html=test-results/{suite.id}/report.html"
-            command += f" --self-contained-html"
-            command += f" --tb=short"
+            command += " --self-contained-html"
+            command += " --tb=short"
 
         elif suite.framework == TestFramework.CYPRESS:
             command = f"npx cypress run --spec {test_file}"
             command += f" --browser {browser.value}"
-            command += f" --config video=true,screenshotOnRunFailure=true"
+            command += " --config video=true,screenshotOnRunFailure=true"
 
         else:
             # Default command
@@ -626,59 +634,60 @@ class AutomatedUITestingService:
 
         return f"{env_vars} {command}"
 
-    async def _run_test_command(self, command: str, timeout: int) -> Dict[str, Any]:
+    async def _run_test_command(self, command: str, timeout: int) -> dict[str, Any]:
         """Execute test command and return results"""
         try:
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=settings.PROJECT_ROOT
+                cwd=settings.PROJECT_ROOT,
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
 
             return {
                 "exit_code": process.returncode,
                 "stdout": stdout.decode("utf-8"),
-                "stderr": stderr.decode("utf-8")
+                "stderr": stderr.decode("utf-8"),
             }
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Kill the process if it times out
-            if 'process' in locals():
+            if "process" in locals():
                 process.kill()
                 await process.wait()
             raise
 
-    async def _find_screenshots(self, execution_id: str) -> List[str]:
+    async def _find_screenshots(self, execution_id: str) -> list[str]:
         """Find screenshot files for execution"""
         screenshot_dir = Path("test-results") / execution_id / "screenshots"
         if not screenshot_dir.exists():
             return []
 
-        return [str(f) for f in screenshot_dir.glob("**/*") if f.suffix.lower() in ['.png', '.jpg', '.jpeg']]
+        return [
+            str(f)
+            for f in screenshot_dir.glob("**/*")
+            if f.suffix.lower() in [".png", ".jpg", ".jpeg"]
+        ]
 
-    async def _find_videos(self, execution_id: str) -> List[str]:
+    async def _find_videos(self, execution_id: str) -> list[str]:
         """Find video files for execution"""
         video_dir = Path("test-results") / execution_id / "videos"
         if not video_dir.exists():
             return []
 
-        return [str(f) for f in video_dir.glob("**/*") if f.suffix.lower() in ['.mp4', '.webm']]
+        return [str(f) for f in video_dir.glob("**/*") if f.suffix.lower() in [".mp4", ".webm"]]
 
-    async def _find_logs(self, execution_id: str) -> List[str]:
+    async def _find_logs(self, execution_id: str) -> list[str]:
         """Find log files for execution"""
         log_dir = Path("test-results") / execution_id / "logs"
         if not log_dir.exists():
             return []
 
-        return [str(f) for f in log_dir.glob("**/*") if f.suffix.lower() in ['.log', '.txt']]
+        return [str(f) for f in log_dir.glob("**/*") if f.suffix.lower() in [".log", ".txt"]]
 
-    async def _extract_performance_metrics(self, test_result: Dict[str, Any]) -> Dict[str, float]:
+    async def _extract_performance_metrics(self, test_result: dict[str, Any]) -> dict[str, float]:
         """Extract performance metrics from test results"""
         metrics = {}
         stdout = test_result.get("stdout", "")
@@ -692,13 +701,17 @@ class AutomatedUITestingService:
 
         if "time_to_interactive:" in stdout:
             try:
-                metrics["time_to_interactive"] = float(stdout.split("time_to_interactive:")[1].split()[0])
+                metrics["time_to_interactive"] = float(
+                    stdout.split("time_to_interactive:")[1].split()[0]
+                )
             except (IndexError, ValueError):
                 pass
 
         return metrics
 
-    async def _generate_test_recommendations(self, test_executions: List[TestExecution]) -> List[str]:
+    async def _generate_test_recommendations(
+        self, test_executions: list[TestExecution]
+    ) -> list[str]:
         """Generate recommendations based on test results"""
         recommendations = []
 
@@ -729,14 +742,11 @@ class AutomatedUITestingService:
 
         return recommendations
 
-    async def _collect_test_artifacts(self, test_executions: List[TestExecution]) -> Dict[str, List[str]]:
+    async def _collect_test_artifacts(
+        self, test_executions: list[TestExecution]
+    ) -> dict[str, list[str]]:
         """Collect all test artifacts"""
-        artifacts = {
-            "screenshots": [],
-            "videos": [],
-            "logs": [],
-            "reports": []
-        }
+        artifacts = {"screenshots": [], "videos": [], "logs": [], "reports": []}
 
         for execution in test_executions:
             artifacts["screenshots"].extend(execution.screenshots)
@@ -757,16 +767,16 @@ class AutomatedUITestingService:
                 result = await asyncio.create_subprocess_shell(
                     "npx playwright --version",
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
                 )
                 stdout, _ = await result.communicate()
                 return stdout.decode("utf-8").strip()
 
-            elif framework == TestFramework.SELENIUM:
+            if framework == TestFramework.SELENIUM:
                 result = await asyncio.create_subprocess_shell(
                     "pip show selenium",
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
                 )
                 stdout, _ = await result.communicate()
                 for line in stdout.decode("utf-8").split("\n"):
@@ -777,17 +787,17 @@ class AutomatedUITestingService:
                 result = await asyncio.create_subprocess_shell(
                     "npx cypress --version",
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
                 )
                 stdout, _ = await result.communicate()
                 return stdout.decode("utf-8").strip()
 
         except Exception as e:
-            logger.error(f"Failed to get framework version: {str(e)}")
+            logger.error(f"Failed to get framework version: {e!s}")
 
         return "Unknown"
 
-    async def _get_environment_info(self, environment: str) -> Dict[str, Any]:
+    async def _get_environment_info(self, environment: str) -> dict[str, Any]:
         """Get environment information"""
         return {
             "name": environment,
@@ -798,17 +808,13 @@ class AutomatedUITestingService:
                 "chrome": "Latest",
                 "firefox": "Latest",
                 "safari": "Latest",
-                "edge": "Latest"
-            }
+                "edge": "Latest",
+            },
         }
 
     async def run_visual_regression_tests(
-        self,
-        baseline_dir: str,
-        current_dir: str,
-        output_dir: str,
-        threshold: float = 0.1
-    ) -> List[VisualTestComparison]:
+        self, baseline_dir: str, current_dir: str, output_dir: str, threshold: float = 0.1
+    ) -> list[VisualTestComparison]:
         """Run visual regression tests"""
         comparisons = []
 
@@ -819,7 +825,7 @@ class AutomatedUITestingService:
 
         # Find all baseline images
         for baseline_file in baseline_path.glob("**/*"):
-            if baseline_file.suffix.lower() in ['.png', '.jpg', '.jpeg']:
+            if baseline_file.suffix.lower() in [".png", ".jpg", ".jpeg"]:
                 # Find corresponding current image
                 relative_path = baseline_file.relative_to(baseline_path)
                 current_file = current_path / relative_path
@@ -829,25 +835,21 @@ class AutomatedUITestingService:
                         str(baseline_file),
                         str(current_file),
                         str(output_path / relative_path),
-                        threshold
+                        threshold,
                     )
                     comparisons.append(comparison)
 
         return comparisons
 
     async def _compare_images(
-        self,
-        baseline_path: str,
-        current_path: str,
-        output_path: str,
-        threshold: float
+        self, baseline_path: str, current_path: str, output_path: str, threshold: float
     ) -> VisualTestComparison:
         """Compare two images and generate diff"""
         # This would integrate with an image comparison library like Pillow or ImageMagick
         # For now, returning a placeholder comparison
 
         comparison_id = str(uuid.uuid4())
-        diff_path = output_path.replace('.', '_diff.')
+        diff_path = output_path.replace(".", "_diff.")
 
         return VisualTestComparison(
             test_id=comparison_id,
@@ -857,15 +859,12 @@ class AutomatedUITestingService:
             pixel_difference=0,  # Would calculate actual difference
             percentage_difference=0.0,  # Would calculate actual percentage
             passed_threshold=True,
-            threshold=threshold
+            threshold=threshold,
         )
 
     async def get_test_execution_history(
-        self,
-        suite_id: Optional[str] = None,
-        days: int = 30,
-        status: Optional[TestStatus] = None
-    ) -> List[TestExecution]:
+        self, suite_id: str | None = None, days: int = 30, status: TestStatus | None = None
+    ) -> list[TestExecution]:
         """Get test execution history"""
         executions = []
         cutoff_date = datetime.utcnow() - timedelta(days=days)
@@ -884,11 +883,7 @@ class AutomatedUITestingService:
 
         return sorted(executions, key=lambda x: x.start_time, reverse=True)
 
-    async def generate_test_report(
-        self,
-        execution_id: str,
-        report_format: str = "html"
-    ) -> str:
+    async def generate_test_report(self, execution_id: str, report_format: str = "html") -> str:
         """Generate comprehensive test report"""
         if execution_id not in self.test_results:
             raise ValueError(f"Test result not found: {execution_id}")
@@ -897,10 +892,9 @@ class AutomatedUITestingService:
 
         if report_format == "html":
             return await self._generate_html_report(result)
-        elif report_format == "json":
+        if report_format == "json":
             return await self._generate_json_report(result)
-        else:
-            raise ValueError(f"Unsupported report format: {report_format}")
+        raise ValueError(f"Unsupported report format: {report_format}")
 
     async def _generate_html_report(self, result: TestResult) -> str:
         """Generate HTML test report"""
@@ -977,7 +971,11 @@ class AutomatedUITestingService:
         test_rows = ""
         for execution in result.detailed_results:
             status_class = execution.status.value
-            error_msg = execution.error_message[:100] + "..." if execution.error_message and len(execution.error_message) > 100 else execution.error_message or ""
+            error_msg = (
+                execution.error_message[:100] + "..."
+                if execution.error_message and len(execution.error_message) > 100
+                else execution.error_message or ""
+            )
 
             test_rows += f"""
             <tr>
@@ -1002,7 +1000,7 @@ class AutomatedUITestingService:
             skipped_tests=result.skipped_tests,
             success_rate=result.success_rate,
             test_rows=test_rows,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     async def _generate_json_report(self, result: TestResult) -> str:
@@ -1013,7 +1011,7 @@ class AutomatedUITestingService:
                 "id": result.test_suite.id,
                 "name": result.test_suite.name,
                 "framework": result.test_suite.framework.value,
-                "test_type": result.test_suite.test_type.value
+                "test_type": result.test_suite.test_type.value,
             },
             "summary": {
                 "total_tests": result.total_tests,
@@ -1022,7 +1020,7 @@ class AutomatedUITestingService:
                 "skipped_tests": result.skipped_tests,
                 "error_tests": result.error_tests,
                 "success_rate": result.success_rate,
-                "total_duration": result.total_duration
+                "total_duration": result.total_duration,
             },
             "environment": result.environment_info,
             "browser_coverage": result.browser_coverage,
@@ -1036,12 +1034,12 @@ class AutomatedUITestingService:
                     "duration": execution.duration,
                     "error_message": execution.error_message,
                     "screenshots": execution.screenshots,
-                    "performance_metrics": execution.performance_metrics
+                    "performance_metrics": execution.performance_metrics,
                 }
                 for execution in result.detailed_results
             ],
             "artifacts": result.artifacts,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
         return json.dumps(report_data, indent=2)

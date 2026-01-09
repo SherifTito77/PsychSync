@@ -3,19 +3,19 @@ Advanced Query Optimization Service
 Eliminates N+1 query patterns with optimized loading strategies
 Expected improvement: 40-60% for complex query performance
 """
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, joinedload, contains_eager
-from sqlalchemy import select, func, and_, or_
-from sqlalchemy.sql import Select
-from typing import List, Optional, Dict, Any, Type, TypeVar, Tuple
-from uuid import UUID
 import logging
+from typing import Any, TypeVar
+from uuid import UUID
 
-from app.db.models.user import User
-from app.db.models.team import Team, TeamMember
-from app.db.models.organization import Organization
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.sql import Select
+
 from app.db.models.assessment import Assessment, AssessmentResponse
-from app.db.models.template import Template
+from app.db.models.organization import Organization
+from app.db.models.team import Team, TeamMember
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +37,11 @@ class QueryOptimizer:
 
     async def get_users_with_organization(
         self,
-        organization_id: Optional[UUID] = None,
-        is_active: Optional[bool] = None,
+        organization_id: UUID | None = None,
+        is_active: bool | None = None,
         limit: int = 100,
         offset: int = 0
-    ) -> List[User]:
+    ) -> list[User]:
         """
         Get users with preloaded organization data (eliminates N+1)
         """
@@ -57,7 +57,7 @@ class QueryOptimizer:
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def get_user_with_teams_and_organization(self, user_id: UUID) -> Optional[User]:
+    async def get_user_with_teams_and_organization(self, user_id: UUID) -> User | None:
         """
         Get user with all related data preloaded (comprehensive user profile)
         Eliminates N+1 queries for user dashboard
@@ -82,10 +82,10 @@ class QueryOptimizer:
 
     async def get_teams_with_members_and_users(
         self,
-        organization_id: Optional[UUID] = None,
+        organization_id: UUID | None = None,
         limit: int = 50,
         offset: int = 0
-    ) -> List[Team]:
+    ) -> list[Team]:
         """
         Get teams with all members and user data preloaded
         Eliminates N+1 queries for team listing
@@ -107,7 +107,7 @@ class QueryOptimizer:
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def get_team_with_comprehensive_data(self, team_id: UUID) -> Optional[Team]:
+    async def get_team_with_comprehensive_data(self, team_id: UUID) -> Team | None:
         """
         Get team with all related data for team detail page
         Preloads members, users, organization, and recent assessments
@@ -127,7 +127,7 @@ class QueryOptimizer:
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_user_teams_with_assessments(self, user_id: UUID) -> List[Team]:
+    async def get_user_teams_with_assessments(self, user_id: UUID) -> list[Team]:
         """
         Get user's teams with preloaded assessment data
         Optimized for user dashboard and team analytics
@@ -160,11 +160,11 @@ class QueryOptimizer:
 
     async def get_assessments_with_responses_and_users(
         self,
-        organization_id: Optional[UUID] = None,
-        team_id: Optional[UUID] = None,
+        organization_id: UUID | None = None,
+        team_id: UUID | None = None,
         limit: int = 100,
         offset: int = 0
-    ) -> List[Assessment]:
+    ) -> list[Assessment]:
         """
         Get assessments with preloaded response data and user information
         Eliminates N+1 queries for assessment analytics
@@ -189,7 +189,7 @@ class QueryOptimizer:
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def get_user_assessment_history(self, user_id: UUID) -> List[AssessmentResponse]:
+    async def get_user_assessment_history(self, user_id: UUID) -> list[AssessmentResponse]:
         """
         Get user's complete assessment history with assessment data preloaded
         Optimized for user profile and analytics
@@ -213,7 +213,7 @@ class QueryOptimizer:
     # ORGANIZATION OPTIMIZED QUERIES
     # =============================================================================
 
-    async def get_organization_with_stats(self, organization_id: UUID) -> Optional[Organization]:
+    async def get_organization_with_stats(self, organization_id: UUID) -> Organization | None:
         """
         Get organization with preloaded statistics and summary data
         Uses subqueries for efficient aggregation
@@ -262,7 +262,7 @@ class QueryOptimizer:
         query: Select,
         page: int = 1,
         page_size: int = 20
-    ) -> Tuple[List[Any], int]:
+    ) -> tuple[list[Any], int]:
         """
         Execute paginated query with total count for efficient pagination
         Returns (results, total_count)
@@ -284,7 +284,7 @@ class QueryOptimizer:
     # BULK OPERATIONS
     # =============================================================================
 
-    async def bulk_update_user_activity(self, user_ids: List[UUID]) -> None:
+    async def bulk_update_user_activity(self, user_ids: list[UUID]) -> None:
         """
         Efficiently update last_login for multiple users
         Uses bulk update for better performance
@@ -301,7 +301,7 @@ class QueryOptimizer:
         await self.db.execute(stmt)
         await self.db.commit()
 
-    async def get_team_member_counts(self, team_ids: List[UUID]) -> Dict[UUID, int]:
+    async def get_team_member_counts(self, team_ids: list[UUID]) -> dict[UUID, int]:
         """
         Get member counts for multiple teams in a single query
         Eliminates N+1 queries for team listings
@@ -309,7 +309,7 @@ class QueryOptimizer:
         query = (
             select(
                 TeamMember.team_id,
-                func.count(TeamMember.user_id).label('member_count')
+                func.count(TeamMember.user_id).label("member_count")
             )
             .where(
                 and_(
@@ -327,7 +327,7 @@ class QueryOptimizer:
     # QUERY PERFORMANCE ANALYSIS
     # =============================================================================
 
-    async def analyze_query_performance(self, query: Select) -> Dict[str, Any]:
+    async def analyze_query_performance(self, query: Select) -> dict[str, Any]:
         """
         Analyze query execution plan for performance optimization
         Returns query execution statistics
@@ -356,7 +356,7 @@ class QueryOptimizer:
     # HELPER FUNCTIONS
     # =============================================================================
 
-async def get_optimized_user_profile(db: AsyncSession, user_id: UUID) -> Optional[Dict[str, Any]]:
+async def get_optimized_user_profile(db: AsyncSession, user_id: UUID) -> dict[str, Any] | None:
     """
     Get complete user profile with all related data in optimal queries
     Returns formatted user data for API responses
@@ -397,7 +397,7 @@ async def get_optimized_user_profile(db: AsyncSession, user_id: UUID) -> Optiona
     return user_data
 
 
-async def get_optimized_team_dashboard(db: AsyncSession, team_id: UUID) -> Optional[Dict[str, Any]]:
+async def get_optimized_team_dashboard(db: AsyncSession, team_id: UUID) -> dict[str, Any] | None:
     """
     Get comprehensive team dashboard data with optimized queries
     Returns formatted team data for API responses

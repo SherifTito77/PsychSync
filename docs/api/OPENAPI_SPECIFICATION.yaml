@@ -1,0 +1,1647 @@
+openapi: 3.0.3
+info:
+  title: PsychSync API
+  description: |
+    PsychSync is a psychological assessment SaaS platform that provides personality assessments,
+    team analytics, and AI-powered insights for organizations.
+
+    **Authentication:**
+    - All endpoints require JWT authentication unless marked as `public`
+    - Include token in Authorization header: `Bearer <token>`
+    - Token refresh endpoint available for obtaining new access tokens
+
+    **Rate Limiting:**
+    - Rate limits vary by endpoint (see specific endpoint documentation)
+    - Rate limit headers included in all responses:
+      - `X-RateLimit-Limit`: Max requests per window
+      - `X-RateLimit-Remaining`: Remaining requests
+      - `X-RateLimit-Reset`: Reset time (Unix timestamp)
+
+    **Response Format:**
+    - Success responses follow the schema defined in each endpoint
+    - Error responses follow standard error format
+
+    **Support:**
+    - API Documentation: https://docs.psychsync.com/api
+    - Support Email: api-support@psychsync.com
+    - Status Page: https://status.psychsync.com
+  version: 1.0.0
+  contact:
+    name: PsychSync API Team
+    email: api-support@psychsync.com
+    url: https://www.psychsync.com
+  license:
+    name: Proprietary
+    url: https://www.psychsync.com/terms
+  termsOfService: https://www.psychsync.com/terms
+
+servers:
+  - url: https://api.psychsync.com/api/v1
+    description: Production server
+  - url: https://api-staging.psychsync.com/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization endpoints
+  - name: Health
+    description: Health check and monitoring endpoints
+  - name: Assessments
+    description: Assessment management and execution
+  - name: Responses
+    description: Assessment response handling
+  - name: Two-Factor Auth
+    description: Two-factor authentication (2FA) management
+  - name: Security Analytics
+    description: Security monitoring and analytics (admin only)
+  - name: Organizations
+    description: Organization management
+  - name: Teams
+    description: Team management and operations
+
+paths:
+  /health/public:
+    get:
+      tags:
+        - Health
+      summary: Public health check
+      description: Basic health check endpoint that doesn't require authentication. Returns service availability status.
+      operationId: getPublicHealth
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Basic health check with metrics
+      description: Health check with system metrics. Requires authentication.
+      operationId: getHealth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Service health with metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  system:
+                    type: object
+                    properties:
+                      cpu_percent:
+                        type: number
+                        format: float
+                      memory:
+                        type: object
+                        properties:
+                          total_gb:
+                            type: number
+                          available_gb:
+                            type: number
+                          percent_used:
+                            type: number
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health/detailed:
+    get:
+      tags:
+        - Health
+      summary: Detailed health check
+      description: Comprehensive health check with all system components. Requires authentication.
+      operationId: getDetailedHealth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Detailed service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealthResponse'
+
+  /auth/register-fixed:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account. Rate limited to 3 requests per hour per IP.
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Request limit per hour
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/token-fixed:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT tokens. Rate limited to 5 requests per minute per IP.
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: User email address
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: SecurePassword123!
+      responses:
+        '200':
+          description: Login successful
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: Access token and refresh token cookies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT access token (30 minute expiration)
+                  refresh_token:
+                    type: string
+                    description: JWT refresh token (7 day expiration)
+                  token_type:
+                    type: string
+                    example: bearer
+                  expires_in:
+                    type: integer
+                    description: Access token expiration in seconds
+                    example: 1800
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh-token-fixed:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Obtain a new access token using refresh token. Rate limited to 10 requests per hour.
+      operationId: refreshToken
+      security: []
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: bearer
+                  expires_in:
+                    type: integer
+                    example: 1800
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/me-fixed:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user info
+      description: Retrieve information about the currently authenticated user. Rate limited to 100 requests per hour.
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized - token invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout-fixed:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: Invalidate JWT tokens and clear session cookies. Rate limited to 50 requests per hour.
+      operationId: logoutUser
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assessments/:
+    get:
+      tags:
+        - Assessments
+      summary: List assessments
+      description: Retrieve a paginated list of assessments with optional filtering. Supports filtering by category, status, and search.
+      operationId: listAssessments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: limit
+          in: query
+          description: Number of results per page
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: category
+          in: query
+          description: Filter by assessment category
+          schema:
+            type: string
+            enum: [PERSONALITY, SKILLS, BEHAVIORAL, COGNITIVE]
+        - name: status
+          in: query
+          description: Filter by assessment status
+          schema:
+            type: string
+            enum: [DRAFT, PUBLISHED, ARCHIVED]
+        - name: search
+          in: query
+          description: Search in title and description
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [created_at, updated_at, title]
+            default: created_at
+        - name: order
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: List of assessments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Assessment'
+                  total:
+                    type: integer
+                    description: Total number of assessments
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  pages:
+                    type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Assessments
+      summary: Create assessment
+      description: Create a new assessment. User must be active and authenticated.
+      operationId: createAssessment
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentCreate'
+      responses:
+        '201':
+          description: Assessment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assessments/{id}:
+    get:
+      tags:
+        - Assessments
+      summary: Get assessment details
+      description: Retrieve detailed information about a specific assessment including questions and sections.
+      operationId: getAssessment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Assessment UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Assessment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentDetail'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Assessments
+      summary: Update assessment
+      description: Update an existing assessment. User must be the assessment creator or have admin permissions.
+      operationId: updateAssessment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Assessment UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentUpdate'
+      responses:
+        '200':
+          description: Assessment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Assessments
+      summary: Delete assessment
+      description: Delete an assessment. User must be the assessment creator or have admin permissions.
+      operationId: deleteAssessment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Assessment UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Assessment deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assessments/{id}/publish:
+    post:
+      tags:
+        - Assessments
+      summary: Publish assessment
+      description: Change assessment status to PUBLISHED, making it available for users to take.
+      operationId: publishAssessment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Assessment UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Assessment published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+        '400':
+          description: Assessment cannot be published (e.g., no questions)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assessments/{id}/responses:
+    post:
+      tags:
+        - Assessments
+      summary: Submit assessment response
+      description: Submit responses for an assessment. The assessment will be scored automatically.
+      operationId: submitAssessmentResponse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Assessment UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - responses
+              properties:
+                responses:
+                  type: object
+                  description: Mapping of question IDs to answers
+                  additionalProperties: true
+                  example:
+                    q1: 5
+                    q2: 4
+                    q3: 3
+                response_time_ms:
+                  type: integer
+                  description: Total time to complete assessment in milliseconds
+                  example: 300000
+      responses:
+        '201':
+          description: Response submitted and scored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentResponse'
+        '400':
+          description: Invalid responses or assessment not complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /responses/start:
+    post:
+      tags:
+        - Responses
+      summary: Start response session
+      description: Initialize a new response session for an assessment.
+      operationId: startResponse
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assessment_id
+              properties:
+                assessment_id:
+                  type: string
+                  format: uuid
+                  description: Assessment to start
+      responses:
+        '201':
+          description: Response session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseSession'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /responses/my-responses:
+    get:
+      tags:
+        - Responses
+      summary: Get my responses
+      description: Retrieve all responses for the current user.
+      operationId: getMyResponses
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by response status
+          schema:
+            type: string
+            enum: [IN_PROGRESS, COMPLETED, ABANDONED]
+      responses:
+        '200':
+          description: List of user's responses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssessmentResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /responses/{id}:
+    get:
+      tags:
+        - Responses
+      summary: Get response details
+      description: Retrieve detailed response including scored results.
+      operationId: getResponse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Response details with scores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentResponseDetail'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not your response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Response not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Responses
+      summary: Save response progress
+      description: Save progress on an in-progress assessment without submitting.
+      operationId: saveResponse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - responses
+              properties:
+                responses:
+                  type: object
+                  additionalProperties: true
+                  description: Partial or complete responses
+      responses:
+        '200':
+          description: Progress saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Responses
+      summary: Delete response
+      description: Delete a response. Only in-progress or abandoned responses can be deleted.
+      operationId: deleteResponse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Response deleted
+        '400':
+          description: Cannot delete completed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Response not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /responses/{id}/submit:
+    post:
+      tags:
+        - Responses
+      summary: Submit completed response
+      description: Finalize and submit a completed response for scoring.
+      operationId: submitResponse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Response submitted and scored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentResponseDetail'
+        '400':
+          description: Response incomplete or already submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Response not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /two-factor-auth/enable:
+    post:
+      tags:
+        - Two-Factor Auth
+      summary: Enable two-factor authentication
+      description: Enable 2FA for the current user. Returns QR code for authenticator app setup.
+      operationId: enable2FA
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 2FA setup initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                    description: TOTP secret for authenticator app
+                  qr_code:
+                    type: string
+                    format: base64
+                    description: QR code image for scanning
+                  recovery_codes:
+                    type: array
+                    items:
+                      type: string
+                    description: Recovery codes for backup access
+        '400':
+          description: 2FA already enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /two-factor-auth/verify:
+    post:
+      tags:
+        - Two-Factor Auth
+      summary: Verify two-factor authentication setup
+      description: Verify the 2FA setup by providing a code from the authenticator app.
+      operationId: verify2FA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  description: 6-digit TOTP code
+                  pattern: '^[0-9]{6}$'
+                  example: "123456"
+      responses:
+        '200':
+          description: 2FA verified and enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Two-factor authentication enabled successfully
+        '400':
+          description: Invalid code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /two-factor-auth/disable:
+    post:
+      tags:
+        - Two-Factor Auth
+      summary: Disable two-factor authentication
+      description: Disable 2FA for the current user.
+      operationId: disable2FA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  description: Current 6-digit TOTP code
+                  pattern: '^[0-9]{6}$'
+      responses:
+        '200':
+          description: 2FA disabled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Two-factor authentication disabled
+        '400':
+          description: Invalid code or 2FA not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /two-factor-auth/status:
+    get:
+      tags:
+        - Two-Factor Auth
+      summary: Get 2FA status
+      description: Check if two-factor authentication is enabled for the current user.
+      operationId: get2FAStatus
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 2FA status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  method:
+                    type: string
+                    enum: [TOTP, SMS, NONE]
+                    example: TOTP
+
+  /organizations/:
+    post:
+      tags:
+        - Organizations
+      summary: Create organization
+      description: Create a new organization. User becomes organization owner.
+      operationId: createOrganization
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                  example: Acme Corporation
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /teams/:
+    post:
+      tags:
+        - Teams
+      summary: Create team
+      description: Create a new team within an organization.
+      operationId: createTeam
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - organization_id
+              properties:
+                name:
+                  type: string
+                  example: Engineering Team
+                description:
+                  type: string
+                  example: Software development team
+                organization_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not organization member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      tags:
+        - Teams
+      summary: List teams
+      description: Get list of teams for the current user.
+      operationId: listTeams
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: organization_id
+          in: query
+          description: Filter by organization
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /teams/{id}:
+    get:
+      tags:
+        - Teams
+      summary: Get team details
+      description: Retrieve detailed information about a specific team.
+      operationId: getTeam
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Team UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamDetail'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - not team member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from /auth/token-fixed endpoint
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+        error_code:
+          type: string
+          description: Machine-readable error code
+          example: VALIDATION_ERROR
+        status_code:
+          type: integer
+          description: HTTP status code
+          example: 400
+        request_id:
+          type: string
+          format: uuid
+          description: Unique request ID for troubleshooting
+
+    UserRegistration:
+      type: object
+      required:
+        - email
+        - password
+        - full_name
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address (will be verified)
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: User password (min 8 characters, must contain uppercase, lowercase, and number)
+        full_name:
+          type: string
+          description: User's full name
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [USER, TEAM_LEAD, ADMIN]
+        is_active:
+          type: boolean
+        is_verified:
+          type: boolean
+        two_factor_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DetailedHealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        system:
+          type: object
+          properties:
+            cpu_percent:
+              type: number
+            memory:
+              type: object
+            disk:
+              type: object
+        components:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency_ms:
+                  type: number
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency_ms:
+                  type: number
+
+    Assessment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [PERSONALITY, SKILLS, BEHAVIORAL, COGNITIVE]
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, ARCHIVED]
+        framework_code:
+          type: string
+          example: BIG_FIVE
+        created_by_id:
+          type: string
+          format: uuid
+        team_id:
+          type: string
+          format: uuid
+          nullable: true
+        organization_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AssessmentCreate:
+      type: object
+      required:
+        - title
+        - category
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [PERSONALITY, SKILLS, BEHAVIORAL, COGNITIVE]
+        framework_code:
+          type: string
+          description: Psychological framework to use
+          example: BIG_FIVE
+        team_id:
+          type: string
+          format: uuid
+          description: Optional team association
+
+    AssessmentUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, ARCHIVED]
+
+    AssessmentDetail:
+      allOf:
+        - $ref: '#/components/schemas/Assessment'
+        - type: object
+          properties:
+            sections:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  order:
+                    type: integer
+                  questions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        question_type:
+                          type: string
+                        question_text:
+                          type: string
+                        order:
+                          type: integer
+                        is_required:
+                          type: boolean
+                        config:
+                          type: object
+
+    AssessmentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        assessment_id:
+          type: string
+          format: uuid
+        respondent_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [IN_PROGRESS, COMPLETED, ABANDONED]
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    AssessmentResponseDetail:
+      allOf:
+        - $ref: '#/components/schemas/AssessmentResponse'
+        - type: object
+          properties:
+            responses:
+              type: object
+              additionalProperties: true
+              description: Question-answer mappings
+            scores:
+              type: object
+              description: Calculated personality scores
+              properties:
+                dimensions:
+                  type: object
+                  additionalProperties:
+                    type: number
+                  example:
+                    openness: 75.5
+                    conscientiousness: 82.3
+                confidence:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                framework:
+                  type: string
+                  example: BIG_FIVE
+            insights:
+              type: object
+              properties:
+                strengths:
+                  type: array
+                  items:
+                    type: string
+                development_areas:
+                  type: array
+                  items:
+                    type: string
+                personality_summary:
+                  type: string
+
+    ResponseSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        assessment_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [IN_PROGRESS]
+        started_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: Session expiration time
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        organization_id:
+          type: string
+          format: uuid
+        created_by_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TeamDetail:
+      allOf:
+        - $ref: '#/components/schemas/Team'
+        - type: object
+          properties:
+            members:
+              type: array
+              items:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  role:
+                    type: string
+                    enum: [OWNER, ADMIN, MEMBER]
+                  joined_at:
+                    type: string
+                    format: date-time

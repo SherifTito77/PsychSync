@@ -131,7 +131,7 @@ class UserProgressionResponse(BaseModel):
     analysis_timestamp: str
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/aggregate-time-series", response_model=TimeSeriesAggregationResponse)
 async def aggregate_time_series_data(
     request: TimeSeriesAggregationRequest,
@@ -198,7 +198,7 @@ async def aggregate_time_series_data(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             de
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 tail=f"Error aggregating time series data: {str(e)}"
         )
 
@@ -351,7 +351,7 @@ async def detect_behavioral_changes(
         raise
     except Exception as e:
         raise HTTPExceptio
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 n(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error detecting changes: {str(e)}"

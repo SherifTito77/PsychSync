@@ -9,23 +9,25 @@ Features:
 - Integration with external monitoring systems
 """
 
-import logging
-import json
-import uuid
-import functools
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
-from enum import Enum
-from dataclasses import dataclass, asdict
 import asyncio
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from enum import Enum
+import functools
+import json
+import logging
+from typing import Any
+import uuid
 
 from app.core.config import settings
-from app.core.redis_client import redis_get, redis_set
+from app.core.redis_client import redis_get
 
 logger = logging.getLogger(__name__)
 
+
 class AuditAction(str, Enum):
     """Audit action types"""
+
     AUTHENTICATE = "authenticate"
     AUTHENTICATION_FAILED = "authentication_failed"
     LOGIN = "login"
@@ -45,42 +47,47 @@ class AuditAction(str, Enum):
     RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
     UNAUTHORIZED_ACCESS = "unauthorized_access"
 
+
 class AuditSeverity(str, Enum):
     """Audit severity levels"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
+
 @dataclass
 class AuditEvent:
     """Audit event data structure"""
+
     action: AuditAction
-    user_id: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
-    resource: Optional[str] = None
-    details: Optional[Dict[str, Any]] = None
+    user_id: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
+    resource: str | None = None
+    details: dict[str, Any] | None = None
     severity: AuditSeverity = AuditSeverity.MEDIUM
     timestamp: datetime = None
-    request_id: Optional[str] = None
-    organization_id: Optional[str] = None
-    session_id: Optional[str] = None
+    request_id: str | None = None
+    organization_id: str | None = None
+    session_id: str | None = None
 
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.now(timezone.utc)
+            self.timestamp = datetime.now(UTC)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         data = asdict(self)
         if self.timestamp:
-            data['timestamp'] = self.timestamp.isoformat()
+            data["timestamp"] = self.timestamp.isoformat()
         if self.action:
-            data['action'] = self.action.value
+            data["action"] = self.action.value
         if self.severity:
-            data['severity'] = self.severity.value
+            data["severity"] = self.severity.value
         return data
+
 
 class AuditLogger:
     """
@@ -91,9 +98,9 @@ class AuditLogger:
         self.logger = logging.getLogger("audit")
         self.redis_ttl = 86400 * 30  # 30 days
         self.batch_size = 100
-        self.batch_events: List[AuditEvent] = []
+        self.batch_events: list[AuditEvent] = []
         self.batch_flush_interval = 60  # seconds
-        self._flush_task: Optional[asyncio.Task] = None
+        self._flush_task: asyncio.Task | None = None
 
     async def log_event(self, event: AuditEvent) -> bool:
         """
@@ -128,7 +135,7 @@ class AuditLogger:
             logger.error(f"Failed to log audit event: {e}")
             return False
 
-    async def log_events_batch(self, events: List[AuditEvent]) -> int:
+    async def log_events_batch(self, events: list[AuditEvent]) -> int:
         """
         Log multiple audit events efficiently
 
@@ -161,11 +168,8 @@ class AuditLogger:
         return successful_count
 
     async def get_user_events(
-        self,
-        user_id: str,
-        limit: int = 100,
-        hours: int = 24
-    ) -> List[Dict[str, Any]]:
+        self, user_id: str, limit: int = 100, hours: int = 24
+    ) -> list[dict[str, Any]]:
         """
         Get recent events for a specific user
 
@@ -195,10 +199,8 @@ class AuditLogger:
             return []
 
     async def get_security_events(
-        self,
-        hours: int = 24,
-        severity: Optional[AuditSeverity] = None
-    ) -> List[Dict[str, Any]]:
+        self, hours: int = 24, severity: AuditSeverity | None = None
+    ) -> list[dict[str, Any]]:
         """
         Get recent security events
 
@@ -214,7 +216,7 @@ class AuditLogger:
                 AuditAction.AUTHENTICATION_FAILED,
                 AuditAction.SECURITY_BREACH,
                 AuditAction.RATE_LIMIT_EXCEEDED,
-                AuditAction.UNAUTHORIZED_ACCESS
+                AuditAction.UNAUTHORIZED_ACCESS,
             ]
 
             # This would query your log storage system
@@ -235,11 +237,11 @@ class AuditLogger:
                 "action": event.action.value,
                 "severity": event.severity.value,
                 "ip_address": event.ip_address,
-                "resource": event.resource
-            }
+                "resource": event.resource,
+            },
         )
 
-    async def _log_batch_to_file(self, events: List[AuditEvent]):
+    async def _log_batch_to_file(self, events: list[AuditEvent]):
         """Log batch of events to file"""
         for event in events:
             await self._log_to_file(event)
@@ -253,9 +255,10 @@ class AuditLogger:
 
             # Use Redis list for recent events
             import redis.asyncio as redis
+
             redis_client = await redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
-                decode_responses=True
+                decode_responses=True,
             )
 
             # Add to list and trim
@@ -280,7 +283,7 @@ class AuditLogger:
         except Exception as e:
             logger.warning(f"Failed to store audit event in Redis: {e}")
 
-    async def _store_batch_in_redis(self, events: List[AuditEvent]):
+    async def _store_batch_in_redis(self, events: list[AuditEvent]):
         """Store batch of events in Redis"""
         for event in events:
             await self._store_in_redis(event)
@@ -324,9 +327,10 @@ class AuditLogger:
             failed_attempts_key = f"auth:failed:{event.ip_address}:recent"
 
             import redis.asyncio as redis
+
             redis_client = await redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}",
-                decode_responses=True
+                decode_responses=True,
             )
 
             recent_failures = await redis_client.llen(failed_attempts_key)
@@ -351,8 +355,8 @@ class AuditLogger:
                 extra={
                     "event": event.to_dict(),
                     "alert_level": "security",
-                    "requires_immediate_attention": event.severity == AuditSeverity.CRITICAL
-                }
+                    "requires_immediate_attention": event.severity == AuditSeverity.CRITICAL,
+                },
             )
 
             # In production, this would integrate with:
@@ -400,12 +404,9 @@ class AuditLogger:
 # Global audit logger instance
 audit_logger = AuditLogger()
 
+
 # Decorator for automatic audit logging
-def audit_action(
-    action: AuditAction,
-    resource_param: str = None,
-    log_details: bool = True
-):
+def audit_action(action: AuditAction, resource_param: str = None, log_details: bool = True):
     """
     Decorator for automatic audit logging of function calls
 
@@ -414,10 +415,11 @@ def audit_action(
         resource_param: Parameter name to use as resource identifier
         log_details: Whether to log function parameters as details
     """
+
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            start_time = datetime.now(timezone.utc)
+            start_time = datetime.now(UTC)
             user_id = None
             ip_address = None
             user_agent = None
@@ -426,12 +428,14 @@ def audit_action(
 
             try:
                 # Extract context from function arguments
-                if hasattr(args[0], '__self__'):  # Method call
+                if hasattr(args[0], "__self__"):  # Method call
                     self_obj = args[0]
-                    if hasattr(self_obj, 'current_user'):
+                    if hasattr(self_obj, "current_user"):
                         user_id = str(self_obj.current_user.id) if self_obj.current_user else None
-                    if hasattr(self_obj, 'request'):
-                        ip_address = self_obj.request.client.host if self_obj.request.client else None
+                    if hasattr(self_obj, "request"):
+                        ip_address = (
+                            self_obj.request.client.host if self_obj.request.client else None
+                        )
                         user_agent = self_obj.request.headers.get("User-Agent")
 
                 # Extract resource identifier
@@ -449,15 +453,17 @@ def audit_action(
                 result = await func(*args, **kwargs)
 
                 # Log successful execution
-                await audit_logger.log_event(AuditEvent(
-                    action=action,
-                    user_id=user_id,
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                    resource=resource,
-                    details=details,
-                    severity=AuditSeverity.LOW
-                ))
+                await audit_logger.log_event(
+                    AuditEvent(
+                        action=action,
+                        user_id=user_id,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        resource=resource,
+                        details=details,
+                        severity=AuditSeverity.LOW,
+                    )
+                )
 
                 return result
 
@@ -466,27 +472,31 @@ def audit_action(
                 details["error"] = str(e)
                 details["error_type"] = type(e).__name__
 
-                await audit_logger.log_event(AuditEvent(
-                    action=action,
-                    user_id=user_id,
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                    resource=resource,
-                    details=details,
-                    severity=AuditSeverity.MEDIUM
-                ))
+                await audit_logger.log_event(
+                    AuditEvent(
+                        action=action,
+                        user_id=user_id,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        resource=resource,
+                        details=details,
+                        severity=AuditSeverity.MEDIUM,
+                    )
+                )
 
                 raise
 
         return wrapper
+
     return decorator
+
 
 def log_impersonation(
     admin_user: User,
     target_user: User,
     action: str,
     db: Session,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """
     Log user impersonation events
@@ -507,8 +517,8 @@ def log_impersonation(
             "admin_email": admin_user.email,
             "target_email": target_user.email,
             "action": action,
-            **(metadata or {})
-        }
+            **(metadata or {}),
+        },
     )
     db.add(log_entry)
     db.commit()
@@ -520,7 +530,7 @@ def log_role_change(
     old_role: str,
     new_role: str,
     db: Session,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """
     Log role/permission changes
@@ -543,8 +553,8 @@ def log_role_change(
             "target_email": target_user.email,
             "old_role": old_role,
             "new_role": new_role,
-            **(metadata or {})
-        }
+            **(metadata or {}),
+        },
     )
     db.add(log_entry)
     db.commit()
@@ -554,7 +564,7 @@ def log_password_reset(
     user: User,
     reset_method: str,  # 'self', 'admin', 'recovery_code'
     db: Session,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """
     Log password reset events
@@ -569,11 +579,7 @@ def log_password_reset(
         user_id=user.id,
         action="password_reset",
         resource_type="user_password",
-        details={
-            "user_email": user.email,
-            "reset_method": reset_method,
-            **(metadata or {})
-        }
+        details={"user_email": user.email, "reset_method": reset_method, **(metadata or {})},
     )
     db.add(log_entry)
     db.commit()

@@ -3,33 +3,31 @@ Redis Client Configuration and Connection Management
 Production-ready Redis client with connection pooling and error handling
 """
 
-import redis.asyncio as redis
 import logging
-from typing import Optional
 from urllib.parse import urlparse
+
+import redis.asyncio as redis
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # Global Redis client instance
-_redis_client: Optional[redis.Redis] = None
+_redis_client: redis.Redis | None = None
+
 
 def parse_redis_url(url: str) -> dict:
     """Parse Redis URL into connection parameters"""
     parsed = urlparse(url)
 
     # Extract connection details from URL
-    host = parsed.hostname or 'localhost'
+    host = parsed.hostname or "localhost"
     port = parsed.port or 6379
-    db = int(parsed.path.lstrip('/')) if parsed.path else 0
+    db = int(parsed.path.lstrip("/")) if parsed.path else 0
     password = parsed.password
 
-    return {
-        'host': host,
-        'port': port,
-        'db': db,
-        'password': password
-    }
+    return {"host": host, "port": port, "db": db, "password": password}
+
 
 async def get_redis_client() -> redis.Redis:
     """
@@ -59,7 +57,9 @@ async def get_redis_client() -> redis.Redis:
 
             # Test connection
             await _redis_client.ping()
-            logger.info(f"Redis connected successfully to {redis_params['host']}:{redis_params['port']}")
+            logger.info(
+                f"Redis connected successfully to {redis_params['host']}:{redis_params['port']}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {e}")
@@ -72,7 +72,7 @@ async def get_redis_client() -> redis.Redis:
 async def close_redis_connection():
     """Close Redis connection gracefully"""
     global _redis_client
-    if _redis_client and hasattr(_redis_client, 'close'):
+    if _redis_client and hasattr(_redis_client, "close"):
         await _redis_client.close()
         logger.info("Redis connection closed")
 
@@ -133,8 +133,10 @@ class MockRedisClient:
     def __getattr__(self, name):
         """Fallback for any other Redis methods"""
         self.logger.warning(f"MockRedisClient: Method {name} not implemented, returning None")
+
         async def mock_method(*args, **kwargs):
             return None
+
         return mock_method
 
 
@@ -148,31 +150,31 @@ class MockPipeline:
 
     async def zremrangebyscore(self, key, min_score, max_score):
         """Mock zremrangebyscore"""
-        self._commands.append(('zremrangebyscore', key, min_score, max_score))
+        self._commands.append(("zremrangebyscore", key, min_score, max_score))
         return 0
 
     async def zcard(self, key):
         """Mock zcard"""
-        self._commands.append(('zcard', key))
+        self._commands.append(("zcard", key))
         return 0
 
     async def zadd(self, key, mapping):
         """Mock zadd"""
-        self._commands.append(('zadd', key, mapping))
+        self._commands.append(("zadd", key, mapping))
         return 1
 
     async def expire(self, key, seconds):
         """Mock expire"""
-        self._commands.append(('expire', key, seconds))
+        self._commands.append(("expire", key, seconds))
         return True
 
     async def execute(self):
         """Mock execute - returns mock results"""
         results = []
         for command in self._commands:
-            if command[0] == 'zcard':
+            if command[0] == "zcard":
                 results.append(0)  # No requests in window
-            elif command[0] in ['zremrangebyscore', 'zadd', 'expire']:
+            elif command[0] in ["zremrangebyscore", "zadd", "expire"]:
                 results.append(1)
             else:
                 results.append(None)
@@ -187,7 +189,7 @@ class MockPipeline:
 
 
 # Export convenience functions
-async def redis_set(key: str, value: str, expire: Optional[int] = None) -> bool:
+async def redis_set(key: str, value: str, expire: int | None = None) -> bool:
     """Set key-value pair in Redis with optional expiration"""
     try:
         client = await get_redis_client()
@@ -201,7 +203,7 @@ async def redis_set(key: str, value: str, expire: Optional[int] = None) -> bool:
         return False
 
 
-async def redis_get(key: str) -> Optional[str]:
+async def redis_get(key: str) -> str | None:
     """Get value from Redis"""
     try:
         client = await get_redis_client()

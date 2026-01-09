@@ -11,16 +11,14 @@ Usage:
     result = sanitizer.sanitize(llm_output, content_type="text")
 """
 
-from typing import Dict, Any, List, Tuple, Optional
 from datetime import datetime
-import re
+from enum import Enum
 import html
 import json
-from enum import Enum
-from pydantic import BaseModel
+import re
 
 from bs4 import BeautifulSoup
-
+from pydantic import BaseModel
 
 # ============================================================================
 # Content Types
@@ -42,39 +40,39 @@ class ContentType(Enum):
 # ============================================================================
 
 DANGEROUS_PATTERNS = {
-    'html_with_script': [
-        r'<script[^>]*>.*?</script>',
-        r'on\w+\s*=',  # Event handlers like onclick=
-        r'javascript:',
+    "html_with_script": [
+        r"<script[^>]*>.*?</script>",
+        r"on\w+\s*=",  # Event handlers like onclick=
+        r"javascript:",
     ],
-    'sql_injection': [
-        r'(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)\s+',
-        r';\s*(DROP|DELETE|EXECUTE)',
-        r'UNION\s+SELECT',
-        r'--\s*.*$',  # SQL comments
-        r'/\*.*?\*/',  # SQL block comments
+    "sql_injection": [
+        r"(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)\s+",
+        r";\s*(DROP|DELETE|EXECUTE)",
+        r"UNION\s+SELECT",
+        r"--\s*.*$",  # SQL comments
+        r"/\*.*?\*/",  # SQL block comments
     ],
-    'shell_command': [
-        r'`[^`]+`',  # Backtick commands
-        r'\$[^$]*\([^)]*\)',  # Command substitution
-        r';\s*\w+',  # Command chaining
-        r'\|',  # Pipe to another command
+    "shell_command": [
+        r"`[^`]+`",  # Backtick commands
+        r"\$[^$]*\([^)]*\)",  # Command substitution
+        r";\s*\w+",  # Command chaining
+        r"\|",  # Pipe to another command
     ],
-    'ssrf_url': [
-        r'https?://169\.254\.169\.254',  # AWS metadata
-        r'https?://127\.0\.0\.1',  # Localhost
-        r'https?://0\.0\.0\.0',  # Localhost
-        r'https?://192\.168\.',  # Internal network
-        r'https?://10\.',  # Internal network
-        r'file://',  # Local file protocol
-        r'ftp://',  # FTP protocol
+    "ssrf_url": [
+        r"https?://169\.254\.169\.254",  # AWS metadata
+        r"https?://127\.0\.0\.1",  # Localhost
+        r"https?://0\.0\.0\.0",  # Localhost
+        r"https?://192\.168\.",  # Internal network
+        r"https?://10\.",  # Internal network
+        r"file://",  # Local file protocol
+        r"ftp://",  # FTP protocol
     ],
-    'code_execution': [
-        r'exec\s*\(',  # Python exec()
-        r'eval\s*\(',  # Python eval()
-        r'os\.system\s*\(',  # Python os.system()
-        r'subprocess\.',  # Python subprocess module
-        r'__import__\s*\(',  # Python dynamic import
+    "code_execution": [
+        r"exec\s*\(",  # Python exec()
+        r"eval\s*\(",  # Python eval()
+        r"os\.system\s*\(",  # Python os.system()
+        r"subprocess\.",  # Python subprocess module
+        r"__import__\s*\(",  # Python dynamic import
     ],
 }
 
@@ -84,9 +82,9 @@ DANGEROUS_PATTERNS = {
 # ============================================================================
 
 ALLOWED_URL_PATTERNS = [
-    r'https://docs\.psychsync\.com/.*',
-    r'https://.*\.psychsync\.com/.*',
-    r'https://psychsync\.com/.*',
+    r"https://docs\.psychsync\.com/.*",
+    r"https://.*\.psychsync\.com/.*",
+    r"https://psychsync\.com/.*",
 ]
 
 
@@ -120,10 +118,10 @@ class SanitizationResult(BaseModel):
     original: str
     sanitized: str
     content_type: ContentType
-    modifications: List[str]
+    modifications: list[str]
     approval_required: bool
-    approval_request_id: Optional[str] = None
-    warnings: List[str] = []
+    approval_request_id: str | None = None
+    warnings: list[str] = []
 
 
 # ============================================================================
@@ -243,7 +241,7 @@ class LLMSanitizer:
         """Sanitize HTML by removing tags and encoding entities"""
 
         # Remove all HTML tags
-        soup = BeautifulSoup(content, 'html.parser')
+        soup = BeautifulSoup(content, "html.parser")
         text = soup.get_text()
 
         # Encode HTML entities
@@ -260,19 +258,19 @@ class LLMSanitizer:
 
         # Remove script blocks
         content = re.sub(
-            r'<script[^>]*>.*?</script>',
-            '',
+            r"<script[^>]*>.*?</script>",
+            "",
             content,
             flags=re.DOTALL | re.IGNORECASE
         )
 
         # Remove inline event handlers
-        content = re.sub(r'on\w+\s*=\s*["\'][^"\']*["\']', '', content)
+        content = re.sub(r'on\w+\s*=\s*["\'][^"\']*["\']', "", content)
 
         # Remove javascript: protocol
         content = re.sub(
-            r'javascript:',
-            '[REMOVED]:',
+            r"javascript:",
+            "[REMOVED]:",
             content,
             flags=re.IGNORECASE
         )
@@ -288,15 +286,15 @@ class LLMSanitizer:
 
         # Check for dangerous patterns
         dangerous = [
-            (r'INSERT\s+INTO', 'INSERT statements not allowed'),
-            (r'UPDATE\s+\w+\s+SET', 'UPDATE statements not allowed'),
-            (r'DELETE\s+FROM', 'DELETE statements not allowed'),
-            (r'DROP\s+TABLE', 'DROP TABLE not allowed'),
-            (r'CREATE\s+TABLE', 'CREATE TABLE not allowed'),
-            (r'ALTER\s+TABLE', 'ALTER TABLE not allowed'),
-            (r'TRUNCATE\s+TABLE', 'TRUNCATE TABLE not allowed'),
-            (r';\s*(DROP|DELETE|EXECUTE|WAITFOR)', 'Chained commands not allowed'),
-            (r'UNION\s+(ALL\s+)?SELECT', 'UNION SELECT not allowed'),
+            (r"INSERT\s+INTO", "INSERT statements not allowed"),
+            (r"UPDATE\s+\w+\s+SET", "UPDATE statements not allowed"),
+            (r"DELETE\s+FROM", "DELETE statements not allowed"),
+            (r"DROP\s+TABLE", "DROP TABLE not allowed"),
+            (r"CREATE\s+TABLE", "CREATE TABLE not allowed"),
+            (r"ALTER\s+TABLE", "ALTER TABLE not allowed"),
+            (r"TRUNCATE\s+TABLE", "TRUNCATE TABLE not allowed"),
+            (r";\s*(DROP|DELETE|EXECUTE|WAITFOR)", "Chained commands not allowed"),
+            (r"UNION\s+(ALL\s+)?SELECT", "UNION SELECT not allowed"),
         ]
 
         for pattern, message in dangerous:
@@ -311,7 +309,7 @@ class LLMSanitizer:
                 )
 
         # Only SELECT queries are safe
-        if not content.strip().upper().startswith('SELECT'):
+        if not content.strip().upper().startswith("SELECT"):
             self.warnings.append("SQL query must start with SELECT")
 
         return content
@@ -321,9 +319,9 @@ class LLMSanitizer:
 
         # Remove dangerous functions
         dangerous_funcs = [
-            (r'exec\s*\(', '[EXEC] BLOCKED - dangerous function'),
-            (r'eval\s*\(', '[EVAL] BLOCKED - dangerous function'),
-            (r'os\.system\s*\(', '[SYSTEM] BLOCKED - dangerous function'),
+            (r"exec\s*\(", "[EXEC] BLOCKED - dangerous function"),
+            (r"eval\s*\(", "[EVAL] BLOCKED - dangerous function"),
+            (r"os\.system\s*\(", "[SYSTEM] BLOCKED - dangerous function"),
         ]
 
         for pattern, message in dangerous_funcs:
@@ -338,10 +336,10 @@ class LLMSanitizer:
 
         # Step 1: Remove dangerous protocols (file://, ftp://, gopher://, dict://)
         dangerous_protocols = [
-            (r'file://[^\s<>"{}|\\^`\[\]]*', '[FILE URL REMOVED: dangerous protocol]'),
-            (r'ftp://[^\s<>"{}|\\^`\[\]]*', '[FTP URL REMOVED: dangerous protocol]'),
-            (r'gopher://[^\s<>"{}|\\^`\[\]]*', '[GOPHER URL REMOVED: dangerous protocol]'),
-            (r'dict://[^\s<>"{}|\\^`\[\]]*', '[DICT URL REMOVED: dangerous protocol]'),
+            (r'file://[^\s<>"{}|\\^`\[\]]*', "[FILE URL REMOVED: dangerous protocol]"),
+            (r'ftp://[^\s<>"{}|\\^`\[\]]*', "[FTP URL REMOVED: dangerous protocol]"),
+            (r'gopher://[^\s<>"{}|\\^`\[\]]*', "[GOPHER URL REMOVED: dangerous protocol]"),
+            (r'dict://[^\s<>"{}|\\^`\[\]]*', "[DICT URL REMOVED: dangerous protocol]"),
         ]
 
         for pattern, replacement in dangerous_protocols:
@@ -356,8 +354,8 @@ class LLMSanitizer:
 
         for url in urls:
             # Check for localhost hostname (not just IP)
-            if 'localhost' in url.lower() or '127.0.0.1' in url or '0.0.0.0' in url:
-                content = content.replace(url, '[URL REMOVED: internal address]')
+            if "localhost" in url.lower() or "127.0.0.1" in url or "0.0.0.0" in url:
+                content = content.replace(url, "[URL REMOVED: internal address]")
                 self.modifications.append(f"Removed internal URL: {url}")
                 continue
 
@@ -366,7 +364,7 @@ class LLMSanitizer:
 
             if not allowed:
                 # URL not in allow-list
-                content = content.replace(url, '[URL REMOVED: unapproved domain]')
+                content = content.replace(url, "[URL REMOVED: unapproved domain]")
                 self.modifications.append(f"Removed URL: {url}")
 
         return content
@@ -376,14 +374,14 @@ class LLMSanitizer:
 
         # Remove base64 images
         content = re.sub(
-            r'data:image/[^;]+;base64,[A-Za-z0-9+/=]+',
-            '[IMAGE REMOVED]',
+            r"data:image/[^;]+;base64,[A-Za-z0-9+/=]+",
+            "[IMAGE REMOVED]",
             content
         )
 
         return content
 
-    def _validate_json_schema(self, content: str) -> Tuple[bool, str]:
+    def _validate_json_schema(self, content: str) -> tuple[bool, str]:
         """Validate JSON against schema"""
 
         try:
@@ -403,7 +401,7 @@ class LLMSanitizer:
             return True, ""
 
         except json.JSONDecodeError as e:
-            return False, f"Invalid JSON: {str(e)}"
+            return False, f"Invalid JSON: {e!s}"
 
     def _requires_approval(self, content_type: ContentType, content: str) -> bool:
         """Check if content requires human approval"""
@@ -437,7 +435,7 @@ class LLMSanitizer:
         self,
         content_type: ContentType,
         content: str,
-        modifications: List[str]
+        modifications: list[str]
     ) -> str:
         """Create approval request for content"""
 
@@ -453,15 +451,15 @@ class LLMSanitizer:
     def _contains_sql(self, content: str) -> bool:
         """Check if content contains SQL"""
         sql_patterns = [
-            r'SELECT\s+.+\s+FROM',
-            r'INSERT\s+INTO',
-            r'UPDATE\s+\w+\s+SET',
-            r'DELETE\s+FROM',
-            r'CREATE\s+TABLE',
-            r'DROP\s+TABLE',
-            r'ALTER\s+TABLE',
-            r'TRUNCATE\s+TABLE',
-            r'UNION\s+SELECT',
+            r"SELECT\s+.+\s+FROM",
+            r"INSERT\s+INTO",
+            r"UPDATE\s+\w+\s+SET",
+            r"DELETE\s+FROM",
+            r"CREATE\s+TABLE",
+            r"DROP\s+TABLE",
+            r"ALTER\s+TABLE",
+            r"TRUNCATE\s+TABLE",
+            r"UNION\s+SELECT",
         ]
 
         return any(re.search(pattern, content, re.IGNORECASE) for pattern in sql_patterns)
@@ -469,18 +467,18 @@ class LLMSanitizer:
     def _contains_javascript(self, content: str) -> bool:
         """Check if content contains JavaScript"""
         js_patterns = [
-            r'<script[^>]*>',
-            r'function\s+\w+\s*\(',
-            r'const\s+\w+\s*=',
-            r'let\s+\w+\s*=',
-            r'var\s+\w+\s*=',
+            r"<script[^>]*>",
+            r"function\s+\w+\s*\(",
+            r"const\s+\w+\s*=",
+            r"let\s+\w+\s*=",
+            r"var\s+\w+\s*=",
         ]
 
         return any(re.search(pattern, content) for pattern in js_patterns)
 
     def _contains_html(self, content: str) -> bool:
         """Check if content contains HTML"""
-        return bool(re.search(r'<[a-z][^>]*>', content, re.IGNORECASE))
+        return bool(re.search(r"<[a-z][^>]*>", content, re.IGNORECASE))
 
     def _is_json(self, content: str) -> bool:
         """Check if content is valid JSON"""
@@ -493,12 +491,12 @@ class LLMSanitizer:
     def _contains_code(self, content: str) -> bool:
         """Check if content contains code"""
         code_patterns = [
-            r'def\s+\w+\s*\(',  # Python function
-            r'class\s+\w+',  # Python class
-            r'import\s+\w+',  # Python import
-            r'from\s+\w+\s+import',  # Python from import
-            r'#!/bin/bash',  # Shell script
-            r'#!/usr/bin/env',  # Script shebang
+            r"def\s+\w+\s*\(",  # Python function
+            r"class\s+\w+",  # Python class
+            r"import\s+\w+",  # Python import
+            r"from\s+\w+\s+import",  # Python from import
+            r"#!/bin/bash",  # Shell script
+            r"#!/usr/bin/env",  # Script shebang
         ]
 
         return any(re.search(pattern, content) for pattern in code_patterns)
@@ -508,7 +506,7 @@ class LLMSanitizer:
 # Helper Functions
 # ============================================================================
 
-def validate_sql_query(query: str) -> Tuple[bool, str]:
+def validate_sql_query(query: str) -> tuple[bool, str]:
     """
     Validate SQL query for safety
 
@@ -517,15 +515,15 @@ def validate_sql_query(query: str) -> Tuple[bool, str]:
     """
 
     # Must be SELECT only
-    if not query.strip().upper().startswith('SELECT'):
+    if not query.strip().upper().startswith("SELECT"):
         return False, "Query must start with SELECT"
 
     # Check for dangerous patterns
     dangerous = [
-        (r'--', 'SQL comment injection'),
-        (r'/\*', 'SQL block comment'),
-        (r';', 'SQL statement chaining'),
-        (r'UNION\s+SELECT', 'SQL injection via UNION'),
+        (r"--", "SQL comment injection"),
+        (r"/\*", "SQL block comment"),
+        (r";", "SQL statement chaining"),
+        (r"UNION\s+SELECT", "SQL injection via UNION"),
     ]
 
     for pattern, message in dangerous:
@@ -535,7 +533,7 @@ def validate_sql_query(query: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_json_schema(data: str, schema: dict) -> Tuple[bool, str]:
+def validate_json_schema(data: str, schema: dict) -> tuple[bool, str]:
     """
     Validate JSON against schema
 
@@ -561,10 +559,10 @@ def validate_json_schema(data: str, schema: dict) -> Tuple[bool, str]:
         return True, ""
 
     except json.JSONDecodeError as e:
-        return False, f"Invalid JSON: {str(e)}"
+        return False, f"Invalid JSON: {e!s}"
 
 
-def check_for_xss(content: str) -> List[str]:
+def check_for_xss(content: str) -> list[str]:
     """
     Check content for XSS payloads
 
@@ -573,17 +571,17 @@ def check_for_xss(content: str) -> List[str]:
     """
 
     xss_patterns = [
-        '<script[^>]*>.*?</script>',
-        'onload=',
-        'onerror=',
-        'onclick=',
-        'onmouseover=',
-        'javascript:',
-        '<iframe',
-        '<object',
-        '<embed',
-        'vbscript:',
-        'expression(',
+        "<script[^>]*>.*?</script>",
+        "onload=",
+        "onerror=",
+        "onclick=",
+        "onmouseover=",
+        "javascript:",
+        "<iframe",
+        "<object",
+        "<embed",
+        "vbscript:",
+        "expression(",
     ]
 
     detected = []
@@ -597,7 +595,7 @@ def check_for_xss(content: str) -> List[str]:
     return detected
 
 
-def check_for_ssrf(content: str) -> List[str]:
+def check_for_ssrf(content: str) -> list[str]:
     """
     Check content for SSRF payloads
 
@@ -606,21 +604,21 @@ def check_for_ssrf(content: str) -> List[str]:
     """
 
     ssrf_patterns = [
-        'https://169.254.169.254',  # AWS metadata
-        'http://169.254.169.254',   # AWS metadata (http)
-        'https://127.0.0.1',
-        'http://127.0.0.1',
-        'https://0.0.0.0',
-        'http://0.0.0.0',
-        'https://192.168.',
-        'http://192.168.',
-        'https://10.',
-        'http://10.',
-        'file://',
-        'ftp://',
-        'gopher://',
-        'dict://',
-        'localhost',  # Localhost hostname
+        "https://169.254.169.254",  # AWS metadata
+        "http://169.254.169.254",   # AWS metadata (http)
+        "https://127.0.0.1",
+        "http://127.0.0.1",
+        "https://0.0.0.0",
+        "http://0.0.0.0",
+        "https://192.168.",
+        "http://192.168.",
+        "https://10.",
+        "http://10.",
+        "file://",
+        "ftp://",
+        "gopher://",
+        "dict://",
+        "localhost",  # Localhost hostname
     ]
 
     detected = []

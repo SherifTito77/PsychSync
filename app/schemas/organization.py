@@ -1,12 +1,11 @@
-
 # app/schemas/organization.py
+
 from pydantic import BaseModel
-from typing import Optional
 
 
 class OrganizationBase(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class OrganizationCreate(OrganizationBase):
@@ -14,8 +13,8 @@ class OrganizationCreate(OrganizationBase):
 
 
 class OrganizationUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -29,12 +28,11 @@ class OrganizationOut(OrganizationBase):
 
 class OrganizationResponse(OrganizationBase):
     id: int
-    owner_id: Optional[int] = None  # useful if tied to a user
-    size: Optional[int] = None      # number of members
-    industry: Optional[str] = None
+    owner_id: int | None = None  # useful if tied to a user
+    size: int | None = None  # number of members
+    industry: str | None = None
 
     model_config = {"from_attributes": True}
-
 
 
 # from pydantic import BaseModel

@@ -16,36 +16,37 @@ Features:
 """
 
 import asyncio
-import json
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from enum import Enum
+import hashlib
 import logging
 import os
-import time
-from datetime import datetime, timedelta
-from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple, Callable
-from dataclasses import dataclass, asdict
 import subprocess
-import tempfile
-import shutil
-import hashlib
+import time
+from typing import Any
 
-import httpx
-import docker
 from docker.errors import DockerException
-import yaml
+import httpx
+
+import docker
 
 logger = logging.getLogger(__name__)
 
+
 class DeploymentStrategy(Enum):
     """Deployment strategy types"""
+
     BLUE_GREEN = "blue_green"
     CANARY = "canary"
     ROLLING = "rolling"
     RECREATE = "recreate"
 
+
 class DeploymentStatus(Enum):
     """Deployment status states"""
+
     PENDING = "pending"
     PREPARING = "preparing"
     DEPLOYING = "deploying"
@@ -56,16 +57,20 @@ class DeploymentStatus(Enum):
     ROLLING_BACK = "rolling_back"
     ROLLED_BACK = "rolled_back"
 
+
 class HealthCheckStatus(Enum):
     """Health check result status"""
+
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
     UNKNOWN = "unknown"
     TIMEOUT = "timeout"
 
+
 @dataclass
 class HealthCheck:
     """Health check configuration"""
+
     name: str
     endpoint: str
     method: str = "GET"
@@ -73,12 +78,14 @@ class HealthCheck:
     timeout: float = 30.0
     retries: int = 3
     retry_delay: float = 10.0
-    payload: Optional[Dict[str, Any]] = None
-    headers: Optional[Dict[str, str]] = None
+    payload: dict[str, Any] | None = None
+    headers: dict[str, str] | None = None
+
 
 @dataclass
 class DeploymentConfig:
     """Deployment configuration"""
+
     name: str
     version: str
     environment: str
@@ -86,7 +93,7 @@ class DeploymentConfig:
     docker_image: str
     port: int = 8000
     replicas: int = 3
-    health_checks: List[HealthCheck] = None
+    health_checks: list[HealthCheck] = None
     rollback_threshold: float = 5.0  # Error percentage
     canary_percentage: float = 10.0  # For canary deployments
     zero_downtime: bool = True
@@ -97,32 +104,28 @@ class DeploymentConfig:
     def __post_init__(self):
         if self.health_checks is None:
             self.health_checks = [
+                HealthCheck(name="Basic Health", endpoint="/api/v1/health", method="GET"),
                 HealthCheck(
-                    name="Basic Health",
-                    endpoint="/api/v1/health",
-                    method="GET"
+                    name="Database Health", endpoint="/api/v1/health/database", method="GET"
                 ),
-                HealthCheck(
-                    name="Database Health",
-                    endpoint="/api/v1/health/database",
-                    method="GET"
-                )
             ]
+
 
 @dataclass
 class DeploymentMetrics:
     """Deployment metrics and status"""
+
     deployment_id: str
     status: DeploymentStatus
     start_time: datetime
-    end_time: Optional[datetime] = None
-    previous_version: Optional[str] = None
+    end_time: datetime | None = None
+    previous_version: str | None = None
     new_version: str = ""
     error_rate: float = 0.0
     response_time: float = 0.0
-    health_check_results: Dict[str, HealthCheckStatus] = None
-    logs: List[str] = None
-    rollback_reason: Optional[str] = None
+    health_check_results: dict[str, HealthCheckStatus] = None
+    logs: list[str] = None
+    rollback_reason: str | None = None
 
     def __post_init__(self):
         if self.health_check_results is None:
@@ -130,13 +133,14 @@ class DeploymentMetrics:
         if self.logs is None:
             self.logs = []
 
+
 class DatabaseDeploymentManager:
     """Database deployment and migration management"""
 
     def __init__(self):
         self.migration_timeout = 300.0
 
-    async def prepare_database_deployment(self, config: DeploymentConfig) -> Dict[str, Any]:
+    async def prepare_database_deployment(self, config: DeploymentConfig) -> dict[str, Any]:
         """Prepare database for deployment"""
         logger.info("Preparing database for deployment")
 
@@ -144,7 +148,7 @@ class DatabaseDeploymentManager:
             "backup_created": False,
             "migration_required": False,
             "migration_completed": False,
-            "errors": []
+            "errors": [],
         }
 
         try:
@@ -173,7 +177,7 @@ class DatabaseDeploymentManager:
 
         return results
 
-    async def _create_database_backup(self, config: DeploymentConfig) -> Dict[str, Any]:
+    async def _create_database_backup(self, config: DeploymentConfig) -> dict[str, Any]:
         """Create database backup before deployment"""
         try:
             backup_id = f"pre_deploy_{config.name}_{int(time.time())}"
@@ -181,11 +185,14 @@ class DatabaseDeploymentManager:
             # Use pg_dump for PostgreSQL backup
             cmd = [
                 "pg_dump",
-                "-h", os.getenv("DB_HOST", "localhost"),
-                "-U", os.getenv("DB_USER", "postgres"),
-                "-d", os.getenv("DB_NAME", "psychsync"),
+                "-h",
+                os.getenv("DB_HOST", "localhost"),
+                "-U",
+                os.getenv("DB_USER", "postgres"),
+                "-d",
+                os.getenv("DB_NAME", "psychsync"),
                 "--no-password",
-                "--verbose"
+                "--verbose",
             ]
 
             env = os.environ.copy()
@@ -196,28 +203,21 @@ class DatabaseDeploymentManager:
             backup_dir.mkdir(exist_ok=True)
             backup_file = backup_dir / f"{backup_id}.sql"
 
-            with open(backup_file, 'w') as f:
+            with open(backup_file, "w") as f:
                 result = subprocess.run(
                     cmd,
+                    check=False,
                     stdout=f,
                     stderr=subprocess.PIPE,
                     env=env,
-                    timeout=self.migration_timeout
+                    timeout=self.migration_timeout,
                 )
 
             if result.returncode == 0:
                 logger.info(f"Database backup created: {backup_file}")
-                return {
-                    "success": True,
-                    "backup_id": backup_id,
-                    "backup_path": str(backup_file)
-                }
-            else:
-                logger.error(f"Backup failed: {result.stderr.decode()}")
-                return {
-                    "success": False,
-                    "error": result.stderr.decode()
-                }
+                return {"success": True, "backup_id": backup_id, "backup_path": str(backup_file)}
+            logger.error(f"Backup failed: {result.stderr.decode()}")
+            return {"success": False, "error": result.stderr.decode()}
 
         except Exception as e:
             logger.error(f"Database backup error: {e}")
@@ -228,22 +228,14 @@ class DatabaseDeploymentManager:
         try:
             # Check if there are pending migrations
             cmd = ["alembic", "current"]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=30.0
-            )
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=30.0)
 
             if result.returncode == 0:
                 current_revision = result.stdout.strip()
                 # Check if current revision is head
                 cmd_head = ["alembic", "heads"]
                 result_head = subprocess.run(
-                    cmd_head,
-                    capture_output=True,
-                    text=True,
-                    timeout=30.0
+                    cmd_head, check=False, capture_output=True, text=True, timeout=30.0
                 )
 
                 if result_head.returncode == 0:
@@ -256,37 +248,31 @@ class DatabaseDeploymentManager:
             logger.error(f"Migration check error: {e}")
             return False
 
-    async def _execute_database_migration(self, config: DeploymentConfig) -> Dict[str, Any]:
+    async def _execute_database_migration(self, config: DeploymentConfig) -> dict[str, Any]:
         """Execute database migration"""
         try:
             # Run alembic upgrade
             cmd = ["alembic", "upgrade", "head"]
             result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=self.migration_timeout
+                cmd, check=False, capture_output=True, text=True, timeout=self.migration_timeout
             )
 
             if result.returncode == 0:
                 logger.info("Database migration completed successfully")
                 return {"success": True}
-            else:
-                logger.error(f"Migration failed: {result.stderr}")
-                return {
-                    "success": False,
-                    "error": result.stderr
-                }
+            logger.error(f"Migration failed: {result.stderr}")
+            return {"success": False, "error": result.stderr}
 
         except Exception as e:
             logger.error(f"Migration execution error: {e}")
             return {"success": False, "error": str(e)}
 
+
 class HealthCheckManager:
     """Health check execution and monitoring"""
 
     def __init__(self):
-        self.http_client: Optional[httpx.AsyncClient] = None
+        self.http_client: httpx.AsyncClient | None = None
 
     async def __aenter__(self):
         self.http_client = httpx.AsyncClient(timeout=30.0)
@@ -297,10 +283,8 @@ class HealthCheckManager:
             await self.http_client.aclose()
 
     async def execute_health_checks(
-        self,
-        config: DeploymentConfig,
-        target_url: str
-    ) -> Tuple[Dict[str, HealthCheckStatus], float]:
+        self, config: DeploymentConfig, target_url: str
+    ) -> tuple[dict[str, HealthCheckStatus], float]:
         """Execute all health checks for a deployment"""
         results = {}
         total_response_time = 0.0
@@ -321,9 +305,7 @@ class HealthCheckManager:
         return results, average_response_time
 
     async def _execute_single_health_check(
-        self,
-        health_check: HealthCheck,
-        base_url: str
+        self, health_check: HealthCheck, base_url: str
     ) -> HealthCheckStatus:
         """Execute a single health check with retries"""
         url = f"{base_url}{health_check.endpoint}"
@@ -334,16 +316,14 @@ class HealthCheckManager:
 
                 if health_check.method.upper() == "GET":
                     response = await self.http_client.get(
-                        url,
-                        headers=health_check.headers,
-                        timeout=health_check.timeout
+                        url, headers=health_check.headers, timeout=health_check.timeout
                     )
                 elif health_check.method.upper() == "POST":
                     response = await self.http_client.post(
                         url,
                         json=health_check.payload,
                         headers=health_check.headers,
-                        timeout=health_check.timeout
+                        timeout=health_check.timeout,
                     )
                 else:
                     logger.warning(f"Unsupported HTTP method: {health_check.method}")
@@ -352,13 +332,14 @@ class HealthCheckManager:
                 response_time = time.time() - start_time
 
                 if response.status_code == health_check.expected_status:
-                    logger.info(f"Health check '{health_check.name}' passed in {response_time:.2f}s")
-                    return HealthCheckStatus.HEALTHY
-                else:
-                    logger.warning(
-                        f"Health check '{health_check.name}' failed: "
-                        f"expected {health_check.expected_status}, got {response.status_code}"
+                    logger.info(
+                        f"Health check '{health_check.name}' passed in {response_time:.2f}s"
                     )
+                    return HealthCheckStatus.HEALTHY
+                logger.warning(
+                    f"Health check '{health_check.name}' failed: "
+                    f"expected {health_check.expected_status}, got {response.status_code}"
+                )
 
             except httpx.TimeoutException:
                 logger.warning(f"Health check '{health_check.name}' timed out")
@@ -382,6 +363,7 @@ class HealthCheckManager:
         except:
             return 0.0
 
+
 class DockerDeploymentManager:
     """Docker-based deployment management"""
 
@@ -393,7 +375,7 @@ class DockerDeploymentManager:
             logger.error(f"Docker connection failed: {e}")
             self.client = None
 
-    async def deploy_blue_green(self, config: DeploymentConfig) -> Dict[str, Any]:
+    async def deploy_blue_green(self, config: DeploymentConfig) -> dict[str, Any]:
         """Execute blue-green deployment"""
         if not self.client:
             raise RuntimeError("Docker client not available")
@@ -410,7 +392,7 @@ class DockerDeploymentManager:
             "new_color": new_color,
             "old_container_id": None,
             "new_container_id": None,
-            "success": False
+            "success": False,
         }
 
         try:
@@ -444,7 +426,7 @@ class DockerDeploymentManager:
 
         return results
 
-    async def deploy_canary(self, config: DeploymentConfig) -> Dict[str, Any]:
+    async def deploy_canary(self, config: DeploymentConfig) -> dict[str, Any]:
         """Execute canary deployment"""
         logger.info(f"Starting canary deployment for {config.name} - {config.canary_percentage}%")
 
@@ -453,7 +435,7 @@ class DockerDeploymentManager:
             "canary_percentage": config.canary_percentage,
             "canary_container_id": None,
             "stable_container_id": None,
-            "success": False
+            "success": False,
         }
 
         try:
@@ -492,16 +474,19 @@ class DockerDeploymentManager:
 
             containers = self.client.containers.list(all=True)
 
-            blue_running = any(c.name == blue_container for c in containers if c.status == "running")
-            green_running = any(c.name == green_container for c in containers if c.status == "running")
+            blue_running = any(
+                c.name == blue_container for c in containers if c.status == "running"
+            )
+            green_running = any(
+                c.name == green_container for c in containers if c.status == "running"
+            )
 
             if blue_running and not green_running:
                 return "blue"
-            elif green_running and not blue_running:
+            if green_running and not blue_running:
                 return "green"
-            else:
-                # Default to blue if neither or both are running
-                return "blue"
+            # Default to blue if neither or both are running
+            return "blue"
 
         except Exception as e:
             logger.error(f"Error determining active color: {e}")
@@ -528,10 +513,10 @@ class DockerDeploymentManager:
             environment={
                 "ENVIRONMENT": config.environment,
                 "DEPLOYMENT_COLOR": color,
-                "VERSION": config.version
+                "VERSION": config.version,
             },
             detach=True,
-            restart_policy={"Name": "unless-stopped"}
+            restart_policy={"Name": "unless-stopped"},
         )
 
         logger.info(f"Deployed {color} environment: {container.id[:12]}")
@@ -548,9 +533,9 @@ class DockerDeploymentManager:
 
                 if container.status == "running":
                     # Check if health check passed
-                    if hasattr(container, 'attrs') and 'Health' in container.attrs.get('State', {}):
-                        health_status = container.attrs['State']['Health']['Status']
-                        if health_status == 'healthy':
+                    if hasattr(container, "attrs") and "Health" in container.attrs.get("State", {}):
+                        health_status = container.attrs["State"]["Health"]["Status"]
+                        if health_status == "healthy":
                             return
                             break
 
@@ -558,8 +543,10 @@ class DockerDeploymentManager:
                     await asyncio.sleep(5)
                     continue
 
-                elif container.status == "exited":
-                    raise RuntimeError(f"Container exited with code: {container.attrs['State']['ExitCode']}")
+                if container.status == "exited":
+                    raise RuntimeError(
+                        f"Container exited with code: {container.attrs['State']['ExitCode']}"
+                    )
 
                 await asyncio.sleep(2)
 
@@ -582,7 +569,7 @@ class DockerDeploymentManager:
             if not port_info:
                 return False
 
-            host_port = port_info[0]['HostPort']
+            host_port = port_info[0]["HostPort"]
             target_url = f"http://localhost:{host_port}"
 
             # Execute health checks
@@ -591,8 +578,7 @@ class DockerDeploymentManager:
 
                 # All health checks must pass
                 all_healthy = all(
-                    status == HealthCheckStatus.HEALTHY
-                    for status in health_results.values()
+                    status == HealthCheckStatus.HEALTHY for status in health_results.values()
                 )
 
                 return all_healthy
@@ -617,7 +603,7 @@ class DockerDeploymentManager:
 
         logger.info(f"Traffic switched to {new_color} environment")
 
-    async def _stop_environment(self, config: DeploymentConfig, color: str) -> Optional[str]:
+    async def _stop_environment(self, config: DeploymentConfig, color: str) -> str | None:
         """Stop the old environment"""
         container_name = f"{config.name}-{color}"
 
@@ -652,13 +638,14 @@ class DockerDeploymentManager:
         except:
             pass
 
+
 class ProductionDeploymentManager:
     """Main production deployment orchestrator"""
 
     def __init__(self):
         self.db_manager = DatabaseDeploymentManager()
         self.docker_manager = DockerDeploymentManager()
-        self.active_deployments: Dict[str, DeploymentMetrics] = {}
+        self.active_deployments: dict[str, DeploymentMetrics] = {}
 
     async def execute_deployment(self, config: DeploymentConfig) -> DeploymentMetrics:
         """Execute a full deployment with the specified strategy"""
@@ -668,7 +655,7 @@ class ProductionDeploymentManager:
             deployment_id=deployment_id,
             status=DeploymentStatus.PENDING,
             start_time=datetime.utcnow(),
-            new_version=config.version
+            new_version=config.version,
         )
 
         self.active_deployments[deployment_id] = metrics
@@ -715,14 +702,14 @@ class ProductionDeploymentManager:
             logger.error(f"Deployment {deployment_id} failed: {e}")
             metrics.status = DeploymentStatus.FAILED
             metrics.end_time = datetime.utcnow()
-            metrics.logs.append(f"Deployment failed: {str(e)}")
+            metrics.logs.append(f"Deployment failed: {e!s}")
 
             # Attempt rollback if configured
-            await self._execute_rollback(config, metrics, f"Deployment failed: {str(e)}")
+            await self._execute_rollback(config, metrics, f"Deployment failed: {e!s}")
 
         return metrics
 
-    async def _verify_deployment(self, config: DeploymentConfig, results: Dict[str, Any]) -> bool:
+    async def _verify_deployment(self, config: DeploymentConfig, results: dict[str, Any]) -> bool:
         """Verify deployment success"""
         try:
             # Get the active environment URL
@@ -736,7 +723,7 @@ class ProductionDeploymentManager:
             async with HealthCheckManager() as health_manager:
                 health_results, response_time = await health_manager.execute_health_checks(
                     config,
-                    f"http://localhost:{config.port}"  # This should be the load balancer URL
+                    f"http://localhost:{config.port}",  # This should be the load balancer URL
                 )
 
                 # Update metrics
@@ -747,15 +734,14 @@ class ProductionDeploymentManager:
 
                 # All health checks must pass
                 return all(
-                    status == HealthCheckStatus.HEALTHY
-                    for status in health_results.values()
+                    status == HealthCheckStatus.HEALTHY for status in health_results.values()
                 )
 
         except Exception as e:
             logger.error(f"Deployment verification failed: {e}")
             return False
 
-    async def _cleanup_deployment(self, config: DeploymentConfig, results: Dict[str, Any]):
+    async def _cleanup_deployment(self, config: DeploymentConfig, results: dict[str, Any]):
         """Cleanup deployment resources"""
         logger.info("Cleaning up deployment resources")
 
@@ -769,7 +755,9 @@ class ProductionDeploymentManager:
             # Handle canary-specific cleanup
             pass
 
-    async def _execute_rollback(self, config: DeploymentConfig, metrics: DeploymentMetrics, reason: str):
+    async def _execute_rollback(
+        self, config: DeploymentConfig, metrics: DeploymentMetrics, reason: str
+    ):
         """Execute automatic rollback"""
         logger.warning(f"Executing automatic rollback: {reason}")
 
@@ -786,7 +774,7 @@ class ProductionDeploymentManager:
 
         except Exception as e:
             logger.error(f"Rollback failed: {e}")
-            metrics.logs.append(f"Rollback failed: {str(e)}")
+            metrics.logs.append(f"Rollback failed: {e!s}")
 
     def _generate_deployment_id(self, config: DeploymentConfig) -> str:
         """Generate unique deployment ID"""
@@ -794,22 +782,20 @@ class ProductionDeploymentManager:
         content = f"{config.name}-{config.version}-{timestamp}"
         return hashlib.md5(content.encode()).hexdigest()[:12]
 
-    def get_deployment_status(self, deployment_id: str) -> Optional[DeploymentMetrics]:
+    def get_deployment_status(self, deployment_id: str) -> DeploymentMetrics | None:
         """Get deployment status by ID"""
         return self.active_deployments.get(deployment_id)
 
-    def list_deployments(self) -> List[DeploymentMetrics]:
+    def list_deployments(self) -> list[DeploymentMetrics]:
         """List all deployments"""
         return list(self.active_deployments.values())
 
+
 # Factory functions and utilities
 
+
 def create_deployment_config(
-    name: str,
-    version: str,
-    environment: str,
-    strategy: str = "blue_green",
-    **kwargs
+    name: str, version: str, environment: str, strategy: str = "blue_green", **kwargs
 ) -> DeploymentConfig:
     """Create deployment configuration"""
     return DeploymentConfig(
@@ -817,16 +803,13 @@ def create_deployment_config(
         version=version,
         environment=environment,
         strategy=DeploymentStrategy(strategy),
-        **kwargs
+        **kwargs,
     )
 
+
 async def execute_production_deployment(
-    name: str,
-    version: str,
-    environment: str,
-    strategy: str = "blue_green",
-    **kwargs
-) -> Dict[str, Any]:
+    name: str, version: str, environment: str, strategy: str = "blue_green", **kwargs
+) -> dict[str, Any]:
     """Execute production deployment with error handling"""
     config = create_deployment_config(name, version, environment, strategy, **kwargs)
     deployment_manager = ProductionDeploymentManager()
@@ -837,12 +820,11 @@ async def execute_production_deployment(
             "success": metrics.status == DeploymentStatus.COMPLETED,
             "deployment_id": metrics.deployment_id,
             "status": metrics.status.value,
-            "duration": (metrics.end_time - metrics.start_time).total_seconds() if metrics.end_time else None,
-            "metrics": asdict(metrics)
+            "duration": (metrics.end_time - metrics.start_time).total_seconds()
+            if metrics.end_time
+            else None,
+            "metrics": asdict(metrics),
         }
     except Exception as e:
         logger.error(f"Production deployment failed: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}

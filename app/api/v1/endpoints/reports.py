@@ -87,7 +87,7 @@ class ReportScheduleRequest(BaseModel):
 # Report Generation Endpoints
 
 
-@check_rate_limit(identifier="public", endpoint_type="public")
+@check_rate_limit(identifier="public", limit_name="public")
 @router.post("/generate", response_model=Dict[str, Any])
 async def generate_report(
     report_request: ReportGenerationRequestModel,
@@ -155,8 +155,8 @@ async def generate_report(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
       detail=f"Failed to generate report: {str(e)}"
         )
 
@@ -216,8 +216,8 @@ async def list_reports(
         raise
     except Exception as e:
         raise HTTPException(
-  
-@check_rate_limit(identifier="public", endpoint_type="public")
+
+@check_rate_limit(identifier="public", limit_name="public")
           status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list reports: {str(e)}"
         )

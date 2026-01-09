@@ -5,11 +5,12 @@ Centralizes all magic numbers, strings, and configuration values
 """
 
 from enum import Enum
-from typing import Dict, Any
+from typing import Any
 
 # =============================================================================
 # APPLICATION METADATA
 # =============================================================================
+
 
 class AppInfo:
     """Application metadata constants"""
@@ -26,6 +27,7 @@ class AppInfo:
 # =============================================================================
 # HTTP STATUS CODES
 # =============================================================================
+
 
 class HttpStatus:
     """HTTP status codes"""
@@ -47,6 +49,7 @@ class HttpStatus:
 # =============================================================================
 # CACHE SETTINGS
 # =============================================================================
+
 
 class CacheKeys:
     """Cache key prefixes"""
@@ -71,16 +74,17 @@ class CacheKeys:
 class CacheTTL:
     """Cache time-to-live values in seconds"""
 
-    SHORT = 300      # 5 minutes
-    MEDIUM = 1800    # 30 minutes
-    LONG = 3600      # 1 hour
+    SHORT = 300  # 5 minutes
+    MEDIUM = 1800  # 30 minutes
+    LONG = 3600  # 1 hour
     EXTENDED = 7200  # 2 hours
-    DAILY = 86400    # 24 hours
+    DAILY = 86400  # 24 hours
 
 
 # =============================================================================
 # AUTHENTICATION CONSTANTS
 # =============================================================================
+
 
 class Auth:
     """Authentication constants"""
@@ -109,6 +113,7 @@ class Auth:
 # =============================================================================
 # ASSESSMENT CONSTANTS
 # =============================================================================
+
 
 class Assessment:
     """Assessment-related constants"""
@@ -156,6 +161,7 @@ class Assessment:
 # DATABASE CONSTANTS
 # =============================================================================
 
+
 class Database:
     """Database constants"""
 
@@ -183,6 +189,7 @@ class Database:
 # =============================================================================
 # RATE LIMITING CONSTANTS
 # =============================================================================
+
 
 class RateLimit:
     """Rate limiting constants"""
@@ -212,18 +219,19 @@ class RateLimit:
 # FILE UPLOAD CONSTANTS
 # =============================================================================
 
+
 class FileUpload:
     """File upload constants"""
 
     # Size limits (bytes)
-    MAX_AVATAR_SIZE = 5 * 1024 * 1024      # 5MB
-    MAX_DOCUMENT_SIZE = 10 * 1024 * 1024   # 10MB
-    MAX_IMAGE_SIZE = 20 * 1024 * 1024      # 20MB
+    MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5MB
+    MAX_DOCUMENT_SIZE = 10 * 1024 * 1024  # 10MB
+    MAX_IMAGE_SIZE = 20 * 1024 * 1024  # 20MB
 
     # Allowed extensions
-    IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-    DOCUMENT_EXTENSIONS = {'.pdf', '.doc', '.docx', '.txt', '.rtf'}
-    SPREADSHEET_EXTENSIONS = {'.xls', '.xlsx', '.csv'}
+    IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".rtf"}
+    SPREADSHEET_EXTENSIONS = {".xls", ".xlsx", ".csv"}
 
     # Upload directories
     AVATAR_DIR = "uploads/avatars"
@@ -234,6 +242,7 @@ class FileUpload:
 # =============================================================================
 # EMAIL CONSTANTS
 # =============================================================================
+
 
 class Email:
     """Email constants"""
@@ -259,6 +268,7 @@ class Email:
 # VALIDATION CONSTANTS
 # =============================================================================
 
+
 class Validation:
     """Validation constants"""
 
@@ -270,17 +280,18 @@ class Validation:
     MAX_MESSAGE_LENGTH = 10000
 
     # Regular expressions
-    EMAIL_PATTERN = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    UUID_PATTERN = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    STRONG_PASSWORD_PATTERN = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]'
+    EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    STRONG_PASSWORD_PATTERN = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]"
 
     # Phone number
-    PHONE_PATTERN = r'^\+?1?-?\.?\s?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})$'
+    PHONE_PATTERN = r"^\+?1?-?\.?\s?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})$"
 
 
 # =============================================================================
 # LOGGING CONSTANTS
 # =============================================================================
+
 
 class Logging:
     """Logging constants"""
@@ -306,6 +317,7 @@ class Logging:
 # =============================================================================
 # API CONSTANTS
 # =============================================================================
+
 
 class API:
     """API constants"""
@@ -341,13 +353,14 @@ CORS_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:5173",
     "http://localhost:5174",
-    "http://localhost:5175"
+    "http://localhost:5175",
 ]
 
 
 # =============================================================================
 # TEAM CONSTANTS
 # =============================================================================
+
 
 class Team:
     """Team constants"""
@@ -377,6 +390,7 @@ class Team:
 # ORGANIZATION CONSTANTS
 # =============================================================================
 
+
 class Organization:
     """Organization constants"""
 
@@ -401,6 +415,7 @@ class Organization:
 # =============================================================================
 # AI PROCESSING CONSTANTS
 # =============================================================================
+
 
 class AIProcessing:
     """AI processing constants"""
@@ -427,6 +442,7 @@ class AIProcessing:
 # =============================================================================
 # SECURITY CONSTANTS
 # =============================================================================
+
 
 class Security:
     """Security constants"""
@@ -456,6 +472,7 @@ class Security:
 # =============================================================================
 # ENVIRONMENT VARIABLES
 # =============================================================================
+
 
 class EnvironmentVariables:
     """Environment variable names"""
@@ -498,7 +515,7 @@ class EnvironmentVariables:
 # DEFAULT VALUES DICTIONARY
 # =============================================================================
 
-DEFAULT_VALUES: Dict[str, Any] = {
+DEFAULT_VALUES: dict[str, Any] = {
     "timezone": "UTC",
     "locale": "en-US",
     "currency": "USD",
@@ -515,6 +532,7 @@ DEFAULT_VALUES: Dict[str, Any] = {
 # =============================================================================
 # STATUS ENUMS
 # =============================================================================
+
 
 class Status(str, Enum):
     """Common status values"""

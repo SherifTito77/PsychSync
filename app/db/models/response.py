@@ -1,28 +1,32 @@
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
+
 from app.core.database import Base
+
 
 class Response(Base):
     __tablename__ = "responses"
 
-    id = sa.Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()"))
+    id = sa.Column(
+        UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+    )
     assessment_id = sa.Column(
         UUID(as_uuid=True),
-        sa.ForeignKey('assessments.id', ondelete='CASCADE'),
+        sa.ForeignKey("assessments.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
     user_id = sa.Column(
         UUID(as_uuid=True),
-        sa.ForeignKey('users.id', ondelete='CASCADE'),
+        sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
     question_id = sa.Column(
         UUID(as_uuid=True),
-        sa.ForeignKey('assessment_questions.id', ondelete='CASCADE'),
-        nullable=False
+        sa.ForeignKey("assessment_questions.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     # Response data
@@ -39,8 +43,12 @@ class Response(Base):
     confidence_rating = sa.Column(sa.Integer, nullable=True)  # User's confidence (1-5)
 
     # Timestamps
-    created_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
-    updated_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
+    created_at = sa.Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
+    updated_at = sa.Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
 
     # Relationships
     assessment = relationship("Assessment")
@@ -48,7 +56,10 @@ class Response(Base):
     question = relationship("AssessmentQuestion", back_populates="responses")
 
     def __repr__(self):
-        return f"<Response(id={self.id}, assessment_id={self.assessment_id}, user_id={self.user_id})>"
+        return (
+            f"<Response(id={self.id}, assessment_id={self.assessment_id}, user_id={self.user_id})>"
+        )
+
 
 # Alias for backward compatibility and clearer naming
 AssessmentResponse = Response
