@@ -13,6 +13,7 @@
     "lint-staged": "^13.3.0"
   },
   "dependencies": {
+    "@tanstack/react-query-devtools": "^5.91.2",
     "react-hot-toast": "^2.6.0"
   }
 }

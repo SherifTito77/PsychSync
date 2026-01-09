@@ -45,9 +45,7 @@ async def handle_slack_events(request: Request):
         # Use Slack Bolt handler to process the request
         return await slack_bot.get_handler().handle(request)
     except Exception as e:
-        logger.error(f"Error handling Sla
-@check_rate_limit(identifier="public", limit_name="public")
-ck event: {str(e)}")
+        logger.error(f"Error handling Slack event: {str(e)}")
         return Response(status_code=500)
 
 

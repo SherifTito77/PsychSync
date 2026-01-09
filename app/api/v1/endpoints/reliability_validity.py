@@ -323,9 +323,7 @@ async def conduct_factor_analysis(
         )
 
     except Exception as e:
-        logger.error(f"Error in factor ana
-@check_rate_limit(identifier="public", limit_name="public")
-lysis: {str(e)}")
+        logger.error(f"Error in factor ana lysis: {str(e)}")
         return FactorAnalysisResponse(
             success=False,
             error_message=str(e)

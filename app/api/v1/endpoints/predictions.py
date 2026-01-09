@@ -268,9 +268,7 @@ async def make_predictions(
             )
 
     except Exception as e:
-        logger.error(f"Error in p
-@check_rate_limit(identifier="public", limit_name="public")
-rediction: {str(e)}")
+        logger.error(f"Error in p rediction: {str(e)}")
         return PredictionResponse(
             success=False,
             error_message=str(e)

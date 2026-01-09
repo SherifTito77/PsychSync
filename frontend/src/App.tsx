@@ -14,7 +14,6 @@ import { initializeSecurity, SecurityUtils } from './utils/securityUtils';
 import { pwaManager } from './utils/pwaManager';
 import PWAInstaller from './components/PWAInstaller';
 import OfflineStatusIndicator from './components/OfflineStatus';
-import './styles/pwa.css';
 // --- Core Pages (loaded immediately) ---
 import Login from './pages/Login';
 import Register from './pages/Register';

@@ -18,6 +18,20 @@ body {
   background-color: var(--color-gray-50);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* PWA Optimizations */
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+html {
+  /* PWA Optimizations */
+  -webkit-overflow-scrolling: touch;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
 }
 
 /* Typography */
