@@ -84,14 +84,12 @@ async def get_assessment_psychological_score(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assessment not found"
         )
-
     # Check permissions (user can access their own assessments, or admins can access all)
     if assessment.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this assessment"
         )
-
     try:
         # Calculate psychological score using the scoring service
         score_data = await ScoringService.calculate_psychological_score(
@@ -103,10 +101,8 @@ async def get_assessment_psychological_score(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail
-@check_rate_limit(identifier="public", limit_name="public")
-=f"Error calculating psychological score: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
+            detail=f"Error calculating psychological score: {str(e)}"
+        ) from e
 
 
 @router.get("/profile/{user_id}/psychometric", response_model=PsychometricProfileResponse)
@@ -125,8 +121,7 @@ async def get_psychometric_profile(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this profile"
-        )
-
+        ) from e
     try:
         # Generate psychometric profile
         profile_data = await ScoringService.generate_psychometric_profile(
@@ -137,11 +132,9 @@ async def get_psychometric_profile(
 
     except Exception as e:
         raise HTTPException(
-            statu
-@check_rate_limit(identifier="public", limit_name="public")
-s_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating psychometric profile: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating psychometric profile: {str(e)}"
+        ) from e
 
 
 @router.get("/team/{team_id}/psychology", response_model=TeamPsychologyResponse)
@@ -168,10 +161,8 @@ async def get_team_psychology_analysis(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing team psychology: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
-
-
+            detail=f"Error analyzing team psychology: {str(e)}"
+        ) from e
 @router.get("/user/{user_id}/wellness-trends")
 async def get_wellness_trends(
     user_id: str,
@@ -188,8 +179,7 @@ async def get_wellness_trends(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access these trends"
-        )
-
+        ) from e
     try:
         # Get historical wellness data
         trends_data = await ScoringService.get_wellness_trends(
@@ -206,10 +196,8 @@ async def get_wellness_trends(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving wellness trends: {str(e, dependencies=[Depends(get_current_user)])}"
-        )
-
-
+            detail=f"Error retrieving wellness trends: {str(e)}"
+        ) from e
 @router.post("/assessment/{assessment_id}/insights/generate", dependencies=[Depends(get_current_user)])
 async def generate_assessment_insights(
     assessment_id: str,
@@ -226,14 +214,12 @@ async def generate_assessment_insights(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assessment not found"
-        )
-
+        ) from e
     if assessment.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this assessment"
-        )
-
+        ) from e
     try:
         # Generate AI-powered insights
         insights = await ScoringService.generate_ai_insights(
@@ -250,9 +236,7 @@ async def generate_assessment_insights(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating insights: {str(e)}"
-        )
-
-
+        ) from e
 @router.get("/psychological-frameworks")
 async def get_available_psychological_frameworks():
     """
