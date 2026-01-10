@@ -248,7 +248,7 @@ class ProductionTokenValidator:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token validation failed",
                 headers={"WWW-Authenticate": "Bearer"},
-            )
+            ) from e
 
     async def blacklist_token(self, token: str, expires_in_hours: int = 24):
         """Add token to blacklist with expiration"""
@@ -562,7 +562,7 @@ async def initialize_production_auth(secret_key: str = None, redis_url: str = No
     secret_key = secret_key or os.getenv("SECRET_KEY")
 
     if not secret_key:
-        raise ValueError("SECRET_KEY must be configured for production authentication")
+        raise ValueError("SECRET_KEY must be configured for production authentication") from e
 
     # Test Redis connection first
     if not await test_redis_connection(redis_url):
