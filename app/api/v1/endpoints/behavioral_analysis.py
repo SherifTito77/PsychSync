@@ -91,10 +91,8 @@ async def analyze_behavioral_patterns(
         logger.error(f"Behavioral pattern analysis failed: {str(e)}")
         raise HTTPException(
             status_code=500,
-
-@check_rate_limit(identifier="public", limit_name="public")
-        detail="Behavioral pattern analysis failed"
-        )
+            detail="Behavioral pattern analysis failed"
+        ) from e
 
 
 @router.post("/anomalies/detect", response_model=AnomalyDetectionResponse)
@@ -156,13 +154,11 @@ async def detect_behavioral_anomalies(
         )
 
     except Exception as e:
-        logger.error(f"Anomaly detection failed:
-@check_rate_limit(identifier="public", limit_name="public")
- {str(e)}")
+        logger.error(f"Anomaly detection failed: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Anomaly detection failed"
-        )
+        ) from e
 
 
 @router.post("/team/insights", response_model=TeamBehavioralInsightsResponse)
@@ -242,7 +238,7 @@ async def get_team_behavioral_insights(
         raise HTTPException(
             status_code=500,
             detail="Team behavioral insights analysis failed"
-        )
+        ) from e
 
 
 @router.post("/trends/analyze", response_model=BehavioralTrendResponse)
@@ -299,7 +295,7 @@ async def analyze_behavioral_trends(
         raise HTTPException(
             status_code=500,
             detail="Behavioral trend analysis failed"
-        )
+        ) from e
 
 
 @router.get("/organization/{organization_id}/report", response_model=OrganizationalBehavioralReport)
@@ -392,7 +388,7 @@ async def get_organizational_behavioral_report(
         raise HTTPException(
             status_code=500,
             detail="Organizational behavioral report generation failed"
-        )
+        ) from e
 
 
 @router.get("/patterns/catalog")
@@ -494,4 +490,4 @@ async def get_behavioral_pattern_catalog(
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve behavioral pattern catalog"
-        )
+        ) from e
