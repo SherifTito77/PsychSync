@@ -162,7 +162,7 @@ def _serialize_default(obj: Any) -> Any:
     try:
         return str(obj)
     except Exception:
-        raise SerializationError(f"Cannot serialize object of type {type(obj)}")
+        raise SerializationError(f"Cannot serialize object of type {type(obj)}") from None
 
 
 def _deserialize_custom(obj: Any) -> Any:

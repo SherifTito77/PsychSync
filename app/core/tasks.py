@@ -49,7 +49,6 @@ celery_app.conf.update(
     worker_prefetch_multiplier=4,
     worker_max_tasks_per_child=1000,
     worker_disable_rate_limits=False,
-    worker_send_task_events=True,
 
     # Task execution
     task_always_eager=False,  # Don't run tasks synchronously

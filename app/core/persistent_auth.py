@@ -106,7 +106,7 @@ class PersistentAuthManager:
 
         except Exception as e:
             logger.error(f"Failed to generate persistent token: {e}")
-            raise RuntimeError("Token generation failed")
+            raise RuntimeError("Token generation failed") from e
 
     async def verify_persistent_token(
         self, selector: str, validator: str, ip_address: str = "", user_agent: str = ""

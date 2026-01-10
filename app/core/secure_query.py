@@ -422,7 +422,7 @@ class InputSanitizer:
         try:
             int_value = int(value)
         except (ValueError, TypeError):
-            raise ValueError("Must be an integer")
+            raise ValueError("Must be an integer") from e
 
         # Apply range limits
         if min_val is not None and int_value < min_val:

@@ -119,7 +119,7 @@ class SessionSecurityManager:
 
             except Exception as e:
                 logger.error(f"Failed to create secure session: {e}")
-                raise RuntimeError("Session creation failed")
+                raise RuntimeError("Session creation failed") from e
 
     async def validate_session(
         self, session_id: str, user_id: str, ip_address: str, user_agent: str

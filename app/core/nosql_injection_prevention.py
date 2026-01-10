@@ -163,7 +163,7 @@ class NoSQLInjectionPreventer:
             cls._validate_query_node(query)
             return True
         except ValueError as e:
-            raise ValueError(f"Unsafe query: {e}")
+            raise ValueError(f"Unsafe query: {e}") from e
 
     @classmethod
     def _validate_query_node(cls, node: Any, depth: int = 0) -> None:

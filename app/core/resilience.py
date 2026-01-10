@@ -507,7 +507,7 @@ class Bulkhead:
             await asyncio.wait_for(self.queue.put(None), timeout=1.0)
         except TimeoutError:
             self.rejected_calls += 1
-            raise BulkheadFullError(f"Bulkhead {self.name} queue timeout")
+            raise BulkheadFullError(f"Bulkhead {self.name} queue timeout") from e
 
         self.concurrent_calls += 1
 

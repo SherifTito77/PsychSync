@@ -59,7 +59,7 @@ def sanitize_path(
         raise PathTraversalError(
             f"Path traversal detected: {user_path} attempts to access "
             f"{full_path} outside allowed directory {allowed_dir}"
-        )
+        ) from None
 
     # Check file extension if whitelist provided
     if allowed_extensions is not None and full_path.is_file():

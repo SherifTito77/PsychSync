@@ -167,7 +167,7 @@ class EnterpriseSecurityManager:
                 return decrypted_data.decode()
             except Exception as e:
                 self.logger.error(f"Decryption failed: {e!s}")
-                raise ValueError("Decryption failed")
+                raise ValueError("Decryption failed") from e
         return encrypted_data
 
     def classify_data(self, data_type: str, content: Any) -> DataClassification:
