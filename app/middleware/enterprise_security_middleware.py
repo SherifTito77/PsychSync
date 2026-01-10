@@ -103,7 +103,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check for blocked IPs
         if await self._is_ip_blocked(client_ip):
-            raise HTTPException(status_code=403, detail="Access denied: IP address blocked")
+            raise HTTPException(status_code=403, detail="Access denied: IP address blocked") from e
 
         # Validate request size
         content_length = request.headers.get("content-length")
@@ -263,7 +263,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                 self.redis_client.setex(f"blocked_ip:{client_ip}", 300, "1")  # Block for 5 minutes
                 raise HTTPException(
                     status_code=429, detail="Burst limit exceeded - temporarily blocked"
-                )
+                ) from e
         except Exception as e:
             logger.error(f"Burst protection check failed: {e!s}")
 
@@ -438,7 +438,7 @@ async def get_user_data_portability(user_id: str, db: Session = Depends(get_db))
 
     except Exception as e:
         logger.error(f"GDPR data portability failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Data export failed")
+        raise HTTPException(status_code=500, detail="Data export failed") from e
 
 
 @gdpr_router.delete("/right-to-erasure/{user_id}")
@@ -464,7 +464,7 @@ async def request_data_erasure(user_id: str, db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"GDPR data erasure failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Data erasure failed")
+        raise HTTPException(status_code=500, detail="Data erasure failed") from e
 
 
 # Compliance Monitoring API
@@ -491,7 +491,7 @@ async def get_security_report(standards: str | None = None, db: Session = Depend
 
     except Exception as e:
         logger.error(f"Compliance report generation failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Report generation failed")
+        raise HTTPException(status_code=500, detail="Report generation failed") from e
 
 
 @compliance_router.post("/access-review")
@@ -508,7 +508,7 @@ async def perform_access_review(review_period_days: int = 90, db: Session = Depe
 
     except Exception as e:
         logger.error(f"Access review failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Access review failed")
+        raise HTTPException(status_code=500, detail="Access review failed") from e
 
 
 # Include routers in main application
