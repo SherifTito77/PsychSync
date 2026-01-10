@@ -155,7 +155,7 @@ async def generate_report(
     except Exception as e:
         raise HTTPException(            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate report: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/list", response_model=Dict[str, Any])
@@ -215,7 +215,7 @@ async def list_reports(
         raise HTTPException(
 
             detail=f"Failed to list reports: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/{report_id}", response_model=Dict[str, Any])
@@ -247,7 +247,7 @@ async def get_report(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to get report: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/{report_id}/download")
@@ -304,7 +304,7 @@ async def download_report(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to download report: {str(e)}"
-        )
+        ) from e
 
 
 # Template Management Endpoints
@@ -361,7 +361,7 @@ async def create_template(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to create template: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/templates", response_model=List[Dict[str, Any]])
@@ -394,7 +394,7 @@ async def get_templates(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to get templates: {str(e)}"
-        )
+        ) from e
 
 
 # Scheduling Endpoints
@@ -454,7 +454,7 @@ async def create_schedule(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to create schedule: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/schedules", response_model=List[Dict[str, Any]])
@@ -481,7 +481,7 @@ async def get_schedules(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to get schedules: {str(e)}"
-        )
+        ) from e
 
 
 # Analytics Endpoints
@@ -523,7 +523,7 @@ async def get_report_analytics(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to get report analytics: {str(e)}"
-        )
+        ) from e
 
 
 # System Administration Endpoints
@@ -561,7 +561,7 @@ async def execute_scheduled_reports(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to execute scheduled reports: {str(e)}"
-        )
+        ) from e
 
 
 @router.post("/cleanup", response_model=Dict[str, Any])
@@ -598,7 +598,7 @@ async def cleanup_expired_reports(
     except Exception as e:
         raise HTTPException(
             detail=f"Failed to cleanup reports: {str(e)}"
-        )
+        ) from e
 
 
 # Health Check Endpoint
