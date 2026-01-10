@@ -250,7 +250,7 @@ class BaseService(Generic[T, C, U], ABC):
             raise ValidationException(
                 f"Integrity error: {e!s}",
                 field="integrity"
-            )
+            ) from e
         except Exception as e:
             self.logger.log_error(e, operation="create", data=entity_data)
             raise

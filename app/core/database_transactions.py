@@ -73,7 +73,7 @@ async def database_transaction(
                 operation="transaction_rollback",
             )
 
-        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e)
+        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e) from e
 
     except Exception as e:
         # Rollback on any other errors
@@ -93,7 +93,7 @@ async def database_transaction(
                 operation="transaction_rollback",
             )
 
-        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e)
+        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e) from e
 
     finally:
         # Clean up session state

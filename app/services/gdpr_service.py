@@ -101,7 +101,7 @@ class GDPRService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Data export failed: {e!s}",
-            )
+            ) from e
 
     async def _collect_user_data(self, user_id: str, db: Session) -> dict[str, Any]:
         """Collect all user data from different tables"""
@@ -396,7 +396,7 @@ Contact privacy@psychsync.com for any questions about this data export.
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Data deletion failed: {e!s}",
-            )
+            ) from e
 
     async def _anonymize_user_data(self, user_id: str, db: Session):
         """Anonymize user data instead of hard deletion"""
