@@ -103,9 +103,7 @@ async def get_email_providers():
     return {
         "providers": IMAP_PROVIDERS,
         "default_provider": "gmail",
-        "setup_guide_url": "/api/v1/email-simple/setup-guide
-@check_rate_limit(identifier="public", limit_name="public")
-",
+        "setup_guide_url": "/api/v1/email-simple/setup-guide",
         "most_popular": ["gmail", "outlook", "yahoo"]
     }
 
@@ -195,9 +193,7 @@ async def get_setup_guide(provider: str):
 
     return EmailSetupGuide(
         provider=provider,
-        setup_steps=setup_step
-@check_rate_limit(identifier="public", limit_name="public")
-s,
+        setup_steps=setup_steps,
         app_password_url=app_password_url,
         common_issues=common_issues,
         estimated_time=estimated_time
@@ -376,7 +372,7 @@ async def get_my_connections(
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve email connections"
-        )
+        ) from e
 
 @router.post("/{connection_id}/sync", response_model=Dict[str, Any])
 async def sync_emails_simple(
@@ -456,7 +452,7 @@ async def sync_emails_simple(
         raise HTTPException(
             status_code=500,
             detail="Failed to sync emails"
-        )
+        ) from e
 
 @router.delete("/{connection_id}", response_model=Dict[str, str])
 async def delete_connection_simple(
@@ -497,7 +493,7 @@ async def delete_connection_simple(
         raise HTTPException(
             status_code=500,
             detail="Failed to delete email connection"
-        )
+        ) from e
 
 @router.get("/connection-status/{connection_id}", response_model=Dict[str, Any])
 async def get_connection_status(
@@ -552,7 +548,7 @@ async def get_connection_status(
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve connection status"
-        )
+        ) from e
 
 @router.get("/help/troubleshooting", response_model=Dict[str, Any])
 async def get_troubleshooting_help():
