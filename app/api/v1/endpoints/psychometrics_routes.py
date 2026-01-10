@@ -97,7 +97,7 @@ async def analyze_personality_from_text(
     except Exception as e:
         raise HTTPException(            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Personality analysis failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/emotion/analyze-state")
 async def analyze_emotional_state(
@@ -122,7 +122,7 @@ async def analyze_emotional_state(
 
 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Emotional state analysis failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/profile/comprehensive")
 async def generate_comprehensive_profile(
@@ -163,7 +163,7 @@ async def generate_comprehensive_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Profile generation failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/assessment/score")
 async def score_assessment(
@@ -187,12 +187,12 @@ async def score_assessment(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
-        )
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Assessment scoring failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/patterns/detect-cycles")
 async def detect_cyclical_patterns(
@@ -219,7 +219,7 @@ async def detect_cyclical_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Pattern detection failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/patterns/analyze-trend")
 async def analyze_behavioral_trend(
@@ -246,7 +246,7 @@ async def analyze_behavioral_trend(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trend analysis failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/intervention/analyze-effect")
 async def analyze_intervention_effect(
@@ -273,7 +273,7 @@ async def analyze_intervention_effect(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Intervention analysis failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/anomaly/detect")
 async def detect_anomalies(
@@ -297,7 +297,7 @@ async def detect_anomalies(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Anomaly detection failed: {str(e)}"
-        )
+        ) from e
 
 @router.post("/anomaly/detect-sudden-changes")
 async def detect_sudden_changes(
@@ -323,7 +323,7 @@ async def detect_sudden_changes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Change detection failed: {str(e)}"
-        )
+        ) from e
 
 @router.get("/health")
 async def psychometrics_health():
@@ -348,7 +348,7 @@ async def psychometrics_health():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Service unhealthy: {str(e)}"
-        )
+        ) from e
 
 @router.get("/supported-assessments")
 async def get_supported_assessments():
