@@ -460,7 +460,7 @@ class DatabaseSecurityRemediator:
                 if fixed:
                     fixes_applied[vulnerability.issue_type.value] += 1
                     fixes_applied["total"] += 1
-                    self.rem fixes_applied.append(vulnerability)
+                    self.remediations.append(vulnerability)
 
         except Exception as e:
             logger.error(f"Error applying vulnerability fixes: {e}")
@@ -660,7 +660,7 @@ class DatabaseSecurityRemediator:
             "issue_type_distribution": issue_type_counts,
             "average_cvss_score": round(avg_cvss, 2),
             "total_cvss_score": round(cvss_total, 2),
-            "fixes_applied": len(self.rem fixes_applied),
+            "fixes_applied": len(self.remediations),
             "recommendations": self._generate_recommendations()
         }
 
