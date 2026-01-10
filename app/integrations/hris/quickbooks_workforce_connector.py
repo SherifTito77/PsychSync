@@ -100,7 +100,7 @@ class QuickBooksWorkforceConnector(HRISConnector):
 
         except Exception as e:
             logger.error(f"Failed to refresh access token: {e}")
-            raise ConnectionError("Failed to refresh QuickBooks access token")
+            raise ConnectionError("Failed to refresh QuickBooks access token") from e
 
     def _get_basic_auth(self) -> str:
         """Get basic auth string for token refresh."""

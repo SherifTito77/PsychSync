@@ -209,7 +209,7 @@ class SIEMStreamer:
         elif config.siem_type == SIEMType.DATADOG:
             await self._send_to_datadog(config, events)
         else:
-            raise ValueError(f"Unsupported SIEM type: {config.siem_type}")
+            raise ValueError(f"Unsupported SIEM type: {config.siem_type}") from e
 
         self._stats["events_sent"] += len(events)
         self._stats["batches_sent"] += 1
