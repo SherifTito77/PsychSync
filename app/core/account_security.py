@@ -546,7 +546,7 @@ class AccountLockoutManager:
 
         except Exception as e:
             logger.error(f"Failed to generate password reset token: {e}")
-            raise RuntimeError("Token generation failed")
+            raise RuntimeError("Token generation failed") from e
 
     async def verify_password_reset_token(
         self, token: str, email: str, ip_address: str = "system", user_agent: str = "password_reset"
