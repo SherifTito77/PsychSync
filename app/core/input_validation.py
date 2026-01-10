@@ -139,7 +139,7 @@ class InputValidator:
 
                 data = json.loads(data)
             except json.JSONDecodeError:
-                raise ValueError("Invalid JSON format")
+                raise ValueError("Invalid JSON format") from None
 
         if not isinstance(data, dict):
             raise ValueError("Data must be a JSON object")
@@ -244,7 +244,7 @@ def validate_input(validators: dict):
                     try:
                         kwargs[param_name] = validator_func(kwargs[param_name])
                     except ValueError as e:
-                        raise ValueError(f"Invalid {param_name}: {e!s}")
+                        raise ValueError(f"Invalid {param_name}: {e!s}") from e
             return func(*args, **kwargs)
 
         return wrapper
