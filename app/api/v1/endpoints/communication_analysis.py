@@ -187,7 +187,7 @@ async def get_behavioral_indicators(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze behavioral indicators"
-        )
+        ) from e
 
 @router.get("/culture/team", response_model=CultureHealthResponse)
 async def get_team_culture_health(
@@ -237,7 +237,7 @@ async def get_team_culture_health(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze team culture"
-        )
+        ) from e
 
 @router.get("/culture/organization", response_model=CultureHealthResponse)
 async def get_organization_culture_health(
@@ -281,7 +281,7 @@ async def get_organization_culture_health(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze organization culture"
-        )
+        ) from e
 
 @router.get("/coaching/recommendations", response_model=List[CoachingRecommendationResponse])
 async def get_coaching_recommendations(
@@ -329,7 +329,7 @@ async def get_coaching_recommendations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate coaching recommendations"
-        )
+        ) from e
 
 @router.get("/insights/summary", response_model=InsightsSummaryResponse)
 async def get_insights_summary(
@@ -372,7 +372,7 @@ async def get_insights_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate insights summary"
-        )
+        ) from e
 
 @router.post("/coaching/{recommendation_id}/complete")
 async def complete_recommendation(
@@ -414,7 +414,7 @@ async def complete_recommendation(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to complete recommendation"
-        )
+        ) from e
 
 @router.get("/coaching/effectiveness")
 async def get_coaching_effectiveness(
@@ -436,7 +436,7 @@ async def get_coaching_effectiveness(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze coaching effectiveness"
-        )
+        ) from e
 
 @router.post("/analysis/trigger")
 async def trigger_analysis(
@@ -491,7 +491,7 @@ async def trigger_analysis(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to trigger analysis"
-        )
+        ) from e
 
 @router.get("/dashboard/metrics")
 async def get_dashboard_metrics(
@@ -552,4 +552,4 @@ async def get_dashboard_metrics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get dashboard metrics"
-        )
+        ) from e
