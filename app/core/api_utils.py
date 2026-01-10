@@ -155,13 +155,13 @@ def handle_api_errors(func: Callable) -> Callable:
         except HTTPException:
             raise
         except ValueError as e:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
         except PermissionError:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied") from e
         except Exception:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
-            )
+            ) from e
 
     return wrapper
 

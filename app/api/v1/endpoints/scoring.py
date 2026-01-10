@@ -86,9 +86,7 @@ def create_scoring_config(
     return {
         "id": config.id,
         "assessment_id": config.assessment_id,
-        "algori
-@check_rate_limit(identifier="public", limit_name="public")
-thm": config.algorithm,
+        "algorithm": config.algorithm,
         "config": config.config
     }
 
@@ -364,7 +362,7 @@ async def submit_assessment(assessment_data: dict):
             }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scoring failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Scoring failed: {str(e)}") from e
 
 
 def get_mbti_dimension_from_response(response_value: str) -> str:

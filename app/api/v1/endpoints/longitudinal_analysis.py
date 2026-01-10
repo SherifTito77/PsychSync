@@ -197,11 +197,8 @@ async def aggregate_time_series_data(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            de
-@check_rate_limit(identifier="public", limit_name="public")
-tail=f"Error aggregating time series data: {str(e)}"
-        )
-
+            detail=f"Error aggregating time series data: {str(e)}"
+        ) from e
 @router.post("/detect-changes", response_model=ChangeDetectionResponse)
 async def detect_behavioral_changes(
     request: ChangeDetectionRequest,
@@ -350,12 +347,10 @@ async def detect_behavioral_changes(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPExceptio
-@check_rate_limit(identifier="public", limit_name="public")
-n(
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error detecting changes: {str(e)}"
-        )
+        ) from e
 
 @router.post("/analyze-trends", response_model=TrendAnalysisResponse)
 async def analyze_trends(
@@ -479,8 +474,7 @@ async def analyze_trends(
         raise HTTPException(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing trends: {str(e)}"
-        )
-
+        ) from e
 @router.post("/calculate-baseline", response_model=BaselineCalculationResponse)
 async def calculate_baseline(
     request: BaselineCalculationRequest,
@@ -556,8 +550,7 @@ async def calculate_baseline(
         raise HTTPException(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calculating baseline: {str(e)}"
-        )
-
+        ) from e
 @router.post("/analyze-user-progression", response_model=UserProgressionResponse)
 async def analyze_user_progression(
     request: UserProgressionRequest,
@@ -610,8 +603,7 @@ async def analyze_user_progression(
         raise HTTPException(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error analyzing user progression: {str(e)}"
-        )
-
+        ) from e
 @router.post("/compare-users", response_model=Dict[str, Any])
 async def compare_longitudinal_data(
     request: ComparisonRequest,
@@ -740,8 +732,7 @@ async def compare_longitudinal_data(
         raise HTTPException(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error comparing longitudinal data: {str(e)}"
-        )
-
+        ) from e
 @router.get("/insights/{user_id}")
 async def get_user_insights(
     user_id: str,
@@ -813,7 +804,7 @@ async def get_user_insights(
         raise HTTPException(
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting user insights: {str(e)}"
-        )
+        ) from e
 
 # Import numpy for mock data generation
 import numpy as np
