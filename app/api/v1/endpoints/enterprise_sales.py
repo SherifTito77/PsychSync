@@ -52,8 +52,7 @@ async def create_enterprise_account(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin access required for enterprise account creation"
-            )
-
+            ) from e
         # Get organization
         organization = db.query(Organization).filter(
             Organization.id == organization_id
@@ -63,8 +62,7 @@ async def create_enterprise_account(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Organization not found"
-            )
-
+            ) from e
         # Create enterprise account
         account = await enterprise_sales_service.create_enterprise_account(
             organization=organization,
@@ -98,7 +96,7 @@ async def create_enterprise_account(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create enterprise account: {str(e)}"
-        )
+        ) from e
 
 @router.get("/accounts/health/{organization_id}")
 async def get_account_health(
@@ -115,8 +113,7 @@ async def get_account_health(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this organization"
-            )
-
+            ) from e
         health_metrics = await enterprise_sales_service.calculate_customer_health(
             organization_id, db
         )
@@ -146,10 +143,8 @@ async def get_account_health(
         logger.error(f"Failed to get account health for org {organization_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            d
-@check_rate_limit(identifier="public", limit_name="public")
-etail=f"Failed to retrieve account health: {str(e)}"
-        )
+            detail=f"Failed to retrieve account health: {str(e)}"
+        ) from e
 
 @router.get("/accounts/opportunities/{organization_id}")
 async def get_expansion_opportunities(
@@ -166,8 +161,7 @@ async def get_expansion_opportunities(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this organization"
-            )
-
+            ) from e
         opportunities = await enterprise_sales_service.generate_expansion_opportunities(
             organization_id, db
         )
@@ -186,7 +180,7 @@ async def get_expansion_opportunities(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve expansion opportunities: {str(e)}"
-        )
+        ) from e
 
 @router.post("/sla/monitor")
 async def monitor_sla_compliance(
@@ -204,8 +198,7 @@ async def monitor_sla_compliance(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin access required for SLA monitoring"
-            )
-
+            ) from e
         # Parse date range
         if date_range_start:
             start_date = datetime.fromisoformat(date_range_start.replace('Z', '+00:00'))
@@ -232,7 +225,7 @@ async def monitor_sla_compliance(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to monitor SLA compliance: {str(e)}"
-        )
+        ) from e
 
 @router.post("/qbr/schedule")
 async def schedule_qbr(
@@ -252,8 +245,7 @@ async def schedule_qbr(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this organization"
-            )
-
+            ) from e
         qbr_details = await enterprise_sales_service.schedule_qbr(
             organization_id=organization_id,
             qbr_type=qbr_type,
@@ -281,7 +273,7 @@ async def schedule_qbr(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to schedule QBR: {str(e)}"
-        )
+        ) from e
 
 @router.get("/accounts/dashboard")
 async def get_enterprise_dashboard(
@@ -297,8 +289,7 @@ async def get_enterprise_dashboard(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin access required for enterprise dashboard"
-            )
-
+            ) from e
         # Get all organizations with enterprise features
         enterprise_orgs = db.query(Organization).filter(
             Organization.subscription_tier.in_(["enterprise", "clinical"])
@@ -368,7 +359,7 @@ async def get_enterprise_dashboard(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve enterprise dashboard: {str(e)}"
-        )
+        ) from e
 
 @router.get("/features/tiers")
 async def get_enterprise_features():
@@ -393,7 +384,7 @@ async def get_enterprise_features():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve enterprise features"
-        )
+        ) from e
 
 @router.post("/accounts/interventions")
 async def trigger_intervention_playbook(
@@ -412,16 +403,14 @@ async def trigger_intervention_playbook(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this organization"
-            )
-
+            ) from e
         # Validate intervention type
         valid_interventions = ["new_onboarding", "at_risk_intervention", "renewal_campaign", "expansion_opportunity"]
         if intervention_type not in valid_interventions:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid intervention type. Valid options: {', '.join(valid_interventions)}"
-            )
-
+            ) from e
         # Get organization
         organization = db.query(Organization).filter(
             Organization.id == organization_id
@@ -431,8 +420,7 @@ async def trigger_intervention_playbook(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Organization not found"
-            )
-
+            ) from e
         # Create mock enterprise account for scheduling
         account = EnterpriseAccount(
             organization_id=organization_id,
@@ -478,7 +466,7 @@ async def trigger_intervention_playbook(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to trigger intervention: {str(e)}"
-        )
+        ) from e
 
 # Background task functions
 async def _send_qbr_invitation(
