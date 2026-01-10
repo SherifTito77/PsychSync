@@ -133,7 +133,7 @@ async def analyze_user_patterns(
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid pattern type: {e}"
-                )
+                ) from e
 
         # Perform analysis
         analysis = await pattern_recognizer.analyze_user_behavior(
@@ -278,7 +278,7 @@ async def match_patterns(
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid matching algorithm: {e}"
-                )
+                ) from e
 
         # Perform pattern matching
         matches = await pattern_engine.match_patterns(
@@ -318,7 +318,7 @@ async def match_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error matching patterns: str(e)"
-        )
+        ) from e
 
 @router.post("/compare", response_model=ComparisonResponse, dependencies=[Depends(get_current_user)])
 async def compare_patterns(
@@ -374,7 +374,7 @@ async def compare_patterns(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="At least 2 users required for comparison"
-            )
+            ) from e
 
         # Calculate similarity matrix
         similarity_matrix = calculate_similarity_matrix(comparison_data)
@@ -398,7 +398,7 @@ async def compare_patterns(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error comparing patterns: {str(e)}"
-        )
+        ) from e
 
 @router.get("/templates")
 async def get_pattern_templates(
@@ -494,7 +494,7 @@ async def get_user_insights(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting user insights: str(e)"
-        )
+        ) from e
 
 @router.get("/metrics/summary", dependencies=[Depends(get_current_user)])
 async def get_pattern_metrics_summary(
@@ -554,7 +554,7 @@ async def get_pattern_metrics_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting pattern metrics summary: {str(e)}"
-        )
+        ) from e
 
 # Background task for detailed anomaly analysis
 async def perform_detailed_anomaly_analysis(user_id: str, time_window_hours: int):
