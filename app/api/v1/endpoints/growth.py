@@ -69,10 +69,8 @@ async def trigger_growth_campaign(
         logger.error(f"Failed to trigger campaign {campaign_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-
-@check_rate_limit(identifier="public", limit_name="public")
-      detail=f"Failed to trigger campaign: {str(e)}"
-        )
+            detail=f"Failed to trigger campaign: {str(e)}"
+        ) from e
 
 @router.get("/campaigns", dependencies=[Depends(get_current_user)])
 async def list_campaigns():
@@ -101,9 +99,8 @@ async def list_campaigns():
 
     except Exception as e:
         logger.error(f"Failed to list campaigns: {str(e)}")
-        raise HTTPExcepti
-@check_rate_limit(identifier="public", limit_name="public")
-on(
+        raise HTTPException(
+
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve campaigns"
         )
