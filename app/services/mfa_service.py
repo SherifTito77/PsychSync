@@ -106,7 +106,7 @@ class MFAService:
         except Exception as e:
             logger.error(f"Failed to generate TOTP secret: {e!s}")
             await db.rollback()
-            raise MFASetupError(f"Failed to setup MFA: {e!s}")
+            raise MFASetupError(f"Failed to setup MFA: {e!s}") from e
 
     def generate_qr_code(self, qr_url: str) -> str:
         """
@@ -141,7 +141,7 @@ class MFAService:
 
         except Exception as e:
             logger.error(f"Failed to generate QR code: {e!s}")
-            raise MFASetupError(f"Failed to generate QR code: {e!s}")
+            raise MFASetupError(f"Failed to generate QR code: {e!s}") from e
 
     async def generate_backup_codes(self, user: User, db: AsyncSession) -> list[str]:
         """
@@ -180,7 +180,7 @@ class MFAService:
         except Exception as e:
             logger.error(f"Failed to generate backup codes: {e!s}")
             await db.rollback()
-            raise BackupCodeError(f"Failed to generate backup codes: {e!s}")
+            raise BackupCodeError(f"Failed to generate backup codes: {e!s}") from e
 
     async def verify_totp_code(self, user: User, code: str, db: AsyncSession) -> bool:
         """
@@ -229,7 +229,7 @@ class MFAService:
             raise
         except Exception as e:
             logger.error(f"TOTP verification error: {e!s}")
-            raise MFAVerificationError(f"Verification failed: {e!s}")
+            raise MFAVerificationError(f"Verification failed: {e!s}") from e
 
     async def verify_backup_code(
         self, user: User, code: str, db: AsyncSession, consume: bool = True
@@ -285,7 +285,7 @@ class MFAService:
             raise
         except Exception as e:
             logger.error(f"Backup code verification error: {e!s}")
-            raise BackupCodeError(f"Verification failed: {e!s}")
+            raise BackupCodeError(f"Verification failed: {e!s}") from e
 
     async def enable_mfa(self, user: User, db: AsyncSession) -> None:
         """
