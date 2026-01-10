@@ -142,10 +142,8 @@ async def create_experiment(
 
         return experiment_id
 
-    except Exception as
-@check_rate_limit(identifier="public", limit_name="public")
-e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/experiments", response_model=List[ExperimentResponse])
 async def get_experiments(
@@ -211,14 +209,13 @@ async def get_experiments(
         if status:
             experiments = [e for e in experiments if e.status == status]
         if test_type:
-            experiments = [e for e in experiments if e.test_type == test_typ
-@check_rate_limit(identifier="public", limit_name="public")
-e]
+            experiments = [e for e in experiments if e.test_typee == test_type
+]
 
         return experiments[:limit]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/experiments/{experiment_id}/assign", response_model=Optional[str])
 async def assign_user_to_experiment(
@@ -236,7 +233,7 @@ async def assign_user_to_experiment(
         return variant
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/experiments/{experiment_id}/track")
 async def track_experiment_event(
@@ -261,7 +258,7 @@ async def track_experiment_event(
             return {"status": "failed", "message": "Failed to track event"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/experiments/{experiment_id}/results")
 async def get_experiment_results(
@@ -295,7 +292,7 @@ async def get_experiment_results(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/gamification/profile", response_model=GamificationProfileResponse)
 async def get_gamification_profile(
@@ -332,7 +329,7 @@ async def get_gamification_profile(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/gamification/achievements", response_model=Dict[str, Any])
 async def award_achievement(
@@ -373,7 +370,7 @@ async def award_achievement(
             }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/gamification/leaderboard", response_model=LeaderboardResponse)
 async def get_leaderboard(
@@ -405,7 +402,7 @@ async def get_leaderboard(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/voice/analyze", response_model=VoiceAnalysisResponse)
 async def analyze_voice_response(
@@ -451,7 +448,7 @@ async def analyze_voice_response(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/voice/analysis/{analysis_id}")
 async def get_voice_analysis_result(
@@ -490,7 +487,7 @@ async def get_voice_analysis_result(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/voice/stats")
 async def get_voice_analysis_stats(
@@ -508,7 +505,7 @@ async def get_voice_analysis_stats(
         return stats
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/dashboard", response_model=LabDashboardResponse)
 async def get_experimental_lab_dashboard(
@@ -533,7 +530,7 @@ async def get_experimental_lab_dashboard(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/opt-in", response_model=Dict[str, Any])
 async def opt_in_experimental_features(
@@ -556,7 +553,7 @@ async def opt_in_experimental_features(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/available-features")
 async def get_available_experimental_features(
@@ -599,7 +596,7 @@ async def get_available_experimental_features(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/feedback")
 async def submit_experimental_feature_feedback(
@@ -622,7 +619,7 @@ async def submit_experimental_feature_feedback(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/analytics/experiment-participation")
 async def get_experiment_participation_analytics(
@@ -667,7 +664,7 @@ async def get_experiment_participation_analytics(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.get("/analytics/gamification-engagement")
 async def get_gamification_engagement_analytics(
@@ -712,4 +709,4 @@ async def get_gamification_engagement_analytics(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
