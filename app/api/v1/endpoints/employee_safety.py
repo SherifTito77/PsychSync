@@ -155,7 +155,7 @@ async def report_incident(
     except Exception as e:
         raise HTTPException(            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to report incident: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/incidents", response_model=Dict[str, Any])
@@ -240,7 +240,7 @@ async def get_incidents(
 
 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get incidents: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/incidents/{incident_id}", response_model=Dict[str, Any])
@@ -273,7 +273,7 @@ async def get_incident(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get incident: {str(e)}"
-        )
+        ) from e
 
 
 @router.put("/incidents/{incident_id}", response_model=Dict[str, Any])
@@ -322,7 +322,7 @@ async def update_incident(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update incident: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/incidents/dashboard", response_model=Dict[str, Any])
@@ -366,7 +366,7 @@ async def get_incidents_dashboard(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get incidents dashboard: {str(e)}"
-        )
+        ) from e
 
 
 # Wellness Monitoring Endpoints
@@ -448,7 +448,7 @@ async def create_wellness_assessment(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create wellness assessment: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/wellness/dashboard", response_model=Dict[str, Any])
@@ -486,7 +486,7 @@ async def get_wellness_dashboard(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get wellness dashboard: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/wellness/assessments/{user_id}", response_model=List[Dict[str, Any]])
@@ -532,7 +532,7 @@ async def get_employee_wellness_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get wellness history: {str(e)}"
-        )
+        ) from e
 
 
 # Safety Resources Endpoints
@@ -597,7 +597,7 @@ async def create_safety_resource(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create safety resource: {str(e)}"
-        )
+        ) from e
 
 
 @router.get("/resources", response_model=List[Dict[str, Any]])
@@ -638,7 +638,7 @@ async def get_safety_resources(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get safety resources: {str(e)}"
-        )
+        ) from e
 
 
 # File Upload Endpoint for Evidence
@@ -691,7 +691,7 @@ async def upload_evidence(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload evidence: {str(e)}"
-        )
+        ) from e
 
 
 # Health Check Endpoint
