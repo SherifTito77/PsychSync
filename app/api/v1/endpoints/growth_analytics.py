@@ -3,24 +3,20 @@ Growth Analytics API Endpoints
 Advanced analytics for conversion optimization, user behavior analysis, and growth forecasting
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
-
-from app.middleware.rate_limiter import check_rate_limit
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
-from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import logging
+from typing import Any
 
-from app.core.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+
 from app.core.security import get_current_user
 from app.db.models.user import User
+from app.middleware.rate_limiter import check_rate_limit
 from app.services.growth_analytics_service import (
-    GrowthAnalyticsService,
-    ConversionEventType,
     ConversionEvent,
+    ConversionEventType,
     UserSegment,
-    growth_analytics_service
+    growth_analytics_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,11 +29,11 @@ router = APIRouter(prefix="/analytics/growth", tags=["Growth Analytics"])
 async def track_conversion_event(
     user_id: str,
     event_type: ConversionEventType,
-    event_data: Dict[str, Any],
-    funnel_stage: Optional[str] = None,
-    attribution_data: Optional[Dict[str, Any]] = None,
+    event_data: dict[str, Any],
+    funnel_stage: str | None = None,
+    attribution_data: dict[str, Any] | None = None,
     revenue_impact: float = 0.0,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Track conversion event for analytics
@@ -47,7 +43,7 @@ async def track_conversion_event(
         if not current_user.is_admin and str(current_user.id) != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to track events for this user"
+                detail="Access denied to track events for this user",
             )
 
         # Create conversion event
@@ -58,7 +54,7 @@ async def track_conversion_event(
             event_data=event_data,
             funnel_stage=funnel_stage or "unknown",
             attribution_data=attribution_data or {},
-            revenue_impact=revenue_impact
+            revenue_impact=revenue_impact,
         )
 
         # Track event
@@ -69,26 +65,25 @@ async def track_conversion_event(
             "event_id": result["event_id"],
             "user_segment": result["user_segment"].value,
             "triggers_activated": result["triggers_activated"],
-            "real_time_insights": result["real_time_insights"]
+            "real_time_insights": result["real_time_insights"],
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to track conversion event: {str(e)}")
+        logger.error(f"Failed to track conversion event: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to track conversion event: {e!s}",
+        ) from e
 
-@check_rate_limit(identifier="public", limit_name="public")
-detail=f"Failed to track conversion event: {str(e)}"
-        )
 
 @router.get("/behavior/analyze")
 async def analyze_user_behavior(
-    user_id: Optional[str] = None,
-    segment: Optional[UserSegment] = None,
+    user_id: str | None = None,
+    segment: UserSegment | None = None,
     date_range_days: int = 30,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Analyze comprehensive user behavior patterns
@@ -98,14 +93,12 @@ async def analyze_user_behavior(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for behavior analytics"
+                detail="Admin access required for behavior analytics",
             )
 
         # Analyze behavior patterns
         analysis = await growth_analytics_service.analyze_user_behavior_patterns(
-            user_id=user_id,
-            segment=segment,
-            date_range_days=date_range_days
+            user_id=user_id, segment=segment, date_range_days=date_range_days
         )
 
         return analysis
@@ -113,19 +106,18 @@ async def analyze_user_behavior(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to analyze user behavior: {str(e)}")
+        logger.error(f"Failed to analyze user behavior: {e!s}")
         raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to analyze user behavior: {e!s}",
+        ) from e
 
-@check_rate_limit(identifier="public", limit_name="public")
-  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to analyze user behavior: {str(e)}"
-        )
 
 @router.post("/funnel/optimize")
 async def optimize_conversion_funnel(
     funnel_name: str,
-    optimization_goals: Optional[List[str]] = None,
-    current_user: User = Depends(get_current_user)
+    optimization_goals: list[str] | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Analyze and optimize conversion funnel performance
@@ -135,13 +127,12 @@ async def optimize_conversion_funnel(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for funnel optimization"
+                detail="Admin access required for funnel optimization",
             )
 
         # Optimize funnel
         optimization = await growth_analytics_service.optimize_conversion_funnel(
-            funnel_name=funnel_name,
-            optimization_goals=optimization_goals
+            funnel_name=funnel_name, optimization_goals=optimization_goals
         )
 
         return optimization
@@ -149,22 +140,20 @@ async def optimize_conversion_funnel(
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Failed to optimize conversion funnel {funnel_name}: {str(e)}")
+        logger.error(f"Failed to optimize conversion funnel {funnel_name}: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to optimize conversion funnel: {str(e)}"
-        )
+            detail=f"Failed to optimize conversion funnel: {e!s}",
+        ) from e
+
 
 @router.get("/forecast/growth")
 async def forecast_growth(
     forecast_period_days: int = 90,
-    scenarios: Optional[List[str]] = None,
-    current_user: User = Depends(get_current_user)
+    scenarios: list[str] | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate comprehensive growth forecasts
@@ -174,20 +163,19 @@ async def forecast_growth(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for growth forecasting"
+                detail="Admin access required for growth forecasting",
             )
 
         # Validate forecast period
         if forecast_period_days < 7 or forecast_period_days > 365:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Forecast period must be between 7 and 365 days"
+                detail="Forecast period must be between 7 and 365 days",
             )
 
         # Generate growth forecast
         forecast = await growth_analytics_service.forecast_growth(
-            forecast_period_days=forecast_period_days,
-            scenarios=scenarios
+            forecast_period_days=forecast_period_days, scenarios=scenarios
         )
 
         return forecast
@@ -195,17 +183,18 @@ async def forecast_growth(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to generate growth forecast: {str(e)}")
+        logger.error(f"Failed to generate growth forecast: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate growth forecast: {str(e)}"
-        )
+            detail=f"Failed to generate growth forecast: {e!s}",
+        ) from e
+
 
 @router.get("/clv/calculate")
 async def calculate_customer_lifetime_value(
     segmentation: bool = True,
     predictive: bool = True,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Calculate comprehensive Customer Lifetime Value (CLV) metrics
@@ -215,13 +204,12 @@ async def calculate_customer_lifetime_value(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for CLV calculations"
+                detail="Admin access required for CLV calculations",
             )
 
         # Calculate CLV
         clv_analysis = await growth_analytics_service.calculate_customer_lifetime_value(
-            segmentation=segmentation,
-            predictive=predictive
+            segmentation=segmentation, predictive=predictive
         )
 
         return clv_analysis
@@ -229,17 +217,18 @@ async def calculate_customer_lifetime_value(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to calculate customer lifetime value: {str(e)}")
+        logger.error(f"Failed to calculate customer lifetime value: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to calculate customer lifetime value: {str(e)}"
-        )
+            detail=f"Failed to calculate customer lifetime value: {e!s}",
+        ) from e
+
 
 @router.get("/dashboard/growth")
 async def get_growth_dashboard(
     date_range_days: int = 30,
     include_forecasts: bool = True,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate comprehensive growth analytics dashboard
@@ -249,20 +238,19 @@ async def get_growth_dashboard(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for growth dashboard"
+                detail="Admin access required for growth dashboard",
             )
 
         # Validate date range
         if date_range_days < 1 or date_range_days > 365:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Date range must be between 1 and 365 days"
+                detail="Date range must be between 1 and 365 days",
             )
 
         # Generate dashboard
         dashboard = await growth_analytics_service.generate_comprehensive_growth_dashboard(
-            date_range_days=date_range_days,
-            include_forecasts=include_forecasts
+            date_range_days=date_range_days, include_forecasts=include_forecasts
         )
 
         return dashboard
@@ -270,11 +258,12 @@ async def get_growth_dashboard(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to generate growth dashboard: {str(e)}")
+        logger.error(f"Failed to generate growth dashboard: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate growth dashboard: {str(e)}"
-        )
+            detail=f"Failed to generate growth dashboard: {e!s}",
+        ) from e
+
 
 @router.get("/segments/list")
 async def list_user_segments(current_user: User = Depends(get_current_user)):
@@ -286,7 +275,7 @@ async def list_user_segments(current_user: User = Depends(get_current_user)):
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for segment information"
+                detail="Admin access required for segment information",
             )
 
         segments = {}
@@ -295,22 +284,20 @@ async def list_user_segments(current_user: User = Depends(get_current_user)):
                 "name": segment_enum.value,
                 "criteria": segment_def["criteria"],
                 "characteristics": segment_def["characteristics"],
-                "recommended_strategies": segment_def["strategies"]
+                "recommended_strategies": segment_def["strategies"],
             }
 
-        return {
-            "available_segments": segments,
-            "total_segments": len(segments)
-        }
+        return {"available_segments": segments, "total_segments": len(segments)}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to list user segments: {str(e)}")
+        logger.error(f"Failed to list user segments: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list user segments: {str(e)}"
-        )
+            detail=f"Failed to list user segments: {e!s}",
+        ) from e
+
 
 @router.get("/funnels/list")
 async def list_conversion_funnels(current_user: User = Depends(get_current_user)):
@@ -322,7 +309,7 @@ async def list_conversion_funnels(current_user: User = Depends(get_current_user)
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for funnel information"
+                detail="Admin access required for funnel information",
             )
 
         funnels = {}
@@ -332,28 +319,26 @@ async def list_conversion_funnels(current_user: User = Depends(get_current_user)
                 "description": funnel_def.get("description", ""),
                 "stages": funnel_def["stages"],
                 "success_metric": funnel_def["success_metric"],
-                "target_conversion_rate": funnel_def["target_conversion_rate"]
+                "target_conversion_rate": funnel_def["target_conversion_rate"],
             }
 
-        return {
-            "available_funnels": funnels,
-            "total_funnels": len(funnels)
-        }
+        return {"available_funnels": funnels, "total_funnels": len(funnels)}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to list conversion funnels: {str(e)}")
+        logger.error(f"Failed to list conversion funnels: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list conversion funnels: {str(e)}"
-        )
+            detail=f"Failed to list conversion funnels: {e!s}",
+        ) from e
+
 
 @router.get("/metrics/acquisition")
 async def get_acquisition_metrics(
     date_range_days: int = 30,
-    channel: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    channel: str | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get detailed acquisition metrics
@@ -363,7 +348,7 @@ async def get_acquisition_metrics(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for acquisition metrics"
+                detail="Admin access required for acquisition metrics",
             )
 
         # Calculate acquisition metrics
@@ -377,25 +362,26 @@ async def get_acquisition_metrics(
             "period": {
                 "start": (datetime.utcnow() - timedelta(days=date_range_days)).isoformat(),
                 "end": datetime.utcnow().isoformat(),
-                "days": date_range_days
+                "days": date_range_days,
             },
-            "metrics": metrics
+            "metrics": metrics,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get acquisition metrics: {str(e)}")
+        logger.error(f"Failed to get acquisition metrics: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get acquisition metrics: {str(e)}"
-        )
+            detail=f"Failed to get acquisition metrics: {e!s}",
+        ) from e
+
 
 @router.get("/metrics/engagement")
 async def get_engagement_metrics(
     date_range_days: int = 30,
-    segment: Optional[UserSegment] = None,
-    current_user: User = Depends(get_current_user)
+    segment: UserSegment | None = None,
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get detailed engagement metrics
@@ -405,7 +391,7 @@ async def get_engagement_metrics(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required for engagement metrics"
+                detail="Admin access required for engagement metrics",
             )
 
         # Calculate engagement metrics
@@ -415,30 +401,31 @@ async def get_engagement_metrics(
             "period": {
                 "start": (datetime.utcnow() - timedelta(days=date_range_days)).isoformat(),
                 "end": datetime.utcnow().isoformat(),
-                "days": date_range_days
+                "days": date_range_days,
             },
             "segment_filter": segment.value if segment else "all_users",
-            "metrics": metrics
+            "metrics": metrics,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get engagement metrics: {str(e)}")
+        logger.error(f"Failed to get engagement metrics: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get engagement metrics: {str(e)}"
-        )
+            detail=f"Failed to get engagement metrics: {e!s}",
+        ) from e
+
 
 @router.post("/experiments/start")
 async def start_ab_test(
     test_name: str,
     hypothesis: str,
-    variant_a_config: Dict[str, Any],
-    variant_b_config: Dict[str, Any],
+    variant_a_config: dict[str, Any],
+    variant_b_config: dict[str, Any],
     traffic_split: float = 0.5,
     sample_size_target: int = 1000,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Start new A/B test for conversion optimization
@@ -448,30 +435,31 @@ async def start_ab_test(
         if not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin access required to start A/B tests"
+                detail="Admin access required to start A/B tests",
             )
 
         # Validate inputs
         if not test_name or not hypothesis:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Test name and hypothesis are required"
+                detail="Test name and hypothesis are required",
             )
 
         if traffic_split <= 0 or traffic_split >= 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Traffic split must be between 0 and 1 (exclusive)"
+                detail="Traffic split must be between 0 and 1 (exclusive)",
             )
 
         # Create A/B test
         from app.services.growth_marketing_service import growth_service
+
         ab_test = await growth_service.create_a_b_test(
             test_name=test_name,
             hypothesis=hypothesis,
             variant_a_config=variant_a_config,
             variant_b_config=variant_b_config,
-            traffic_split=traffic_split
+            traffic_split=traffic_split,
         )
 
         # Update sample size target
@@ -481,14 +469,14 @@ async def start_ab_test(
             "success": True,
             "ab_test": ab_test,
             "monitoring_dashboard": f"/analytics/ab-tests/{ab_test['test_id']}",
-            "estimated_duration": f"{sample_size_target // 10} days at 10 users/day"
+            "estimated_duration": f"{sample_size_target // 10} days at 10 users/day",
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to start A/B test: {str(e)}")
+        logger.error(f"Failed to start A/B test: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start A/B test: {str(e)}"
-        )
+            detail=f"Failed to start A/B test: {e!s}",
+        ) from e
