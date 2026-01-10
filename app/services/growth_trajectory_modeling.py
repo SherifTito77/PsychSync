@@ -156,7 +156,7 @@ class GrowthTrajectoryModeler:
                 continue
 
         if not fitted_models:
-            raise ValueError("No suitable models could be fitted to the data")
+            raise ValueError("No suitable models could be fitted to the data") from e
 
         # Select best model based on AIC/BIC
         best_model = self._select_best_model(fitted_models)
@@ -495,7 +495,7 @@ class GrowthTrajectoryModeler:
             )
 
         except Exception as e:
-            raise ValueError(f"Linear model fitting failed: {e}")
+            raise ValueError(f"Linear model fitting failed: {e}") from e
 
     async def _fit_exponential_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
         """Fit exponential growth model: y = a * exp(b * x) + c"""
@@ -545,7 +545,7 @@ class GrowthTrajectoryModeler:
             )
 
         except Exception as e:
-            raise ValueError(f"Exponential model fitting failed: {e}")
+            raise ValueError(f"Exponential model fitting failed: {e}") from e
 
     async def _fit_logistic_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
         """Fit logistic growth model: y = L / (1 + exp(-k*(x - x0)))"""
@@ -600,7 +600,7 @@ class GrowthTrajectoryModeler:
             )
 
         except Exception as e:
-            raise ValueError(f"Logistic model fitting failed: {e}")
+            raise ValueError(f"Logistic model fitting failed: {e}") from e
 
     async def _fit_sigmoidal_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
         """Fit sigmoidal model: y = L / (1 + exp(-k*(x - x0))) + y0"""
@@ -651,7 +651,7 @@ class GrowthTrajectoryModeler:
             )
 
         except Exception as e:
-            raise ValueError(f"Sigmoidal model fitting failed: {e}")
+            raise ValueError(f"Sigmoidal model fitting failed: {e}") from e
 
     async def _fit_power_law_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
         """Fit power law model: y = a * x^b + c"""
@@ -699,7 +699,7 @@ class GrowthTrajectoryModeler:
             )
 
         except Exception as e:
-            raise ValueError(f"Power law model fitting failed: {e}")
+            raise ValueError(f"Power law model fitting failed: {e}") from e
 
     async def _fit_polynomial_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
         """Fit polynomial model (quadratic): y = ax^2 + bx + c"""
@@ -742,7 +742,7 @@ class GrowthTrajectoryModeler:
             )
 
         except Exception as e:
-            raise ValueError(f"Polynomial model fitting failed: {e}")
+            raise ValueError(f"Polynomial model fitting failed: {e}") from e
 
     # Additional helper methods for growth analysis
     def _select_best_model(self, models: list[ModelParameters]) -> ModelParameters:
