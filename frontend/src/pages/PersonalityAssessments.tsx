@@ -2,8 +2,8 @@
 // ✅ UPDATED: StrengthsFinder added and debug features implemented
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { aiService } from '@/services/aiService';
 import type { AIProcessingResponse, PersonalityFramework } from '@/services/aiService';
 

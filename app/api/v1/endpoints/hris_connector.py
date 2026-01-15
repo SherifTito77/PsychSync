@@ -233,9 +233,7 @@ async def analyze_workforce_data(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"HRIS analytics analysis failed: {str(
-@check_rate_limit(identifier="public", limit_name="public")
-e)}")
+        logger.error(f"HRIS analytics analysis failed: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="HRIS analytics analysis failed"
@@ -580,7 +578,7 @@ async def disconnect_hris_system(
             "success": True,
             "organization_id": organization_id,
             "connection_id": connection_id,
-            disconnected_at=datetime.utcnow(),
+            "disconnected_at": datetime.utcnow(),
             "data_retained": data_retention["data_retained"],
             "data_archived": data_retention["data_archived"],
             "data_deleted": data_retention["data_deleted"],

@@ -8,7 +8,7 @@ from functools import wraps
 import hashlib
 import logging
 import time
-from typing import Any
+from typing import Any, Callable
 
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -170,11 +170,11 @@ class RateLimiterCore:
 def rate_limit(
     limit: int,
     window_seconds: int,
-    key_func: callable | None = None,
+    key_func: Callable | None = None,
     identifier: str | None = None,
     per_user: bool = False,
     per_ip: bool = True,
-    custom_response: callable | None = None,
+    custom_response: Callable | None = None,
 ):
     """
     Rate limiting decorator for FastAPI endpoints

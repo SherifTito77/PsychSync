@@ -1,28 +1,36 @@
-[tool.pytest]
-addopts = "--strict-markers"
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --cov=app --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
-python_files = ["tests.py", "test_*.py", "*_test.py"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "security: Security tests",
+    "performance: Performance tests",
+]
 
 [tool.coverage.run]
 source = ["app"]
 omit = [
     "*/tests/*",
-    "*/migrations/*",
+    "*/test_*.py",
     "*/__pycache__/*",
     "*/venv/*",
-    "*/env/*",
-    "*/site-packages/*",
-    "*/conftest.py"
+    "*/migrations/*",
 ]
 
 [tool.coverage.report]
+precision = 2
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
     "raise AssertionError",
     "raise NotImplementedError",
-    "if __name__ == .__main__.:  # pragma: no cover",
-    "if TYPE_CHECKING:  # pragma: no cover",
-    "class .*\\bProtocol\\b:  # pragma: no cover",
-    "@(abc\\.)?abstractmethod"
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
 ]
+fail_under = 70

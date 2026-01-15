@@ -128,8 +128,19 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         """Validate request before processing."""
-        # Skip validation for auth endpoints to avoid consuming form data
-        if "/auth/" in request.url.path:
+        # Skip validation for:
+        # 1. Auth endpoints to avoid consuming form data
+        # 2. OPTIONS requests for CORS preflight
+        # 3. Simple auth endpoints (for development/testing)
+        should_skip = (
+            "/auth/" in request.url.path or
+            request.method == "OPTIONS" or
+            "/simple-login" in request.url.path or
+            "/verify-token" in request.url.path or
+            request.url.path == "/me"
+        )
+
+        if should_skip:
             response = await call_next(request)
             response.headers["X-Content-Type-Options"] = "nosniff"
             response.headers["X-Frame-Options"] = "DENY"

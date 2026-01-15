@@ -17,4 +17,5 @@ const Label: React.FC<LabelProps> = ({ children, htmlFor, className = '' }) => {
   );
 };
 
+export { Label };
 export default Label;

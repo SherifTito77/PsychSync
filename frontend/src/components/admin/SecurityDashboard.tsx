@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from '@/components/ui/Card';
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';

@@ -36,6 +36,11 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
     password: str | None = None
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {'full_name': 'John Smith', 'phone': '+1234567890', 'bio': 'Software engineer passionate about psychology'}
+        }
+    )
 
 class UserRead(UserBase):
     """Schema for reading user data"""

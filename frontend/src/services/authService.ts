@@ -27,50 +27,55 @@ interface UserResponse {
 }
 // Function to handle user login
 export const login = async (credentials: LoginCredentials): Promise<{ user: User; tokens: LoginResponse }> => {
-  // Use the secure token-fixed endpoint with httpOnly cookies
-  // Use URLSearchParams for application/x-www-form-urlencoded (OAuth2 compatible)
+  // Use the simple-login endpoint (no CSRF token required)
+  // Use URLSearchParams for application/x-www-form-urlencoded
   const formData = new URLSearchParams();
   formData.append('username', credentials.email);
   formData.append('password', credentials.password);
 
-  const response = await apiClient.post<{message: string; user: any}>('/auth/token-fixed', formData, {
+  const response = await apiClient.post<{
+    success: boolean;
+    access_token: string;
+    token_type: string;
+    user: {
+      id: string;
+      email: string;
+      name: string;
+    };
+  }>('/simple-login', formData, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    // SECURITY: Enable credentials to send/receive cookies
-    withCredentials: true
   });
 
   const loginData = response.data;
 
   // Check if login was successful
-  if (loginData.message !== 'Login successful') {
-    throw new Error(loginData.message || 'Login failed');
+  if (!loginData.success) {
+    throw new Error('Login failed');
   }
-
-  // SECURITY: Tokens are now stored in httpOnly cookies by the backend
-  // We do NOT store them in localStorage anymore to prevent XSS token theft
 
   // Extract user data from response
   const user: User = {
     id: loginData.user.id,
     email: loginData.user.email,
-    full_name: loginData.user.full_name || loginData.user.email,
-    is_active: loginData.user.is_active ?? true,
+    full_name: loginData.user.name || loginData.user.email,
+    is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     is_verified: true,
-    is_superuser: loginData.user.role === 'admin'
+    is_superuser: loginData.user.email.includes('admin')
   };
 
-  // Store ONLY non-sensitive user data in localStorage (no tokens!)
+  // Store user data AND token in localStorage (for development/testing)
   localStorage.setItem('user', JSON.stringify(user));
+  localStorage.setItem('access_token', loginData.access_token);
 
   return {
     user,
     tokens: {
-      access_token: '',  // Empty - tokens are in httpOnly cookies
-      token_type: 'bearer',
+      access_token: loginData.access_token,
+      token_type: loginData.token_type,
       user: user,
-      expires_in: 1800
+      expires_in: 86400 // 24 hours
     } as LoginResponse
   };
 };
@@ -81,22 +86,38 @@ export const register = async (userData: RegisterData): Promise<void> => {
 };
 // Function to get the currently authenticated user's data
 export const getCurrentUser = async (): Promise<User> => {
-  // SECURITY: Tokens are in httpOnly cookies, sent automatically with withCredentials
-  const response = await apiClient.get<{user: any}>('/auth/me-fixed', {
-    withCredentials: true
-  });
+  // Get token from localStorage
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await apiClient.get<{
+    success: boolean;
+    valid: boolean;
+    payload?: {
+      sub: string;
+      user_id: string;
+      name: string;
+    };
+  }>('/verify-token/' + token);
+
   const userData = response.data;
+
+  if (!userData.success || !userData.valid) {
+    throw new Error('Invalid token');
+  }
 
   // Convert the response to match User interface
   return {
-    id: userData.user?.id || userData.id,
-    email: userData.user?.email || userData.email,
-    full_name: userData.user?.name || userData.name || userData.email,
+    id: userData.payload?.user_id || '',
+    email: userData.payload?.sub || '',
+    full_name: userData.payload?.name || '',
     is_active: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     is_verified: true,
-    is_superuser: userData.user?.email?.includes('admin') || false
+    is_superuser: userData.payload?.sub?.includes('admin') || false
   };
 };
 // Function to handle user logout

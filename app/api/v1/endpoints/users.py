@@ -44,7 +44,7 @@ from app.schemas.user import UserCreate, UserUpdate
 # Services
 from app.services import user_service
 
-router = APIRouter(tags=["users"])
+router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me")
@@ -267,7 +267,7 @@ async def list_users(
     is_active: bool | None = Query(None, description="Filter by active status"),
     organization_id: int | None = Query(None, description="Filter by organization", ge=1),
     role: str | None = Query(
-        None, description="Filter by user role", regex="^(admin|user|team_lead)$"
+        None, description="Filter by user role", pattern="^(admin|user|team_lead)$"
     ),
 ):
     """

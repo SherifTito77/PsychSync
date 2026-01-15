@@ -225,6 +225,17 @@ def _configure_middleware(app: FastAPI):
 def _configure_routes(app: FastAPI):
     """Configure application routes"""
     try:
+        # Mount static files for local Swagger UI (no CDN dependencies)
+        from fastapi.staticfiles import StaticFiles
+        from pathlib import Path
+
+        static_dir = Path(__file__).parent.parent / "static"
+        if static_dir.exists():
+            app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+            factory_logger.info("Static files mounted at /static")
+        else:
+            factory_logger.warning(f"Static files directory not found: {static_dir}")
+
         # API router configuration
         from app.api.v1.api import api_router
 

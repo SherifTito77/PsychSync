@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Team Health Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .section { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #fee; border: 1px solid #f00; }
+        .success { background: #efe; border: 1px solid #0f0; }
+        pre { background: #fff; padding: 10px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Team Health Dashboard Debug</h1>
+    
+    <div class="section">
+        <h2>1. Check Local Storage</h2>
+        <button onclick="checkLocalStorage()">Check User Data</button>
+        <div id="localStorage-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Test API Endpoint (No Auth)</h2>
+        <button onclick="testEndpointNoAuth()">Test Without Auth</button>
+        <div id="no-auth-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Test API Endpoint (With Cookies)</h2>
+        <button onclick="testEndpointWithCookies()">Test With Cookies</button>
+        <div id="cookie-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. Check Cookies</h2>
+        <button onclick="checkCookies()">Show All Cookies</button>
+        <div id="cookie-list"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. Current User Status</h2>
+        <button onclick="checkCurrentUser()">Check Current User</button>
+        <div id="user-status"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+
+        function checkLocalStorage() {
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('access_token');
+            
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    document.getElementById('localStorage-result').innerHTML = `
+                        <div class="success">
+                            <h3>✅ User found in localStorage:</h3>
+                            <pre>${JSON.stringify(userData, null, 2)}</pre>
+                            <p><strong>is_superuser:</strong> ${userData.is_superuser}</p>
+                            <p><strong>is_admin:</strong> ${userData.is_admin}</p>
+                            <p><strong>email:</strong> ${userData.email}</p>
+                        </div>
+                    `;
+                } catch(e) {
+                    document.getElementById('localStorage-result').innerHTML = `
+                        <div class="error">
+                            <h3>❌ Error parsing user data:</h3>
+                            <pre>${user}</pre>
+                        </div>
+                    `;
+                }
+            } else {
+                document.getElementById('localStorage-result').innerHTML = `
+                    <div class="error">
+                        <h3>❌ No user found in localStorage</h3>
+                        <p>You need to <a href="/login" target="_blank">log in</a> first</p>
+                    </div>
+                `;
+            }
+
+            if (token) {
+                document.getElementById('localStorage-result').innerHTML += `
+                    <p><strong>✅ Access token found:</strong> ${token.substring(0, 20)}...</p>
+                `;
+            } else {
+                document.getElementById('localStorage-result').innerHTML += `
+                    <p><strong>⚠️ No access token in localStorage</strong></p>
+                `;
+            }
+        }
+
+        async function testEndpointNoAuth() {
+            const resultDiv = document.getElementById('no-auth-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}/manager-dashboard?days=30`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                resultDiv.innerHTML = `
+                    <div class="${response.ok ? 'success' : 'error'}">
+                        <h3>${response.ok ? '✅' : '❌'} Status: ${response.status}</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error:</h3>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        async function testEndpointWithCookies() {
+            const resultDiv = document.getElementById('cookie-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}/manager-dashboard?days=30`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                resultDiv.innerHTML = `
+                    <div class="${response.ok ? 'success' : 'error'}">
+                        <h3>${response.ok ? '✅' : '❌'} Status: ${response.status}</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error:</h3>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        function checkCookies() {
+            const cookies = document.cookie;
+            if (cookies) {
+                const cookieArray = cookies.split(';').map(c => c.trim());
+                document.getElementById('cookie-list').innerHTML = `
+                    <div class="success">
+                        <h3>✅ Cookies found:</h3>
+                        <ul>${cookieArray.map(c => `<li>${c.split('=')[0]} = ***</li>`).join('')}</ul>
+                    </div>
+                `;
+            } else {
+                document.getElementById('cookie-list').innerHTML = `
+                    <div class="error">
+                        <h3>❌ No cookies found</h3>
+                    </div>
+                `;
+            }
+        }
+
+        async function checkCurrentUser() {
+            const resultDiv = document.getElementById('user-status');
+            resultDiv.innerHTML = '<p>Checking...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}/users/me`, {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Authenticated User:</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Not authenticated</h3>
+                            <p>Status: ${response.status}</p>
+                            <a href="/login" target="_blank">Go to login</a>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error:</h3>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Auto-run on page load
+        window.onload = function() {
+            console.log('🔍 Debug page loaded');
+            checkLocalStorage();
+            checkCookies();
+        };
+    </script>
+</body>
+</html>

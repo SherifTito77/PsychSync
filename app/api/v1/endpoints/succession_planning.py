@@ -185,9 +185,7 @@ async def get_leadership_pipeline(
 
         return [_convert_leadership_pipeline(pipeline) for pipeline in pipeline_analysis.values()]
 
-    except Exception as
-@check_rate_limit(identifier="public", limit_name="public")
-e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/succession-candidates/{role_id}", response_model=List[SuccessionCandidateResponse])

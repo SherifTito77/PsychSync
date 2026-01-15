@@ -320,10 +320,10 @@ class DimFramework(Base):
     """
     __tablename__ = "dim_framework"
 
-    # Surrogate key
-    framework_key = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    # Surrogate key (not primary key - framework_code is the natural key referenced by foreign keys)
+    framework_key = Column(UUID(as_uuid=True), default=uuid4, unique=True)
 
-    # Natural key
+    # Natural key (primary key - referenced by foreign keys in other tables)
     framework_code = Column(String(50), primary_key=True)  # MBTI, BigFive, etc.
 
     # Framework attributes

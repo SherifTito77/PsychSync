@@ -17,8 +17,8 @@
 
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
-import { Alert, AlertTitle } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 // Custom hooks
 import { useClinicalResults } from './hooks/useClinicalResults';

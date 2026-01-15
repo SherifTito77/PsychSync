@@ -1,7 +1,7 @@
 // Mental Health & Wellness Page - Clinical Assessments, Wellness Monitoring, Crisis Support
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import MentalHealthScreeningForm from '@/components/clinical/MentalHealthScreeningForm';
 import WellnessAssessmentForm from '@/components/clinical/WellnessAssessmentForm';
 import ClinicalResources from '@/components/clinical/ClinicalResources';

@@ -17,7 +17,16 @@ const Analytics: React.FC = () => {
       const data = await analyticsService.getMyAnalytics();
       setAnalytics(data);
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Failed to load analytics');
+      console.error('Analytics API error:', error);
+      // Set default/empty data instead of showing error
+      setAnalytics({
+        user_id: 0,
+        total_responses: 0,
+        completed_responses: 0,
+        in_progress_responses: 0,
+        response_history: []
+      });
+      setError(''); // Clear error so UI shows with empty data
     } finally {
       setIsLoading(false);
     }

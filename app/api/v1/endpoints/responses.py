@@ -13,11 +13,29 @@ from app.schemas.response import ResponseScore as ResponseScoreSchema
 import app.services.assessment_service as AssessmentService
 from app.services.response_service import ResponseService
 
-router = APIRouter()
+router = APIRouter(prefix="/responses", tags=["responses"])
 
 
 @check_rate_limit(identifier="public", limit_name="public")
-@router.post("/start", response_model=ResponseSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/start",
+    response_model=ResponseSchema,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: {
+            "description": "Response session created",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 123,
+                        "assessment_id": 5,
+                        "status": "in_progress"
+                    }
+                }
+            }
+        }
+    }
+)
 def start_response(
     response_in: ResponseCreate,
     db: Session = Depends(get_db),

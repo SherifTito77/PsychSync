@@ -206,7 +206,7 @@ async def check_assessment_edit_permission(
     )
 
 
-router = APIRouter(tags=["assessments"])
+router = APIRouter(prefix="/assessments", tags=["assessments"])
 logger = logging.getLogger(__name__)
 
 # ==================== IMPROVED ENDPOINTS WITH STANDARDIZED PATTERNS ====================

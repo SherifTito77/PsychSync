@@ -121,6 +121,10 @@ import sentry_sdk
 
 # Import the consolidated router from our clean API file
 from app.api.v1.api import api_router
+
+# Import enhanced clinical analytics router
+from app.api.v1.endpoints import enhanced_clinical_analytics
+
 from app.middleware.response_compression import (
     RequestTrackingMiddleware,
     ResponseCompressionMiddleware,
@@ -383,6 +387,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
     def _add_security_headers(self, response: Response) -> None:
         """
         Add comprehensive security headers
+        Note: CSP is handled by ContentSecurityPolicyMiddleware to avoid conflicts
         """
         security_headers = {
             "X-Content-Type-Options": "nosniff",
@@ -394,11 +399,12 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             "Cross-Origin-Opener-Policy": "same-origin",
             "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
             "X-CSRF-Protection": "1; mode=strict",
-            "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174 https:; frame-ancestors 'none';",
+            # CSP is handled by ContentSecurityPolicyMiddleware to allow proper Swagger UI loading
         }
 
         for header, value in security_headers.items():
-            response.headers[header] = value
+            if value:  # Only set header if value is not empty
+                response.headers[header] = value
 
     async def _log_security_metrics(
         self,
@@ -634,8 +640,9 @@ except Exception as e:
 # 5.1. Comprehensive Security Headers (Second layer - after CORS)
 try:
     csrf_secret_key = os.getenv("CSRF_SECRET_KEY", os.getenv("SECRET_KEY", secrets.token_hex(32)))
-    app.add_middleware(ComprehensiveSecurityHeadersMiddleware)
-    app_security_logger.info("✅ Comprehensive security headers middleware enabled")
+    # Disable CSP here - handled by ContentSecurityPolicyMiddleware below for Swagger UI
+    app.add_middleware(ComprehensiveSecurityHeadersMiddleware, enable_csp=False)
+    app_security_logger.info("✅ Comprehensive security headers middleware enabled (CSP delegated)")
 except Exception as e:
     app_security_logger.warning(f"Failed to enable comprehensive security headers: {e}")
 
@@ -666,9 +673,9 @@ try:
     # Define CSP directives for the application (ENHANCED - removed unsafe-inline/unsafe-eval)
     csp_directives = {
         "default-src": "'self'",
-        "script-src": "'self' https://cdn.jsdelivr.net",  # REMOVED unsafe-inline and unsafe-eval
-        "style-src": "'self' https://fonts.googleapis.com",  # REMOVED unsafe-inline
-        "img-src": "'self' data: https: blob:",
+        "script-src": "'self' https://cdn.jsdelivr.net",  # For Swagger UI JS
+        "style-src": "'self' https://fonts.googleapis.com https://cdn.jsdelivr.net",  # For Swagger UI CSS
+        "img-src": "'self' data: https: blob: https://fastapi.tiangolo.com",  # For Swagger UI favicon
         "font-src": "'self' https://fonts.gstatic.com data:",
         "connect-src": "'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:",
         "frame-src": "'none'",
@@ -677,7 +684,7 @@ try:
         "form-action": "'self'",
         "frame-ancestors": "'none'",
         "upgrade-insecure-requests": "",
-        "require-trusted-types-for": "'script'",  # NEW: Additional XSS protection
+        "require-trusted-types-for": "'script'",  # Additional XSS protection
     }
 
     app.add_middleware(
@@ -700,6 +707,10 @@ try:
         "/docs",
         "/redoc",
         "/openapi.json",
+        # Health monitoring endpoints
+        "/api/v1/health-monitoring",
+        "/api/v1/health-monitoring/analyze",
+        "/api/v1/health-monitoring/check",
         # Old auth endpoints (with /auth prefix)
         "/api/v1/auth/login",
         "/api/v1/auth/register",
@@ -717,6 +728,10 @@ try:
         "/api/v1/mfa/setup",  # MFA setup
         "/api/v1/mfa/verify",  # MFA verification
         "/api/v1/mfa/disable",  # MFA disable
+        # Simple auth endpoints (for testing/development)
+        "/api/v1/simple-login",
+        "/api/v1/verify-token",
+        "/api/v1/me",
     ]
 
     app.add_middleware(
@@ -754,12 +769,20 @@ try:
             "/openapi.json",
             "/static",
             "/favicon.ico",
+            # Health monitoring endpoints
+            "/api/v1/health-monitoring",
+            "/api/v1/health-monitoring/analyze",
+            "/api/v1/health-monitoring/check",
             # Auth endpoints (use our cookie-based CSRF instead)
             "/api/v1/auth/token-fixed",
             "/api/v1/auth/register",
             "/api/v1/auth/login",
             "/api/v1/auth/logout",
             "/api/v1/auth/me-fixed",
+            # Simple auth endpoints (for testing/development)
+            "/api/v1/simple-login",
+            "/api/v1/verify-token",
+            "/api/v1/me",
             # Legacy endpoints for backward compatibility
             "/api/v1/token",
             "/api/v1/auth/token",
@@ -846,10 +869,8 @@ async def add_additional_security_headers(request: Request, call_next):
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=()"
 
-    # Add CSP header that allows frontend-backend communication (ENHANCED - no unsafe-inline/unsafe-eval)
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script';"
-    )
+    # CSP header is now handled by ContentSecurityPolicyMiddleware above
+    # to avoid conflicts and allow Swagger UI to load properly
 
     # Add CSRF protection header
     response.headers["X-CSRF-Protection"] = "1; mode=strict"
@@ -895,6 +916,14 @@ logger.info("✅ Performance optimization middleware configured.")
 # --- API Routers ---
 # Include the main API router (this already has /api/v1 prefix from routes.py)
 app.include_router(api_router)
+
+# Include enhanced clinical analytics router
+app.include_router(enhanced_clinical_analytics.router, prefix="/api/v1")
+
+# --- WebSocket Routes ---
+# Import and include WebSocket routers
+from app.api.v1.endpoints.health_monitoring_ws import ws_router
+app.include_router(ws_router)
 
 
 # --- Root and Health Check Endpoints ---

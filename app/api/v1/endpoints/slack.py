@@ -62,9 +62,7 @@ async def handle_slack_interactions(request: Request):
     """
     try:
         return await slack_bot.get_handler().handle(request)
-    except
-@check_rate_limit(identifier="public", limit_name="public")
- Exception as e:
+    except Exception as e:
         logger.error(f"Error handling Slack interaction: {str(e)}")
         return Response(status_code=500)
 

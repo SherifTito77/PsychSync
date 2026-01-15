@@ -36,7 +36,7 @@ class Template(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships with proper lazy loading
-    # created_by_user = relationship(
+    # created_by_user = relationship(  # TEMPORARILY DISABLED
     #     "User",
     #     back_populates="templates_created",
     #     foreign_keys=[created_by_id],

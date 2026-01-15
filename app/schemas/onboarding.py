@@ -38,7 +38,7 @@ def validate_password_strength(password: str) -> str:
     if not re.search(r'\d', password):
         raise ValueError("Password must contain at least one number")
 
-    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};':"|,.<>?]', password):
+    if not re.search(r'''[!@#$%^&*()_+\-=\[\]{};':"|,.<>?]''', password):
         raise ValueError("Password must contain at least one special character")
 
     return password
@@ -183,7 +183,7 @@ class ValueMetrics(BaseModel):
 class StreamlinedRegisterRequest(BaseModel):
     full_name: str = Field(..., min_length=2, description="User's full name")
     email: str = Field(..., description="Email address")
-    password: str = Field(write_only=True, ..., min_length=8, description="Password")
+    password: str = Field(..., write_only=True, min_length=8, description="Password")
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:

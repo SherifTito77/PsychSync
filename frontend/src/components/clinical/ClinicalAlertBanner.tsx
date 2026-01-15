@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from '@/components/ui/Alert';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 
 interface ClinicalAlertBannerProps {
   message: string;

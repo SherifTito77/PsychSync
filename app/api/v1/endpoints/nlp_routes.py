@@ -77,9 +77,7 @@ async def analyze_text(
         return result
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ER
-@check_rate_limit(identifier="public", limit_name="public")
-ROR,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}"
         )
 
@@ -101,8 +99,6 @@ async def analyze_trend(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
-
-@check_rate_limit(identifier="public", limit_name="public")
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Trend analysis failed: {str(e)}"
         )

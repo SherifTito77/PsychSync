@@ -556,7 +556,7 @@ class ToxicityDetectionService:
                     )
 
                     db.add(toxicity_pattern)
-        await db.commit()
+            await db.commit()
 
         except Exception as e:
             self.logger.error(f"Failed to store toxicity patterns: {e}")

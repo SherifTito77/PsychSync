@@ -67,6 +67,48 @@ except ImportError:
     EmailMetadata = None
     CommunicationAnalysis = None
 
+# Import biometric health models
+try:
+    from .biometric_health import (
+        BiometricHealthData,
+        HealthDataConsent,
+        DataSourceType
+    )
+except ImportError:
+    BiometricHealthData = None
+    HealthDataConsent = None
+    DataSourceType = None
+
+# Import clinical screening models (HIPAA-compliant mental health screening)
+try:
+    from .clinical_screening import (
+        ClinicalScreening,
+        ClinicalAlert,
+        ClinicalReferral,
+        ClinicalAuditLog,
+        ClinicalConsent
+    )
+except ImportError:
+    ClinicalScreening = None
+    ClinicalAlert = None
+    ClinicalReferral = None
+    ClinicalAuditLog = None
+    ClinicalConsent = None
+
+# Import advanced clinical features models (telehealth, chatbot, mobile)
+try:
+    from .clinical_advanced import (
+        TelehealthSession,
+        ChatbotConversation,
+        MobileDevice,
+        ClinicalAnalyticsSnapshot
+    )
+except ImportError:
+    TelehealthSession = None
+    ChatbotConversation = None
+    MobileDevice = None
+    ClinicalAnalyticsSnapshot = None
+
 # Make models available when importing from this package
 __all__ = [
     "User",
@@ -114,4 +156,19 @@ __all__ = [
     "EmailConnection",
     "EmailMetadata",
     "CommunicationAnalysis",
+    # Biometric health models
+    "BiometricHealthData",
+    "HealthDataConsent",
+    "DataSourceType",
+    # Clinical screening models
+    "ClinicalScreening",
+    "ClinicalAlert",
+    "ClinicalReferral",
+    "ClinicalAuditLog",
+    "ClinicalConsent",
+    # Advanced clinical features models
+    "TelehealthSession",
+    "ChatbotConversation",
+    "MobileDevice",
+    "ClinicalAnalyticsSnapshot",
 ]

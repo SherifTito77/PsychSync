@@ -92,7 +92,7 @@ class User(Base):
     # )
 
     # Relationships with proper string references to avoid circular imports
-    # templates_created = relationship(
+    # templates_created = relationship(  # TEMPORARILY DISABLED
     #     "Template",
     #     back_populates="created_by_user",
     #     foreign_keys="Template.created_by_id",
@@ -101,7 +101,7 @@ class User(Base):
 
     # Organization relationship - properly configured
     # TEMPORARILY DISABLED: Organization relationship requires organization_id column
-    # organization = relationship("Organization", back_populates="users", lazy="joined")
+    # organization = relationship("Organization", back_populates="users", lazy="joined")  # TEMPORARILY DISABLED
 
     # Define table indexes for performance
     __table_args__ = (
@@ -112,55 +112,55 @@ class User(Base):
     )
 
     # Other relationships (add as needed)
-    assessments_created = relationship("Assessment", back_populates="created_by")
-    teams_created = relationship("Team", back_populates="created_by")
-    team_memberships = relationship("TeamMember", back_populates="user")
-    responses = relationship("Response", back_populates="user")
+# assessments_created = relationship("Assessment", back_populates="created_by")  # TEMPORARILY DISABLED
+# teams_created = relationship("Team", back_populates="created_by")  # TEMPORARILY DISABLED
+# team_memberships = relationship("TeamMember", back_populates="user")  # TEMPORARILY DISABLED
+# responses = relationship("Response", back_populates="user")  # TEMPORARILY DISABLED
 
     # Intervention relationships
-    created_interventions = relationship("Intervention", back_populates="created_by_user")
-    intervention_participations = relationship("InterventionParticipant", back_populates="user")
-    pre_intervention_measurements = relationship(
-        "PreInterventionMeasurement", back_populates="user"
-    )
-    post_intervention_measurements = relationship(
-        "PostInterventionMeasurement", back_populates="user"
-    )
+# created_interventions = relationship("Intervention", back_populates="created_by_user")  # TEMPORARILY DISABLED
+# intervention_participations = relationship("InterventionParticipant", back_populates="user")  # TEMPORARILY DISABLED
+# pre_intervention_measurements = relationship(  # TEMPORARILY DISABLED
+#        "PreInterventionMeasurement", back_populates="user"
+#    )
+# post_intervention_measurements = relationship(  # TEMPORARILY DISABLED
+#        "PostInterventionMeasurement", back_populates="user"
+#    )
 
     # Growth trajectory relationships
-    growth_trajectories = relationship("GrowthTrajectory", back_populates="user")
-    growth_potential_analyses = relationship("GrowthPotentialAnalysis", back_populates="user")
+# growth_trajectories = relationship("GrowthTrajectory", back_populates="user")  # TEMPORARILY DISABLED
+# growth_potential_analyses = relationship("GrowthPotentialAnalysis", back_populates="user")  # TEMPORARILY DISABLED
 
     # Employee Safety relationships
-    reported_incidents = relationship(
-        "SafetyIncident", foreign_keys="SafetyIncident.reporter_id", back_populates="reporter"
-    )
-    involved_incidents = relationship(
-        "SafetyIncident",
-        foreign_keys="SafetyIncident.affected_user_id",
-        back_populates="affected_user",
-    )
-    investigated_incidents = relationship(
-        "SafetyIncident",
-        foreign_keys="SafetyIncident.investigator_id",
-        back_populates="investigator",
-    )
-    wellness_assessments = relationship("WellnessAssessment", back_populates="user")
-    wellness_alerts = relationship(
-        "WellnessAlert", foreign_keys="WellnessAlert.user_id", back_populates="user"
-    )
-    safety_training_completions = relationship("SafetyTrainingCompletion", back_populates="user")
+# reported_incidents = relationship(  # TEMPORARILY DISABLED
+#        "SafetyIncident", foreign_keys="SafetyIncident.reporter_id", back_populates="reporter"
+#    )
+# involved_incidents = relationship(  # TEMPORARILY DISABLED
+#        "SafetyIncident",
+#        foreign_keys="SafetyIncident.affected_user_id",
+#        back_populates="affected_user",
+#    )
+# investigated_incidents = relationship(  # TEMPORARILY DISABLED
+#        "SafetyIncident",
+#        foreign_keys="SafetyIncident.investigator_id",
+#        back_populates="investigator",
+#    )
+# wellness_assessments = relationship("WellnessAssessment", back_populates="user")  # TEMPORARILY DISABLED
+# wellness_alerts = relationship(  # TEMPORARILY DISABLED
+#        "WellnessAlert", foreign_keys="WellnessAlert.user_id", back_populates="user"
+#    )
+# safety_training_completions = relationship("SafetyTrainingCompletion", back_populates="user")  # TEMPORARILY DISABLED
 
     # Email Analysis Relationships - Temporarily disabled due to missing tables
-    # email_connections = relationship("EmailConnection", back_populates="user", cascade="all, delete-orphan")
-    # email_metadata = relationship("EmailMetadata", back_populates="user", cascade="all, delete-orphan")
-    # communication_analyses = relationship("CommunicationAnalysis", back_populates="user", cascade="all, delete-orphan")
-    # communication_patterns = relationship("CommunicationPatterns", back_populates="user", cascade="all, delete-orphan")
-    # coaching_recommendations = relationship("CoachingRecommendation", back_populates="user", cascade="all, delete-orphan")
-    # user_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.user_id", back_populates="user", cascade="all, delete-orphan")
-    # acknowledged_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.acknowledged_by", back_populates="acknowledged_user")
-    # assigned_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.assigned_to", back_populates="assigned_user")
-    # managed_recommendations = relationship("CoachingRecommendation", foreign_keys="CoachingRecommendation.manager_id", back_populates="manager")
+    # email_connections = relationship("EmailConnection", back_populates="user", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # email_metadata = relationship("EmailMetadata", back_populates="user", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # communication_analyses = relationship("CommunicationAnalysis", back_populates="user", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # communication_patterns = relationship("CommunicationPatterns", back_populates="user", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # coaching_recommendations = relationship("CoachingRecommendation", back_populates="user", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # user_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.user_id", back_populates="user", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # acknowledged_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.acknowledged_by", back_populates="acknowledged_user")  # TEMPORARILY DISABLED
+    # assigned_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.assigned_to", back_populates="assigned_user")  # TEMPORARILY DISABLED
+    # managed_recommendations = relationship("CoachingRecommendation", foreign_keys="CoachingRecommendation.manager_id", back_populates="manager")  # TEMPORARILY DISABLED
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"

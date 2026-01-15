@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import { Alert, AlertTitle } from '@/components/ui/Alert';
-import { Button } from '@/components/ui/Button';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
 interface SeverityBannerProps {

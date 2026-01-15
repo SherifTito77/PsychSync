@@ -41,7 +41,7 @@ class SortParams(BaseModel):
     """Standard sorting parameters"""
 
     sort_by: str | None = Query(None, description="Field to sort by")
-    sort_order: str | None = Query("asc", regex="^(asc|desc)$", description="Sort order")
+    sort_order: str | None = Query("asc", pattern="^(asc|desc)$", description="Sort order")
 
 
 class FilterParams(BaseModel):

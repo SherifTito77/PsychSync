@@ -533,7 +533,7 @@ async def get_lineup_suggestions(
 @router.post("/export-lineup")
 async def export_lineup(
     lineup: List[PlayerInput],
-    format: str = Query("csv", regex="^(csv|json|dfs)$")
+    format: str = Query("csv", pattern="^(csv|json|dfs)$")
 ):
     """
     Export lineup in various formats

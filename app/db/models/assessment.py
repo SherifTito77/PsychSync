@@ -41,18 +41,18 @@ class Assessment(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    created_by = relationship(
-        "User", back_populates="assessments_created", foreign_keys=[created_by_id], lazy="select"
-    )
+# created_by = relationship(  # TEMPORARILY DISABLED
+#        "User", back_populates="assessments_created", foreign_keys=[created_by_id], lazy="select"
+#    )
 
-    team = relationship("Team", back_populates="assessments", foreign_keys=[team_id], lazy="select")
+# team = relationship("Team", back_populates="assessments", foreign_keys=[team_id], lazy="select")  # TEMPORARILY DISABLED
 
-    sections = relationship(
-        "AssessmentSection",
-        back_populates="assessment",
-        cascade="all, delete-orphan",
-        order_by="AssessmentSection.order",
-    )
+# sections = relationship(  # TEMPORARILY DISABLED
+#        "AssessmentSection",
+#        back_populates="assessment",
+#        cascade="all, delete-orphan",
+#        order_by="AssessmentSection.order",
+#    )
 
     # Direct relationship to questions (through AssessmentSection)
     questions = relationship(
@@ -63,12 +63,12 @@ class Assessment(Base):
         cascade="all, delete-orphan",
     )
 
-    responses = relationship(
-        "AssessmentResponse",
-        back_populates="assessment",
-        cascade="all, delete-orphan",
-        foreign_keys="[AssessmentResponse.assessment_id]",
-    )
+# responses = relationship(  # TEMPORARILY DISABLED
+#        "AssessmentResponse",
+#        back_populates="assessment",
+#        cascade="all, delete-orphan",
+#        foreign_keys="[AssessmentResponse.assessment_id]",
+#    )
 
 
 class AssessmentSection(Base):
@@ -80,13 +80,13 @@ class AssessmentSection(Base):
     description = Column(Text, nullable=True)
     order = Column(Integer, default=0)
 
-    assessment = relationship("Assessment", back_populates="sections")
-    questions = relationship(
-        "AssessmentQuestion",
-        back_populates="section",
-        cascade="all, delete-orphan",
-        order_by="AssessmentQuestion.order",
-    )
+# assessment = relationship("Assessment", back_populates="sections")  # TEMPORARILY DISABLED
+# questions = relationship(  # TEMPORARILY DISABLED
+#        "AssessmentQuestion",
+#        back_populates="section",
+#        cascade="all, delete-orphan",
+#        order_by="AssessmentQuestion.order",
+#    )
 
 
 class AssessmentQuestion(Base):
@@ -100,9 +100,9 @@ class AssessmentQuestion(Base):
     is_required = Column(Boolean, default=True)
     config = Column(JSON, nullable=True)
 
-    section = relationship("AssessmentSection", back_populates="questions")
+# section = relationship("AssessmentSection", back_populates="questions")  # TEMPORARILY DISABLED
 
-    responses = relationship("Response", back_populates="question", cascade="all, delete-orphan")
+# responses = relationship("Response", back_populates="question", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
 
 
 class ResponseStatus(enum.Enum):
@@ -122,9 +122,9 @@ class AssessmentResponse(Base):
     started_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime, nullable=True)
 
-    assessment = relationship(
-        "Assessment", back_populates="responses", foreign_keys=[assessment_id]
-    )
+# assessment = relationship(  # TEMPORARILY DISABLED
+#        "Assessment", back_populates="responses", foreign_keys=[assessment_id]
+#    )
     respondent = relationship("User", foreign_keys=[respondent_id])
 
 

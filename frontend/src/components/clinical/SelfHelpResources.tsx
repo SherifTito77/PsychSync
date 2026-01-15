@@ -4,8 +4,8 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface Resource {
   title: string;

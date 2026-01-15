@@ -214,9 +214,7 @@ async def train_prediction_model(
     except Exception as e:
         logger.error(f"Error in model training: {str(e)}")
         return TrainingResponse(
-
-@check_rate_limit(identifier="public", limit_name="public")
-     success=False,
+            success=False,
             error_message=str(e)
         )
 

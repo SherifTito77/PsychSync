@@ -499,8 +499,8 @@ class SafetyAnalyticsService:
 
         return repeat_incidents
 
-    def _calculate_training_completion_rate(self, organization_id: UUID, team_id: Optional[UUID] = None,
-                                          date_range: Tuple[datetime, datetime]) -> float:
+    def _calculate_training_completion_rate(self, organization_id: UUID, date_range: Tuple[datetime, datetime],
+                                          team_id: Optional[UUID] = None) -> float:
         """Calculate safety training completion rate"""
         try:
             start_date, end_date = date_range
@@ -600,8 +600,8 @@ class SafetyAnalyticsService:
         except Exception:
             return {}
 
-    def _calculate_intervention_effectiveness(self, organization_id: UUID, team_id: Optional[UUID] = None,
-                                            date_range: Tuple[datetime, datetime]) -> float:
+    def _calculate_intervention_effectiveness(self, organization_id: UUID, date_range: Tuple[datetime, datetime],
+                                            team_id: Optional[UUID] = None) -> float:
         """Calculate effectiveness of wellness interventions"""
         try:
             # This would involve tracking wellness before and after interventions

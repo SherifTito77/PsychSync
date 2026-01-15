@@ -1,7 +1,7 @@
 // frontend/src/pages/Login.tsx
 // frontend/src/pages/Login.tsx
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import Button from '../components/common/Button';
@@ -14,6 +14,11 @@ const Login: React.FC = () => {
   const { login } = useAuth();
   const { showNotification } = useNotification();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the path the user was trying to access, or default to dashboard
+  const from = (location.state as any)?.from || '/dashboard';
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setError('');
@@ -22,7 +27,8 @@ const Login: React.FC = () => {
       const result = await login(email, password);
       if (result.success) {
         showNotification('Login successful!', 'success');
-        navigate('/dashboard');
+        // Redirect to the page the user was trying to access
+        navigate(from, { replace: true });
       } else {
         const errorMessage = result.error || 'Login failed. Please check your credentials.';
         setError(errorMessage);

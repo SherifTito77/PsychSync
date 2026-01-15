@@ -404,7 +404,7 @@ async def get_api_endpoints(
 
 @router.get("/schema", summary="Get API Schema")
 async def get_api_schema(
-    format_type: str = Query("json", regex="^(json|yaml)$", description="Output format"),
+    format_type: str = Query("json", pattern="^(json|yaml)$", description="Output format"),
     current_user: User = Depends(get_current_active_user),
 ):
     """

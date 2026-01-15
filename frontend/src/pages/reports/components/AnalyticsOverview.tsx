@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Clock, Calendar, Settings } from 'lucide-react';
 import { ReportAnalytics, ReportSchedule } from '../types';
 

@@ -232,9 +232,7 @@ async def analyze_reliability(
     except Exception as e:
         logger.error(f"Error in reliability analysis: {str(e)}")
         return ReliabilityAnalysisResponse(
-
-@check_rate_limit(identifier="public", limit_name="public")
-     success=False,
+            success=False,
             error_message=str(e)
         )
 

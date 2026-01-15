@@ -178,9 +178,7 @@ async def list_user_exports(
             size=size
         )
 
-    except Exceptio
-@check_rate_limit(identifier="public", limit_name="public")
-n as e:
+    except Exception as e:
         logger.error(f"Failed to list exports: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 

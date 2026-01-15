@@ -109,7 +109,11 @@ export class LayoutAnalyzer {
       {
         acceptNode: (node) => {
           // Skip script, style, and hidden elements
-          const tagName = node.tagName.toLowerCase();
+          const element = node as Element;
+          if (!element.tagName) {
+            return NodeFilter.FILTER_SKIP;
+          }
+          const tagName = element.tagName.toLowerCase();
           const skipTags = ['script', 'style', 'noscript', 'meta', 'link'];
 
           if (skipTags.includes(tagName)) {
@@ -117,7 +121,8 @@ export class LayoutAnalyzer {
           }
 
           // Skip elements with no visual presence
-          const styles = window.getComputedStyle(node);
+          const htmlElement = node as HTMLElement;
+          const styles = window.getComputedStyle(htmlElement);
           if (styles.display === 'none' || styles.visibility === 'hidden' || styles.opacity === '0') {
             return NodeFilter.FILTER_SKIP;
           }
@@ -401,7 +406,12 @@ export class LayoutAnalyzer {
 
     // Find top-level elements (high visual weight)
     const sortedElements = visualElements
-      .sort((a, b) => b.weight - a.weight)
+      .sort((a, b) => {
+        // Calculate visual weight based on height and importance
+        const weightA = a.height * (a.isImportant ? 1.5 : 1) * a.visibility;
+        const weightB = b.height * (b.isImportant ? 1.5 : 1) * b.visibility;
+        return weightB - weightA;
+      })
       .filter(el => !processedElements.has(el.element));
 
     sortedElements.forEach(element => {
@@ -451,7 +461,12 @@ export class LayoutAnalyzer {
 
     // Sort children by visual weight
     children
-      .sort((a, b) => b.weight - a.weight)
+      .sort((a, b) => {
+        // Calculate visual weight based on height and importance
+        const weightA = a.height * (a.isImportant ? 1.5 : 1) * a.visibility;
+        const weightB = b.height * (b.isImportant ? 1.5 : 1) * b.visibility;
+        return weightB - weightA;
+      })
       .forEach(child => {
         const childNode = this.buildHierarchyNode(child, allElements, processed, level + 1);
         node.children.push(childNode);
@@ -510,7 +525,8 @@ export class LayoutAnalyzer {
     }
 
     // Check for weight consistency at same level
-    if (level <= 2 && element.weight < 20) {
+    const elementWeight = element.height * (element.isImportant ? 1.5 : 1) * element.visibility;
+    if (level <= 2 && elementWeight < 20) {
       violations.push('Important hierarchy level has insufficient visual weight');
     }
 

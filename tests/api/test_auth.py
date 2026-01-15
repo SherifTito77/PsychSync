@@ -1,15 +1,12 @@
-
-# tests/api/test_auth.py
-import pytest
-from httpx import AsyncClient
+from app.core.database import get_async_db
+from app.core.security import create_access_token
+from app.db.models.user import User
 from app.main import app
 from app.schemas.user import UserCreate
-
-# app/tests/test_auth.py
-import pytest
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from sqlalchemy.orm import Session
-
+import pytest
 @pytest.mark.asyncio
 async def test_register_and_login():
     async with AsyncClient(app=app, base_url="http://test") as ac:
@@ -52,7 +49,8 @@ async def test_register_and_login():
        
 
 
-def test_register_user(client: TestClient, db: Session):
+
+def test_register_user(client: TestClient, test_db):
     """Test user registration"""
     response = client.post(
         "/api/v1/auth/register",
@@ -69,7 +67,7 @@ def test_register_user(client: TestClient, db: Session):
     assert "password" not in data
 
 
-def test_register_duplicate_email(client: TestClient, db: Session):
+def test_register_duplicate_email(client: TestClient, test_db: Session):
     """Test registration with duplicate email"""
     # Register first user
     client.post(
@@ -94,7 +92,7 @@ def test_register_duplicate_email(client: TestClient, db: Session):
     assert "already registered" in response.json()["detail"].lower()
 
 
-def test_register_weak_password(client: TestClient, db: Session):
+def test_register_weak_password(client: TestClient, test_db: Session):
     """Test registration with weak password"""
     response = client.post(
         "/api/v1/auth/register",
@@ -107,7 +105,7 @@ def test_register_weak_password(client: TestClient, db: Session):
     assert response.status_code == 422
 
 
-def test_login_success(client: TestClient, db: Session):
+def test_login_success(client: TestClient, test_db: Session):
     """Test successful login"""
     # Register user first
     client.post(
@@ -134,7 +132,7 @@ def test_login_success(client: TestClient, db: Session):
     assert data["token_type"] == "bearer"
 
 
-def test_login_wrong_password(client: TestClient, db: Session):
+def test_login_wrong_password(client: TestClient, test_db: Session):
     """Test login with wrong password"""
     # Register user first
     client.post(
@@ -157,7 +155,7 @@ def test_login_wrong_password(client: TestClient, db: Session):
     assert response.status_code == 401
 
 
-def test_login_nonexistent_user(client: TestClient, db: Session):
+def test_login_nonexistent_user(client: TestClient, test_db: Session):
     """Test login with nonexistent user"""
     response = client.post(
         "/api/v1/auth/login/json",
@@ -169,7 +167,7 @@ def test_login_nonexistent_user(client: TestClient, db: Session):
     assert response.status_code == 401
 
 
-def test_get_current_user(client: TestClient, db: Session):
+def test_get_current_user(client: TestClient, test_db: Session):
     """Test getting current user info"""
     # Register and login
     client.post(
@@ -201,7 +199,7 @@ def test_get_current_user(client: TestClient, db: Session):
     assert data["full_name"] == "Test User"
 
 
-def test_get_current_user_invalid_token(client: TestClient, db: Session):
+def test_get_current_user_invalid_token(client: TestClient, test_db: Session):
     """Test getting current user with invalid token"""
     response = client.get(
         "/api/v1/auth/me",
@@ -210,9 +208,325 @@ def test_get_current_user_invalid_token(client: TestClient, db: Session):
     assert response.status_code == 401
 
 
-def test_get_current_user_no_token(client: TestClient, db: Session):
+def test_get_current_user_no_token(client: TestClient, test_db: Session):
     """Test getting current user without token"""
     response = client.get("/api/v1/auth/me")
     assert response.status_code == 401
     
     
+
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+async def db_session():
+    async for session in get_async_db():
+        yield session
+
+@pytest.fixture
+def test_user(db_session: Session):
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
+def auth_headers(test_user):
+    token = create_access_token({"user_id": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def login_for_access_token_fixed(client):
+    """
+    Test POST /token-fixed
+    Fixed authentication endpoint with proper security
+    """
+    # TODO: Implement test logic
+    response = client.post(
+        "/token-fixed",
+        json={},
+        params={'form_data': 'test_value'}
+    )
+
+    assert response.status_code in [200, 201, 202]
+
+
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+async def db_session():
+    async for session in get_async_db():
+        yield session
+
+@pytest.fixture
+def test_user(db_session: Session):
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
+def auth_headers(test_user):
+    token = create_access_token({"user_id": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def register_user_fixed(client):
+    """
+    Test POST /register-fixed
+    Fixed user registration with proper validation
+    """
+    # TODO: Implement test logic
+    response = client.post(
+        "/register-fixed",
+        json={},
+        params={'email': 'test_value', 'password': 'test_value', 'full_name': 'test_value'}
+    )
+
+    assert response.status_code in [200, 201, 202]
+
+
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+async def db_session():
+    async for session in get_async_db():
+        yield session
+
+@pytest.fixture
+def test_user(db_session: Session):
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
+def auth_headers(test_user):
+    token = create_access_token({"user_id": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def get_current_user_info_fixed(client, auth_headers):
+    """
+    Test GET /me-fixed
+    Fixed endpoint to get current user information with proper token validation
+    """
+    # TODO: Implement test logic
+    response = client.get(
+        "/me-fixed"
+        
+    )
+
+    assert response.status_code in [200, 201]
+    # TODO: Validate response data structure
+    data = response.json()
+    assert isinstance(data, dict)
+
+
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+async def db_session():
+    async for session in get_async_db():
+        yield session
+
+@pytest.fixture
+def test_user(db_session: Session):
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
+def auth_headers(test_user):
+    token = create_access_token({"user_id": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def logout(client, auth_headers):
+    """
+    Test POST /logout
+    Logout endpoint that clears httpOnly cookies
+    """
+    # TODO: Implement test logic
+    response = client.post(
+        "/logout",
+        json={}
+    )
+
+    assert response.status_code in [200, 201, 202]
+
+
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+async def db_session():
+    async for session in get_async_db():
+        yield session
+
+@pytest.fixture
+def test_user(db_session: Session):
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
+def auth_headers(test_user):
+    token = create_access_token({"user_id": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def logout_user_fixed(client, auth_headers):
+    """
+    Test POST /logout-fixed
+    Fixed logout endpoint that properly invalidates tokens and sessions
+    """
+    # TODO: Implement test logic
+    response = client.post(
+        "/logout-fixed",
+        json={}
+    )
+
+    assert response.status_code in [200, 201, 202]
+
+
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+async def db_session():
+    async for session in get_async_db():
+        yield session
+
+@pytest.fixture
+def test_user(db_session: Session):
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
+def auth_headers(test_user):
+    token = create_access_token({"user_id": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def refresh_token_fixed(client):
+    """
+    Test POST /refresh-token-fixed
+    Fixed token refresh endpoint (simplified for demo)
+    """
+    # TODO: Implement test logic
+    response = client.post(
+        "/refresh-token-fixed",
+        json={},
+        params={'refresh_token': 'test_value'}
+    )
+
+    assert response.status_code in [200, 201, 202]
+
+
+
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+async def db_session():
+    async for session in get_async_db():
+        yield session
+
+@pytest.fixture
+def test_user(db_session: Session):
+    user = User(
+        email="test@example.com",
+        full_name="Test User",
+        hashed_password="hashed",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
+def auth_headers(test_user):
+    token = create_access_token({"user_id": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+def health_check_fixed(client):
+    """
+    Test GET /health-fixed
+    Health check endpoint for authentication service
+    """
+    # TODO: Implement test logic
+    response = client.get(
+        "/health-fixed"
+        
+    )
+
+    assert response.status_code in [200, 201]
+    # TODO: Validate response data structure
+    data = response.json()
+    assert isinstance(data, dict)

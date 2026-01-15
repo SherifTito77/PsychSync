@@ -89,7 +89,7 @@ class TokenResponse(BaseModel):
     """Authentication token response"""
 
     access_token: str = Field(..., description="JWT access token")
-    refresh_token: str = Field(write_only=True, ..., description="JWT refresh token")
+    refresh_token: str = Field(..., write_only=True, description="JWT refresh token")
     token_type: str = Field("bearer", description="Token type")
     expires_in: Optional[int] = Field(None, description="Token expiration time in seconds")
 

@@ -4,9 +4,9 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 interface EmergencyResource {
   title: string;
@@ -189,7 +189,7 @@ const ClinicalEmergency: React.FC = () => {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Critical Alert Banner */}
         <Alert variant="destructive" className="mb-8 border-2 border-red-500">
-          <Alert.Heading className="text-xl">If you are in immediate danger, call 911</Alert.Heading>
+          <AlertTitle className="text-xl">If you are in immediate danger, call 911</AlertTitle>
           <p className="mt-2 text-lg">
             For life-threatening emergencies, call emergency services or go to the nearest emergency room.
           </p>
@@ -367,7 +367,7 @@ const ClinicalEmergency: React.FC = () => {
 
         {/* Additional Resources */}
         <Alert variant="info">
-          <Alert.Heading>Remember: This Will Pass</Alert.Heading>
+          <AlertTitle>Remember: This Will Pass</AlertTitle>
           <p className="mt-2">
             Crisis situations feel overwhelming, but with support, they are temporary.
             You've taken an important step by reaching out for help. Please continue to reach out

@@ -225,9 +225,7 @@ async def get_individual_skill_gaps(
 
         return [_convert_skill_assessment(gap) for gap in skill_gaps]
 
-    except Exception as
-@check_rate_limit(identifier="public", limit_name="public")
-e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/individual/summary", response_model=SkillGapSummaryResponse)
@@ -265,9 +263,7 @@ async def get_individual_skill_summary(
             medium_priority_gaps=medium_priority_gaps,
             low_priority_gaps=low_priority_gaps,
             average_gap_size=average_gap_size,
-            total
-@check_rate_limit(identifier="public", limit_name="public")
-_assessments=len(skill_gaps)
+            total_assessments=len(skill_gaps)
         )
 
     except Exception as e:

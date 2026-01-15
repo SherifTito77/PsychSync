@@ -308,13 +308,13 @@ class SecurityMiddleware(BaseHTTPMiddleware):
     async def _add_security_headers(self, request: Request, response: Response) -> Response:
         """Add comprehensive security headers"""
 
-        # Content Security Policy (enhanced)
+        # Content Security Policy (enhanced - allows Swagger UI CDN)
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "  # For Swagger UI JS
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "  # For Swagger UI CSS
+            "img-src 'self' data: https: https://fastapi.tiangolo.com; "  # For Swagger UI favicon
+            "font-src 'self' data: https://fonts.gstatic.com; "
             "connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174 https:; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "

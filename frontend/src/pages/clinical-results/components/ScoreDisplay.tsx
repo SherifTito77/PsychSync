@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { AssessmentResult } from '../types';
 import { getSeverityColorClass } from '../utils/severityCalculator';
 

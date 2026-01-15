@@ -6,6 +6,7 @@ from jose import JWTError, jwt
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from uuid import UUID
 
 from app.core.config import settings
 from app.core.database import get_async_db as get_db
@@ -26,13 +27,25 @@ async def get_current_user(
 
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM])
-        user_id = payload.get("sub")
+        # Try user_id first, fall back to sub for backwards compatibility
+        user_id = payload.get("user_id") or payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except JWTError as err:
         raise credentials_exception from err
 
-    result = await db.execute(select(User).where(User.id == user_id))
+    # Convert to UUID, handling both email strings and UUID strings
+    try:
+        user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+    except (ValueError, AttributeError):
+        # If user_id is an email (from 'sub' field), we need to query by email instead
+        result = await db.execute(select(User).where(User.email == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise credentials_exception
+        return user
+
+    result = await db.execute(select(User).where(User.id == user_uuid))
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
@@ -52,15 +65,26 @@ async def get_current_user_optional(
 
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM])
-        user_id = payload.get("sub")
+        # Try user_id first, fall back to sub for backwards compatibility
+        user_id = payload.get("user_id") or payload.get("sub")
         if user_id is None:
             return None
     except JWTError:
         return None
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    return user
+    # Convert to UUID, handling both email strings and UUID strings
+    try:
+        user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+        result = await db.execute(select(User).where(User.id == user_uuid))
+        user = result.scalar_one_or_none()
+        return user
+    except (ValueError, AttributeError):
+        # If user_id is an email, query by email instead
+        try:
+            result = await db.execute(select(User).where(User.email == user_id))
+            return result.scalar_one_or_none()
+        except Exception:
+            return None
 
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
@@ -78,8 +102,16 @@ async def get_team_or_404(
     Get team by ID and verify current user is a member.
     Returns team object if user has access, raises HTTPException otherwise.
     """
+    try:
+        team_uuid = UUID(team_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid team ID format"
+        )
+
     # Get team
-    result = await db.execute(select(Team).where(Team.id == team_id))
+    result = await db.execute(select(Team).where(Team.id == team_uuid))
     team = result.scalar_one_or_none()
 
     if not team:
@@ -88,7 +120,7 @@ async def get_team_or_404(
     # Check if user is member
     member_result = await db.execute(
         select(TeamMember).where(
-            and_(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id)
+            and_(TeamMember.team_id == team_uuid, TeamMember.user_id == current_user.id)
         )
     )
 
@@ -109,9 +141,14 @@ async def check_team_member(
     """
     Check if current user is a member of the specified team.
     """
+    try:
+        team_uuid = UUID(team_id)
+    except ValueError:
+        return False
+
     result = await db.execute(
         select(TeamMember).where(
-            and_(TeamMember.team_id == team_id, TeamMember.user_id == current_user.id)
+            and_(TeamMember.team_id == team_uuid, TeamMember.user_id == current_user.id)
         )
     )
 
@@ -126,10 +163,15 @@ async def check_team_admin(
     """
     Check if current user has admin or owner privileges for the specified team.
     """
+    try:
+        team_uuid = UUID(team_id)
+    except ValueError:
+        return False
+
     result = await db.execute(
         select(TeamMember).where(
             and_(
-                TeamMember.team_id == team_id,
+                TeamMember.team_id == team_uuid,
                 TeamMember.user_id == current_user.id,
                 TeamMember.role.in_([TeamRole.OWNER, TeamRole.ADMIN]),
             )
@@ -173,7 +215,7 @@ async def get_current_user_with_mfa(
 
 
 async def get_admin_user_with_mfa(
-    current_user: User = Depends(get_current_user_with_mfa), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user_with_mfa), db: AsyncSession = Depends(get_db)
 ) -> User:
     """
     Get current user, requiring both admin role AND 2FA

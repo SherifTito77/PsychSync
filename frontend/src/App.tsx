@@ -2,6 +2,8 @@
 // Enhanced main application component with comprehensive security measures
 import React, { memo, Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { TeamProvider } from './contexts/TeamContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -36,6 +38,7 @@ const TeamOptimizer = React.lazy(() => import('./pages/TeamOptimizer'));
 const PredictiveAnalytics = React.lazy(() => import('./pages/PredictiveAnalytics'));
 const ReliabilityValidity = React.lazy(() => import('./pages/ReliabilityValidity'));
 const EmployeeSafety = React.lazy(() => import('./pages/EmployeeSafety'));
+const ToxicBehaviorDetection = React.lazy(() => import('./pages/ToxicBehaviorDetection'));
 const AssessmentStartPage = React.lazy(() => import('./pages/assessments/AssessmentStartPage'));
 const AssessmentResultsPage = React.lazy(() => import('./pages/assessments/AssessmentResultsPage'));
 
@@ -59,8 +62,47 @@ const ClinicalDashboard = React.lazy(() => import('./pages/ClinicalDashboard'));
 const ClinicalSelfHelp = React.lazy(() => import('./pages/ClinicalSelfHelp'));
 const QuickAssessmentPage = React.lazy(() => import('./pages/QuickAssessment'));
 
+// Enhanced Clinical Assessments with advanced features
+const EnhancedClinicalAssessments = React.lazy(() => import('./components/clinical/EnhancedClinicalAssessments'));
+
+// Evidence-Based Clinical Screening Tools
+const PHQ9Screening = React.lazy(() => import('./components/clinical/PHQ9Screening'));
+const GAD7Screening = React.lazy(() => import('./components/clinical/GAD7Screening'));
+const CSSRSScreening = React.lazy(() => import('./components/clinical/CSSRSScreening'));
+const CrisisResources = React.lazy(() => import('./components/clinical/CrisisResources'));
+
+// Advanced Clinical Assessments
+const LSASScreening = React.lazy(() => import('./components/clinical/LSASScreening'));
+const EAT26Screening = React.lazy(() => import('./components/clinical/EAT26Screening'));
+const YBOCSScreening = React.lazy(() => import('./components/clinical/YBOCSScreening'));
+
+// Additional Clinical Assessments
+const DASS21Screening = React.lazy(() => import('./components/clinical/DASS21Screening'));
+const PCL5Screening = React.lazy(() => import('./components/clinical/PCL5Screening'));
+const AUDITScreening = React.lazy(() => import('./components/clinical/AUDITScreening'));
+const PSS10Screening = React.lazy(() => import('./components/clinical/PSS10Screening'));
+const ASRSScreening = React.lazy(() => import('./components/clinical/ASRSScreening'));
+const ISIScreening = React.lazy(() => import('./components/clinical/ISIScreening'));
+const CBIScreening = React.lazy(() => import('./components/clinical/CBIScreening'));
+const MDQScreening = React.lazy(() => import('./components/clinical/MDQScreening'));
+const DAST10Screening = React.lazy(() => import('./components/clinical/DAST10Screening'));
+const AQ10Screening = React.lazy(() => import('./components/clinical/AQ10Screening'));
+const ACEScreening = React.lazy(() => import('./components/clinical/ACEScreening'));
+const IESRScreening = React.lazy(() => import('./components/clinical/IESRScreening'));
+const IATScreening = React.lazy(() => import('./components/clinical/IATScreening'));
+
+// Telehealth & AI Support
+const VideoConsultation = React.lazy(() => import('./components/telehealth/VideoConsultation'));
+const TelehealthScheduler = React.lazy(() => import('./components/telehealth/TelehealthScheduler'));
+const MentalHealthChatbot = React.lazy(() => import('./components/ai/MentalHealthChatbot'));
+const ClinicalAnalyticsDashboard = React.lazy(() => import('./components/analytics/ClinicalAnalyticsDashboard'));
+
 // Security Dashboard (admin only)
 const SecurityDashboard = React.lazy(() => import('./components/admin/SecurityDashboard'));
+
+// Health Monitoring Routes
+const EnhancedHealthDashboard = React.lazy(() => import('./components/health/EnhancedHealthDashboard'));
+const ManagerDashboard = React.lazy(() => import('./components/health/ManagerDashboard'));
 
 // --- Five Distinct Service Areas ---
 const PersonalityAssessments = React.lazy(() => import('./pages/PersonalityAssessments'));
@@ -71,6 +113,12 @@ const StressAssessmentTest = React.lazy(() => import('./pages/StressAssessmentTe
 const WellbeingAssessment = React.lazy(() => import('./pages/wellbeing-assessment'));
 const EmailConnector = React.lazy(() => import('./pages/EmailConnector'));
 const HRISConnector = React.lazy(() => import('./pages/HRISConnector'));
+
+// Overview pages for dropdown sections
+const Services = React.lazy(() => import('./pages/Services'));
+const Screening = React.lazy(() => import('./pages/Screening'));
+const AnalyticsOverview = React.lazy(() => import('./pages/AnalyticsOverview'));
+const CorporateIntegrationsPage = React.lazy(() => import('./pages/CorporateIntegrationsPage'));
 // --- Anonymous Feedback Components ---
 import AnonymousFeedbackForm from './components/AnonymousFeedbackForm';
 import AnonymousFeedbackStatus from './components/AnonymousFeedbackStatus';
@@ -184,6 +232,16 @@ const SecureFallback: React.FC<{ message?: string }> = memo(({ message = "Loadin
   </div>
 ));
 
+// Create a client for React Query
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 1,
+    },
+  },
+});
+
 const App: React.FC = memo(() => {
   // Initialize PWA functionality
   useEffect(() => {
@@ -194,17 +252,18 @@ const App: React.FC = memo(() => {
   const showDevNavigation = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
 
   return (
-    <ErrorBoundary
-      enableErrorReporting={true}
-      showRetry={true}
-      maxRetries={3}
-      customMessage="Something went wrong. Our team has been notified."
-    >
-      <ThemeProvider>
-        <SecurityMonitor>
-          <NotificationProvider>
-            <TeamProvider>
-              <AssessmentProvider>
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary
+        enableErrorReporting={true}
+        showRetry={true}
+        maxRetries={3}
+        customMessage="Something went wrong. Our team has been notified."
+      >
+        <ThemeProvider>
+          <SecurityMonitor>
+            <NotificationProvider>
+              <TeamProvider>
+                <AssessmentProvider>
                 {showDevNavigation && <OnboardingNavigation />}
                 <PWAInstaller
                   onInstallComplete={() => console.log('PWA installed successfully')}
@@ -412,7 +471,49 @@ const App: React.FC = memo(() => {
                         <RequireAuth>
                           <DashboardLayout>
                             <Suspense fallback={<SecureFallback message="Loading Analytics..." />}>
+                              <AnalyticsOverview />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/analytics/dashboard"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Analytics Dashboard..." />}>
                               <Analytics />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/services"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Services..." />}>
+                              <Services />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Screening..." />}>
+                              <Screening />
                             </Suspense>
                           </DashboardLayout>
                         </RequireAuth>
@@ -495,6 +596,20 @@ const App: React.FC = memo(() => {
                           <DashboardLayout>
                             <Suspense fallback={<SecureFallback message="Loading Employee Safety..." />}>
                               <EmployeeSafety />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/toxic-behavior-detection"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Toxic Behavior Detection..." />}>
+                              <ToxicBehaviorDetection />
                             </Suspense>
                           </DashboardLayout>
                         </RequireAuth>
@@ -976,6 +1091,20 @@ const App: React.FC = memo(() => {
                     }
                   />
                   <Route
+                    path="/enhanced-assessments"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Enhanced Assessments..." />}>
+                              <EnhancedClinicalAssessments />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
                     path="/clinical"
                     element={
                       <SecureRoute requireAuth>
@@ -1088,6 +1217,416 @@ const App: React.FC = memo(() => {
                     }
                   />
 
+                  {/* Evidence-Based Clinical Screening Routes */}
+                  <Route
+                    path="/screening/phq9"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading PHQ-9 Screening..." />}>
+                              <PHQ9Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/gad7"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading GAD-7 Screening..." />}>
+                              <GAD7Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/cssrs"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading C-SSRS Screening..." />}>
+                              <CSSRSScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/crisis-resources"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Crisis Resources..." />}>
+                              <CrisisResources />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Advanced Clinical Assessment Routes */}
+                  <Route
+                    path="/screening/lsas"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading LSAS Assessment..." />}>
+                              <LSASScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/eat26"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading EAT-26 Assessment..." />}>
+                              <EAT26Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/ybocs"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Y-BOCS Assessment..." />}>
+                              <YBOCSScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Additional Clinical Assessment Routes */}
+                  <Route
+                    path="/screening/dass21"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading DASS-21 Assessment..." />}>
+                              <DASS21Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/pcl5"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading PCL-5 Assessment..." />}>
+                              <PCL5Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/audit"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading AUDIT Assessment..." />}>
+                              <AUDITScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Additional Clinical Assessment Routes */}
+                  <Route
+                    path="/screening/pss10"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading PSS-10 Assessment..." />}>
+                              <PSS10Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/asrs"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading ASRS Assessment..." />}>
+                              <ASRSScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/isi"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading ISI Assessment..." />}>
+                              <ISIScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/cbi"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading CBI Assessment..." />}>
+                              <CBIScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/mdq"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading MDQ Assessment..." />}>
+                              <MDQScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/dast10"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading DAST-10 Assessment..." />}>
+                              <DAST10Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/aq10"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading AQ-10 Assessment..." />}>
+                              <AQ10Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/ace"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading ACE Assessment..." />}>
+                              <ACEScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/iesr"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading IES-R Assessment..." />}>
+                              <IESRScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/iat"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading IAT Assessment..." />}>
+                              <IATScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Telehealth Routes */}
+                  <Route
+                    path="/telehealth/schedule"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Telehealth Scheduler..." />}>
+                              <TelehealthScheduler />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/telehealth/session/:sessionId"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Connecting to video consultation..." />}>
+                              <VideoConsultation sessionId="" userRole="patient" />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* AI Support Routes */}
+                  <Route
+                    path="/support/chat"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading chat support..." />}>
+                              <MentalHealthChatbot />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Clinical Analytics Routes */}
+                  <Route
+                    path="/analytics/clinical"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading clinical analytics..." />}>
+                              <ClinicalAnalyticsDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Health Monitoring Routes */}
+                  <Route
+                    path="/health"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Health Dashboard..." />}>
+                              <EnhancedHealthDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/health-dashboard"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Health Dashboard..." />}>
+                              <EnhancedHealthDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/team-health"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Team Health Analytics..." />}>
+                              <ManagerDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Corporate Integrations Routes */}
+                  <Route
+                    path="/integrations/corporate"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Corporate Integrations..." />}>
+                              <CorporateIntegrationsPage />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
                   {/* 404 - Redirect to Landing */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
@@ -1097,6 +1636,8 @@ const App: React.FC = memo(() => {
       </SecurityMonitor>
     </ThemeProvider>
   </ErrorBoundary>
+  <ReactQueryDevtools initialIsOpen={false} />
+</QueryClientProvider>
 );  // End of return statement
 });  // End of memo function
 

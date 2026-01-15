@@ -17,8 +17,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
 
 // Constants
 import { CATEGORIES } from './constants/questions';

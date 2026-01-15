@@ -53,9 +53,7 @@ async def get_query_performance_stats(
     except Exception as e:
         logger.log_error(e, operation="get_query_stats", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to retrieve query performance statist
-@check_rate_limit(identifier="public", limit_name="public")
-ics",
+            message="Failed to retrieve query performance statistics",
             request_id=get_request_id(request)
         )
 
@@ -86,9 +84,7 @@ async def get_performance_dashboard(
 
     except Exception as e:
         logger.log_error(e, operation="get_performance_dashboard", user_id=str(current_user.id))
-        return APIResponse.s
-@check_rate_limit(identifier="public", limit_name="public")
-erver_error(
+        return APIResponse.server_error(
             message="Failed to retrieve dashboard data",
             request_id=get_request_id(request)
         )

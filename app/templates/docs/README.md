@@ -1,0 +1,48 @@
+# Documentation Templates
+
+## Overview
+
+Documentation generation templates.
+
+## Purpose
+
+Templates for generating user documentation and guides.
+
+## Usage
+
+```python
+from app.templates.docs import render_user_guide
+
+html = render_user_guide(feature="assessments")
+```
+
+
+## Key Components
+
+- User Guide Templates
+- API Documentation
+- Help Content
+
+## Related Documentation
+
+- [Main README](../../../README.md)
+- [API Documentation](../api/README.md)
+- [Services Documentation](../services/README.md)
+- [Database Documentation](../db/README.md)
+- [Core Documentation](../core/README.md)
+
+## Contributing
+
+When adding new files to this directory, please:
+1. Follow existing code patterns
+2. Add comprehensive docstrings
+3. Update this README with key changes
+4. Ensure proper error handling
+5. Add tests for new functionality
+
+## Testing
+
+Test files in this directory using:
+```bash
+pytest tests/path/to/this/directory/ -v
+```

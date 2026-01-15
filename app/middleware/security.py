@@ -103,27 +103,27 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             SecurityLevel.LOW: (
                 "default-src 'self'; "
                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "  # Added cdn.jsdelivr.net for Swagger UI CSS
                 "font-src 'self' https://fonts.gstatic.com; "
-                "img-src 'self' data: https:; "
+                "img-src 'self' data: https: https://fastapi.tiangolo.com; "  # Added fastapi.tiangolo.com for favicon
                 "connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174"
             ),
             SecurityLevel.MEDIUM: (
                 "default-src 'self'; "
                 "script-src 'self' 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "  # Added cdn.jsdelivr.net for Swagger UI CSS
                 "font-src 'self' https://fonts.gstatic.com; "
-                "img-src 'self' data: https:; "
+                "img-src 'self' data: https: https://fastapi.tiangolo.com; "  # Added fastapi.tiangolo.com for favicon
                 "connect-src 'self' ws://localhost:8000 ws://localhost:8002 wss://localhost:8000 wss://localhost:8002 ws://localhost:3000 wss://localhost:3000 ws://localhost:5173 wss://localhost:5173 ws://localhost:5174 wss://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174; "
                 "object-src 'none'; "
                 "base-uri 'self'"
             ),
             SecurityLevel.HIGH: (
                 "default-src 'self'; "
-                "script-src 'self'; "
-                "style-src 'self' 'nonce-{nonce}'; "
+                "script-src 'self' https://cdn.jsdelivr.net; "  # Allow Swagger UI JS
+                "style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net; "  # Allow Swagger UI CSS
                 "font-src 'self'; "
-                "img-src 'self' data:; "
+                "img-src 'self' data: https://fastapi.tiangolo.com; "  # Allow Swagger UI favicon
                 "connect-src 'self' ws://localhost:8000 ws://localhost:8002 ws://localhost:3000 ws://localhost:5173 ws://localhost:5174 http://localhost:8000 http://localhost:8002 http://localhost:3000 http://localhost:5173 http://localhost:5174; "
                 "object-src 'none'; "
                 "base-uri 'self'; "
@@ -132,10 +132,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             ),
             SecurityLevel.STRICT: (
                 "default-src 'self'; "
-                "script-src 'self' 'nonce-{nonce}'; "
-                "style-src 'self' 'nonce-{nonce}'; "
+                "script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "  # Allow Swagger UI JS
+                "style-src 'self' 'nonce-{nonce}' https://fonts.googleapis.com https://cdn.jsdelivr.net; "  # Allow Swagger UI CSS
                 "font-src 'self'; "
-                "img-src 'self' data:; "
+                "img-src 'self' data: https://fastapi.tiangolo.com; "  # Allow Swagger UI favicon
                 "connect-src 'self' ws://localhost:8000 wss://localhost:8000; "
                 "object-src 'none'; "
                 "base-uri 'self'; "

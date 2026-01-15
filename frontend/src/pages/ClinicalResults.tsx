@@ -5,9 +5,9 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Alert, AlertTitle } from '@/components/ui/Alert';
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 interface AssessmentResult {
   score: number;

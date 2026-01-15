@@ -35,12 +35,13 @@ CORE_ENDPOINTS = [
     # This is a TEST endpoint that bypasses proper authentication
     # TODO: Delete standalone_auth.py entirely after confirming no dependencies
     # "standalone_auth",  # ❌ DISABLED - Security backdoor
+    "simple_auth",  # ✅ ENABLED - Simple auth without CSRF requirements
     # Temporarily disabled due to syntax errors:
-    # "simple_auth",  # ❌ syntax error at line 117
     # "users",  # ❌ unterminated string literal at line 41
     # "admin",  # ❌ invalid syntax at line 76
     # "dns_security",  # ❌ invalid syntax at line 86
     # "security_monitoring",  # ❌ invalid syntax at line 193
+    "docs_local",  # ✅ NEW: Local documentation (no CDN dependencies)
     "security_monitoring_public",  # ✅ NEW: Security monitoring dashboard API
     "auth_unified",  # ✅ NEW: Unified auth with MFA support (replaces auth.py)
     # "auth",  # ⚠️ TEMPORARILY DISABLED - Using auth_unified instead
@@ -52,7 +53,7 @@ CORE_ENDPOINTS = [
 # Broken endpoints that need fixing (made optional for now)
 BROKEN_ENDPOINTS = [
     # "standalone_auth",  # ❌ DISABLED - Security backdoor (accepts any credentials)
-    "simple_auth",
+    # "simple_auth",  # ✅ MOVED TO CORE_ENDPOINTS - Now working
     "users",
     "admin",
     "dns_security",
@@ -67,13 +68,19 @@ FEATURE_ENDPOINTS = [
     "ai_analytics",  # NEW: AI-enhanced analytics endpoints
     "ai_monitoring",  # NEW: AI engine monitoring endpoints
     "gdpr",  # GDPR compliance endpoints
+    "sql_audit",  # NEW: SQL injection vulnerability scanning
+    "query_performance",  # NEW: Slow query optimization and analysis
+    "build_analysis",  # NEW: Build failure analysis and root cause detection
+    "caching_config",  # NEW: Caching configuration optimization
+    "breaking_changes",  # NEW: Breaking changes detection before merge
+    "corporate_integrations",  # ✅ ENABLED - Corporate data source integrations
+    "toxic_behavior_detection",  # ✅ NEW: Toxic behavior detection and prevention
     # Temporarily disabled potentially problematic endpoints:
     # "teams",
     # "team_optimization",
     # "predictions",
     # "reliability_validity",
     # "csrf",
-    # "query_performance",
     # "analytics",
     # "backups",
     # "scoring",
@@ -94,6 +101,8 @@ SEPARATED_SERVICE_ENDPOINTS = [
     "personality_assessments",  # MBTI, Enneagram, Big Five, etc.
     # "behavioral_analysis",         # Behavioral patterns, anomaly detection - temporarily disabled due to import issues
     "clinical_assessments",  # Mental health screening, wellness
+    "screening",  # NEW: Clinical screening tools (PHQ-9, GAD-7, C-SSRS) with crisis intervention
+    "health_monitoring",  # NEW: Real-time stress & burnout monitoring with automated interventions
     # "email_connector",            # Email integration and analytics - temporarily disabled due to missing schemas
     # "hris_connector",             # HR system integration and workforce analytics - temporarily disabled due to syntax errors
     # Temporarily disabled new analytics:

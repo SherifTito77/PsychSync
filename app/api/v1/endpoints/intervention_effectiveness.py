@@ -204,13 +204,11 @@ async def create_intervention(
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(statu
-@check_rate_limit(identifier="public", limit_name="public")
-s_code=500, detail=f"Failed to create intervention: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create intervention: {str(e)}")
 
 @router.get("/interventions", response_model=List[InterventionResponse])
 async def list_interventions(
-    status: Optional[str] = Query(None, regex="^(planned|active|completed|cancelled|paused)$"),
+    status: Optional[str] = Query(None, pattern="^(planned|active|completed|cancelled|paused)$"),
     intervention_type: Optional[str] = None,
     category: Optional[str] = None,
     team_id: Optional[str] = None,
@@ -237,9 +235,7 @@ async def list_interventions(
 
         interventions = query.order_by(Intervention.created_at.desc()).offset(offset).limit(limit).all()
 
-        return [InterventionResponse.from_orm(intervention) for intervention in interventio
-@check_rate_limit(identifier="public", limit_name="public")
-ns]
+        return [InterventionResponse.from_orm(intervention) for intervention in interventions]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list interventions: {str(e)}")
@@ -485,7 +481,7 @@ async def add_post_measurement(
 @router.get("/interventions/{intervention_id}/measurements")
 async def list_measurements(
     intervention_id: str,
-    measurement_type: str = Query(..., regex="^(pre|post)$"),
+    measurement_type: str = Query(..., pattern="^(pre|post)$"),
     metric_name: Optional[str] = None,
     user_id: Optional[str] = None,
     db: Session = Depends(get_db),

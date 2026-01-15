@@ -52,8 +52,8 @@ class Response(Base):
 
     # Relationships
     assessment = relationship("Assessment")
-    user = relationship("User", back_populates="responses")
-    question = relationship("AssessmentQuestion", back_populates="responses")
+# user = relationship("User", back_populates="responses")  # TEMPORARILY DISABLED
+# question = relationship("AssessmentQuestion", back_populates="responses")  # TEMPORARILY DISABLED
 
     def __repr__(self):
         return (

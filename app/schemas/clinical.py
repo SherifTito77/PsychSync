@@ -1,12 +1,114 @@
 """
 Clinical Assessment Schemas
-Pydantic models for clinical assessment endpoints
+Pydantic models for clinical assessment endpoints and screening tools
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, Optional
+from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
+
+
+# ============================================================================
+# SPECIFIC SCREENING TOOL SCHEMAS
+# ============================================================================
+
+class PHQ9Request(BaseModel):
+    """
+    Patient Health Questionnaire-9 (Depression)
+    9 items, 0-3 scale
+    """
+    q1_interest: int = Field(..., ge=0, le=3)
+    q2_depressed: int = Field(..., ge=0, le=3)
+    q3_sleep: int = Field(..., ge=0, le=3)
+    q4_energy: int = Field(..., ge=0, le=3)
+    q5_appetite: int = Field(..., ge=0, le=3)
+    q6_self_worth: int = Field(..., ge=0, le=3)
+    q7_concentration: int = Field(..., ge=0, le=3)
+    q8_motor: int = Field(..., ge=0, le=3)
+    q9_suicide: int = Field(..., ge=0, le=3)
+
+
+class GAD7Request(BaseModel):
+    """
+    Generalized Anxiety Disorder-7
+    7 items, 0-3 scale
+    """
+    q1_nervous: int = Field(..., ge=0, le=3)
+    q2_control_worry: int = Field(..., ge=0, le=3)
+    q3_worry_too_much: int = Field(..., ge=0, le=3)
+    q4_trouble_relaxing: int = Field(..., ge=0, le=3)
+    q5_restless: int = Field(..., ge=0, le=3)
+    q6_irritable: int = Field(..., ge=0, le=3)
+    q7_afraid: int = Field(..., ge=0, le=3)
+
+
+class CSSRSRequest(BaseModel):
+    """
+    Columbia-Suicide Severity Rating Scale
+    CRITICAL: Any positive triggers crisis protocol
+    """
+    q1_wish_dead: bool
+    q2_nonspecific_thoughts: bool
+    q3_active_ideation: bool
+    q4_intent: bool
+    q5_plan: bool
+    q11_actual_attempt: bool
+    q12_preparatory_acts: bool
+    q13_aborted_attempt: bool
+
+
+class ASRSRequest(BaseModel):
+    """
+    Adult ADHD Self-Report Scale v1.1
+    18 items, 0-4 scale (Never to Very Often)
+    Part A: Inattention (Questions 1-9)
+    Part B: Hyperactivity-Impulsivity (Questions 10-18)
+    """
+    # Part A: Inattention Symptoms (1-9)
+    q1: int = Field(..., ge=0, le=4, description="Trouble wrapping up final details")
+    q2: int = Field(..., ge=0, le=4, description="Difficulty getting things in order")
+    q3: int = Field(..., ge=0, le=4, description="Problems remembering appointments")
+    q4: int = Field(..., ge=0, le=4, description="Avoid/delay starting complex tasks")
+    q5: int = Field(..., ge=0, le=4, description="Fidget or squirm when sitting")
+    q6: int = Field(..., ge=0, le=4, description="Feel overly active/driven by motor")
+    q7: int = Field(..., ge=0, le=4, description="Make careless mistakes")
+    q8: int = Field(..., ge=0, le=4, description="Difficulty keeping attention on boring work")
+    q9: int = Field(..., ge=0, le=4, description="Difficulty concentrating when spoken to")
+
+    # Part B: Hyperactivity-Impulsivity (10-18)
+    q10: int = Field(..., ge=0, le=4, description="Leave seat when expected to remain")
+    q11: int = Field(..., ge=0, le=4, description="Feel restless/fidgety")
+    q12: int = Field(..., ge=0, le=4, description="Difficulty unwinding/relaxing")
+    q13: int = Field(..., ge=0, le=4, description="Talk too much in social situations")
+    q14: int = Field(..., ge=0, le=4, description="Finish others' sentences")
+    q15: int = Field(..., ge=0, le=4, description="Difficulty waiting turn")
+    q16: int = Field(..., ge=0, le=4, description="Interrupt others")
+    q17: int = Field(..., ge=0, le=4, description="Difficulty focusing with distractions")
+    q18: int = Field(..., ge=0, le=4, description="Misplace or lose things")
+
+
+class ScreeningResponse(BaseModel):
+    """
+    Standard response for all screening tools
+    Includes scoring, risk assessment, and crisis alerts
+    """
+    id: UUID
+    screening_type: str
+    total_score: Optional[float] = None
+    severity_level: str
+    risk_level: str
+    interpretation: str
+    recommendations: List[str]
+    crisis_alert: bool
+    risk_flags: List[str]
+    completed_at: datetime
+
+
+# ============================================================================
+# BASE CLINICAL SCHEMAS (from original file)
+# ============================================================================
 
 
 # Mental Health Screening Schemas
@@ -141,3 +243,84 @@ class ClinicalResourceResponse(BaseModel):
     resource_categories: list[str]
     last_updated: datetime
     disclaimer: str
+
+
+# ============================================================================
+# ADVANCED CLINICAL ASSESSMENT SCHEMAS
+# ============================================================================
+
+from typing import Dict, Optional
+from pydantic import Field
+
+
+class LSASItemRequest(BaseModel):
+    """Individual LSAS item with fear and avoidance ratings"""
+    fear: int = Field(..., ge=0, le=3, description="Fear level: 0=None, 1=Mild, 2=Moderate, 3=Severe")
+    avoidance: int = Field(..., ge=0, le=3, description="Avoidance level: 0=Never, 1=Occasionally, 2=Often, 3=Usually")
+
+
+class LSASRequest(BaseModel):
+    """
+    Liebowitz Social Anxiety Scale Request
+    24 items, each with fear and avoidance ratings
+    """
+    item_1: LSASItemRequest
+    item_2: LSASItemRequest
+    item_3: LSASItemRequest
+    item_4: LSASItemRequest
+    item_5: LSASItemRequest
+    item_6: LSASItemRequest
+    item_7: LSASItemRequest
+    item_8: LSASItemRequest
+    item_9: LSASItemRequest
+    item_10: LSASItemRequest
+    item_11: LSASItemRequest
+    item_12: LSASItemRequest
+    item_13: LSASItemRequest
+    item_14: LSASItemRequest
+    item_15: LSASItemRequest
+    item_16: LSASItemRequest
+    item_17: LSASItemRequest
+    item_18: LSASItemRequest
+    item_19: LSASItemRequest
+    item_20: LSASItemRequest
+    item_21: LSASItemRequest
+    item_22: LSASItemRequest
+    item_23: LSASItemRequest
+    item_24: LSASItemRequest
+
+
+class EAT26BehavioralQuestions(BaseModel):
+    """EAT-26 Behavioral questions for referral determination"""
+    weight_loss_6months: bool = Field(False, description="Lost 20+ lbs in past 6 months")
+    binge_eating: str = Field("never", description="Binge eating frequency")
+    vomiting: str = Field("never", description="Self-induced vomiting frequency")
+    laxatives: str = Field("never", description="Laxative use frequency")
+    exercise: str = Field("never", description="Excessive exercise frequency")
+    bmi_concern: bool = Field(False, description="Concern about BMI or weight")
+
+
+class EAT26Request(BaseModel):
+    """
+    Eating Attitudes Test-26 Request
+    26 items, 6-point scale (Always to Never)
+    """
+    responses: Dict[int, int] = Field(..., description="Item responses 1-26, scale 0-5")
+    behavioral_questions: Optional[EAT26BehavioralQuestions] = None
+
+
+class YBOCSRequest(BaseModel):
+    """
+    Yale-Brown Obsessive Compulsive Scale Request
+    10 items (5 obsessions, 5 compulsions), 0-4 scale each
+    """
+    item_1_time_obsessions: int = Field(..., ge=0, le=4)
+    item_2_interference_obsessions: int = Field(..., ge=0, le=4)
+    item_3_distress_obsessions: int = Field(..., ge=0, le=4)
+    item_4_resistance_obsessions: int = Field(..., ge=0, le=4)
+    item_5_control_obsessions: int = Field(..., ge=0, le=4)
+    item_6_time_compulsions: int = Field(..., ge=0, le=4)
+    item_7_interference_compulsions: int = Field(..., ge=0, le=4)
+    item_8_distress_compulsions: int = Field(..., ge=0, le=4)
+    item_9_resistance_compulsions: int = Field(..., ge=0, le=4)
+    item_10_control_compulsions: int = Field(..., ge=0, le=4)

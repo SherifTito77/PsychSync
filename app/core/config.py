@@ -74,6 +74,9 @@ TESTING = getattr(settings, "TESTING", False)
 
 # Additional commonly used values
 CORS_ORIGINS = getattr(settings, "CORS_ORIGINS", [])
+# Ensure port 5177 is always included (primary frontend port)
+if "http://localhost:5177" not in CORS_ORIGINS:
+    CORS_ORIGINS.append("http://localhost:5177")
 REDIS_URL = getattr(settings, "REDIS_URL", "redis://localhost:6379")
 RATE_LIMIT_ENABLED = getattr(settings, "RATE_LIMIT_ENABLED", True)
 MIN_PASSWORD_LENGTH = getattr(settings, "MIN_PASSWORD_LENGTH", 12)

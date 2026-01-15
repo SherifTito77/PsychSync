@@ -88,7 +88,25 @@ async def list_teams(
 # They will be re-enabled once the service layer issues are resolved
 
 
-@router.post("/", response_model=TeamSchema)
+@router.post(
+    "/",
+    response_model=TeamSchema,
+    responses={
+        201: {
+            "description": "Team created successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 2,
+                        "name": "Product Team",
+                        "description": "Product management team",
+                        "organization_id": 1
+                    }
+                }
+            }
+        }
+    }
+)
 async def create_team(
     team_data: TeamCreate,
     current_user: User = Depends(get_current_active_user),

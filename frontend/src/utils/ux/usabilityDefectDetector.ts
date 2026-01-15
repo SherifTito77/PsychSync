@@ -383,11 +383,12 @@ export class UXUsabilityDefectDetector {
     // Check for form labels
     const inputs = container.querySelectorAll('input, select, textarea');
     inputs.forEach((input, index) => {
-      const hasLabel = input.getAttribute('aria-label') ||
-                      input.getAttribute('aria-labelledby') ||
-                      container.querySelector(`label[for="${input.id}"]`);
+      const htmlInput = input as HTMLInputElement;
+      const hasLabel = htmlInput.getAttribute('aria-label') ||
+                      htmlInput.getAttribute('aria-labelledby') ||
+                      container.querySelector(`label[for="${htmlInput.id}"]`);
 
-      if (!hasLabel && input.type !== 'hidden') {
+      if (!hasLabel && htmlInput.type !== 'hidden') {
         defects.push(this.createDefect(
           'accessibility_violation',
           'high',
@@ -1045,9 +1046,9 @@ export class UXUsabilityDefectDetector {
     description: string,
     element: string,
     recommendation: string,
-    wcagGuideline?: string,
     heuristic: string,
-    confidence: number
+    confidence: number,
+    wcagGuideline?: string
   ): UXDefect {
     return {
       id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1067,7 +1068,12 @@ export class UXUsabilityDefectDetector {
     const walker = document.createTreeWalker(
       container,
       NodeFilter.SHOW_TEXT,
-      null,
+      {
+        acceptNode: (node) => {
+          // Skip empty text nodes and whitespace-only nodes
+          return node.textContent?.trim().length ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        }
+      } as NodeFilter,
       false
     );
 

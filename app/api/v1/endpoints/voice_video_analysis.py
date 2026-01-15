@@ -134,9 +134,7 @@ async def start_video_analysis(
             "duration": result["duration"]
         }
 
-    except Exception as
-@check_rate_limit(identifier="public", limit_name="public")
-e:
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/transcribe", response_model=TranscriptionResponse)
@@ -180,9 +178,7 @@ async def transcribe_audio(
             duration=result.duration,
             word_timestamps=result.word_timestamps,
             processing_time=result.processing_time,
-            quality_me
-@check_rate_limit(identifier="public", limit_name="public")
-trics=result.quality_metrics
+            quality_metrics=result.quality_metrics
         )
 
     except Exception as e:

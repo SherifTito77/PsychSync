@@ -68,7 +68,31 @@ except Exception as e:
     print(f"Security initialization error: {e}")
 
 
-@router.post("/token-fixed")
+@router.post(
+    "/token-fixed",
+    responses={
+        200: {
+            "description": "Login successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+                        "token_type": "bearer",
+                        "expires_in": 1800
+                    }
+                }
+            }
+        },
+        401: {
+            "description": "Invalid credentials",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Incorrect email or password"}
+                }
+            }
+        }
+    }
+)
 @rate_limit(max_requests=5, window_seconds=60)  # Max 5 login attempts per minute per IP
 async def login_for_access_token_fixed(
     request: Request,
@@ -229,7 +253,33 @@ async def login_for_access_token_fixed(
         ) from e
 
 
-@router.post("/register-fixed")
+@router.post(
+    "/register-fixed",
+    responses={
+        201: {
+            "description": "User registered successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": 2,
+                        "email": "newuser@example.com",
+                        "full_name": "Jane Smith",
+                        "is_active": False,
+                        "message": "Please check your email to verify your account"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Email already registered",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Email already registered"}
+                }
+            }
+        }
+    }
+)
 @rate_limit(max_requests=3, window_seconds=3600)  # Max 3 registrations per hour per IP
 async def register_user_fixed(
     request: Request,

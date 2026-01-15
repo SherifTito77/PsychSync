@@ -2,9 +2,9 @@
 // Main page component that provides access to all anonymous feedback features
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AnonymousFeedbackForm, FeedbackStatusCheck, HRReviewDashboard } from '@/components/anonymousFeedback';
 import { Shield, Info, Users, Search, BookOpen, Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';

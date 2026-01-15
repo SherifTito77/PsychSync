@@ -5,9 +5,9 @@
  */
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import Progress from '@/components/ui/progress';
 import { Brain, RefreshCw, Upload, Download, Users, Search, Settings } from 'lucide-react';
 import { TeamRequirement, TeamMember } from '../types';
 import { MemberList } from './MemberList';

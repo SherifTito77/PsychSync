@@ -56,11 +56,30 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             "/api/v1/mfa/setup",
             "/api/v1/mfa/verify",
             "/api/v1/mfa/disable",  # MFA management
+            # Simple auth endpoints (for testing/development)
+            "/api/v1/simple-login",
+            "/api/v1/verify-token",
+            # Clinical screening endpoints (for testing)
+            "/api/v1/screening",
+            "/api/v1/screening/lsas",
+            "/api/v1/screening/eat26",
+            "/api/v1/screening/ybocs",
+            "/api/v1/screening/phq9",
+            "/api/v1/screening/gad7",
+            "/api/v1/screening/cssrs",
+            "/api/v1/screening/consent",
             "/static",
             "/favicon.ico",
         ]
         self.token_expire_seconds = token_expire_seconds
         self.header_name = header_name
+
+        # Debug: Log what exclude_paths we're using
+        print(f"🔒 CSRF Middleware initialized with {len(self.exclude_paths)} exclude_paths")
+        if "/api/v1/simple-login" in self.exclude_paths:
+            print("  ✅ /api/v1/simple-login is in exclude_paths")
+        else:
+            print(f"  ❌ /api/v1/simple-login NOT in exclude_paths. Paths: {self.exclude_paths}")
 
     async def dispatch(self, request: Request, call_next):
         # Skip CSRF check for safe paths and safe HTTP methods

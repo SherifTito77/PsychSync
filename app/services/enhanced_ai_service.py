@@ -70,7 +70,7 @@ class EnhancedAIProcessor:
                 'Type 5': 'The Investigator - Perceptive and innovative with intense cerebral focus.',
                 'Type 6': 'The Loyalist - Committed and security-oriented with engaging responsibility.',
                 'Type 7': 'The Enthusiast - Busy and fun-loving with spontaneous versatility.',
-                'Type 8': 'The Challenger': 'Self-confident and decisive with powerful will.',
+                'Type 8': 'The Challenger - Self-confident and decisive with powerful will.',
                 'Type 9': 'The Peacemaker - Easygoing and self-effacing with receptive stability.'
             }
         }

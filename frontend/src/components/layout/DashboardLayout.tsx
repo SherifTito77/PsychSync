@@ -22,12 +22,25 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics>({
     lastActivity: Date.now(),
     securityScore: 100,
     sessionWarnings: 0
   });
   const [showSecurityWarning, setShowSecurityWarning] = useState(false);
+
+  // Auto-collapse sidebar on small screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768 && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isSidebarOpen]);
 
   // Security monitoring and session management
   useEffect(() => {
@@ -312,6 +325,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
   
             {/* Right Side Actions - Desktop */}
             <div className="hidden md:flex md:items-center md:space-x-4 flex-shrink-0">
+              {/* Sidebar Toggle for Desktop */}
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 rounded-lg text-indigo-200 hover:text-white hover:bg-indigo-700 transition-colors"
+                aria-label="Toggle sidebar"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
               {/* Notifications Button */}
               <button
                 type="button"
@@ -496,6 +519,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
             </div>
             {/* Mobile menu button */}
             <div className="flex items-center md:hidden">
+              {/* Sidebar Toggle for Mobile */}
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-indigo-200 hover:text-white hover:bg-indigo-700 mr-2"
+                aria-label="Toggle sidebar"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
               <button
                 onClick={toggleMobileMenu}
                 type="button"
@@ -668,8 +701,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
       </nav>
       {/* Page Content with Sidebar */}
       <div className="flex pt-16 sm:pt-20 md:pt-20 lg:pt-20 pb-6">
-        <Sidebar />
-        <main className="flex-1">
+        <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+
+        {/* Mobile backdrop */}
+        {isSidebarOpen && window.innerWidth < 768 && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        <main className={`flex-1 transition-all duration-300 ${
+          isSidebarOpen ? 'ml-48' : 'ml-14'
+        } ${window.innerWidth < 768 && isSidebarOpen ? 'ml-0' : ''}`}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {children}
           </div>

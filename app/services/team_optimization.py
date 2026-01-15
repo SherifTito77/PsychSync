@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 from typing import Any
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from scipy.optimize import differential_evolution
@@ -19,6 +21,9 @@ from app.db.models.user import User
 from app.services.predictions import PersonalityPredictor
 
 logger = logging.getLogger(__name__)
+
+# Thread pool executor for running sync database operations in async context
+_db_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="db_ops")
 
 
 class OptimizationObjective(Enum):
@@ -276,11 +281,15 @@ class TeamCompositionOptimizer:
         """Build comprehensive profiles for team members"""
 
         profiles = []
+        loop = asyncio.get_event_loop()
 
         for user_id in user_ids:
             try:
-                # Get user basic info
-                user = self.db.query(User).filter(User.id == user_id).first()
+                # Run synchronous DB query in thread pool to avoid blocking event loop
+                user = await loop.run_in_executor(
+                    _db_executor,
+                    lambda: self.db.query(User).filter(User.id == user_id).first()
+                )
                 if not user:
                     continue
 

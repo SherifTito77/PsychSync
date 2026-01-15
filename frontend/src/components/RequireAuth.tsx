@@ -1,6 +1,6 @@
 // src/components/RequireAuth.tsx
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './common/LoadingSpinner';
 interface RequireAuthProps {
@@ -8,6 +8,8 @@ interface RequireAuthProps {
 }
 const RequireAuth: React.FC<RequireAuthProps> = ({ children }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+
   if (isLoading) {
     // You can render a loading spinner or a full-page loader here
     return (
@@ -18,7 +20,8 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children }) => {
   }
   if (!user) {
     // If not loading and no user, redirect to the login page
-    return <Navigate to="/login" replace />;
+    // Save the intended destination in state
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
   // If there is a user, render the child components
   return <>{children}</>;

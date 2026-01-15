@@ -235,9 +235,7 @@ async def optimize_team(
         logger.error(f"Error optimizing team: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-
-@check_rate_limit(identifier="public", limit_name="public")
-       detail="Failed to optimize team composition"
+            detail="Failed to optimize team composition"
         )
 
 
@@ -287,9 +285,7 @@ async def analyze_team(
         )
     except Exception as e:
         logger.error(f"Error analyzing team: {str(e)}", exc_info=True)
-        raise HTTPEx
-@check_rate_limit(identifier="public", limit_name="public")
-ception(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to analyze team"
         )

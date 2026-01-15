@@ -42,6 +42,7 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
         env_file = ".env"
         case_sensitive = True
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Ignore extra environment variables (e.g., VITE_* from frontend)
 
     # API Settings
     API_V1_PREFIX: str = Field(default="/api/v1", env="API_V1_PREFIX")

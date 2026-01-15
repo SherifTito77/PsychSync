@@ -34,7 +34,7 @@ class InputValidationMiddleware:
         ]
 
         self.sql_injection_patterns = [
-            r"'|"|;|--|\/\*|\*\/|xp_|sp_|execute",
+            r'''['"]|;|--|\/\*|\*\/|xp_|sp_|execute''',
             r"union\s+select",
             r"select\s+.*\s+from",
             r"insert\s+into",

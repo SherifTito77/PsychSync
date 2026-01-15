@@ -29,40 +29,40 @@ class Team(Base):
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
 
     # Relationships
-    created_by = relationship(
-        "User", back_populates="teams_created", foreign_keys=[created_by_id], lazy="select"
-    )
+    # created_by = relationship(  # TEMPORARILY DISABLED
+    #     "User", back_populates="teams_created", foreign_keys=[created_by_id], lazy="select"
+    # )
 
-    organization = relationship(
-        "Organization", back_populates="teams", foreign_keys=[organization_id], lazy="select"
-    )
+    # organization = relationship(  # TEMPORARILY DISABLED
+    #     "Organization", back_populates="teams", foreign_keys=[organization_id], lazy="select"
+    # )
 
-    members = relationship(
-        "TeamMember",
-        back_populates="team",
-        cascade="all, delete-orphan",
-        foreign_keys="[TeamMember.team_id]",
-    )
+    # members = relationship(  # TEMPORARILY DISABLED
+    #     "TeamMember",
+    #     back_populates="team",
+    #     cascade="all, delete-orphan",
+    #     foreign_keys="[TeamMember.team_id]",
+    # )
 
     # Employee Safety relationships - Temporarily disabled due to circular import
-    # safety_incidents = relationship("SafetyIncident", back_populates="team")
-    # wellness_assessments = relationship("WellnessAssessment", back_populates="team")
+    # safety_incidents = relationship("SafetyIncident", back_populates="team")  # TEMPORARILY DISABLED
+    # wellness_assessments = relationship("WellnessAssessment", back_populates="team")  # TEMPORARILY DISABLED
 
     # Growth trajectory relationships
-    growth_trajectories = relationship("GrowthTrajectory", back_populates="team")
+    # growth_trajectories = relationship("GrowthTrajectory", back_populates="team")  # TEMPORARILY DISABLED
 
-    assessments = relationship(
-        "Assessment", back_populates="team", foreign_keys="[Assessment.team_id]"
-    )
+    # assessments = relationship(  # TEMPORARILY DISABLED
+    #     "Assessment", back_populates="team", foreign_keys="[Assessment.team_id]"
+    # )
 
     # Intervention relationships
-    interventions = relationship("Intervention", back_populates="team")
+    # interventions = relationship("Intervention", back_populates="team")  # TEMPORARILY DISABLED
 
     # Email Analysis Relationships - Temporarily disabled
-    # communication_patterns = relationship("CommunicationPatterns", back_populates="team", cascade="all, delete-orphan")
-    # culture_metrics = relationship("CultureMetrics", back_populates="team", cascade="all, delete-orphan")
-    # coaching_recommendations = relationship("CoachingRecommendation", back_populates="team", cascade="all, delete-orphan")
-    # communication_alerts = relationship("CommunicationAlert", back_populates="team", cascade="all, delete-orphan")
+    # communication_patterns = relationship("CommunicationPatterns", back_populates="team", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # culture_metrics = relationship("CultureMetrics", back_populates="team", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # coaching_recommendations = relationship("CoachingRecommendation", back_populates="team", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
+    # communication_alerts = relationship("CommunicationAlert", back_populates="team", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
 
     # Define table indexes for performance
     __table_args__ = (
@@ -95,9 +95,9 @@ class TeamMember(Base):
     )
 
     # Relationships
-    team = relationship("Team", back_populates="members", foreign_keys=[team_id])
+    # team = relationship("Team", back_populates="members", foreign_keys=[team_id])  # TEMPORARILY DISABLED
 
-    user = relationship("User", back_populates="team_memberships", foreign_keys=[user_id])
+    # user = relationship("User", back_populates="team_memberships", foreign_keys=[user_id])  # TEMPORARILY DISABLED
 
     def __repr__(self):
         return f"<TeamMember(team_id={self.team_id}, user_id={self.user_id}, role={self.role})>"

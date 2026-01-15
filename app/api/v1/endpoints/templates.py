@@ -43,7 +43,7 @@ class TemplateService:
     async def delete_template(*args, **kwargs):
         return False
 
-router = APIRouter()
+router = APIRouter(prefix="/templates", tags=["templates"])
 
 
 @router.post("", response_model=TemplateSchema, status_code=status.HTTP_201_CREATED)
@@ -98,9 +98,7 @@ def search_templates(
     """
     Search templates by name or description.
     """
-    templat
-@check_rate_limit(identifier="public", limit_name="public")
-es = TemplateService.search(db, query=q)
+    templates = TemplateService.search(db, query=q)
     return templates
 
 
@@ -122,9 +120,7 @@ def get_template(
 
     if not template.is_public:
         raise HTTPException(
-
-@check_rate_limit(identifier="public", limit_name="public")
-   status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="This template is not public"
         )
 
