@@ -33,13 +33,22 @@ repos:
   # Documentation quality validation (Phase 1)
   - repo: local
     hooks:
-      - id: documentation-quality
-        name: Documentation Quality Check
+      # Fast individual file validation (runs on each file)
+      - id: documentation-quality-file
+        name: Documentation Quality Check (File)
+        entry: python tests/documentation/validate_doc_file.py
+        language: system
+        files: ^(docs/).*\.md$
+        pass_filenames: true
+
+      # Comprehensive test suite (runs on all docs at once)
+      - id: documentation-quality-full
+        name: Documentation Quality Check (Full Suite)
         entry: python tests/documentation/run_doc_tests.py
         language: system
         files: ^(docs/).*\.md$
         pass_filenames: false
-        # Only run on documentation files
+        # Only run when explicitly requested or in CI
 
   # General checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
