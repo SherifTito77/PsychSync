@@ -452,3 +452,190 @@ if (navigator.userAgent.includes('Android')) {
 - **Cumulative Layout Shift**: 0.1 → 0.05
 
 This optimization guide will help achieve the final 4.6% needed to reach 100% PWA performance score and ensure exceptional user experience across all devices and network conditions.
+
+## 🔐 Authentication Integration
+
+### JWT Token Management
+The PWA implements secure JWT token handling for authentication:
+
+```javascript
+// Token refresh interceptor
+async function refreshAccessToken() {
+  try {
+    const refreshToken = localStorage.getItem('refresh_token');
+    const response = await fetch('/api/v1/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+
+    if (!response.ok) {
+      throw new Error('Token refresh failed');
+    }
+
+    const { access_token } = await response.json();
+    localStorage.setItem('access_token', access_token);
+    return access_token;
+  } catch (error) {
+    // Clear tokens and redirect to login
+    localStorage.clear();
+    window.location.href = '/login';
+  }
+}
+
+// Axios interceptor for automatic token refresh
+api.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response?.status === 401 && !error.config._retry) {
+      error.config._retry = true;
+      const newToken = await refreshAccessToken();
+      error.config.headers.Authorization = `Bearer ${newToken}`;
+      return api.request(error.config);
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### Service Worker Authentication
+For authenticated API requests in service worker:
+
+```javascript
+// Fetch with authentication
+async function authenticatedFetch(request) {
+  const token = await getAuthTokenFromCache();
+  const authRequest = new Request(request, {
+    headers: {
+      ...request.headers,
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  return fetch(authRequest).catch(() => {
+    // Fallback to regular fetch if auth fails
+    return fetch(request);
+  });
+}
+```
+
+## ⚠️ Error Response Examples
+
+### Common Error Scenarios
+
+#### 1. Network Error (Offline)
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NETWORK_ERROR",
+    "message": "Unable to connect to server. Working in offline mode.",
+    "retryable": true,
+    "fallback": "Using cached data"
+  }
+}
+```
+
+#### 2. Cache Miss
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CACHE_MISS",
+    "message": "Requested resource not found in cache",
+    "action": "Fetching from network",
+    "url": "/api/v1/user/profile"
+  }
+}
+```
+
+#### 3. Service Worker Update Failed
+```json
+{
+  "success": false,
+  "error": {
+    "code": "SW_UPDATE_FAILED",
+    "message": "Service worker update failed",
+    "current_version": "2.1.0",
+    "attempted_version": "2.2.0",
+    "retry_required": true
+  }
+}
+```
+
+#### 4. Authentication Error
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTHENTICATION_ERROR",
+    "message": "Session expired. Please log in again.",
+    "status": 401,
+    "action": "redirect_to_login"
+  }
+}
+```
+
+### Error Handling Implementation
+```javascript
+// Centralized error handler
+class PWAErrorHandler {
+  handle(error, context = {}) {
+    const errorResponse = {
+      success: false,
+      error: {
+        code: error.code || 'UNKNOWN_ERROR',
+        message: error.message || 'An unexpected error occurred',
+        context: context,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    // Log error for monitoring
+    this.logError(errorResponse);
+
+    // Show user-friendly message
+    this.showUserNotification(errorResponse);
+
+    // Attempt recovery if possible
+    if (error.retryable) {
+      return this.attemptRecovery(error, context);
+    }
+
+    return errorResponse;
+  }
+
+  async attemptRecovery(error, context) {
+    if (error.code === 'NETWORK_ERROR') {
+      // Try cached version
+      return await getCachedVersion(context.url);
+    }
+    if (error.code === 'AUTHENTICATION_ERROR') {
+      // Try token refresh
+      return await refreshAccessToken();
+    }
+  }
+}
+```
+
+### Monitoring Error Rates
+```javascript
+// Error rate monitoring
+const errorMetrics = {
+  networkErrors: 0,
+  cacheErrors: 0,
+  authErrors: 0,
+  totalRequests: 0,
+
+  getErrorRate() {
+    return (this.networkErrors + this.cacheErrors + this.authErrors) /
+           this.totalRequests;
+  },
+
+  reportMetrics() {
+    if (this.getErrorRate() > 0.05) {
+      console.warn('High error rate detected:', this.getErrorRate());
+    }
+  }
+};
+```

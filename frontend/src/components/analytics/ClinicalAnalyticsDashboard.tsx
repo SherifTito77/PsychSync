@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Progress from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   TrendingUp,
   TrendingDown,
@@ -89,11 +90,11 @@ function ClinicalAnalyticsDashboard() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6">
         <Card>
-          <CardContent className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600 mr-3" />
-            <span>Loading analytics...</span>
+          <CardContent className="flex items-center justify-center py-16 sm:py-20">
+            <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-blue-600 mr-3" />
+            <span className="text-sm sm:text-base">Loading analytics...</span>
           </CardContent>
         </Card>
       </div>
@@ -102,10 +103,10 @@ function ClinicalAnalyticsDashboard() {
 
   if (error || !data) {
     return (
-      <div className="max-w-7xl mx-auto p-6">
-        <Alert variant="destructive">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6">
+        <Alert variant="error">
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error || 'Failed to load analytics data'}</AlertDescription>
+          <AlertDescription className="text-sm sm:text-base">{error || 'Failed to load analytics data'}</AlertDescription>
         </Alert>
       </div>
     );
@@ -117,75 +118,76 @@ function ClinicalAnalyticsDashboard() {
       : 0;
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Clinical Analytics Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      {/* Header - Mobile Optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">Clinical Analytics Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             Population health insights and trends
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Shield className="h-5 w-5 text-blue-600" />
-          <span className="text-sm text-gray-600">HIPAA-compliant</span>
+        <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-center">
+          <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+          <span className="text-xs sm:text-sm text-gray-600">HIPAA-compliant</span>
         </div>
       </div>
 
-      {/* Time Range Selector */}
-      <div className="flex gap-2">
+      {/* Time Range Selector - Mobile Optimized */}
+      <div className="flex flex-wrap gap-2">
         {['7d', '30d', '90d', '1y'].map((range) => (
           <Button
             key={range}
             onClick={() => setTimeRange(range)}
             variant={timeRange === range ? 'default' : 'outline'}
             size="sm"
+            className="flex-1 sm:flex-none min-w-[70px] text-xs sm:text-sm"
           >
             {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : '1 Year'}
           </Button>
         ))}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Summary Cards - Mobile Optimized */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Assessments</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Total Assessments</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <div className="text-3xl font-bold">{data.summary.total_assessments}</div>
-              <Activity className="h-8 w-8 text-blue-600 opacity-20" />
+              <div className="text-2xl sm:text-3xl font-bold">{data.summary.total_assessments}</div>
+              <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 opacity-20" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Active Users</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Active Users</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
-              <div className="text-3xl font-bold">{data.summary.total_users}</div>
-              <Users className="h-8 w-8 text-green-600 opacity-20" />
+              <div className="text-2xl sm:text-3xl font-bold">{data.summary.total_users}</div>
+              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 opacity-20" />
             </div>
           </CardContent>
         </Card>
 
         <Card className={data.summary.crisis_alerts_triggered > 0 ? 'border-orange-500' : ''}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Crisis Alerts</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Crisis Alerts</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold">{data.summary.crisis_alerts_triggered}</div>
+                <div className="text-2xl sm:text-3xl font-bold">{data.summary.crisis_alerts_triggered}</div>
                 <div className="text-xs text-gray-600 mt-1">
                   {data.summary.crisis_alerts_resolved} resolved
                 </div>
               </div>
-              <AlertTriangle className={`h-8 w-8 ${
+              <AlertTriangle className={`h-6 w-6 sm:h-8 sm:w-8 ${
                 data.summary.crisis_alerts_triggered > 0 ? 'text-orange-600' : 'text-gray-400'
               } opacity-20`} />
             </div>
@@ -193,30 +195,30 @@ function ClinicalAnalyticsDashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Avg Response Time</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">Avg Response Time</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold">
+                <div className="text-2xl sm:text-3xl font-bold">
                   {data.summary.avg_response_time_minutes}m
                 </div>
                 <div className="text-xs text-gray-600 mt-1">Crisis response</div>
               </div>
-              <Clock className="h-8 w-8 text-purple-600 opacity-20" />
+              <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600 opacity-20" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs for Different Views */}
+      {/* Tabs for Different Views - Mobile Optimized */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="risk">Risk Distribution</TabsTrigger>
-          <TabsTrigger value="assessments">Assessment Types</TabsTrigger>
-          <TabsTrigger value="high-risk">High Risk Users</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 sm:py-3">Overview</TabsTrigger>
+          <TabsTrigger value="risk" className="text-xs sm:text-sm py-2 sm:py-3">Risk Distribution</TabsTrigger>
+          <TabsTrigger value="assessments" className="text-xs sm:text-sm py-2 sm:py-3">Assessment Types</TabsTrigger>
+          <TabsTrigger value="high-risk" className="text-xs sm:text-sm py-2 sm:py-3">High Risk Users</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}

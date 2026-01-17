@@ -26,9 +26,9 @@ const Profile: React.FC = () => {
       setMessage({ type: 'success', text: 'Profile updated successfully' });
       setIsEditing(false);
     } catch (error: any) {
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.detail || 'Failed to update profile' 
+      setMessage({
+        type: 'error',
+        text: error.response?.data?.detail || 'Failed to update profile'
       });
     }
   };
@@ -48,9 +48,9 @@ const Profile: React.FC = () => {
       setIsChangingPassword(false);
       setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
     } catch (error: any) {
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.detail || 'Failed to change password' 
+      setMessage({
+        type: 'error',
+        text: error.response?.data?.detail || 'Failed to change password'
       });
     }
   };

@@ -90,5 +90,3 @@ data:
   REDIS_HOST: localhost
   REDIS_PORT: "6379"
   ENVIRONMENT: "local"
-
-

@@ -6,26 +6,26 @@ from ai.processors.base import PersonalityFrameworkProcessor
 
 class EnneagramProcessor(PersonalityFrameworkProcessor):
     """Process Enneagram assessment results"""
-    
+
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process raw Enneagram data into standardized format"""
         if not self._validate_input(raw_data):
             return self._fallback_result('enneagram', 'Invalid input data')
-        
+
         try:
             # Extract primary type
             primary_type = self._safe_get(raw_data, 'type', 1)
             confidence = self._safe_get(raw_data, 'confidence', 0.8)
             wing = self._safe_get(raw_data, 'wing', None)
-            
+
             # Map to standardized personality dimensions
             type_mapping = self._get_enneagram_mapping()
-            
+
             if primary_type in type_mapping:
                 dimensions = type_mapping[primary_type].copy()
             else:
                 dimensions = self._default_dimensions()
-            
+
             # Adjust for wing influence if present
             if wing and isinstance(wing, str) and 'w' in wing:
                 try:
@@ -37,7 +37,7 @@ class EnneagramProcessor(PersonalityFrameworkProcessor):
                             dimensions[dim] = dimensions[dim] * 0.7 + value * 0.3
                 except (ValueError, IndexError):
                     pass  # Invalid wing format, ignore
-            
+
             return {
                 'type': primary_type,
                 'wing': wing,
@@ -47,10 +47,10 @@ class EnneagramProcessor(PersonalityFrameworkProcessor):
                 'growth_areas': self._get_growth_areas(primary_type),
                 'strengths': self._get_type_strengths(primary_type)
             }
-            
+
         except Exception as e:
             return self._fallback_result('enneagram', str(e))
-    
+
     def _get_enneagram_mapping(self) -> Dict[int, Dict[str, float]]:
         """Map Enneagram types to Big Five dimensions"""
         return {
@@ -64,7 +64,7 @@ class EnneagramProcessor(PersonalityFrameworkProcessor):
             8: {'openness': 0.5, 'conscientiousness': 0.6, 'extraversion': 0.8, 'agreeableness': 0.2, 'neuroticism': 0.3},
             9: {'openness': 0.4, 'conscientiousness': 0.4, 'extraversion': 0.3, 'agreeableness': 0.9, 'neuroticism': 0.4}
         }
-    
+
     def _get_type_interpretation(self, type_num: int) -> str:
         """Get interpretation for Enneagram type"""
         interpretations = {
@@ -79,7 +79,7 @@ class EnneagramProcessor(PersonalityFrameworkProcessor):
             9: "The Peacemaker - Receptive, reassuring, agreeable, complacent"
         }
         return interpretations.get(type_num, "Unknown type")
-    
+
     def _get_growth_areas(self, type_num: int) -> List[str]:
         """Get growth areas for each type"""
         growth_areas = {
@@ -94,7 +94,7 @@ class EnneagramProcessor(PersonalityFrameworkProcessor):
             9: ["Initiative taking", "Conflict engagement", "Self-advocacy"]
         }
         return growth_areas.get(type_num, ["Self-awareness", "Personal growth"])
-    
+
     def _get_type_strengths(self, type_num: int) -> List[str]:
         """Get strengths for each type"""
         strengths = {

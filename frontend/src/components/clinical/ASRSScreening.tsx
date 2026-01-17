@@ -21,26 +21,26 @@ import api from '@/services/api';
 
 interface ASRSResponse {
   // Part A - Screening questions (most predictive)
-  a1 careless: number;
-  a2 difficulty_sustaining: number;
-  a3 difficulty_listening: number;
-  a4 distracted: number;
-  a5 difficulty_organization: number;
-  a6 forgetting_obligations: number;
+  a1_careless: number;
+  a2_difficulty_sustaining: number;
+  a3_difficulty_listening: number;
+  a4_distracted: number;
+  a5_difficulty_organization: number;
+  a6_forgetting_obligations: number;
 
   // Part B - Additional symptoms
-  b7 avoid_tasks: number;
-  b8 difficulty_finishing: number;
-  b9 difficulty_concentrating: number;
-  b10 losing_things: number;
-  b11 distracted_activity: number;
-  b12 difficultylistening: number;
-  b13 fidgeting: number;
-  b14 restless: number;
-  b15 difficulty_relaxing: number;
-  b16 active: number;
-  b17 talking_excessively: number;
-  b18 blurting_answers: number;
+  b7_avoid_tasks: number;
+  b8_difficulty_finishing: number;
+  b9_difficulty_concentrating: number;
+  b10_losing_things: number;
+  b11_distracted_activity: number;
+  b12_difficultylistening: number;
+  b13_fidgeting: number;
+  b14_restless: number;
+  b15_difficulty_relaxing: number;
+  b16_active: number;
+  b17_talking_excessively: number;
+  b18_blurting_answers: number;
 }
 
 interface ScreeningResult {

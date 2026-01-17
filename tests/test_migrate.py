@@ -25,4 +25,3 @@ class TestMigrate:
         # TODO(human): Implement test for run_migrations
         # This is an auto-generated test placeholder
         assert True  # Placeholder assertion
-

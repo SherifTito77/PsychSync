@@ -43,7 +43,7 @@ def get_dns_security_status(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/dns/security/status"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -90,7 +90,7 @@ def get_dns_security_summary(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/dns/security/summary"
-        
+
     )
 
     assert response.status_code in [200, 201]

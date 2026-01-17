@@ -270,7 +270,7 @@ def get_enterprise_dashboard(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/accounts/dashboard"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -317,7 +317,7 @@ def get_enterprise_features(client):
     # TODO: Implement test logic
     response = client.get(
         "/features/tiers"
-        
+
     )
 
     assert response.status_code in [200, 201]

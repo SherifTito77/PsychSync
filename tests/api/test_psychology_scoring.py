@@ -272,7 +272,7 @@ def get_available_psychological_frameworks(client):
     # TODO: Implement test logic
     response = client.get(
         "/psychological-frameworks"
-        
+
     )
 
     assert response.status_code in [200, 201]

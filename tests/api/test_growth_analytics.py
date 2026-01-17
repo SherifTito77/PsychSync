@@ -317,7 +317,7 @@ def list_user_segments(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/segments/list"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -364,7 +364,7 @@ def list_conversion_funnels(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/funnels/list"
-        
+
     )
 
     assert response.status_code in [200, 201]

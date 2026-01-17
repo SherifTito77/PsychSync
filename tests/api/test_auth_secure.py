@@ -133,7 +133,7 @@ def get_current_user_info(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/me"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -269,7 +269,7 @@ def health_check(client):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]

@@ -178,7 +178,7 @@ def get_pricing_tiers(client):
     # TODO: Implement test logic
     response = client.get(
         "/pricing"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -225,7 +225,7 @@ def get_current_subscription(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/subscription/current"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -272,7 +272,7 @@ def get_usage_metrics(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/usage"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -455,7 +455,7 @@ def get_payment_methods(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/payment-methods"
-        
+
     )
 
     assert response.status_code in [200, 201]

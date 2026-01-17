@@ -65,7 +65,7 @@ class TestModuleFunctions:
         try:
             # Arrange: Valid test data
             test_data = {"key": "value"}
-            
+
             # Act
             result = user_to_dict(mock_db or test_data)
 
@@ -84,7 +84,7 @@ class TestModuleFunctions:
         try:
             # Arrange: Invalid test data
             test_data = {"invalid": "data"}
-            
+
             # Act
             result = user_to_dict(mock_db or test_data)
 
@@ -101,7 +101,7 @@ class TestModuleFunctions:
 
         # Test Edge Case
         try:
-            
+
             # Act
             result = user_to_dict(mock_db or test_data)
 
@@ -123,7 +123,7 @@ class TestModuleFunctions:
         try:
             # Arrange: Valid test data
             test_data = {"key": "value"}
-            
+
             # Act
             result = get_user_full_name(mock_db or test_data)
 
@@ -142,7 +142,7 @@ class TestModuleFunctions:
         try:
             # Arrange: Valid test data
             test_data = {"key": "value"}
-            
+
             # Act
             result = get_user_full_name(mock_db or test_data)
 
@@ -161,7 +161,7 @@ class TestModuleFunctions:
         try:
             # Arrange: Valid test data
             test_data = {"key": "value"}
-            
+
             # Act
             result = get_user_full_name(mock_db or test_data)
 

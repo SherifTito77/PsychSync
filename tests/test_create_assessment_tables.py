@@ -25,4 +25,3 @@ class TestCreate_Assessment_Tables:
         # TODO(human): Implement test for create_tables
         # This is an auto-generated test placeholder
         assert True  # Placeholder assertion
-

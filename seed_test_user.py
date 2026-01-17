@@ -22,10 +22,10 @@ from app.core.config import settings
 
 async def create_test_user():
     """Create a test user: testme@gmail.com / Testme@123"""
-    
+
     # The DATABASE_URL should be the async one, e.g., "postgresql+asyncpg://..."
     DATABASE_URL = settings.DATABASE_URL
-    
+
     # Check if the URL is for asyncpg, if not, we can't proceed.
     if "asyncpg" not in DATABASE_URL:
         print("✗ Error: DATABASE_URL is not configured for asyncpg.")
@@ -33,11 +33,11 @@ async def create_test_user():
         return
 
     print(f"✓ Connecting to database...")
-    
+
     try:
         # Create an async engine
         engine = create_async_engine(DATABASE_URL, echo=False) # Set echo=True to see SQL queries
-        
+
         # Create a configured "Session" class
         async_session = sessionmaker(
             engine, class_=AsyncSession, expire_on_commit=False
@@ -51,15 +51,15 @@ async def create_test_user():
                     {"email": "testme@gmail.com"}
                 )
                 print("✓ Cleared any existing test user")
-                
+
                 # Define the password
                 password = "Testme@123"
-                
+
                 # Use the centralized get_password_hash function
                 hashed_password = get_password_hash(password)
-                
+
                 print(f"✓ Password hashed successfully.")
-                
+
                 # Insert new user
                 result = await session.execute(
                     text("""
@@ -74,9 +74,9 @@ async def create_test_user():
                         "is_active": True
                     }
                 )
-                
+
                 user = result.fetchone()
-                
+
                 # The commit is handled by the `async with session.begin():` context manager
                 print("✓ Test user created successfully!")
                 print(f"  Email: {user[1]}")

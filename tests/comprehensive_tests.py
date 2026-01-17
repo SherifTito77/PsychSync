@@ -21,13 +21,13 @@ def db_session():
     """Mock database session"""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    
+
     engine = create_engine('sqlite:///:memory:')
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     yield session
-    
+
     session.close()
 
 @pytest.fixture
@@ -35,7 +35,7 @@ async def api_client():
     """FastAPI test client"""
     from fastapi.testclient import TestClient
     from app.main import app  # FIXED: Changed from 'main' to 'app.main'
-    
+
     client = TestClient(app)
     yield client
 
@@ -45,7 +45,7 @@ async def api_client():
 
 class TestAPIEndpoints:
     """Test all API endpoints"""
-    
+
     def test_health_check(self, api_client):
         """Test health check endpoint"""
         response = api_client.get("/health")
@@ -62,7 +62,7 @@ class TestAPIEndpoints:
 # EXAMPLE: Test PsychSync-specific endpoints instead
 class TestPsychSyncEndpoints:
     """Test PsychSync API endpoints"""
-    
+
     def test_user_endpoints(self, api_client):
         """Test user-related endpoints exist"""
         # Test registration endpoint
@@ -73,7 +73,7 @@ class TestPsychSyncEndpoints:
         })
         # May succeed or fail based on validation, but shouldn't crash
         assert response.status_code in [200, 201, 400, 422]
-    
+
     def test_auth_endpoints(self, api_client):
         """Test authentication endpoints"""
         response = api_client.post("/api/v1/auth/login/json", json={
@@ -89,25 +89,25 @@ class TestPsychSyncEndpoints:
 
 class TestDatabase:
     """Test database operations"""
-    
+
     def test_user_model_creation(self, db_session):
         """Test creating a user in the database"""
         from app.db.models.user import User
         from app.core.database import Base
-        
+
         # Create tables
         Base.metadata.create_all(bind=db_session.bind)
-        
+
         user = User(
             email="test@example.com",
             full_name="Test User",
             password_hash="hashed_password",
             is_active=True
         )
-        
+
         db_session.add(user)
         db_session.commit()
-        
+
         retrieved = db_session.query(User).filter_by(email="test@example.com").first()
         assert retrieved is not None
         assert retrieved.email == "test@example.com"

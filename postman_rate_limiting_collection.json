@@ -518,7 +518,7 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/health",
-              "host": ["{{baseUrl}}],
+              "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "health"]
             },
             "description": "Test anonymous user burst capacity (20 requests burst). Run this request 20 times rapidly to test if burst capacity is honored."
@@ -1260,7 +1260,7 @@
                   "    // Enterprise users should have enterprise role",
                   "    pm.expect(response).to.have.property('role', 'enterprise');",
                   "});",
-                  ""
+                  "",
                   "// Track for enterprise-specific features",
                   "if (pm.response.code === 200) {",
                   "    const response = pm.response.json();",
@@ -1364,20 +1364,20 @@
                   "  averageResponseTime: responseTimes.length > 0 ? responseTimes.reduce((sum, item) => sum + item.time, 0) / responseTimes.length : 0,",
                   "  maxResponseTime: responseTimes.length > 0 ? Math.max(...responseTimes.map(item => item.time)) : 0,",
                   "  timestamp: new Date.now().toISOString(),",
-                  "  environment: pm.environment.name || 'unknown'",
+                  "  environment: pm.environment.name || 'unknown',",
                   "  baseUrl: pm.collectionVariables.get('baseUrl'),",
                   "  performance: {",
                   "    responseTimeData: responseTimes,",
-                  "    rateLimitEffectiveness: rateLimitedRequests.length > 0",
-                  "  successRate: ((responseTimes.length - rateLimitedRequests.length) / responseTimes.length * 100).toFixed(1)",
-                  "  }",
+                  "    rateLimitEffectiveness: rateLimitedRequests.length > 0,",
+                  "    successRate: ((responseTimes.length - rateLimitedRequests.length) / responseTimes.length * 100).toFixed(1)",
+                  "  },",
                   "  detailedResults: responseTimes.map(item => ({",
                   "    request: item.request,",
                   "    status: item.status,",
                   "    responseTime: item.responseTime,",
                   "    timestamp: item.timestamp",
                   "  }))",
-                  "};",
+                  "\";",
                   "",
                   "pm.collectionVariables.set('rateLimitTestResults', JSON.stringify(testResults, null, 2));",
                   "console.log('💾 Test results saved to collection variables');"

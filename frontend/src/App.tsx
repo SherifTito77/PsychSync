@@ -2,8 +2,6 @@
 // Enhanced main application component with comprehensive security measures
 import React, { memo, Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { TeamProvider } from './contexts/TeamContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -75,6 +73,8 @@ const CrisisResources = React.lazy(() => import('./components/clinical/CrisisRes
 const LSASScreening = React.lazy(() => import('./components/clinical/LSASScreening'));
 const EAT26Screening = React.lazy(() => import('./components/clinical/EAT26Screening'));
 const YBOCSScreening = React.lazy(() => import('./components/clinical/YBOCSScreening'));
+const BDI2Screening = React.lazy(() => import('./components/clinical/BDI2Screening'));
+const BAIScreening = React.lazy(() => import('./components/clinical/BAIScreening'));
 
 // Additional Clinical Assessments
 const DASS21Screening = React.lazy(() => import('./components/clinical/DASS21Screening'));
@@ -96,6 +96,8 @@ const VideoConsultation = React.lazy(() => import('./components/telehealth/Video
 const TelehealthScheduler = React.lazy(() => import('./components/telehealth/TelehealthScheduler'));
 const MentalHealthChatbot = React.lazy(() => import('./components/ai/MentalHealthChatbot'));
 const ClinicalAnalyticsDashboard = React.lazy(() => import('./components/analytics/ClinicalAnalyticsDashboard'));
+const PopulationHealthDashboard = React.lazy(() => import('./components/analytics/PopulationHealthDashboard'));
+const AutomatedAlertsCenter = React.lazy(() => import('./components/clinical/AutomatedAlertsCenter'));
 
 // Security Dashboard (admin only)
 const SecurityDashboard = React.lazy(() => import('./components/admin/SecurityDashboard'));
@@ -103,6 +105,12 @@ const SecurityDashboard = React.lazy(() => import('./components/admin/SecurityDa
 // Health Monitoring Routes
 const EnhancedHealthDashboard = React.lazy(() => import('./components/health/EnhancedHealthDashboard'));
 const ManagerDashboard = React.lazy(() => import('./components/health/ManagerDashboard'));
+
+// Defensible IP Features
+const BurnoutPrevention = React.lazy(() => import('./pages/BurnoutPrevention'));
+const MultiFrameworkSynthesis = React.lazy(() => import('./pages/MultiFrameworkSynthesis'));
+const AnonymousFeedback = React.lazy(() => import('./pages/AnonymousFeedback'));
+const BehavioralAnalytics = React.lazy(() => import('./pages/BehavioralAnalytics'));
 
 // --- Five Distinct Service Areas ---
 const PersonalityAssessments = React.lazy(() => import('./pages/PersonalityAssessments'));
@@ -113,6 +121,10 @@ const StressAssessmentTest = React.lazy(() => import('./pages/StressAssessmentTe
 const WellbeingAssessment = React.lazy(() => import('./pages/wellbeing-assessment'));
 const EmailConnector = React.lazy(() => import('./pages/EmailConnector'));
 const HRISConnector = React.lazy(() => import('./pages/HRISConnector'));
+
+// Legal Rights & Equity Dashboards
+const LegalRightsDashboard = React.lazy(() => import('./components/legal/LegalRightsDashboard'));
+const EquityDashboard = React.lazy(() => import('./components/equity/EquityDashboard'));
 
 // Overview pages for dropdown sections
 const Services = React.lazy(() => import('./pages/Services'));
@@ -232,16 +244,6 @@ const SecureFallback: React.FC<{ message?: string }> = memo(({ message = "Loadin
   </div>
 ));
 
-// Create a client for React Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    },
-  },
-});
-
 const App: React.FC = memo(() => {
   // Initialize PWA functionality
   useEffect(() => {
@@ -252,8 +254,7 @@ const App: React.FC = memo(() => {
   const showDevNavigation = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ErrorBoundary
+    <ErrorBoundary
         enableErrorReporting={true}
         showRetry={true}
         maxRetries={3}
@@ -264,13 +265,14 @@ const App: React.FC = memo(() => {
             <NotificationProvider>
               <TeamProvider>
                 <AssessmentProvider>
-                {showDevNavigation && <OnboardingNavigation />}
-                <PWAInstaller
-                  onInstallComplete={() => console.log('PWA installed successfully')}
-                  onInstallDismissed={() => console.log('PWA install dismissed')}
-                />
-                <OfflineStatusIndicator showDetailedInfo={true} />
-                    <Routes>
+                <>
+                  {showDevNavigation && <OnboardingNavigation />}
+                  <PWAInstaller
+                    onInstallComplete={() => console.log('PWA installed successfully')}
+                    onInstallDismissed={() => console.log('PWA install dismissed')}
+                  />
+                  <OfflineStatusIndicator showDetailedInfo={true} />
+                  <Routes>
                       {/* Public Routes */}
                       <Route
                         path="/test-wellness"
@@ -610,6 +612,62 @@ const App: React.FC = memo(() => {
                           <DashboardLayout>
                             <Suspense fallback={<SecureFallback message="Loading Toxic Behavior Detection..." />}>
                               <ToxicBehaviorDetection />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/burnout-prevention"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Burnout Prevention..." />}>
+                              <BurnoutPrevention />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/multi-framework-synthesis"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Multi-Framework Synthesis..." />}>
+                              <MultiFrameworkSynthesis />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/anonymous-feedback"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Anonymous Feedback..." />}>
+                              <AnonymousFeedback />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/behavioral-analytics"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Behavioral Analytics..." />}>
+                              <BehavioralAnalytics />
                             </Suspense>
                           </DashboardLayout>
                         </RequireAuth>
@@ -1075,6 +1133,37 @@ const App: React.FC = memo(() => {
                     }
                   />
 
+                  {/* Legal Rights & Equity Dashboards */}
+                  <Route
+                    path="/legal-rights"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Legal Rights Dashboard..." />}>
+                              <LegalRightsDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/equity"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading Equity Dashboard..." />}>
+                              <EquityDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
                   {/* Clinical Assessment Routes */}
                   <Route
                     path="/clinical-assessments"
@@ -1312,6 +1401,34 @@ const App: React.FC = memo(() => {
                           <DashboardLayout>
                             <Suspense fallback={<SecureFallback message="Loading Y-BOCS Assessment..." />}>
                               <YBOCSScreening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/bdi2"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading BDI-II Assessment..." />}>
+                              <BDI2Screening />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+                  <Route
+                    path="/screening/bai"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading BAI Assessment..." />}>
+                              <BAIScreening />
                             </Suspense>
                           </DashboardLayout>
                         </RequireAuth>
@@ -1567,6 +1684,38 @@ const App: React.FC = memo(() => {
                     }
                   />
 
+                  {/* Population Health Analytics Route */}
+                  <Route
+                    path="/analytics/population-health"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading population health dashboard..." />}>
+                              <PopulationHealthDashboard />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
+                  {/* Automated Alerts Center Route */}
+                  <Route
+                    path="/clinical/alerts-center"
+                    element={
+                      <SecureRoute requireAuth>
+                        <RequireAuth>
+                          <DashboardLayout>
+                            <Suspense fallback={<SecureFallback message="Loading alerts center..." />}>
+                              <AutomatedAlertsCenter />
+                            </Suspense>
+                          </DashboardLayout>
+                        </RequireAuth>
+                      </SecureRoute>
+                    }
+                  />
+
                   {/* Health Monitoring Routes */}
                   <Route
                     path="/health"
@@ -1630,14 +1779,13 @@ const App: React.FC = memo(() => {
                   {/* 404 - Redirect to Landing */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
-            </AssessmentProvider>
-          </TeamProvider>
-        </NotificationProvider>
-      </SecurityMonitor>
-    </ThemeProvider>
-  </ErrorBoundary>
-  <ReactQueryDevtools initialIsOpen={false} />
-</QueryClientProvider>
+                </>
+                </AssessmentProvider>
+              </TeamProvider>
+            </NotificationProvider>
+          </SecurityMonitor>
+        </ThemeProvider>
+      </ErrorBoundary>
 );  // End of return statement
 });  // End of memo function
 

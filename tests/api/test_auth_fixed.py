@@ -133,7 +133,7 @@ def get_current_user_info_fixed(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/me-fixed"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -269,7 +269,7 @@ def health_check_fixed(client):
     # TODO: Implement test logic
     response = client.get(
         "/health-fixed"
-        
+
     )
 
     assert response.status_code in [200, 201]

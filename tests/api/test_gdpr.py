@@ -452,7 +452,7 @@ def get_user_data_summary(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/data-summary"
-        
+
     )
 
     assert response.status_code in [200, 201]

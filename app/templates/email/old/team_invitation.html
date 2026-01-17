@@ -141,11 +141,11 @@
         <div class="header">
             <div class="logo">PsychSync AI</div>
         </div>
-        
+
         <div class="icon">👥</div>
-        
+
         <h1>You've Been Invited to Join a Team!</h1>
-        
+
         <div class="inviter-info">
             <div class="inviter-avatar">{{ inviter_initials }}</div>
             <div class="inviter-details">
@@ -153,9 +153,9 @@
                 <div class="inviter-role">{{ inviter_role }} at {{ organization_name }}</div>
             </div>
         </div>
-        
+
         <p>{{ inviter_name }} has invited you to join their team on PsychSync AI. This is a great opportunity to collaborate and gain insights into team dynamics!</p>
-        
+
         <div class="team-card">
             <div class="team-name">{{ team_name }}</div>
             <div class="team-info">
@@ -163,7 +163,7 @@
                 {{ member_count }} members
             </div>
         </div>
-        
+
         <div class="benefits-list">
             <h3>🎯 What You'll Get:</h3>
             <div class="benefit-item">Complete personality assessments (MBTI, Big Five, Enneagram)</div>
@@ -172,26 +172,26 @@
             <div class="benefit-item">Contribute to better team performance and collaboration</div>
             <div class="benefit-item">Access personalized behavioral analytics</div>
         </div>
-        
+
         {% if personal_message %}
         <div style="background: #fef3c7; padding: 20px; border-left: 4px solid #f59e0b; border-radius: 4px; margin: 25px 0;">
             <strong>💬 Personal Message:</strong>
             <p style="margin: 10px 0 0 0; font-style: italic;">"{{ personal_message }}"</p>
         </div>
         {% endif %}
-        
+
         <center>
             <a href="{{ invitation_link }}" class="button">Accept Invitation</a>
         </center>
-        
+
         <p style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 30px;">
             This invitation expires in {{ expiry_days }} days
         </p>
-        
+
         <p style="color: #6b7280; font-size: 14px;">
             <strong>New to PsychSync?</strong> Don't worry! Accepting this invitation will create your account and guide you through the setup process. It only takes a few minutes to get started.
         </p>
-        
+
         <div class="footer">
             <p>Questions about this invitation? Reply to this email or contact us at <a href="mailto:support@psychsync.ai">support@psychsync.ai</a></p>
             <p>If you don't want to join this team, you can safely ignore this email.</p>

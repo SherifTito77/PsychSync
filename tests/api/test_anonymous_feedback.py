@@ -134,7 +134,7 @@ def get_feedback_categories(client):
     # TODO: Implement test logic
     response = client.get(
         "/categories"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -318,7 +318,7 @@ def feedback_system_health(client):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]

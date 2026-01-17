@@ -46,7 +46,7 @@ async def test_register_and_login():
 #         assert "access_token" in token_data
 #         assert token_data["token_type"] == "bearer"
 
-       
+
 
 
 
@@ -78,7 +78,7 @@ def test_register_duplicate_email(client: TestClient, test_db: Session):
             "password": "Test1234"
         }
     )
-    
+
     # Try to register with same email
     response = client.post(
         "/api/v1/auth/register",
@@ -116,7 +116,7 @@ def test_login_success(client: TestClient, test_db: Session):
             "password": "Test1234"
         }
     )
-    
+
     # Login
     response = client.post(
         "/api/v1/auth/login/json",
@@ -143,7 +143,7 @@ def test_login_wrong_password(client: TestClient, test_db: Session):
             "password": "Test1234"
         }
     )
-    
+
     # Try to login with wrong password
     response = client.post(
         "/api/v1/auth/login/json",
@@ -178,7 +178,7 @@ def test_get_current_user(client: TestClient, test_db: Session):
             "password": "Test1234"
         }
     )
-    
+
     login_response = client.post(
         "/api/v1/auth/login/json",
         json={
@@ -187,7 +187,7 @@ def test_get_current_user(client: TestClient, test_db: Session):
         }
     )
     token = login_response.json()["access_token"]
-    
+
     # Get current user
     response = client.get(
         "/api/v1/auth/me",
@@ -212,8 +212,8 @@ def test_get_current_user_no_token(client: TestClient, test_db: Session):
     """Test getting current user without token"""
     response = client.get("/api/v1/auth/me")
     assert response.status_code == 401
-    
-    
+
+
 
 
 
@@ -343,7 +343,7 @@ def get_current_user_info_fixed(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/me-fixed"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -523,7 +523,7 @@ def health_check_fixed(client):
     # TODO: Implement test logic
     response = client.get(
         "/health-fixed"
-        
+
     )
 
     assert response.status_code in [200, 201]

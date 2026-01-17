@@ -283,7 +283,7 @@ class AIService {
     return descriptions[type] || `${type} personality type analysis`;
   }
 
-  
+
   /**
    * Fallback frameworks if API fails
    */

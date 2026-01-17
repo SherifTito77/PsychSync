@@ -1033,4 +1033,3 @@ echo "Restore complete"
 **Maintained By:** Security Team
 
 **Summary:** Use External Secrets Operator with AWS Secrets Manager (or Vault), enable etcd encryption, mount secrets as files, implement automated rotation, enable audit logging, and never commit secrets to git.
-

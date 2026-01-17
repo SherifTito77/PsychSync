@@ -178,7 +178,7 @@ const MobileNBAApp = () => {
                 <span className="font-semibold text-gray-900">{stat.value}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className={`${stat.color} h-2 rounded-full transition-all duration-500`}
                   style={{ width: `${stat.value}%` }}
                 />
@@ -215,7 +215,7 @@ const MobileNBAApp = () => {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setMenuOpen(true)}
               className="p-2 -ml-2 active:bg-gray-100 rounded-lg"
             >
@@ -240,14 +240,14 @@ const MobileNBAApp = () => {
       </header>
       {menuOpen && (
         <>
-          <div 
+          <div
             className="fixed inset-0 bg-black bg-opacity-50 z-50"
             onClick={() => setMenuOpen(false)}
           />
           <div className="fixed top-0 left-0 bottom-0 w-80 bg-white z-50 shadow-xl">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-lg font-bold text-gray-900">Menu</h2>
-              <button 
+              <button
                 onClick={() => setMenuOpen(false)}
                 className="p-2 active:bg-gray-100 rounded-lg"
               >

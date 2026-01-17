@@ -561,4 +561,3 @@ This places PsychSync in the **top tier** of mental health platforms clinically.
 **Version**: 2.0 (Complete)
 **Status**: PRODUCTION READY
 **Features**: 6/6 COMPLETE
-

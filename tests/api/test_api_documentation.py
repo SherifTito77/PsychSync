@@ -89,7 +89,7 @@ def get_current_api_version(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/versions/current"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -274,7 +274,7 @@ def get_api_health(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]

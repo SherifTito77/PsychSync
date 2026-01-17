@@ -10,11 +10,11 @@ CREATE TABLE player_scores (
     timeframe VARCHAR(20) NOT NULL, -- 'daily', 'weekly', 'monthly', 'season'
     period_start DATE NOT NULL,
     period_end DATE NOT NULL,
-    
+
     -- Overall Score
     overall_score DECIMAL(5,2) NOT NULL,
     confidence_score DECIMAL(3,2) NOT NULL,
-    
+
     -- Category Scores
     scoring_score DECIMAL(5,2) NOT NULL,
     efficiency_score DECIMAL(5,2) NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE player_scores (
     defense_score DECIMAL(5,2) NOT NULL,
     rebounding_score DECIMAL(5,2) NOT NULL,
     consistency_score DECIMAL(5,2) NOT NULL,
-    
+
     -- Percentile Rankings
     overall_percentile DECIMAL(5,2),
     scoring_percentile DECIMAL(5,2),
@@ -30,20 +30,20 @@ CREATE TABLE player_scores (
     playmaking_percentile DECIMAL(5,2),
     defense_percentile DECIMAL(5,2),
     rebounding_percentile DECIMAL(5,2),
-    
+
     -- Trend Analysis
     trend_direction VARCHAR(10), -- 'up', 'down', 'stable'
     trend_strength DECIMAL(5,2), -- -10 to +10
     previous_score DECIMAL(5,2),
     score_change DECIMAL(5,2),
-    
+
     -- Metadata
     games_included INTEGER NOT NULL,
     minutes_avg DECIMAL(5,2),
     calculation_version VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- Indexes
     CONSTRAINT unique_player_period UNIQUE (player_id, timeframe, period_start, period_end)
 );
@@ -62,15 +62,15 @@ CREATE TABLE score_history (
     score_date DATE NOT NULL,
     overall_score DECIMAL(5,2) NOT NULL,
     games_played INTEGER NOT NULL,
-    
+
     -- Quick access to key metrics
     points_avg DECIMAL(5,2),
     rebounds_avg DECIMAL(5,2),
     assists_avg DECIMAL(5,2),
     ts_percentage DECIMAL(5,4),
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
+
     CONSTRAINT unique_player_date UNIQUE (player_id, score_date)
 );
 
@@ -84,15 +84,15 @@ CREATE TABLE performance_alerts (
     alert_type VARCHAR(20) NOT NULL, -- 'positive', 'negative', 'warning', 'neutral'
     severity VARCHAR(10) NOT NULL, -- 'high', 'medium', 'low'
     category VARCHAR(50) NOT NULL, -- 'scoring', 'efficiency', 'minutes', etc.
-    
+
     message TEXT NOT NULL,
     metric_value DECIMAL(10,2),
     threshold_value DECIMAL(10,2),
-    
+
     alert_date DATE NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     acknowledged_at TIMESTAMP,
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -105,7 +105,7 @@ CREATE TABLE scoring_config (
     id SERIAL PRIMARY KEY,
     version VARCHAR(20) NOT NULL UNIQUE,
     is_active BOOLEAN DEFAULT FALSE,
-    
+
     -- Category weights
     weight_scoring DECIMAL(4,3) NOT NULL,
     weight_efficiency DECIMAL(4,3) NOT NULL,
@@ -113,18 +113,18 @@ CREATE TABLE scoring_config (
     weight_defense DECIMAL(4,3) NOT NULL,
     weight_rebounding DECIMAL(4,3) NOT NULL,
     weight_consistency DECIMAL(4,3) NOT NULL,
-    
+
     -- Position adjustments (JSON)
     position_adjustments JSONB,
-    
+
     -- Configuration metadata
     description TEXT,
     created_by VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     activated_at TIMESTAMP,
-    
+
     CONSTRAINT weights_sum_check CHECK (
-        weight_scoring + weight_efficiency + weight_playmaking + 
+        weight_scoring + weight_efficiency + weight_playmaking +
         weight_defense + weight_rebounding + weight_consistency = 1.000
     )
 );
@@ -155,7 +155,7 @@ INSERT INTO scoring_config (
 
 -- Current Player Scores (latest weekly scores)
 CREATE VIEW current_player_scores AS
-SELECT 
+SELECT
     ps.*,
     p.name,
     p.position,
@@ -166,15 +166,15 @@ JOIN players p ON ps.player_id = p.id
 JOIN teams t ON p.team_id = t.id
 WHERE ps.timeframe = 'weekly'
 AND ps.period_end = (
-    SELECT MAX(period_end) 
-    FROM player_scores 
-    WHERE player_id = ps.player_id 
+    SELECT MAX(period_end)
+    FROM player_scores
+    WHERE player_id = ps.player_id
     AND timeframe = 'weekly'
 );
 
 -- Top Performers (by overall score)
 CREATE VIEW top_performers AS
-SELECT 
+SELECT
     player_id,
     name,
     position,
@@ -189,7 +189,7 @@ LIMIT 50;
 
 -- Trending Players
 CREATE VIEW trending_players AS
-SELECT 
+SELECT
     player_id,
     name,
     position,
@@ -198,7 +198,7 @@ SELECT
     trend_direction,
     trend_strength,
     score_change,
-    CASE 
+    CASE
         WHEN trend_direction = 'up' AND score_change > 5 THEN 'hot'
         WHEN trend_direction = 'down' AND score_change < -5 THEN 'cold'
         ELSE 'neutral'
@@ -209,7 +209,7 @@ ORDER BY ABS(score_change) DESC;
 
 -- Category Leaders
 CREATE VIEW category_leaders AS
-SELECT 
+SELECT
     'scoring' as category,
     player_id,
     name,
@@ -223,7 +223,7 @@ LIMIT 10
 
 UNION ALL
 
-SELECT 
+SELECT
     'efficiency' as category,
     player_id,
     name,
@@ -237,7 +237,7 @@ LIMIT 10
 
 UNION ALL
 
-SELECT 
+SELECT
     'playmaking' as category,
     player_id,
     name,
@@ -265,15 +265,15 @@ DECLARE
     v_config_id INTEGER;
 BEGIN
     -- Get active configuration
-    SELECT id INTO v_config_id 
-    FROM scoring_config 
-    WHERE is_active = TRUE 
+    SELECT id INTO v_config_id
+    FROM scoring_config
+    WHERE is_active = TRUE
     LIMIT 1;
-    
+
     -- This would call the Python scoring engine
     -- For now, we'll use a placeholder
     v_score := 85.0;
-    
+
     -- Insert or update score
     INSERT INTO player_scores (
         player_id, season_year, timeframe,
@@ -293,7 +293,7 @@ BEGIN
     DO UPDATE SET
         overall_score = EXCLUDED.overall_score,
         updated_at = CURRENT_TIMESTAMP;
-    
+
     RETURN v_score;
 END;
 $$ LANGUAGE plpgsql;
@@ -310,7 +310,7 @@ CREATE OR REPLACE FUNCTION batch_calculate_scores(
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         p.id,
         p.name,
         calculate_player_score(p.id, p_timeframe, p_period_start, p_period_end)
@@ -329,7 +329,7 @@ DECLARE
     v_score_change DECIMAL(5,2);
 BEGIN
     v_score_change := p_current_score - p_previous_score;
-    
+
     -- Significant improvement
     IF v_score_change > 5 THEN
         INSERT INTO performance_alerts (
@@ -341,7 +341,7 @@ BEGIN
             p_current_score, p_previous_score, CURRENT_DATE
         );
     END IF;
-    
+
     -- Significant decline
     IF v_score_change < -5 THEN
         INSERT INTO performance_alerts (
@@ -353,7 +353,7 @@ BEGIN
             p_current_score, p_previous_score, CURRENT_DATE
         );
     END IF;
-    
+
     -- Elite performance
     IF p_current_score >= 95 THEN
         INSERT INTO performance_alerts (
@@ -386,7 +386,7 @@ CREATE OR REPLACE FUNCTION get_player_score_with_history(
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         ps.period_end,
         ps.overall_score,
         ps.trend_direction,
@@ -418,7 +418,7 @@ CREATE OR REPLACE FUNCTION get_player_alerts(
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         pa.alert_type,
         pa.severity,
         pa.message,

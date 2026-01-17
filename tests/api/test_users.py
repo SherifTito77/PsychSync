@@ -81,7 +81,7 @@ def get_user_profile(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/me"
-        
+
     )
 
     assert response.status_code in [200, 201]

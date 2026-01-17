@@ -21,25 +21,25 @@ logger = logging.getLogger(__name__)
 class SlackServiceStub:
     """
     Stub implementation of Slack service for local development
-    
+
     In production, replace with real slack_sdk.WebClient
     """
-    
+
     def __init__(self, test_mode: bool = True):
         """
         Initialize Slack service
-        
+
         Args:
             test_mode: If True, logs messages instead of sending
         """
         self.test_mode = test_mode or not settings.SLACK_BOT_TOKEN
         self.sent_messages = []  # For testing
-        
+
         if self.test_mode:
             logger.info("🧪 Slack Service running in TEST MODE - messages will be logged, not sent")
         else:
             logger.info("✅ Slack Service connected to workspace")
-    
+
     async def send_message_to_channel(
         self,
         channel: str,
@@ -49,16 +49,16 @@ class SlackServiceStub:
     ) -> Dict[str, Any]:
         """
         Send message to Slack channel
-        
+
         Args:
             channel: Channel ID or name (e.g., #general, C1234567890)
             message: Plain text message (fallback)
             blocks: Rich message blocks (Slack Block Kit)
             thread_ts: Thread timestamp for replies
-            
+
         Returns:
             Response with message timestamp
-            
+
         Example:
             await slack.send_message_to_channel(
                 channel="#team-wellness",
@@ -79,18 +79,18 @@ class SlackServiceStub:
             }
             self.sent_messages.append(log_data)
             logger.info(f"📤 [SLACK STUB] Message to {channel}: {message}")
-            
+
             return {
                 "ok": True,
                 "channel": channel,
                 "ts": f"stub_{datetime.utcnow().timestamp()}",
                 "message": {"text": message}
             }
-        
+
         # Production: Use real Slack SDK
         from slack_sdk import WebClient
         from slack_sdk.errors import SlackApiError
-        
+
         try:
             client = WebClient(token=settings.SLACK_BOT_TOKEN)
             response = client.chat_postMessage(
@@ -103,7 +103,7 @@ class SlackServiceStub:
         except SlackApiError as e:
             logger.error(f"Slack API error: {e.response['error']}")
             raise
-    
+
     async def send_notification(
         self,
         team_id: int,
@@ -112,15 +112,15 @@ class SlackServiceStub:
     ) -> bool:
         """
         Send formatted notification to team channel
-        
+
         Args:
             team_id: Team ID
             notification_type: Type of notification
             data: Notification data
-            
+
         Returns:
             Success boolean
-            
+
         Notification Types:
             - assessment_complete: User completed assessment
             - wellbeing_alert: Team member needs support
@@ -129,7 +129,7 @@ class SlackServiceStub:
         """
         # Get team channel (from database in production)
         channel = f"#team-{team_id}"
-        
+
         # Format message based on type
         if notification_type == "assessment_complete":
             message = self._format_assessment_complete(data)
@@ -141,15 +141,15 @@ class SlackServiceStub:
             message = self._format_member_joined(data)
         else:
             message = {"text": f"Notification: {notification_type}"}
-        
+
         response = await self.send_message_to_channel(
             channel=channel,
             message=message["text"],
             blocks=message.get("blocks")
         )
-        
+
         return response.get("ok", False)
-    
+
     async def send_direct_message(
         self,
         user_id: str,
@@ -158,7 +158,7 @@ class SlackServiceStub:
     ) -> Dict[str, Any]:
         """
         Send DM to specific user
-        
+
         Args:
             user_id: Slack user ID (U1234567890)
             message: Message text
@@ -167,23 +167,23 @@ class SlackServiceStub:
         if self.test_mode:
             logger.info(f"📧 [SLACK STUB] DM to user {user_id}: {message}")
             return {"ok": True, "channel": f"D_{user_id}"}
-        
+
         # Production: Open DM channel and send
         from slack_sdk import WebClient
-        
+
         client = WebClient(token=settings.SLACK_BOT_TOKEN)
-        
+
         # Open DM channel
         dm_response = client.conversations_open(users=[user_id])
         channel_id = dm_response["channel"]["id"]
-        
+
         # Send message
         return await self.send_message_to_channel(
             channel=channel_id,
             message=message,
             blocks=blocks
         )
-    
+
     async def handle_slash_command(
         self,
         command: str,
@@ -193,7 +193,7 @@ class SlackServiceStub:
     ) -> Dict[str, Any]:
         """
         Handle slash command from Slack
-        
+
         Commands:
             /psychsync help - Show help
             /psychsync status - Show user status
@@ -201,19 +201,19 @@ class SlackServiceStub:
             /checkin - Quick wellness check-in
             /wellness - View wellness stats
             /assess - Start assessment
-            
+
         Args:
             command: Command name (/psychsync)
             user_id: Slack user ID
             channel_id: Channel ID where command was sent
             text: Command arguments
-            
+
         Returns:
             Response to send back to Slack
         """
         if self.test_mode:
             logger.info(f"⚡ [SLACK STUB] Command: {command} {text} from {user_id}")
-        
+
         # Route to appropriate handler
         if command == "/psychsync":
             return await self._handle_psychsync_command(user_id, text)
@@ -228,19 +228,19 @@ class SlackServiceStub:
                 "response_type": "ephemeral",
                 "text": f"Unknown command: {command}"
             }
-    
+
     # ============================================
     # PRIVATE HELPER METHODS
     # ============================================
-    
+
     def _format_assessment_complete(self, data: Dict) -> Dict:
         """Format assessment completion notification"""
         user_name = data.get("user_name", "Team member")
         assessment_type = data.get("assessment_type", "Assessment")
         score = data.get("score")
-        
+
         emoji = "🟢" if score and score >= 80 else "🟡" if score and score >= 60 else "🔴"
-        
+
         return {
             "text": f"{emoji} {user_name} completed {assessment_type}",
             "blocks": [
@@ -270,7 +270,7 @@ class SlackServiceStub:
                 }
             ]
         }
-    
+
     def _format_wellbeing_alert(self, data: Dict) -> Dict:
         """Format wellbeing alert notification"""
         return {
@@ -303,7 +303,7 @@ class SlackServiceStub:
                 }
             ]
         }
-    
+
     def _format_report_ready(self, data: Dict) -> Dict:
         """Format report ready notification"""
         return {
@@ -328,7 +328,7 @@ class SlackServiceStub:
                 }
             ]
         }
-    
+
     def _format_member_joined(self, data: Dict) -> Dict:
         """Format new member notification"""
         return {
@@ -343,7 +343,7 @@ class SlackServiceStub:
                 }
             ]
         }
-    
+
     async def _handle_psychsync_command(self, user_id: str, text: str) -> Dict:
         """Handle /psychsync command"""
         if not text or text == "help":
@@ -377,7 +377,7 @@ class SlackServiceStub:
                 "response_type": "ephemeral",
                 "text": f"Unknown command: {text}\nType `/psychsync help` for available commands"
             }
-    
+
     async def _handle_checkin_command(self, user_id: str) -> Dict:
         """Handle /checkin command"""
         # In production, this would open a modal
@@ -386,7 +386,7 @@ class SlackServiceStub:
             "text": "✅ Opening check-in modal...\n"
                    "(In production, this opens an interactive modal)"
         }
-    
+
     async def _handle_wellness_command(self, user_id: str, text: str) -> Dict:
         """Handle /wellness command"""
         if text == "team":
@@ -405,7 +405,7 @@ class SlackServiceStub:
                        "• Completed: 12/15 this month\n"
                        "• Trend: +5 📈"
             }
-    
+
     async def _handle_assess_command(self, user_id: str) -> Dict:
         """Handle /assess command"""
         return {
@@ -416,19 +416,19 @@ class SlackServiceStub:
                    "• Wellbeing Survey\n"
                    "\n(In production, this opens selection modal)"
         }
-    
+
     # ============================================
     # UTILITY METHODS
     # ============================================
-    
+
     def get_sent_messages(self) -> List[Dict]:
         """Get list of sent messages (for testing)"""
         return self.sent_messages
-    
+
     def clear_sent_messages(self):
         """Clear sent messages (for testing)"""
         self.sent_messages = []
-    
+
     def is_test_mode(self) -> bool:
         """Check if running in test mode"""
         return self.test_mode
@@ -467,14 +467,14 @@ Production Integration Guide
    - Subscribe to: app_mention, message.im
 
 6. Replace Stub with Real Implementation:
-   
+
    from slack_sdk import WebClient
    from slack_sdk.errors import SlackApiError
-   
+
    class SlackService:
        def __init__(self):
            self.client = WebClient(token=settings.SLACK_BOT_TOKEN)
-       
+
        async def send_message_to_channel(self, channel, message, blocks=None):
            try:
                response = self.client.chat_postMessage(
@@ -497,4 +497,3 @@ For detailed setup, see: SLACK_BOT_SETUP_GUIDE.md
 
 # Global instance
 slack_service = SlackServiceStub()
-

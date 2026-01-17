@@ -261,21 +261,21 @@
 ═══════════════════════════════════════════════════════════════════════
 
   START HERE: START_HERE.md (in project root)
-  
+
   THEN: Choose your path:
-  
+
   • "I want immediate performance gains"
     → Read: ASYNC_CACHE_MIGRATION_GUIDE.md
     → Action: Add @async_cached to 5-10 endpoints
-  
+
   • "I want to improve testing"
     → Read: TEST_COVERAGE_GAPS_ANALYSIS.md
     → Action: Start Phase 1 (critical path tests)
-  
+
   • "I want better monitoring"
     → Read: OBSERVABILITY_IMPROVEMENT_RECOMMENDATIONS.md
     → Action: Enable /metrics endpoint (1 hour)
-  
+
   • "I want the full picture"
     → Read: EXECUTION_COMPLETION_REPORT.md
     → Review: CRITICAL_ISSUES_ACTION_PLAN.md (30-day plan)

@@ -3,8 +3,8 @@
 
 # PsychSync Advanced Features Integration Guide
 
-**Version:** 1.0  
-**Last Updated:** November 2025  
+**Version:** 1.0
+**Last Updated:** November 2025
 **Document Purpose:** Integration instructions for experimental features, anonymization, and reporting modules
 
 ---
@@ -71,7 +71,7 @@ class ABTestAssignment(models.Model):
     test = models.ForeignKey(ABTest, on_delete=models.CASCADE)
     variant = models.CharField(max_length=50)
     assigned_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         unique_together = ['user', 'test']
 
@@ -144,7 +144,7 @@ import api from '../services/api';
 
 export const useABTest = (testId, userId) => {
   const [variant, setVariant] = useState(null);
-  
+
   useEffect(() => {
     const fetchVariant = async () => {
       const response = await api.post(`/api/v1/experimental/ab-test/assign/${testId}`, {
@@ -152,17 +152,17 @@ export const useABTest = (testId, userId) => {
       });
       setVariant(response.data.variant);
     };
-    
+
     fetchVariant();
   }, [testId, userId]);
-  
+
   return variant;
 };
 
 // Usage:
 const MyComponent = () => {
   const variant = useABTest('onboarding_flow_v1', currentUser.id);
-  
+
   return variant === 'new_flow' ? <NewOnboarding /> : <OldOnboarding />;
 };
 ```
@@ -173,14 +173,14 @@ const MyComponent = () => {
 // components/GamificationBadge.jsx
 const GamificationBadge = ({ userId }) => {
   const [progress, setProgress] = useState(null);
-  
+
   useEffect(() => {
     api.get(`/api/v1/experimental/gamification/progress/${userId}`)
       .then(res => setProgress(res.data));
   }, [userId]);
-  
+
   if (!progress) return null;
-  
+
   return (
     <div className="gamification-badge">
       <div className="points">⭐ {progress.total_points} pts</div>
@@ -242,14 +242,14 @@ router = APIRouter(prefix="/api/v1/research", tags=["Research"])
 async def anonymize_data(file: UploadFile = File(...)):
     # Read uploaded file
     df = pd.read_csv(file.file)
-    
+
     # Anonymize
     anonymizer = DataAnonymizer(salt="your_project_salt")
     df_anon = anonymizer.anonymize_dataframe(df, auto_detect=True)
-    
+
     # Generate report
     report = anonymizer.generate_anonymization_report(df, df_anon)
-    
+
     # Return anonymized data + report
     return {
         "data": df_anon.to_dict(orient='records'),
@@ -265,11 +265,11 @@ async def export_research_data(
 ):
     # Query data
     data = query_data_for_research(start_date, end_date)
-    
+
     if anonymize:
         anonymizer = DataAnonymizer()
         data = anonymizer.anonymize_dataframe(data)
-    
+
     # Log access
     logger = AuditLogger()
     logger.log_access(
@@ -278,7 +278,7 @@ async def export_research_data(
         resource=f"data_{start_date}_to_{end_date}",
         details={"anonymized": anonymize, "records": len(data)}
     )
-    
+
     return data.to_dict(orient='records')
 ```
 
@@ -294,42 +294,42 @@ const ResearchExport = () => {
     includeDemographics: true,
     format: 'csv'
   });
-  
+
   const handleExport = async () => {
     const response = await api.post('/api/v1/research/export', config);
-    
+
     if (config.format === 'csv') {
       downloadCSV(response.data);
     } else if (config.format === 'excel') {
       downloadExcel(response.data);
     }
   };
-  
+
   return (
     <div className="export-panel">
       <h2>Research Data Export</h2>
-      
-      <input 
-        type="date" 
+
+      <input
+        type="date"
         value={config.startDate}
         onChange={(e) => setConfig({...config, startDate: e.target.value})}
       />
-      
-      <input 
-        type="date" 
+
+      <input
+        type="date"
         value={config.endDate}
         onChange={(e) => setConfig({...config, endDate: e.target.value})}
       />
-      
+
       <label>
-        <input 
-          type="checkbox" 
+        <input
+          type="checkbox"
           checked={config.anonymize}
           onChange={(e) => setConfig({...config, anonymize: e.target.checked})}
         />
         Anonymize data (HIPAA compliant)
       </label>
-      
+
       <button onClick={handleExport}>Export Data</button>
     </div>
   );
@@ -376,7 +376,7 @@ class ReportService:
         client = get_client(client_id)
         assessments = get_assessments(client_id)
         sessions = get_sessions(client_id)
-        
+
         if output_format == 'pdf':
             generator = PDFReportGenerator(title="Client Progress Report")
             generator.generate_client_progress_report(
@@ -386,7 +386,7 @@ class ReportService:
                 f"reports/client_{client_id}_report.pdf"
             )
             return f"client_{client_id}_report.pdf"
-        
+
         elif output_format == 'excel':
             ExcelExporter.export_client_data(
                 client.to_dict(),
@@ -407,7 +407,7 @@ async def generate_client_report(
 ):
     report_service = ReportService()
     filename = report_service.generate_client_report(client_id, format)
-    
+
     # Return file for download
     return FileResponse(
         f"reports/{filename}",
@@ -418,12 +418,12 @@ async def generate_client_report(
 @router.post("/reports/custom")
 async def generate_custom_report(request: CustomReportRequest):
     builder = ReportBuilder()
-    
+
     for section in request.sections:
         builder.add_section(section.title, section.content, section.type)
-    
+
     builder.generate_report(f"reports/custom_{request.report_id}.pdf", format="pdf")
-    
+
     return {"filename": f"custom_{request.report_id}.pdf"}
 ```
 
@@ -433,16 +433,16 @@ async def generate_custom_report(request: CustomReportRequest):
 // components/ReportGenerator.jsx
 const ReportGenerator = ({ clientId }) => {
   const [generating, setGenerating] = useState(false);
-  
+
   const generateReport = async (format) => {
     setGenerating(true);
-    
+
     try {
       const response = await api.get(
         `/api/v1/reports/client/${clientId}`,
         { params: { format }, responseType: 'blob' }
       );
-      
+
       // Download file
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
@@ -457,17 +457,17 @@ const ReportGenerator = ({ clientId }) => {
       setGenerating(false);
     }
   };
-  
+
   return (
     <div className="report-actions">
-      <button 
+      <button
         onClick={() => generateReport('pdf')}
         disabled={generating}
       >
         📄 Download PDF Report
       </button>
-      
-      <button 
+
+      <button
         onClick={() => generateReport('excel')}
         disabled={generating}
       >

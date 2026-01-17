@@ -49,7 +49,7 @@ A comprehensive security review and hardening of the PsychSync platform has been
 ```
 ✅ 27 tests collected successfully
    - A01: Broken Access Control (5 tests)
-   - A03: Injection (12 tests)  
+   - A03: Injection (12 tests)
    - A05: Security Misconfiguration (6 tests)
    - A07: Authentication Failures (5 tests)
    - A09: Security Logging (3 tests)
@@ -68,7 +68,7 @@ A comprehensive security review and hardening of the PsychSync platform has been
 **Categories**:
 - Hardcoded credentials detection
 - XSS pattern detection
-- SQL injection detection  
+- SQL injection detection
 - IDOR vulnerability detection
 - Authentication bypass detection
 - SSRF pattern detection

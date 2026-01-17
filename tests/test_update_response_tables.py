@@ -25,4 +25,3 @@ class TestUpdate_Response_Tables:
         # TODO(human): Implement test for run_migration
         # This is an auto-generated test placeholder
         assert True  # Placeholder assertion
-

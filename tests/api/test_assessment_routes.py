@@ -496,7 +496,7 @@ def health_check(client):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]

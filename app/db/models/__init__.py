@@ -95,6 +95,18 @@ except ImportError:
     ClinicalAuditLog = None
     ClinicalConsent = None
 
+# Import notification system models (clinician alerts and preferences)
+try:
+    from .notification import (
+        Notification,
+        NotificationPreference,
+        NotificationQueue
+    )
+except ImportError:
+    Notification = None
+    NotificationPreference = None
+    NotificationQueue = None
+
 # Import advanced clinical features models (telehealth, chatbot, mobile)
 try:
     from .clinical_advanced import (
@@ -108,6 +120,50 @@ except ImportError:
     ChatbotConversation = None
     MobileDevice = None
     ClinicalAnalyticsSnapshot = None
+
+# Import biometric authentication models
+try:
+    from .biometric import (
+        BiometricKey,
+        BiometricChallenge,
+        BiometricAttempt
+    )
+except ImportError:
+    BiometricKey = None
+    BiometricChallenge = None
+    BiometricAttempt = None
+
+# Import audit logging models
+try:
+    from .audit import (
+        AuditLog,
+        DataAccessLog,
+        AuthenticationLog,
+        ComplianceReport,
+        SecurityIncident
+    )
+except ImportError:
+    AuditLog = None
+    DataAccessLog = None
+    AuthenticationLog = None
+    ComplianceReport = None
+    SecurityIncident = None
+
+# Import product management prompts models
+try:
+    from .product_management import (
+        PromptExecution,
+        PromptTemplate,
+        PromptWorkflow,
+        PromptFavorite,
+        PromptResult
+    )
+except ImportError:
+    PromptExecution = None
+    PromptTemplate = None
+    PromptWorkflow = None
+    PromptFavorite = None
+    PromptResult = None
 
 # Make models available when importing from this package
 __all__ = [
@@ -166,9 +222,29 @@ __all__ = [
     "ClinicalReferral",
     "ClinicalAuditLog",
     "ClinicalConsent",
+    # Notification system models
+    "Notification",
+    "NotificationPreference",
+    "NotificationQueue",
     # Advanced clinical features models
     "TelehealthSession",
     "ChatbotConversation",
     "MobileDevice",
     "ClinicalAnalyticsSnapshot",
+    # Biometric authentication models
+    "BiometricKey",
+    "BiometricChallenge",
+    "BiometricAttempt",
+    # Audit logging models
+    "AuditLog",
+    "DataAccessLog",
+    "AuthenticationLog",
+    "ComplianceReport",
+    "SecurityIncident",
+    # Product management prompts models
+    "PromptExecution",
+    "PromptTemplate",
+    "PromptWorkflow",
+    "PromptFavorite",
+    "PromptResult",
 ]

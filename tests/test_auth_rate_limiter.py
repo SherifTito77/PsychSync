@@ -95,4 +95,3 @@ class TestAuth_Rate_Limiter:
         # This is an auto-generated test placeholder
         instance = CredentialStuffingProtection()
         assert instance is not None
-

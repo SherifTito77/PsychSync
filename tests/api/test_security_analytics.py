@@ -43,7 +43,7 @@ def get_security_metrics_overview(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/metrics/overview"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -457,7 +457,7 @@ def get_system_security_status(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/status/overview"
-        
+
     )
 
     assert response.status_code in [200, 201]

@@ -7,5 +7,3 @@ scrape_configs:
   - job_name: 'celery'
     static_configs:
       - targets: ['localhost:5555']
-
-

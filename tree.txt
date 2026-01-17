@@ -58309,7 +58309,7 @@
 │   │       └── users.py
 │   ├── assessments
 │   │   ├── open_cognitive_battery.py
-│   │   ├── open_personality_inventory.py 
+│   │   ├── open_personality_inventory.py
 │   │   └── scoring_engine.py
 │   ├── backup.py
 │   ├── core
@@ -58662,7 +58662,7 @@
 │   │   ├── service-worker.ts
 │   │   ├── sitemap.xml
 │   │   └── vite.svg
-│   ├── docs-frontend 
+│   ├── docs-frontend
 │   │   └── frontend_setup.md
 │   ├── eslint.config.js
 │   ├── frontend
@@ -82581,7 +82581,7 @@
 │   │   │   ├── assessments
 │   │   │   │   ├── AddQuestionModal.tsx
 │   │   │   │   ├── AddSectionModal.tsx
-│   │   │   │   ├── CreateAssessmentModal.tsx 
+│   │   │   │   ├── CreateAssessmentModal.tsx
 │   │   │   │   ├── EditAssessmentModal.tsx
 │   │   │   │   └── QuestionRenderer.tsx
 │   │   │   ├── common

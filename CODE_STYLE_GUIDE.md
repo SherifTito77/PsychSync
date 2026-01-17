@@ -113,15 +113,15 @@ async def get_user(
 ) -> UserOut:
     '''
     Retrieve a specific user by ID.
-    
+
     Args:
         user_id: UUID of the user to retrieve
         db: Database session
         current_user: Currently authenticated user
-    
+
     Returns:
         UserOut: The requested user data
-    
+
     Raises:
         HTTPException: When user is not found
     '''
@@ -131,7 +131,7 @@ async def get_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     return UserOut.from_orm(user)
 ```
 
@@ -154,7 +154,7 @@ from app.core.database import Base
 
 class User(Base):
     __tablename__ = "users"
-    
+
     # Primary columns
     id = Column(
         UUID(as_uuid=True),
@@ -164,11 +164,11 @@ class User(Base):
     email = Column(String(255), nullable=False, unique=True, index=True)
     password_hash = Column(Text, nullable=False)
     full_name = Column(String(255), nullable=True)
-    
+
     # Status fields
     is_active = Column(Boolean, nullable=False, server_default="true")
     is_superuser = Column(Boolean, nullable=False, server_default="false")
-    
+
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
@@ -181,16 +181,16 @@ class User(Base):
         onupdate=func.now(),
         nullable=False
     )
-    
+
     # Relationships
     assessments_created = relationship("Assessment", back_populates="created_by")
-    
+
     # Indexes
     __table_args__ = (
         Index("idx_user_email_active", "email", "is_active"),
         Index("idx_user_created_at", "created_at"),
     )
-    
+
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"
 ```
@@ -210,10 +210,10 @@ from typing import Any, Dict, Optional
 
 class PsychSyncException(Exception):
     """Base exception for PsychSync application."""
-    
+
     def __init__(
-        self, 
-        message: str, 
+        self,
+        message: str,
         detail: Optional[Dict[str, Any]] = None,
         error_code: Optional[str] = None
     ):
@@ -224,7 +224,7 @@ class PsychSyncException(Exception):
 
 class AuthenticationError(PsychSyncException):
     """Authentication related errors."""
-    
+
     def __init__(self, message: str = "Authentication failed"):
         super().__init__(
             message=message,
@@ -234,7 +234,7 @@ class AuthenticationError(PsychSyncException):
 
 class AuthorizationError(PsychSyncException):
     """Authorization related errors."""
-    
+
     def __init__(self, message: str = "Access denied"):
         super().__init__(
             message=message,
@@ -244,7 +244,7 @@ class AuthorizationError(PsychSyncException):
 
 class ValidationError(PsychSyncException):
     """Data validation errors."""
-    
+
     def __init__(self, message: str, field: str = None):
         super().__init__(
             message=message,
@@ -254,7 +254,7 @@ class ValidationError(PsychSyncException):
 
 class DatabaseError(PsychSyncException):
     """Database operation errors."""
-    
+
     def __init__(self, message: str = "Database operation failed"):
         super().__init__(
             message=message,
@@ -285,36 +285,36 @@ from app.core.database import get_async_db
 @pytest.mark.integration
 class TestAuthentication:
     """Test authentication flows."""
-    
+
     @pytest.fixture
     async def client(self):
         """Create async test client."""
         async with AsyncClient(app=app, base_url="http://test") as ac:
             yield ac
-    
+
     @pytest.fixture
     async def test_db(self):
         """Create test database session."""
         async for session in get_async_db():
             yield session
-    
+
     @pytest.mark.asyncio
     async def test_user_registration_success(
-        self, 
-        client: AsyncClient, 
+        self,
+        client: AsyncClient,
         user_data: dict,
         test_db: AsyncSession
     ):
         """Test successful user registration."""
         # Arrange
         test_user = UserCreate(**user_data)
-        
+
         # Act
         response = await client.post(
             "/api/v1/auth/register",
             json=test_user.dict()
         )
-        
+
         # Assert
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
@@ -376,25 +376,25 @@ def sample_user_data():
 def function_name(param1: str, param2: int = 10) -> bool:
     '''
     Brief description of the function.
-    
+
     This is a more detailed description of what the function does,
     including any important implementation details or considerations.
-    
+
     Args:
         param1: Description of the first parameter.
             Can span multiple lines if needed.
         param2: Description of the second parameter.
             Default: 10
-    
+
     Returns:
         bool: Description of the return value.
             - True: When condition is met
             - False: When condition is not met
-    
+
     Raises:
         ValueError: When param1 is invalid.
         TypeError: When param2 is not an integer.
-    
+
     Examples:
         >>> function_name("test", 5)
         True
@@ -499,11 +499,11 @@ interface AuthResponse {
 // Service class
 export class AuthService {
   private readonly apiClient: typeof apiClient;
-  
+
   constructor(apiClient: typeof apiClient) {
     this.apiClient = apiClient;
   }
-  
+
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await this.apiClient.post<AuthResponse>(
       '/auth/login',
@@ -511,11 +511,11 @@ export class AuthService {
     );
     return response.data;
   }
-  
+
   async logout(): Promise<void> {
     await this.apiClient.post('/auth/logout');
   }
-  
+
   async getCurrentUser(): Promise<User> {
     const response = await this.apiClient.get<User>('/auth/me');
     return response.data;
@@ -626,12 +626,12 @@ class CookieOAuth2Bearer(OAuth2PasswordBearer):
         token = request.cookies.get("access_token")
         if token:
             return token
-        
+
         # Fallback for backward compatibility
         authorization = request.headers.get("Authorization")
         if authorization and authorization.startswith("Bearer "):
             return authorization.split(" ")[1]
-        
+
         return None
 
 oauth2_scheme = CookieOAuth2Bearer(tokenUrl="/auth/login")
@@ -647,40 +647,40 @@ async def login(
     '''
     # Get client IP for rate limiting
     client_ip = request.client.host if request.client else "unknown"
-    
+
     # Validate credentials
     user = await db.execute(
         select(User).where(User.email == form_data.email)
     )
     user = user.scalar_one_or_none()
-    
+
     if not user or not verify_password(form_data.password, user.password_hash):
         # Log failed attempt
         logger.warning(
             f"Failed login attempt for {form_data.email} from {client_ip}",
             extra={"security_event": "FAILED_LOGIN"}
         )
-        
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
         )
-    
+
     # Create tokens
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=30)
     )
-    
+
     refresh_token = create_access_token(
         data={"sub": str(user.id), "type": "refresh"},
         expires_delta=timedelta(days=7)
     )
-    
+
     # Update last login
     user.last_login = datetime.utcnow()
     await db.commit()
-    
+
     # Create response with httpOnly cookies
     response = JSONResponse(
         content={
@@ -688,7 +688,7 @@ async def login(
             "user": UserOut.from_orm(user).dict()
         }
     )
-    
+
     # Set secure cookies
     response.set_cookie(
         key="access_token",
@@ -698,7 +698,7 @@ async def login(
         samesite="lax",
         max_age=1800  # 30 minutes
     )
-    
+
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -707,7 +707,7 @@ async def login(
         samesite="lax",
         max_age=604800  # 7 days
     )
-    
+
     return response
 ```
 

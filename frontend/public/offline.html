@@ -10,7 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -21,7 +21,7 @@
             padding: 20px;
             color: #333;
         }
-        
+
         .offline-container {
             background: white;
             border-radius: 16px;
@@ -30,14 +30,14 @@
             text-align: center;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
-        
+
         .offline-icon {
             width: 120px;
             height: 120px;
             margin: 0 auto 30px;
             position: relative;
         }
-        
+
         .cloud {
             width: 100px;
             height: 40px;
@@ -46,7 +46,7 @@
             position: relative;
             margin: 0 auto;
         }
-        
+
         .cloud::before {
             content: '';
             width: 50px;
@@ -57,7 +57,7 @@
             top: -25px;
             left: 10px;
         }
-        
+
         .cloud::after {
             content: '';
             width: 60px;
@@ -68,7 +68,7 @@
             top: -30px;
             right: 10px;
         }
-        
+
         .slash {
             position: absolute;
             width: 3px;
@@ -78,26 +78,26 @@
             left: 50%;
             transform: translateX(-50%) rotate(-45deg);
         }
-        
+
         h1 {
             font-size: 28px;
             color: #1f2937;
             margin-bottom: 16px;
             font-weight: 700;
         }
-        
+
         p {
             font-size: 16px;
             color: #6b7280;
             line-height: 1.6;
             margin-bottom: 12px;
         }
-        
+
         .features {
             margin: 30px 0;
             text-align: left;
         }
-        
+
         .feature {
             display: flex;
             align-items: start;
@@ -106,7 +106,7 @@
             background: #f9fafb;
             border-radius: 8px;
         }
-        
+
         .feature-icon {
             width: 24px;
             height: 24px;
@@ -120,23 +120,23 @@
             margin-right: 12px;
             flex-shrink: 0;
         }
-        
+
         .feature-text {
             flex: 1;
         }
-        
+
         .feature-title {
             font-weight: 600;
             color: #1f2937;
             margin-bottom: 4px;
         }
-        
+
         .feature-description {
             font-size: 14px;
             color: #6b7280;
             margin: 0;
         }
-        
+
         .retry-button {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -149,16 +149,16 @@
             transition: transform 0.2s, box-shadow 0.2s;
             margin-top: 20px;
         }
-        
+
         .retry-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
         }
-        
+
         .retry-button:active {
             transform: translateY(0);
         }
-        
+
         .status {
             display: inline-flex;
             align-items: center;
@@ -170,7 +170,7 @@
             font-size: 14px;
             color: #92400e;
         }
-        
+
         .status-dot {
             width: 8px;
             height: 8px;
@@ -178,12 +178,12 @@
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-        
+
         .connection-info {
             margin-top: 24px;
             padding: 16px;
@@ -192,16 +192,16 @@
             font-size: 14px;
             color: #1e40af;
         }
-        
+
         @media (max-width: 600px) {
             .offline-container {
                 padding: 30px 20px;
             }
-            
+
             h1 {
                 font-size: 24px;
             }
-            
+
             .offline-icon {
                 width: 100px;
                 height: 100px;
@@ -215,15 +215,15 @@
             <div class="cloud"></div>
             <div class="slash"></div>
         </div>
-        
+
         <h1>You're Offline</h1>
         <p>It looks like you've lost your internet connection.</p>
-        
+
         <div class="status">
             <span class="status-dot"></span>
             <span>Attempting to reconnect...</span>
         </div>
-        
+
         <div class="features">
             <div class="feature">
                 <div class="feature-icon">✓</div>
@@ -232,7 +232,7 @@
                     <div class="feature-description">You can still view your previously loaded assessments and results</div>
                 </div>
             </div>
-            
+
             <div class="feature">
                 <div class="feature-icon">⚡</div>
                 <div class="feature-text">
@@ -240,7 +240,7 @@
                     <div class="feature-description">Any actions you take will automatically sync when you're back online</div>
                 </div>
             </div>
-            
+
             <div class="feature">
                 <div class="feature-icon">🔒</div>
                 <div class="feature-text">
@@ -249,21 +249,21 @@
                 </div>
             </div>
         </div>
-        
+
         <button class="retry-button" onclick="checkConnection()">Try Again</button>
-        
+
         <div class="connection-info">
             💡 <strong>Tip:</strong> Check your WiFi or mobile data connection and try again.
         </div>
     </div>
-    
+
     <script>
         // Auto-retry connection every 5 seconds
         let retryInterval;
-        
+
         function checkConnection() {
             // Try to fetch a small resource
-            fetch('/?ping=' + Date.now(), { 
+            fetch('/?ping=' + Date.now(), {
                 method: 'HEAD',
                 cache: 'no-cache'
             })
@@ -279,16 +279,16 @@
                 console.log('Still offline...');
             });
         }
-        
+
         // Check connection every 5 seconds
         retryInterval = setInterval(checkConnection, 5000);
-        
+
         // Listen for online event
         window.addEventListener('online', () => {
             clearInterval(retryInterval);
             window.location.reload();
         });
-        
+
         // Update status indicator
         function updateStatus() {
             const status = document.querySelector('.status span:last-child');
@@ -299,7 +299,7 @@
                 status.textContent = 'Attempting to reconnect...';
             }
         }
-        
+
         // Check status on visibility change
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {

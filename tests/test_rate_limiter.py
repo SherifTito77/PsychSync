@@ -120,4 +120,3 @@ class TestRate_Limiter:
         # This is an auto-generated test placeholder
         instance = EndpointRateLimiter()
         assert instance is not None
-

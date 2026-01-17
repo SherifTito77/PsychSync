@@ -15,4 +15,3 @@ async def create_organization(org: OrganizationCreate, db: Session = Depends(get
     await db.commit()
     await db.refresh(db_org)
     return db_org
-

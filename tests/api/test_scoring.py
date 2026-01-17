@@ -179,7 +179,7 @@ def get_mbti_template(client):
     # TODO: Implement test logic
     response = client.get(
         "/scoring-helpers/mbti-template"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -226,7 +226,7 @@ def get_big_five_template(client):
     # TODO: Implement test logic
     response = client.get(
         "/scoring-helpers/big-five-template"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -273,7 +273,7 @@ def get_disc_template(client):
     # TODO: Implement test logic
     response = client.get(
         "/scoring-helpers/disc-template"
-        
+
     )
 
     assert response.status_code in [200, 201]

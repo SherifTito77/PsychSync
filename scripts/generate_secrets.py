@@ -4,7 +4,7 @@ Secure Secret Generator for PsychSync
 
 Usage:
     python scripts/generate_secrets.py
-    
+
 This will generate:
 - Strong JWT secret key
 - Fernet encryption key

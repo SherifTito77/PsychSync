@@ -89,7 +89,7 @@ def get_security_summary(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/queries/summary"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -228,7 +228,7 @@ def get_latest_report(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/reports/latest"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -457,7 +457,7 @@ def health_check(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]

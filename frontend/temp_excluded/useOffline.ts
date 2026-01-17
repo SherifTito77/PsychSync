@@ -1,8 +1,8 @@
 /**
  * useOffline Hook
- * 
+ *
  * React hook for managing offline state and syncing
- * 
+ *
  * Features:
  * - Detect online/offline status
  * - Auto-sync when connection restored
@@ -61,9 +61,9 @@ export const useOffline = () => {
   // Check pending items count on mount and periodically
   useEffect(() => {
     updatePendingCount();
-    
+
     const interval = setInterval(updatePendingCount, 30000); // Every 30s
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -85,7 +85,7 @@ export const useOffline = () => {
         getUnsyncedResponses(),
         getQueuedRequests()
       ]);
-      
+
       setPendingCount(responses.length + requests.length);
     } catch (error) {
       console.error('Error updating pending count:', error);
@@ -106,11 +106,11 @@ export const useOffline = () => {
 
     try {
       console.log('🔄 Starting sync...');
-      
+
       // Sync assessment responses
       const responses = await getUnsyncedResponses();
       console.log(`Found ${responses.length} unsynced responses`);
-      
+
       for (const response of responses) {
         try {
           // Send to API
@@ -137,7 +137,7 @@ export const useOffline = () => {
       // Sync queued requests
       const requests = await getQueuedRequests();
       console.log(`Found ${requests.length} queued requests`);
-      
+
       for (const request of requests) {
         try {
           if (request.retries >= MAX_RETRIES) {
@@ -168,10 +168,10 @@ export const useOffline = () => {
       // Update last sync time
       await updateLastSync();
       setLastSyncTime(Date.now());
-      
+
       // Update pending count
       await updatePendingCount();
-      
+
       console.log('✅ Sync complete');
     } catch (error) {
       console.error('Sync error:', error);
@@ -226,10 +226,10 @@ export const useOfflineRequest = () => {
 
     // If offline, queue request
     console.log('📥 Queueing request for later sync:', url);
-    
+
     // Import queue function dynamically to avoid circular dependencies
     const { queueRequest } = await import('../utils/offlineStorage');
-    
+
     await queueRequest({
       url,
       method: options.method || 'GET',
@@ -288,12 +288,12 @@ export const useOfflineForm = (formId, onSubmit) => {
    */
   const handleSubmit = useCallback(async (data) => {
     setIsSaving(true);
-    
+
     try {
       if (isOnline) {
         // Submit normally
         await onSubmit(data);
-        
+
         // Clear draft after successful submit
         const { clearFormDraft } = await import('../utils/offlineStorage');
         await clearFormDraft(formId);
@@ -306,7 +306,7 @@ export const useOfflineForm = (formId, onSubmit) => {
           data,
           timestamp: Date.now()
         });
-        
+
         console.log('Form saved for offline sync');
         setIsDirty(false);
       }
@@ -332,7 +332,7 @@ export const useOfflineForm = (formId, onSubmit) => {
  */
 export const useOfflineIndicator = () => {
   const { isOnline, isSyncing, pendingCount } = useOffline();
-  
+
   const getStatus = useCallback(() => {
     if (isSyncing) {
       return {
@@ -341,17 +341,17 @@ export const useOfflineIndicator = () => {
         color: 'blue'
       };
     }
-    
+
     if (!isOnline) {
       return {
         type: 'offline',
-        message: pendingCount > 0 
-          ? `Offline (${pendingCount} pending)` 
+        message: pendingCount > 0
+          ? `Offline (${pendingCount} pending)`
           : 'Offline',
         color: 'orange'
       };
     }
-    
+
     if (pendingCount > 0) {
       return {
         type: 'pending',
@@ -359,7 +359,7 @@ export const useOfflineIndicator = () => {
         color: 'yellow'
       };
     }
-    
+
     return {
       type: 'online',
       message: 'Online',

@@ -303,5 +303,3 @@ const CreateAssessmentModal: React.FC<CreateAssessmentModalProps> = ({
 };
 
 export default CreateAssessmentModal;
-
-                      

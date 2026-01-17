@@ -104,7 +104,7 @@ async def list_teams(
 
 # ==================== TEMPORARILY DISABLED ENDPOINTS ====================
 # The following endpoints are disabled due to corrupted service files
-# They 
+# They
 @check_rate_limit(identifier="public", endpoint_type="public")
 will be re-enabled once the service layer issues are resolved
 

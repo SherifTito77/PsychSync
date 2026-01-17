@@ -42,7 +42,7 @@ def public_health_check(client):
     # TODO: Implement test logic
     response = client.get(
         "/health/public"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -89,7 +89,7 @@ def health_check(client):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -136,7 +136,7 @@ def detailed_health_check(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/health/detailed"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -183,7 +183,7 @@ def get_metrics(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/metrics"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -230,7 +230,7 @@ def get_cache_metrics(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/metrics/cache"
-        
+
     )
 
     assert response.status_code in [200, 201]

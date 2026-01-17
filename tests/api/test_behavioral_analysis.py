@@ -265,7 +265,7 @@ def get_behavioral_pattern_catalog(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/patterns/catalog"
-        
+
     )
 
     assert response.status_code in [200, 201]

@@ -28,6 +28,7 @@ from app.schemas.clinical import (
     GAD7Request,
     CSSRSRequest,
     ASRSRequest,
+    ISIRequest,
     ScreeningResponse
 )
 from app.services.clinical.scoring_algorithms import (
@@ -35,6 +36,7 @@ from app.services.clinical.scoring_algorithms import (
     GAD7Scorer,
     CSSRSScorer,
     score_asrs,
+    score_isi,
     get_scorer
 )
 from app.services.clinical.additional_scorers import (
@@ -203,7 +205,19 @@ async def submit_phq9(
             user_name=current_user.full_name
         )
 
-        logger.critical(f"PHQ-9 Crisis alert triggered for user {current_user.id}")
+        # Notify clinicians of crisis alert
+        from app.services.clinical.notification_service import ClinicianNotificationService
+        notification_service = ClinicianNotificationService(db)
+        await notification_service.notify_clinicians_of_alert(
+            alert_id=str(alert.id),
+            alert_type=alert.alert_type,
+            severity=alert.severity,
+            screening_id=str(screening.id),
+            org_id=str(current_user.org_id),
+            alert_message=alert.alert_message
+        )
+
+        logger.critical(f"PHQ-9 Crisis alert triggered for user {current_user.id} and clinicians notified")
 
     return ScreeningResponse(
         id=screening.id,
@@ -298,6 +312,20 @@ async def submit_gad7(
             user_email=current_user.email,
             user_name=current_user.full_name
         )
+
+        # Notify clinicians of crisis alert
+        from app.services.clinical.notification_service import ClinicianNotificationService
+        notification_service = ClinicianNotificationService(db)
+        await notification_service.notify_clinicians_of_alert(
+            alert_id=str(alert.id),
+            alert_type=alert.alert_type,
+            severity=alert.severity,
+            screening_id=str(screening.id),
+            org_id=str(current_user.org_id),
+            alert_message=alert.alert_message
+        )
+
+        logger.critical(f"Crisis alert triggered for {screening_type} screening user {current_user.id} and clinicians notified")
 
     return ScreeningResponse(
         id=screening.id,
@@ -898,6 +926,20 @@ async def submit_lsas(
             user_name=current_user.full_name
         )
 
+        # Notify clinicians of crisis alert
+        from app.services.clinical.notification_service import ClinicianNotificationService
+        notification_service = ClinicianNotificationService(db)
+        await notification_service.notify_clinicians_of_alert(
+            alert_id=str(alert.id),
+            alert_type=alert.alert_type,
+            severity=alert.severity,
+            screening_id=str(screening.id),
+            org_id=str(current_user.org_id),
+            alert_message=alert.alert_message
+        )
+
+        logger.critical(f"Crisis alert triggered for {screening_type} screening user {current_user.id} and clinicians notified")
+
         logger.critical(f"LSAS Crisis alert triggered for user {current_user.id}")
 
     return ScreeningResponse(
@@ -1093,6 +1135,20 @@ async def submit_ybocs(
             user_name=current_user.full_name
         )
 
+        # Notify clinicians of crisis alert
+        from app.services.clinical.notification_service import ClinicianNotificationService
+        notification_service = ClinicianNotificationService(db)
+        await notification_service.notify_clinicians_of_alert(
+            alert_id=str(alert.id),
+            alert_type=alert.alert_type,
+            severity=alert.severity,
+            screening_id=str(screening.id),
+            org_id=str(current_user.org_id),
+            alert_message=alert.alert_message
+        )
+
+        logger.critical(f"Crisis alert triggered for {screening_type} screening user {current_user.id} and clinicians notified")
+
         logger.critical(f"Y-BOCS Crisis alert triggered for user {current_user.id}")
 
     return ScreeningResponse(
@@ -1213,6 +1269,117 @@ async def submit_asrs(
         )
 
         logger.critical(f"ASRS Crisis alert triggered for user {current_user.id}")
+
+    return ScreeningResponse(
+        id=screening.id,
+        screening_type=screening_type,
+        total_score=result['total_score'],
+        severity_level=result['severity_level'],
+        risk_level=result['risk_level'],
+        interpretation=result['interpretation'],
+        recommendations=result['recommendations'],
+        crisis_alert=result['crisis_alert'],
+        risk_flags=result['risk_flags'],
+        subscale_scores=result.get('subscale_scores', {}),
+        completed_at=screening.completed_at
+    )
+
+
+# ============================================================================
+# ISI SCREENING (INSOMNIA SEVERITY INDEX)
+# ============================================================================
+
+@router.post("/isi", response_model=ScreeningResponse)
+async def submit_isi(
+    responses: ISIRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Insomnia Severity Index (ISI)
+
+    7 questions measuring insomnia severity over the past 2 weeks:
+    - Sleep onset, maintenance, and early morning difficulties
+    - Satisfaction with sleep pattern
+    - Noticeability to others
+    - Worry/distress about sleep
+    - Interference with daily functioning
+
+    Scoring: Each question 0-4 (No problem to Very severe problem)
+    - 0-7: No clinically significant insomnia
+    - 8-14: Subthreshold insomnia
+    - 15-21: Clinical insomnia (moderate)
+    - 22-28: Clinical insomnia (severe)
+
+    Reliability: Cronbach's α = 0.91
+    Validated for assessing insomnia severity and treatment outcomes
+    """
+    screening_type = "ISI"
+
+    # Verify consent
+    has_consent = await verify_consent(current_user.id, screening_type, db)
+    if not has_consent:
+        raise HTTPException(
+            403,
+            "Clinical screening consent required. Please complete consent form first."
+        )
+
+    # Convert Pydantic model to dict for scorer
+    response_dict = {
+        '1': responses.q1,
+        '2': responses.q2,
+        '3': responses.q3,
+        '4': responses.q4,
+        '5': responses.q5,
+        '6': responses.q6,
+        '7': responses.q7
+    }
+
+    # Score the assessment using the wrapper function
+    result = score_isi(response_dict)
+
+    # Save screening results
+    screening = ClinicalScreening(
+        user_id=current_user.id,
+        org_id=current_user.org_id,
+        screening_type=screening_type,
+        version="1.0",
+        responses=response_dict,
+        total_score=result['total_score'],
+        severity_level=result['severity_level'],
+        risk_level=result['risk_level'],
+        risk_flags=result['risk_flags'],
+        crisis_alert=result['crisis_alert'],
+        informed_consent=True,
+        consent_timestamp=datetime.utcnow(),
+        completed_at=datetime.utcnow()
+    )
+
+    db.add(screening)
+    await db.commit()
+    await db.refresh(screening)
+
+    # Crisis intervention if needed (though insomnia rarely triggers)
+    if result['crisis_alert']:
+        crisis_service = CrisisInterventionService(db)
+        alert = await crisis_service.create_alert(
+            screening_id=screening.id,
+            user_id=current_user.id,
+            org_id=current_user.org_id,
+            risk_level=result['risk_level'],
+            risk_flags=result['risk_flags'],
+            screening_data={"screening_type": screening_type}
+        )
+
+        await crisis_service.activate_crisis_protocol(
+            alert=alert,
+            background_tasks=background_tasks,
+            user_email=current_user.email,
+            user_name=current_user.full_name
+        )
+
+        logger.critical(f"ISI Crisis alert triggered for user {current_user.id}")
 
     return ScreeningResponse(
         id=screening.id,

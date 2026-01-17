@@ -90,7 +90,7 @@ class OptimizationResponse(BaseModel):
 async def optimize_lineups(request: OptimizationRequest):
     """
     Optimize fantasy lineups based on player pool and constraints
-    
+
     - **players**: Available player pool with projections
     - **objective**: Optimization objective (maximize_score, balance_categories, etc.)
     - **num_lineups**: Number of unique lineups to generate (1-20)
@@ -101,7 +101,7 @@ async def optimize_lineups(request: OptimizationRequest):
     """
     import time
     start_time = time.time()
-    
+
     try:
         # Convert pydantic models to dataclass
         players = [
@@ -134,7 +134,7 @@ async def optimize_lineups(request: OptimizationRequest):
             )
             for p in request.players
         ]
-        
+
         # Create constraints
         constraints = LineupConstraints(
             max_players_per_team=request.max_players_per_team,
@@ -142,7 +142,7 @@ async def optimize_lineups(request: OptimizationRequest):
             locked_players=request.locked_player_ids,
             excluded_players=request.excluded_player_ids
         )
-        
+
         # Map objective string to enum
         objective_map = {
             'maximize_score': OptimizationObjective.MAXIMIZE_SCORE,
@@ -152,7 +152,7 @@ async def optimize_lineups(request: OptimizationRequest):
             'minimize_risk': OptimizationObjective.MINIMIZE_RISK
         }
         objective = objective_map.get(request.objective, OptimizationObjective.MAXIMIZE_SCORE)
-        
+
         # Optimize
         optimizer = TeamOptimizationEngine()
         optimized_lineups = optimizer.optimize_lineup(
@@ -161,13 +161,13 @@ async def optimize_lineups(request: OptimizationRequest):
             constraints=constraints,
             num_lineups=request.num_lineups
         )
-        
+
         # Convert to response format
         lineup_responses = []
         for idx, lineup in enumerate(optimized_lineups, 1):
             # Get correlations
             correlations = optimizer.analyze_lineup_correlations(lineup)
-            
+
             lineup_response = LineupResponse(
                 lineup_id=idx,
                 players=[
@@ -209,9 +209,9 @@ async def optimize_lineups(request: OptimizationRequest):
                 metadata=lineup.optimization_metadata
             )
             lineup_responses.append(lineup_response)
-        
+
         optimization_time = time.time() - start_time
-        
+
         return OptimizationResponse(
             lineups=lineup_responses,
             request_summary={
@@ -225,7 +225,7 @@ async def optimize_lineups(request: OptimizationRequest):
             },
             optimization_time=round(optimization_time, 3)
         )
-        
+
     except Exception as e:
         raise HTTPExcept
 @check_rate_limit(identifier="public", endpoint_type="public")
@@ -236,12 +236,12 @@ ion(status_code=500, detail=f"Optimization failed: {str(e)}")
 async def analyze_player_pool(players: List[PlayerInput]):
     """
     Analyze player pool and provide recommendations
-    
+
     Returns insights about player distribution, value opportunities, etc.
     """
     try:
         import numpy as np
-        
+
         # Convert to Player objects
         player_objs = [
             Player(
@@ -260,7 +260,7 @@ async def analyze_player_pool(players: List[PlayerInput]):
             )
             for p in players
         ]
-        
+
         # Calculate value metrics
         values = []
         for p in player_objs:
@@ -274,36 +274,36 @@ async def analyze_player_pool(players: List[PlayerInput]):
                     'salary': p.salary,
                     'ownership': p.ownership_projection
                 })
-        
+
         # Sort by value
         values.sort(key=lambda x: x['value'], reverse=True)
-        
+
         # Position distribution
         position_dist = {}
         for p in player_objs:
             position_dist[p.position] = position_dist.get(p.position, 0) + 1
-        
+
         # Team distribution
         team_dist = {}
         for p in player_objs:
             team_dist[p.team] = team_dist.get(p.team, 0) + 1
-        
+
         # Score distribution
         scores = [p.overall_score for p in player_objs]
-        
+
         # Injury concerns
         injury_concerns = [
             {'id': p.id, 'name': p.name, 'status': p.injury_status}
             for p in player_objs
             if p.injury_status not in ['healthy', '']
         ]
-        
+
         # Value picks (high value, low ownership)
         value_picks = [
             v for v in values[:20]
             if v['ownership'] < 0.20  # Less than 20% owned
         ]
-        
+
         # Contrarian plays (low ownership, high ceiling)
         contrarian = [
             {
@@ -317,7 +317,7 @@ async def analyze_player_pool(players: List[PlayerInput]):
             if p.ownership_projection < 0.15 and p.ceiling > p.projected_points * 1.3
         ]
         contrarian.sort(key=lambda x: x['upside'], reverse=True)
-        
+
         return {
             'pool_summary': {
                 'total_players': len(player_objs),
@@ -338,10 +338,10 @@ async def analyze_player_pool(players: List[PlayerInput]):
                 'min': round(min(scores), 2),
                 'max': round(max(scores), 2)
             }
-  
+
 @check_rate_limit(identifier="public", endpoint_type="public")
       }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e, dependencies=[Depends(get_current_user)])}")
 
@@ -350,28 +350,28 @@ async def analyze_player_pool(players: List[PlayerInput]):
 async def compare_lineups(lineups: List[List[int]], player_pool: List[PlayerInput]):
     """
     Compare multiple lineups side by side
-    
+
     - **lineups**: List of lineups (each is list of player IDs)
     - **player_pool**: Full player pool with projections
     """
     try:
         # Create player lookup
         player_lookup = {p.id: p for p in player_pool}
-        
+
         comparisons = []
-        
+
         for idx, lineup_ids in enumerate(lineups, 1):
             lineup_players = [player_lookup[pid] for pid in lineup_ids if pid in player_lookup]
-            
+
             if not lineup_players:
                 continue
-            
+
             # Calculate lineup metrics
             total_score = sum(p.overall_score for p in lineup_players)
             projected_points = sum(p.projected_points for p in lineup_players)
             total_salary = sum(p.salary for p in lineup_players)
             avg_ownership = sum(p.ownership_projection for p in lineup_players) / len(lineup_players)
-            
+
             # Category averages
             category_avg = {
                 'scoring': sum(p.scoring_score for p in lineup_players) / len(lineup_players),
@@ -380,17 +380,17 @@ async def compare_lineups(lineups: List[List[int]], player_pool: List[PlayerInpu
                 'defense': sum(p.defense_score for p in lineup_players) / len(lineup_players),
                 'rebounding': sum(p.rebounding_score for p in lineup_players) / len(lineup_players)
             }
-            
+
             # Risk metrics
             floor_total = sum(p.floor for p in lineup_players)
             ceiling_total = sum(p.ceiling for p in lineup_players)
             variance_avg = sum(p.variance for p in lineup_players) / len(lineup_players)
-            
+
             # Team stacks
             team_counts = {}
             for p in lineup_players:
                 team_counts[p.team] = team_counts.get(p.team, 0) + 1
-            
+
             comparisons.append({
                 'lineup_number': idx,
                 'players': [p.name for p in lineup_players],
@@ -404,13 +404,13 @@ async def compare_lineups(lineups: List[List[int]], player_pool: List[PlayerInpu
                 'category_averages': {k: round(v, 2) for k, v in category_avg.items()},
                 'team_stacks': {t: c for t, c in team_counts.items() if c >= 2}
             })
-        
+
         # Find best in each category
         best_score = max(comparisons, key=lambda x: x['total_score'])
         best_ceiling = max(comparisons, key=lambda x: x['ceiling'])
         safest = max(comparisons, key=lambda x: x['floor'])
         most_contrarian = min(comparisons, key=lambda x: x['avg_ownership'])
-        
+
         return {
             'lineups': comparisons,
             'recommendations': {
@@ -420,7 +420,7 @@ async def compare_lineups(lineups: List[List[int]], player_pool: List[PlayerInpu
                 'most_contrarian': most_contrarian['lineup_number']
             }
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}")
 
@@ -465,14 +465,14 @@ async def get_lineup_suggestions(
 ):
     """
     Get player suggestions to complete a lineup
-    
+
     Suggests players that complement existing lineup
     """
     try:
         # Get current lineup players
         player_lookup = {p.id: p for p in player_pool}
         current_players = [player_lookup[pid] for pid in current_lineup if pid in player_lookup]
-        
+
         # Calculate current lineup stats
         current_categories = {
             'scoring': sum(p.scoring_score for p in current_players) / max(len(current_players), 1),
@@ -481,29 +481,29 @@ async def get_lineup_suggestions(
             'defense': sum(p.defense_score for p in current_players) / max(len(current_players), 1),
             'rebounding': sum(p.rebounding_score for p in current_players) / max(len(current_players), 1)
         }
-        
+
         # Find weakest category
         weakest_cat = min(current_categories, key=current_categories.get)
-        
+
         # Get available players for position
         available = [
             p for p in player_pool
             if p.id not in current_lineup
             and position_needed in p.eligible_positions
         ]
-        
+
         # Score players based on filling needs
         scored_players = []
         for p in available:
             # Base score
             base_score = p.overall_score
-            
+
             # Bonus for filling weak category
             weak_cat_score = getattr(p, f'{weakest_cat}_score', 0)
             bonus = (weak_cat_score - current_categories[weakest_cat]) * 0.2
-            
+
             final_score = base_score + bonus
-            
+
             scored_players.append({
                 'player_id': p.id,
                 'player_name': p.name,
@@ -513,10 +513,10 @@ async def get_lineup_suggestions(
                 'projected_points': p.projected_points,
                 'salary': p.salary
             })
-        
+
         # Sort by score
         scored_players.sort(key=lambda x: x['score'], reverse=True)
-        
+
         return {
             'position_needed': position_needed,
             'current_lineup_size': len(current_players),
@@ -524,7 +524,7 @@ async def get_lineup_suggestions(
             'current_category_avg': round(current_categories[weakest_cat], 2),
             'suggestions': scored_players[:15]
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Suggestions failed: {str(e)}")
 
@@ -536,7 +536,7 @@ async def export_lineup(
 ):
     """
     Export lineup in various formats
-    
+
     - **csv**: CSV format for import
     - **json**: JSON format
     - **dfs**: DraftKings/FanDuel format
@@ -558,7 +558,7 @@ async def export_lineup(
                     for p in lineup
                 ]
             }
-        
+
         elif format == "csv":
             csv_lines = ["Name,Position,Team,Opponent,Salary,Projected Points,Score"]
             for p in lineup:
@@ -570,7 +570,7 @@ async def export_lineup(
                 'format': 'csv',
                 'content': '\n'.join(csv_lines)
             }
-        
+
         elif format == "dfs":
             # DraftKings format
             return {
@@ -586,7 +586,7 @@ async def export_lineup(
                     for idx, p in enumerate(lineup)
                 ]
             }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
@@ -658,7 +658,7 @@ async def optimizer_health():
     try:
         # Test optimizer instantiation
         optimizer = TeamOptimizationEngine()
-        
+
         return {
             'status': 'healthy',
             'service': 'team_optimizer',
@@ -669,4 +669,3 @@ async def optimizer_health():
             'status': 'unhealthy',
             'error': str(e)
         }
-                

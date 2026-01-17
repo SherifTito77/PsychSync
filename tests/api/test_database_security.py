@@ -43,7 +43,7 @@ def scan_database_security(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/database/security/scan"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -134,7 +134,7 @@ def get_security_report(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/database/security/report"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -269,7 +269,7 @@ def check_backup_security(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/database/security/backups"
-        
+
     )
 
     assert response.status_code in [200, 201]

@@ -27,7 +27,7 @@ def get_processor(framework: str) -> PersonalityFrameworkProcessor:
     """Get processor instance for specified framework"""
     if framework not in PROCESSOR_REGISTRY:
         raise ValueError(f"Unknown framework: {framework}")
-    
+
     processor_class = PROCESSOR_REGISTRY[framework]
     return processor_class()
 

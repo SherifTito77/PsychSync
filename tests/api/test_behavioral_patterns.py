@@ -220,7 +220,7 @@ def get_pattern_templates(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/templates"
-        
+
     )
 
     assert response.status_code in [200, 201]

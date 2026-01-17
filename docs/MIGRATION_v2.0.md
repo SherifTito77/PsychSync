@@ -294,7 +294,7 @@ const refreshSession = async () => {
     method: 'POST',
     credentials: 'include'
   });
-  
+
   if (response.ok) {
     // New token automatically set in httpOnly cookie
     return true;
@@ -320,7 +320,7 @@ CREATE TABLE audit_logs (
     details JSONB,
     success BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
-    
+
     INDEX idx_user_id (user_id),
     INDEX idx_event_type (event_type),
     INDEX idx_created_at (created_at)
@@ -373,7 +373,7 @@ it('should login with cookies', async () => {
       password: 'TestPass123!'
     })
   });
-  
+
   expect(response.ok).toBe(true);
   // Cookies set automatically
   expect(document.cookie).toContain('access_token');
@@ -382,7 +382,7 @@ it('should login with cookies', async () => {
 // Test: CSRF token included
 it('should include CSRF token in POST requests', async () => {
   const csrfToken = getCsrfToken();
-  
+
   const response = await fetch('/api/v1/users/me', {
     method: 'PUT',
     headers: {
@@ -392,7 +392,7 @@ it('should include CSRF token in POST requests', async () => {
     credentials: 'include',
     body: JSON.stringify({ full_name: 'Updated Name' })
   });
-  
+
   expect(response.ok).toBe(true);
 });
 ```

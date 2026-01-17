@@ -73,7 +73,7 @@ echo -e "${YELLOW}Step 5: Checking environment configuration...${NC}"
 if [ ! -f ".env" ]; then
     echo -e "${YELLOW}⚠️  .env file not found${NC}"
     echo "Creating .env from template..."
-    
+
     cat > .env << 'EOF'
 # Database Configuration
 DATABASE_URL=postgresql://psychsync_user:password@localhost:5432/psychsync
@@ -109,12 +109,12 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:800
 # Logging
 LOG_LEVEL=INFO
 EOF
-    
+
     echo -e "${GREEN}✅ Created .env file${NC}"
     echo -e "${YELLOW}⚠️  Please update .env with your actual values!${NC}"
 else
     echo -e "${GREEN}✅ .env file exists${NC}"
-    
+
     # Check if Redis settings are in .env
     if ! grep -q "REDIS_HOST" .env; then
         echo -e "${YELLOW}⚠️  Adding Redis settings to .env...${NC}"
@@ -140,7 +140,7 @@ echo -e "${YELLOW}Step 6: Running cache tests...${NC}"
 if [ -f "test_cache_setup.py" ]; then
     python test_cache_setup.py
     TEST_RESULT=$?
-    
+
     if [ $TEST_RESULT -eq 0 ]; then
         echo ""
         echo -e "${GREEN}=========================================="

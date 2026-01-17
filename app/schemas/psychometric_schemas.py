@@ -61,5 +61,3 @@ class TrendAnalysis(BaseModel):
     confidence: float
     statistical_significance: bool
     interpretation: str
-
-

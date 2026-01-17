@@ -150,7 +150,7 @@ const ScoringDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200">
           <div className="flex items-center justify-between mb-6">
@@ -162,8 +162,8 @@ const ScoringDashboard = () => {
               <button
                 onClick={() => setViewMode('overview')}
                 className={`px-4 py-2 rounded-lg font-medium transition ${
-                  viewMode === 'overview' 
-                    ? 'bg-blue-600 text-white' 
+                  viewMode === 'overview'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -172,8 +172,8 @@ const ScoringDashboard = () => {
               <button
                 onClick={() => setViewMode('detailed')}
                 className={`px-4 py-2 rounded-lg font-medium transition ${
-                  viewMode === 'detailed' 
-                    ? 'bg-blue-600 text-white' 
+                  viewMode === 'detailed'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -236,7 +236,7 @@ const ScoringDashboard = () => {
                 <div className="text-2xl font-bold text-slate-900 mb-1">
                   {Object.entries(selectedPlayer.categories)
                     .sort((a, b) => b[1] - a[1])[0][0]
-                    .charAt(0).toUpperCase() + 
+                    .charAt(0).toUpperCase() +
                     Object.entries(selectedPlayer.categories)
                     .sort((a, b) => b[1] - a[1])[0][0].slice(1)}
                 </div>
@@ -275,19 +275,19 @@ const ScoringDashboard = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="week" stroke="#64748b" />
                     <YAxis domain={[85, 100]} stroke="#64748b" />
-                    <Tooltip 
-                      contentStyle={{ 
+                    <Tooltip
+                      contentStyle={{
                         backgroundColor: '#fff',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px'
                       }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="score" 
-                      stroke="#3b82f6" 
+                    <Area
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#3b82f6"
                       strokeWidth={3}
-                      fill="url(#colorScore)" 
+                      fill="url(#colorScore)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -301,16 +301,16 @@ const ScoringDashboard = () => {
                     <PolarGrid stroke="#e2e8f0" />
                     <PolarAngleAxis dataKey="category" stroke="#64748b" />
                     <PolarRadiusAxis domain={[0, 100]} stroke="#64748b" />
-                    <Radar 
-                      name={selectedPlayer.name} 
-                      dataKey="value" 
-                      stroke="#3b82f6" 
-                      fill="#3b82f6" 
+                    <Radar
+                      name={selectedPlayer.name}
+                      dataKey="value"
+                      stroke="#3b82f6"
+                      fill="#3b82f6"
                       fillOpacity={0.5}
                       strokeWidth={2}
                     />
-                    <Tooltip 
-                      contentStyle={{ 
+                    <Tooltip
+                      contentStyle={{
                         backgroundColor: '#fff',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px'
@@ -329,11 +329,11 @@ const ScoringDashboard = () => {
               </h3>
               <div className="space-y-3">
                 {selectedPlayer.alerts.map((alert, idx) => (
-                  <div 
+                  <div
                     key={idx}
                     className={`p-4 rounded-lg border-l-4 ${
-                      alert.type === 'positive' 
-                        ? 'bg-green-50 border-green-500' 
+                      alert.type === 'positive'
+                        ? 'bg-green-50 border-green-500'
                         : alert.type === 'warning'
                         ? 'bg-yellow-50 border-yellow-500'
                         : alert.type === 'negative'
@@ -362,7 +362,7 @@ const ScoringDashboard = () => {
                       <span className={`font-bold ${getScoreColor(score)}`}>{score}</span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-3">
-                      <div 
+                      <div
                         className={`h-3 rounded-full transition-all ${
                           score >= 90 ? 'bg-green-500' :
                           score >= 80 ? 'bg-blue-500' :
@@ -385,8 +385,8 @@ const ScoringDashboard = () => {
                   <XAxis dataKey="week" stroke="#64748b" />
                   <YAxis yAxisId="left" stroke="#64748b" />
                   <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
-                  <Tooltip 
-                    contentStyle={{ 
+                  <Tooltip
+                    contentStyle={{
                       backgroundColor: '#fff',
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px'

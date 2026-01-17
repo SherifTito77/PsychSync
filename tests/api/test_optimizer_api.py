@@ -313,7 +313,7 @@ def get_optimization_presets(client):
     # TODO: Implement test logic
     response = client.get(
         "/optimization-presets"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -360,7 +360,7 @@ def optimizer_health(client):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]

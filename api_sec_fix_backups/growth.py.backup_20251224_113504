@@ -69,7 +69,7 @@ async def trigger_growth_campaign(
         logger.error(f"Failed to trigger campaign {campaign_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-      
+
 @check_rate_limit(identifier="public", endpoint_type="public")
       detail=f"Failed to trigger campaign: {str(e)}"
         )

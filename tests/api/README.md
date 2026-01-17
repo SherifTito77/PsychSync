@@ -50,7 +50,7 @@ def client(db_session):
             yield db_session
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
@@ -174,7 +174,7 @@ def test_create_team(client, sample_user):
     """Test team creation."""
     # Mock authentication
     client.headers = {"Authorization": f"Bearer mock_token"}
-    
+
     response = client.post(
         "/teams",
         json={
@@ -192,7 +192,7 @@ def test_create_team(client, sample_user):
 def test_get_teams(client, sample_user, sample_team):
     """Test getting user's teams."""
     client.headers = {"Authorization": f"Bearer mock_token"}
-    
+
     response = client.get("/teams")
     assert response.status_code == 200
     data = response.json()
@@ -202,7 +202,7 @@ def test_get_teams(client, sample_user, sample_team):
 def test_get_team_detail(client, sample_user, sample_team):
     """Test getting team details."""
     client.headers = {"Authorization": f"Bearer mock_token"}
-    
+
     response = client.get(f"/teams/{sample_team.id}")
     assert response.status_code == 200
     data = response.json()
@@ -212,7 +212,7 @@ def test_get_team_detail(client, sample_user, sample_team):
 def test_team_optimization(client, sample_user, sample_team):
     """Test team optimization."""
     client.headers = {"Authorization": f"Bearer mock_token"}
-    
+
     response = client.post(
         f"/teams/{sample_team.id}/optimize",
         json={
@@ -235,15 +235,15 @@ from assessment_processors import BigFiveProcessor, MBTIProcessor
 def test_big_five_processor():
     """Test Big Five assessment processing."""
     processor = BigFiveProcessor()
-    
+
     raw_data = {
         f"q{i}": (i % 5) + 1 for i in range(1, 26)  # 25 questions
     }
-    
+
     assert processor.validate_input(raw_data)
-    
+
     result = processor.process(raw_data)
-    
+
     assert "openness" in result
     assert "conscientiousness" in result
     assert "extraversion" in result
@@ -254,26 +254,26 @@ def test_big_five_processor():
 def test_mbti_processor():
     """Test MBTI assessment processing."""
     processor = MBTIProcessor()
-    
+
     raw_data = {
         f"q{i}": (i % 5) + 1 for i in range(1, 21)  # 20 questions
     }
-    
+
     assert processor.validate_input(raw_data)
-    
+
     result = processor.process(raw_data)
-    
+
     assert "type" in result
     assert len(result["type"]) == 4
-    assert result["type"] in ["INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP", 
-                             "ENFJ", "ENFP", "ISTJ", "ISFJ", "ESTJ", "ESFJ", 
+    assert result["type"] in ["INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP",
+                             "ENFJ", "ENFP", "ISTJ", "ISFJ", "ESTJ", "ESFJ",
                              "ISTP", "ISFP", "ESTP", "ESFP"]
     assert 0 <= result["confidence"] <= 1
 
 def test_create_assessment(client, sample_user):
     """Test creating an assessment."""
     client.headers = {"Authorization": f"Bearer mock_token"}
-    
+
     response = client.post(
         "/assessments",
         json={
@@ -292,7 +292,7 @@ def test_create_assessment(client, sample_user):
 def test_get_assessments(client, sample_user, sample_assessment):
     """Test getting user's assessments."""
     client.headers = {"Authorization": f"Bearer mock_token"}
-    
+
     response = client.get("/assessments")
     assert response.status_code == 200
     data = response.json()
@@ -307,7 +307,7 @@ from ai_engine import BehavioralAIEngine, TeamOptimizer, CompatibilityCalculator
 def test_behavioral_ai_synthesis():
     """Test personality profile synthesis."""
     engine = BehavioralAIEngine()
-    
+
     assessments = {
         "big_five": {
             "openness": 0.8,
@@ -321,9 +321,9 @@ def test_behavioral_ai_synthesis():
             "confidence": 0.8
         }
     }
-    
+
     result = engine.synthesize_personality_profile(assessments)
-    
+
     assert "openness" in result
     assert "leadership_potential" in result
     assert "collaboration_index" in result
@@ -333,7 +333,7 @@ def test_behavioral_ai_synthesis():
 def test_compatibility_calculator():
     """Test personality compatibility calculation."""
     calculator = CompatibilityCalculator()
-    
+
     profile_a = {
         "openness": 0.8,
         "conscientiousness": 0.7,
@@ -342,7 +342,7 @@ def test_compatibility_calculator():
         "neuroticism": 0.3,
         "communication_style": "collaborative"
     }
-    
+
     profile_b = {
         "openness": 0.7,
         "conscientiousness": 0.8,
@@ -351,16 +351,16 @@ def test_compatibility_calculator():
         "neuroticism": 0.4,
         "communication_style": "analytical"
     }
-    
+
     compatibility = calculator.calculate_compatibility(profile_a, profile_b)
-    
+
     assert 0 <= compatibility <= 1
     assert isinstance(compatibility, float)
 
 def test_team_optimizer():
     """Test team optimization algorithms."""
     optimizer = TeamOptimizer()
-    
+
     team_profiles = [
         {
             "user_id": 1,
@@ -381,18 +381,18 @@ def test_team_optimizer():
             "role": "developer"
         }
     ]
-    
+
     project_requirements = {
         "skills_needed": ["python", "react"],
         "project_type": "web_application"
     }
-    
+
     optimization_goals = ["maximize_compatibility", "minimize_conflict"]
-    
+
     result = optimizer.optimize_team_composition(
         team_profiles, project_requirements, optimization_goals
     )
-    
+
     assert "current_metrics" in result
     assert "recommendations" in result
     assert "performance_prediction" in result
@@ -529,7 +529,7 @@ config:
     - duration: 60
       arrivalRate: 5
       name: Warm up
-    - duration: 120  
+    - duration: 120
       arrivalRate: 10
       name: Ramp up load
     - duration: 60
@@ -671,7 +671,7 @@ docker-compose up -d
 # app
 cd app && source venv/bin/activate && uvicorn main:app --reload
 
-# Frontend  
+# Frontend
 cd frontend && npm start
 ```
 
@@ -709,7 +709,7 @@ cd frontend && npm start
 - **Task Queue**: Celery
 - **Authentication**: JWT with bcrypt
 
-#### Frontend  
+#### Frontend
 - **Framework**: React 18 with TypeScript
 - **Routing**: React Router v6
 - **State Management**: Context API + hooks

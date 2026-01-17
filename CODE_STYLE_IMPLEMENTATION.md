@@ -1,7 +1,7 @@
 # PsychSync Code Style Implementation Guide
 
-**Version:** 1.0.0  
-**Last Updated:** January 8, 2026  
+**Version:** 1.0.0
+**Last Updated:** January 8, 2026
 **Status:** Active
 
 ---
@@ -36,7 +36,7 @@ pre-commit run --all-files
 # Auto-fix Python code
 ruff check . --fix
 
-# Format Python code  
+# Format Python code
 ruff format .
 
 # Check TypeScript
@@ -94,7 +94,7 @@ ruff check . --select ERA001
 # Before
 logger.error(f"Error: {error}")
 
-# After  
+# After
 logger.error("Error: %s", error)
 ```
 
@@ -202,4 +202,3 @@ Runs on every pull request:
 ---
 
 **Questions?** Open an issue or contact the dev team.
-

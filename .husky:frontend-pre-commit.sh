@@ -9,5 +9,3 @@ cd frontend || exit 1
 npm run lint
 npm run type-check
 npm test
-
-

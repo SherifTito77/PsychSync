@@ -269,7 +269,7 @@ def get_export_statistics(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/data-exports/statistics"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -360,7 +360,7 @@ def get_available_formats(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/data-exports/formats"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -407,7 +407,7 @@ def get_available_scopes(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/data-exports/scopes"
-        
+
     )
 
     assert response.status_code in [200, 201]

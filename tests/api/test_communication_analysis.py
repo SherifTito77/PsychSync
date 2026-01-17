@@ -501,7 +501,7 @@ def get_dashboard_metrics(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/dashboard/metrics"
-        
+
     )
 
     assert response.status_code in [200, 201]

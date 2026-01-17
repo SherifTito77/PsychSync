@@ -43,7 +43,7 @@ def get_my_activation(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/my-activation"
-        
+
     )
 
     assert response.status_code in [200, 201]

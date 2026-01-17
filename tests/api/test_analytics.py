@@ -364,7 +364,7 @@ def get_available_metrics(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/metrics/available"
-        
+
     )
 
     assert response.status_code in [200, 201]

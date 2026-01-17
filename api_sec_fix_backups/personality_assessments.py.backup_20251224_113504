@@ -91,7 +91,7 @@ async def get_personality_frameworks():
             "trait_based": ["big_five", "predictive_index"],
             "type_based": ["mbti", "enneagram"],
             "behavioral": ["disct", "social_styles"],
-      
+
 @check_rate_limit(identifier="public", endpoint_type="public")
       "strengths_based": ["clifton_strengths"]
         }

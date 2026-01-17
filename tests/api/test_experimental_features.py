@@ -498,7 +498,7 @@ def get_voice_analysis_stats(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/voice/stats"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -545,7 +545,7 @@ def get_experimental_lab_dashboard(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/dashboard"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -637,7 +637,7 @@ def get_available_experimental_features(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/available-features"
-        
+
     )
 
     assert response.status_code in [200, 201]

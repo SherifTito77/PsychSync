@@ -1,13 +1,13 @@
 /**
  * PsychSync Service Worker - PWA Offline Support
- * 
+ *
  * Why we need this:
  * - Enable offline access to completed assessments
  * - Cache critical app resources for faster loading
  * - Allow users to complete assessments without internet
  * - Sync data when connection is restored
  * - Improve user experience in low-connectivity areas
- * 
+ *
  * Features:
  * - Cache-first strategy for static assets
  * - Network-first for API calls with offline fallback
@@ -48,7 +48,7 @@ const MAX_CACHE_SIZE = 50;
  */
 self.addEventListener('install', (event) => {
   console.log('[Service Worker] Installing...');
-  
+
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {
@@ -67,14 +67,14 @@ self.addEventListener('install', (event) => {
  */
 self.addEventListener('activate', (event) => {
   console.log('[Service Worker] Activating...');
-  
+
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
             .filter((cacheName) => {
-              return cacheName.startsWith('psychsync-') && 
+              return cacheName.startsWith('psychsync-') &&
                      cacheName !== STATIC_CACHE &&
                      cacheName !== DYNAMIC_CACHE &&
                      cacheName !== API_CACHE;
@@ -95,12 +95,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Skip cross-origin requests
   if (url.origin !== location.origin) {
     return;
   }
-  
+
   // Handle different request types
   if (request.method === 'GET') {
     if (url.pathname.startsWith('/api/')) {
@@ -120,31 +120,31 @@ self.addEventListener('fetch', (event) => {
  */
 async function handleApiRequest(request) {
   const url = new URL(request.url);
-  const isCacheable = CACHEABLE_API_ROUTES.some(route => 
+  const isCacheable = CACHEABLE_API_ROUTES.some(route =>
     url.pathname.startsWith(route)
   );
-  
+
   try {
     // Try network first
     const networkResponse = await fetch(request);
-    
+
     // Cache successful responses for cacheable routes
     if (networkResponse.ok && isCacheable) {
       const cache = await caches.open(API_CACHE);
       cache.put(request, networkResponse.clone());
       await limitCacheSize(API_CACHE, MAX_CACHE_SIZE);
     }
-    
+
     return networkResponse;
   } catch (error) {
     console.log('[Service Worker] Network failed, trying cache:', request.url);
-    
+
     // Try cache fallback
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
-    
+
     // Return offline response
     return new Response(
       JSON.stringify({
@@ -165,20 +165,20 @@ async function handleApiRequest(request) {
  */
 async function handleStaticAsset(request) {
   const cachedResponse = await caches.match(request);
-  
+
   if (cachedResponse) {
     return cachedResponse;
   }
-  
+
   try {
     const networkResponse = await fetch(request);
-    
+
     if (networkResponse.ok) {
       const cache = await caches.open(DYNAMIC_CACHE);
       cache.put(request, networkResponse.clone());
       await limitCacheSize(DYNAMIC_CACHE, MAX_CACHE_SIZE);
     }
-    
+
     return networkResponse;
   } catch (error) {
     console.error('[Service Worker] Failed to fetch asset:', request.url);
@@ -207,7 +207,7 @@ async function handleMutationRequest(request) {
     return await fetch(request);
   } catch (error) {
     console.log('[Service Worker] Mutation failed, queueing for sync');
-    
+
     // Clone request for background sync
     const requestData = {
       url: request.url,
@@ -215,15 +215,15 @@ async function handleMutationRequest(request) {
       headers: Object.fromEntries(request.headers.entries()),
       body: await request.clone().text()
     };
-    
+
     // Store in IndexedDB for background sync
     await queueForSync(requestData);
-    
+
     // Register sync event
     if ('sync' in self.registration) {
       await self.registration.sync.register('sync-mutations');
     }
-    
+
     return new Response(
       JSON.stringify({
         queued: true,
@@ -254,7 +254,7 @@ async function syncQueuedRequests() {
   const tx = db.transaction('sync-queue', 'readonly');
   const store = tx.objectStore('sync-queue');
   const requests = await store.getAll();
-  
+
   for (const requestData of requests) {
     try {
       const response = await fetch(requestData.url, {
@@ -262,14 +262,14 @@ async function syncQueuedRequests() {
         headers: requestData.headers,
         body: requestData.body
       });
-      
+
       if (response.ok) {
         // Remove from queue
         const deleteTx = db.transaction('sync-queue', 'readwrite');
         await deleteTx.objectStore('sync-queue').delete(requestData.id);
-        
+
         console.log('[Service Worker] Synced request:', requestData.url);
-        
+
         // Notify client
         const clients = await self.clients.matchAll();
         clients.forEach(client => {
@@ -290,7 +290,7 @@ async function syncQueuedRequests() {
  */
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  
+
   const options = {
     body: data.body || 'You have a new notification',
     icon: '/assets/icons/icon-192x192.png',
@@ -305,7 +305,7 @@ self.addEventListener('push', (event) => {
       { action: 'close', title: 'Close' }
     ]
   };
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'PsychSync', options)
   );
@@ -316,13 +316,13 @@ self.addEventListener('push', (event) => {
  */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   if (event.action === 'close') {
     return;
   }
-  
+
   const urlToOpen = event.notification.data?.url || '/';
-  
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
@@ -347,7 +347,7 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
+
   if (event.data && event.data.type === 'CACHE_URLS') {
     event.waitUntil(
       caches.open(DYNAMIC_CACHE)
@@ -362,7 +362,7 @@ self.addEventListener('message', (event) => {
 async function limitCacheSize(cacheName, maxSize) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
-  
+
   if (keys.length > maxSize) {
     await cache.delete(keys[0]);
     await limitCacheSize(cacheName, maxSize); // Recursive
@@ -376,7 +376,7 @@ async function queueForSync(requestData) {
   const db = await openSyncDatabase();
   const tx = db.transaction('sync-queue', 'readwrite');
   const store = tx.objectStore('sync-queue');
-  
+
   await store.add({
     ...requestData,
     id: Date.now(),
@@ -390,10 +390,10 @@ async function queueForSync(requestData) {
 function openSyncDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('psychsync-sync', 1);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains('sync-queue')) {

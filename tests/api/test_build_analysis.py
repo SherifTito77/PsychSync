@@ -43,7 +43,7 @@ def get_failure_summary(client):
     # TODO: Implement test logic
     response = client.get(
         "/failures/summary"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -363,7 +363,7 @@ def get_latest_report(client):
     # TODO: Implement test logic
     response = client.get(
         "/reports/latest"
-        
+
     )
 
     assert response.status_code in [200, 201]

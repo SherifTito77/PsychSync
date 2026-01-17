@@ -89,7 +89,7 @@ def get_export_status(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/export/status"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -223,7 +223,7 @@ def get_privacy_settings(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/privacy-settings"
-        
+
     )
 
     assert response.status_code in [200, 201]

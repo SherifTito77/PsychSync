@@ -1,7 +1,7 @@
 # PsychSync Security Incident Response Runbook
 
-**Version:** 1.0  
-**Last Updated:** 2025-12-25  
+**Version:** 1.0
+**Last Updated:** 2025-12-25
 **Team:** Security Operations
 
 ---

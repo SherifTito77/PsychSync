@@ -15,18 +15,18 @@ def psychometric_service():
 async def test_analyze_session(psychometric_service):
     """Test session analysis"""
     session_text = """
-    Client expressed feeling much better this week. 
+    Client expressed feeling much better this week.
     Reported improved sleep and reduced anxiety.
     Talked about positive interactions with family.
     """
-    
+
     result = await psychometric_service.analyze_client_session(
         session_text=session_text,
         client_id="test_client_123",
         session_id="session_456",
         session_date=datetime.now()
     )
-    
+
     assert "sentiment_analysis" in result
     assert "emotion_analysis" in result
     assert "key_insights" in result
@@ -44,14 +44,14 @@ async def test_progress_report(psychometric_service):
         }
         for i in range(5)
     ]
-    
+
     result = await psychometric_service.generate_client_progress_report(
         client_id="test_client",
         session_analyses=session_analyses,
         start_date=datetime.now() - timedelta(days=30),
         end_date=datetime.now()
     )
-    
+
     assert "trend_analysis" in result
     assert "progress_level" in result
     assert "recommendations" in result

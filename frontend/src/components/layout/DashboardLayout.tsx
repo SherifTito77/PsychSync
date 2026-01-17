@@ -322,7 +322,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 </Link>
               </div>
             </div>
-  
+
             {/* Right Side Actions - Desktop */}
             <div className="hidden md:flex md:items-center md:space-x-4 flex-shrink-0">
               {/* Sidebar Toggle for Desktop */}

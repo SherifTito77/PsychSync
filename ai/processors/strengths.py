@@ -7,16 +7,16 @@ from ai.processors.base import PersonalityFrameworkProcessor
 
 class StrengthsProcessor(PersonalityFrameworkProcessor):
     """Process StrengthsFinder assessment results"""
-    
+
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process raw StrengthsFinder data into standardized format"""
         if not self._validate_input(raw_data):
             return self._fallback_result('strengths', 'Invalid input data')
-        
+
         try:
             top_themes = self._safe_get(raw_data, 'top_themes', [])[:5]  # Top 5 themes
             theme_scores = self._safe_get(raw_data, 'theme_scores', {})
-            
+
             return {
                 'top_themes': top_themes,
                 'theme_scores': theme_scores,
@@ -26,10 +26,10 @@ class StrengthsProcessor(PersonalityFrameworkProcessor):
                 'team_contribution': self._get_team_contribution(top_themes),
                 'development_suggestions': self._get_development_suggestions(top_themes)
             }
-            
+
         except Exception as e:
             return self._fallback_result('strengths', str(e))
-    
+
     def _get_theme_descriptions(self, themes: List[str]) -> Dict[str, str]:
         """Get descriptions for themes"""
         descriptions = {
@@ -45,7 +45,7 @@ class StrengthsProcessor(PersonalityFrameworkProcessor):
             'Relator': 'Enjoying close relationships with others'
         }
         return {theme: descriptions.get(theme, 'Strength theme') for theme in themes}
-    
+
     def _get_domain_distribution(self, themes: List[str]) -> Dict[str, int]:
         """Get distribution across CliftonStrengths domains"""
         domain_mapping = {
@@ -55,19 +55,19 @@ class StrengthsProcessor(PersonalityFrameworkProcessor):
             'Empathy': 'Relationship Building', 'Focus': 'Executing',
             'Responsibility': 'Executing', 'Relator': 'Relationship Building'
         }
-        
+
         domains = {'Executing': 0, 'Influencing': 0, 'Relationship Building': 0, 'Strategic Thinking': 0}
-        
+
         for theme in themes:
             domain = domain_mapping.get(theme, 'Strategic Thinking')
             domains[domain] += 1
-        
+
         return domains
-    
+
     def _get_team_contribution(self, themes: List[str]) -> List[str]:
         """Determine how this person contributes to team"""
         contributions = []
-        
+
         if 'Strategic' in themes:
             contributions.append("Strategic planning and direction")
         if 'Activator' in themes:
@@ -78,14 +78,14 @@ class StrengthsProcessor(PersonalityFrameworkProcessor):
             contributions.append("Clear communication and motivation")
         if 'Empathy' in themes:
             contributions.append("Understanding team dynamics")
-        
+
         return contributions if contributions else ["Unique perspective and skills"]
-    
+
     def _get_development_suggestions(self, themes: List[str]) -> List[str]:
         """Get development suggestions based on themes"""
         if not themes:
             return ["Complete assessment to get personalized suggestions"]
-        
+
         return [
             f"Develop your {themes[0]} theme further",
             "Find ways to use your strengths in new situations",

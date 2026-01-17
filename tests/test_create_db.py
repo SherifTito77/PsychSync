@@ -25,4 +25,3 @@ class TestCreate_Db:
         # TODO(human): Implement test for init_db
         # This is an auto-generated test placeholder
         assert True  # Placeholder assertion
-

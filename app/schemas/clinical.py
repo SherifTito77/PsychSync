@@ -89,6 +89,21 @@ class ASRSRequest(BaseModel):
     q18: int = Field(..., ge=0, le=4, description="Misplace or lose things")
 
 
+class ISIRequest(BaseModel):
+    """
+    Insomnia Severity Index
+    7 items, 0-4 scale (No problem to Very severe problem)
+    Assesses insomnia severity and daytime impairment over past 2 weeks
+    """
+    q1: int = Field(..., ge=0, le=4, description="Difficulty falling asleep")
+    q2: int = Field(..., ge=0, le=4, description="Difficulty staying asleep")
+    q3: int = Field(..., ge=0, le=4, description="Problems waking up too early")
+    q4: int = Field(..., ge=0, le=4, description="Satisfaction with sleep pattern")
+    q5: int = Field(..., ge=0, le=4, description="Noticeability to others")
+    q6: int = Field(..., ge=0, le=4, description="Worried/distressed about sleep")
+    q7: int = Field(..., ge=0, le=4, description="Interference with daily functioning")
+
+
 class ScreeningResponse(BaseModel):
     """
     Standard response for all screening tools
@@ -324,3 +339,99 @@ class YBOCSRequest(BaseModel):
     item_8_distress_compulsions: int = Field(..., ge=0, le=4)
     item_9_resistance_compulsions: int = Field(..., ge=0, le=4)
     item_10_control_compulsions: int = Field(..., ge=0, le=4)
+
+
+# ============================================================================
+# NOTIFICATION SYSTEM SCHEMAS
+# ============================================================================
+
+class NotificationPreferenceCreate(BaseModel):
+    """Create or update notification preferences"""
+    email_enabled: bool = True
+    push_enabled: bool = False
+    sms_enabled: bool = False
+    in_app_enabled: bool = True
+    notify_on_crisis_alert: bool = True
+    notify_on_high_risk: bool = True
+    notify_on_moderate_risk: bool = False
+    notify_on_pending_review: bool = True
+    notify_on_weekly_summary: bool = False
+    min_severity_for_notification: str = "moderate"  # low, moderate, high, critical
+    quiet_hours_enabled: bool = True
+    quiet_hours_start: str = "22:00"
+    quiet_hours_end: str = "08:00"
+    timezone: str = "America/New_York"
+    bypass_quiet_hours_for_critical: bool = True
+
+    @validator('min_severity_for_notification')
+    def validate_severity(cls, v):
+        valid_levels = ['low', 'moderate', 'high', 'critical']
+        if v not in valid_levels:
+            raise ValueError(f'must be one of {valid_levels}')
+        return v
+
+
+class NotificationPreferenceResponse(BaseModel):
+    """Notification preferences response"""
+    id: UUID
+    user_id: UUID
+    email_enabled: bool
+    push_enabled: bool
+    sms_enabled: bool
+    in_app_enabled: bool
+    notify_on_crisis_alert: bool
+    notify_on_high_risk: bool
+    notify_on_moderate_risk: bool
+    notify_on_pending_review: bool
+    notify_on_weekly_summary: bool
+    min_severity_for_notification: str
+    quiet_hours_enabled: bool
+    quiet_hours_start: time
+    quiet_hours_end: time
+    timezone: str
+    bypass_quiet_hours_for_critical: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationResponse(BaseModel):
+    """Notification response"""
+    id: UUID
+    recipient_id: UUID
+    notification_type: str
+    entity_type: str
+    entity_id: Optional[UUID]
+    title: str
+    message: str
+    priority: str
+    channel: str
+    sent_at: Optional[datetime]
+    delivery_status: str
+    read: bool
+    read_at: Optional[datetime]
+    action_taken: Optional[str]
+    action_taken_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationListResponse(BaseModel):
+    """Paginated notification list"""
+    notifications: List[NotificationResponse]
+    total: int
+    unread_count: int
+
+
+class NotificationStatsResponse(BaseModel):
+    """Notification statistics"""
+    total_sent: int
+    total_delivered: int
+    total_failed: int
+    unread_count: int
+    by_type: Dict[str, int]
+    by_priority: Dict[str, int]

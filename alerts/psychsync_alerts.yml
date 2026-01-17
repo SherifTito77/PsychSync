@@ -292,5 +292,3 @@ groups:
           summary: "High rate of assessment failures"
           description: "{{ $value | humanizePercentage }} of assessments are failing"
           action: "Check assessment service and user feedback"
-
-          

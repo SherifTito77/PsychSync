@@ -1,6 +1,6 @@
 /**
  * PsychSync Minimal Service Worker - PWA Support
- * 
+ *
  * Essential offline functionality:
  * - Cache static assets (HTML, CSS, JS)
  * - Offline fallback page
@@ -24,7 +24,7 @@ const ESSENTIAL_CACHE = [
 // Install: Cache essential files
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing...');
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -38,7 +38,7 @@ self.addEventListener('install', (event) => {
 // Activate: Clean old caches
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating...');
-  
+
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
@@ -59,10 +59,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Skip cross-origin requests
   if (url.origin !== location.origin) return;
-  
+
   // API requests: Network-first
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
@@ -77,14 +77,14 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Static assets: Cache-first
   if (request.method === 'GET') {
     event.respondWith(
       caches.match(request)
         .then((cached) => {
           if (cached) return cached;
-          
+
           return fetch(request)
             .then((response) => {
               // Cache successful responses
@@ -117,7 +117,7 @@ self.addEventListener('message', (event) => {
 // Push: Show notifications
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'PsychSync', {
       body: data.body || 'You have a new notification',
@@ -132,7 +132,7 @@ self.addEventListener('push', (event) => {
 // Notification click: Open app
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   event.waitUntil(
     clients.matchAll({ type: 'window' })
       .then((clientList) => {

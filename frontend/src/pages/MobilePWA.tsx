@@ -1,12 +1,12 @@
 /**
  * Mobile PWA Page - Fully Responsive
- * 
+ *
  * Demonstrates PWA features:
  * - Install prompt
  * - Offline mode
  * - Push notifications
  * - Responsive design
- * 
+ *
  * Responsive Breakpoints:
  * - Mobile: < 640px
  * - Tablet: 640px - 1024px
@@ -154,8 +154,8 @@ const MobilePWA: React.FC = () => {
               Access your data even without internet connection
             </p>
             <div className={`px-4 py-2 rounded-lg text-center text-sm font-medium ${
-              isOffline 
-                ? 'bg-orange-100 text-orange-800' 
+              isOffline
+                ? 'bg-orange-100 text-orange-800'
                 : 'bg-green-100 text-green-800'
             }`}>
               {isOffline ? '📴 Currently Offline' : '✅ Online & Ready'}
@@ -209,8 +209,8 @@ const MobilePWA: React.FC = () => {
               { icon: '🔄', title: 'Auto Sync', desc: 'Background data synchronization' },
               { icon: '🔒', title: 'Secure', desc: 'Industry-standard encryption' }
             ].map((feature, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="flex items-start gap-4 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
               >
                 <div className="text-3xl sm:text-4xl flex-shrink-0">

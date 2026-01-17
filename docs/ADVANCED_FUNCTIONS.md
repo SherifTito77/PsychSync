@@ -768,31 +768,42 @@ async def get_user_analytics(request: Request):
 ### **Performance Optimization**
 
 1. **Use Appropriate Cache TTLs**
-   ```python
-   # Short TTL for frequently changing data
-   @cached(key_prefix="real_time", ttl_seconds=60)
 
-   # Long TTL for static data
-   @cached(key_prefix="static_data", ttl_seconds=86400)
-   ```
+```python
+# Short TTL for frequently changing data
+@cached(key_prefix="real_time", ttl_seconds=60)
+async def get_real_time_data(user_id: str):
+    return await fetch_user_status(user_id)
+
+# Long TTL for static data
+@cached(key_prefix="static_data", ttl_seconds=86400)
+async def get_static_data(config_id: str):
+    return await fetch_config(config_id)
+```
 
 2. **Choose Right Validation Scope**
-   ```python
-   # Fast validation for high-traffic endpoints
-   @validate(scope=ValidationScope.BASIC)
 
-   # Comprehensive validation for critical endpoints
-   @validate(scope=ValidationScope.COMPREHENSIVE)
-   ```
+```python
+# Fast validation for high-traffic endpoints
+@validate(scope=ValidationScope.BASIC)
+async def fast_endpoint(data: dict):
+    return await process_quickly(data)
+
+# Comprehensive validation for critical endpoints
+@validate(scope=ValidationScope.COMPREHENSIVE)
+async def critical_endpoint(data: dict):
+    return await process_securely(data)
+```
 
 3. **Leverage Parallel Processing**
-   ```python
-   # Enable parallel validation
-   validator.config["parallel_validation"] = True
 
-   # Enable batch processing
-   processor.batch_processing_enabled = True
-   ```
+```python
+# Enable parallel validation
+validator.config["parallel_validation"] = True
+
+# Enable batch processing
+processor.batch_processing_enabled = True
+```
 
 ### **Security Considerations**
 
@@ -841,6 +852,74 @@ pytest tests/test_advanced_functions.py::TestAdvancedFunctionIntegration -v
 **Advanced Functions: Revolutionary 1000% Performance Transformation Complete** ✅
 
 All advanced functions are production-ready with **enterprise-grade performance**, comprehensive error handling, and **95%+ test coverage**. The implementation represents a **complete architectural transformation** enabling **lightning-fast, scalable, and intelligent** request processing.
+
+## ⚠️ Error Response Examples
+
+### Common Error Scenarios
+
+#### 1. Cache Miss Error
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CACHE_MISS",
+    "message": "Requested data not found in cache",
+    "cache_level": "L1",
+    "key": "user_profile:12345",
+    "fallback": "Fetching from database"
+  }
+}
+```
+
+#### 2. Validation Error
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request validation failed",
+    "validation_scope": "COMPREHENSIVE",
+    "errors": [
+      {
+        "field": "email",
+        "message": "Invalid email format"
+      },
+      {
+        "field": "age",
+        "message": "Must be between 18 and 120"
+      }
+    ]
+  }
+}
+```
+
+#### 3. Rate Limit Error
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Please try again later.",
+    "limit": 100,
+    "window": "60s",
+    "retry_after": 30
+  }
+}
+```
+
+#### 4. Processing Timeout
+```json
+{
+  "success": false,
+  "error": {
+    "code": "PROCESSING_TIMEOUT",
+    "message": "Request processing timed out",
+    "timeout_ms": 5000,
+    "processing_time_ms": 5200,
+    "suggestion": "Reduce request complexity or increase timeout"
+  }
+}
+```
 
 *Generated on: January 21, 2025*
 *Performance Improvement: 1000% across all functions*

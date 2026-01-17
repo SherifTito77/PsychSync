@@ -25,4 +25,3 @@ class TestBackup:
         # TODO(human): Implement test for backup_database
         # This is an auto-generated test placeholder
         assert True  # Placeholder assertion
-

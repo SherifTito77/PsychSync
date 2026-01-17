@@ -131,7 +131,7 @@ def get_mfa_status(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/status"
-        
+
     )
 
     assert response.status_code in [200, 201]

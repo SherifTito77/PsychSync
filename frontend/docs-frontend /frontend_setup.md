@@ -266,4 +266,3 @@ If you want, I can also generate a ready-to-save `pre-commit` script file and pl
 ---
 
 *End of `frontend/docs/frontend-setup.md`*
-

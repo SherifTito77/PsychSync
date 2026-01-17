@@ -25,4 +25,3 @@ class TestSeed_Templates:
         # TODO(human): Implement test for seed_templates
         # This is an auto-generated test placeholder
         assert True  # Placeholder assertion
-

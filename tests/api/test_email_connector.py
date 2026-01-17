@@ -310,7 +310,7 @@ def get_email_connections(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/connections"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -446,7 +446,7 @@ def get_available_email_providers(client):
     # TODO: Implement test logic
     response = client.get(
         "/providers/available"
-        
+
     )
 
     assert response.status_code in [200, 201]

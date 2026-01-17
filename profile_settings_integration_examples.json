@@ -33,5 +33,17 @@
       },
       "files": {
         "avatar": [
-          "avatar.jpg",
-          
+          "avatar.jpg"
+        ]
+      },
+      "expected_response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Avatar uploaded successfully",
+          "avatar_url": "/uploads/avatars/avatar.jpg"
+        }
+      }
+    }
+  }
+}

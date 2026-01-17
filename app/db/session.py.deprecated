@@ -81,11 +81,11 @@ async def get_db():
 # def get_db() -> Generator[Session, None, None]:
 #     """
 #     Database session dependency for FastAPI
-    
+
 #     Usage:
 #         from fastapi import Depends
 #         from sqlalchemy.orm import Session
-        
+
 #         @app.get("/items")
 #         def get_items(db: Session = Depends(get_db)):
 #             return db.query(Item).all()

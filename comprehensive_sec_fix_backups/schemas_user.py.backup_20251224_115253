@@ -34,7 +34,7 @@ class UserUpdate(BaseModel):
 class UserRead(UserBase):
     """Schema for reading user data"""
     id: UUID  # Changed from int to UUID to match the database model
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -50,7 +50,7 @@ class UserOut(UserBase):
     avatar_url: Optional[str] = None
     is_verified: Optional[bool] = False
     is_superuser: Optional[bool] = False
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -63,7 +63,7 @@ class UserInDB(UserOut):
     """
     # Use password_hash to match the database model
     password_hash: str
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

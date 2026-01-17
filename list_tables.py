@@ -36,14 +36,14 @@ if __name__ == "__main__":
 
 # async def list_tables():
 #     engine = create_async_engine(DATABASE_URL, echo=True)
-    
+
 #     async with engine.begin() as conn:
 #         inspector = inspect(conn.sync_engine)  # sync inspector works here
 #         tables = inspector.get_table_names()
 #         print("Tables in the database:")
 #         for table in tables:
 #             print(" -", table)
-    
+
 #     await engine.dispose()
 
 # if __name__ == "__main__":

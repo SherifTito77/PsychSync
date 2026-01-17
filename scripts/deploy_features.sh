@@ -3,7 +3,7 @@
 # ============================================
 # PsychSync Feature Deployment Script
 # ============================================
-# 
+#
 # This script helps deploy all new features:
 # - Slack Bot Integration
 # - Offline Mode / PWA
@@ -138,7 +138,7 @@ print_step "Step 4: Running database migrations"
 # Check if database is accessible
 if psql "$DATABASE_URL" -c '\q' 2>/dev/null; then
     print_success "Database connection successful"
-    
+
     # Run migrations
     alembic upgrade head
     print_success "Database migrations completed"
@@ -152,7 +152,7 @@ print_step "Step 5: Generating VAPID keys for push notifications"
 
 if ! grep -q "^VAPID_PUBLIC_KEY=" "$ENV_FILE"; then
     print_warning "Generating VAPID keys..."
-    
+
     python3 << 'PYTHON_SCRIPT'
 from pywebpush import vapid_gen
 import os
@@ -170,7 +170,7 @@ print(f"VAPID_PUBLIC_KEY={public_key}")
 print(f"VAPID_PRIVATE_KEY={private_key}")
 print()
 PYTHON_SCRIPT
-    
+
     print_warning "Please add VAPID keys to .env file and run script again"
     exit 1
 else

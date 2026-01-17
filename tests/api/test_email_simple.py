@@ -43,7 +43,7 @@ def get_email_providers(client):
     # TODO: Implement test logic
     response = client.get(
         "/providers"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -226,7 +226,7 @@ def get_my_connections(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/my-connections"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -407,7 +407,7 @@ def get_troubleshooting_help(client):
     # TODO: Implement test logic
     response = client.get(
         "/help/troubleshooting"
-        
+
     )
 
     assert response.status_code in [200, 201]

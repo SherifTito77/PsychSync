@@ -11,7 +11,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 const ResponseResults: React.FC = () => {
   const { responseId } = useParams<{ responseId: string }>();
   const navigate = useNavigate();
-  
+
   const [response, setResponse] = useState<ResponseWithScore | null>(null);
   const [assessment, setAssessment] = useState<AssessmentWithSections | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -259,4 +259,3 @@ const ResponseResults: React.FC = () => {
 };
 
 export default ResponseResults;
-

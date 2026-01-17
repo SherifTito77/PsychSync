@@ -72,7 +72,7 @@ async def get_ai_enhanced_dashboard(
         logger.error(f"Error generating AI-enhanced dashboard: {e}")
         raise HTTPException(
             status_code=500,
-           
+
 @check_rate_limit(identifier="public", endpoint_type="public")
  detail=f"Failed to generate AI analytics: {str(e)}"
         )
@@ -131,7 +131,7 @@ async def get_ai_insights(
 
     except Exception as e:
         logger.error(f"Error getting AI insights: {e}")
-    
+
 @check_rate_limit(identifier="public", endpoint_type="public")
     raise HTTPException(
             status_code=500,

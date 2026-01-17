@@ -448,7 +448,7 @@ def psychometrics_health(client):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -495,7 +495,7 @@ def get_supported_assessments(client):
     # TODO: Implement test logic
     response = client.get(
         "/supported-assessments"
-        
+
     )
 
     assert response.status_code in [200, 201]

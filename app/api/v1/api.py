@@ -14,18 +14,19 @@ logger = logging.getLogger(__name__)
 def safe_import_endpoint(module_name: str) -> APIRouter | None:
     """Safely import an endpoint module with proper error handling"""
     try:
+        logger.debug(f"Attempting to import endpoint: {module_name}")
         module = __import__(f"app.api.v1.endpoints.{module_name}", fromlist=[module_name])
         router = getattr(module, "router", None)
         if router is None:
             logger.warning(f"Module {module_name} imported but no router found")
             return None
-        logger.info(f"Successfully imported endpoint: {module_name}")
+        logger.info(f"✅ Successfully imported endpoint: {module_name} with {len(router.routes)} routes")
         return router
     except ImportError as e:
-        logger.warning(f"Could not import endpoint {module_name}: {e}")
+        logger.warning(f"❌ Could not import endpoint {module_name}: {e}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error importing endpoint {module_name}: {e}")
+        logger.error(f"❌ Unexpected error importing endpoint {module_name}: {e}")
         return None
 
 
@@ -65,6 +66,8 @@ FEATURE_ENDPOINTS = [
     # Temporarily minimized for debugging - enabling only essential endpoints
     "assessments",
     "responses",
+    "clinical_analytics",  # ✅ NEW: Clinical screening analytics and population health
+    "notifications",  # ✅ NEW: Clinician notification system and preferences
     "ai_analytics",  # NEW: AI-enhanced analytics endpoints
     "ai_monitoring",  # NEW: AI engine monitoring endpoints
     "gdpr",  # GDPR compliance endpoints
@@ -75,13 +78,20 @@ FEATURE_ENDPOINTS = [
     "breaking_changes",  # NEW: Breaking changes detection before merge
     "corporate_integrations",  # ✅ ENABLED - Corporate data source integrations
     "toxic_behavior_detection",  # ✅ NEW: Toxic behavior detection and prevention
-    # Temporarily disabled potentially problematic endpoints:
-    # "teams",
-    # "team_optimization",
-    # "predictions",
-    # "reliability_validity",
+    "legal_rights",  # ✅ NEW: Legal rights awareness and protection system
+    "discrimination_analysis",  # ✅ NEW: Discrimination and equity analysis system
+    "anonymous_feedback",  # ✅ NEW: Anonymous feedback with cryptographic guarantees
+    "teams",  # ✅ ENABLED - Team management endpoints
+    "team_optimization",  # ✅ ENABLED - Team optimization and analytics
+    "predictions",  # ✅ ENABLED - Predictive analytics endpoints
+    "analytics",  # ✅ ENABLED - General analytics endpoints
+    "reliability_validity",  # ✅ ENABLED - Research metrics and validation
+    "encryption",  # ✅ NEW: Database encryption at rest management
+    "audit",  # ✅ NEW: Advanced audit logging and compliance reporting
+    "rbac",  # ✅ NEW: Role-based access control (RBAC) management
+    "ai_agents",  # ✅ NEW: AI automation agents for security and development
+    "product_management",  # ✅ NEW: 50 product management prompts and workflows
     # "csrf",
-    # "analytics",
     # "backups",
     # "scoring",
     # "succession_planning",
@@ -99,8 +109,14 @@ FEATURE_ENDPOINTS = [
 # Separated Service Areas (NEW: Five distinct service areas)
 SEPARATED_SERVICE_ENDPOINTS = [
     "personality_assessments",  # MBTI, Enneagram, Big Five, etc.
-    # "behavioral_analysis",         # Behavioral patterns, anomaly detection - temporarily disabled due to import issues
+    "behavioral_analysis",  # ✅ ENABLED - Behavioral patterns, anomaly detection
     "clinical_assessments",  # Mental health screening, wellness
+    "clinical_assessments_extended",  # NEW: BDI-II, BAI, extended GAD-7 analytics
+    "clinical_ml_predictions",  # NEW: ML-based risk prediction models (depression, anxiety, crisis)
+    "population_health",  # NEW: Population health analytics and metrics
+    "automated_alerts",  # NEW: Automated clinical alert system and monitoring
+    "push_notifications",  # NEW: FCM push notification management for mobile apps
+    "biometric_auth",  # NEW: Face ID, Touch ID, Fingerprint authentication for mobile apps
     "screening",  # NEW: Clinical screening tools (PHQ-9, GAD-7, C-SSRS) with crisis intervention
     "health_monitoring",  # NEW: Real-time stress & burnout monitoring with automated interventions
     # "email_connector",            # Email integration and analytics - temporarily disabled due to missing schemas

@@ -575,9 +575,9 @@ def test_mbti_processor_valid_input():
         'type': 'INTJ',
         'confidence': 0.85
     }
-    
+
     result = processor.process(raw_data)
-    
+
     assert result['type'] == 'INTJ'
     assert result['confidence'] == 0.85
     assert 'dimensions' in result
@@ -600,7 +600,7 @@ Load testing using pytest-benchmark and locust.
 def test_synthesis_performance(benchmark):
     engine = BehavioralAIEngine()
     assessments = create_sample_assessments()
-    
+
     result = benchmark(engine.synthesize_personality_profile, assessments)
     assert result['confidence'] > 0.3
 ```
@@ -623,7 +623,7 @@ test('renders button with text', () => {
 test('calls onClick when clicked', () => {
   const handleClick = jest.fn();
   render(<Button onClick={handleClick}>Click me</Button>);
-  
+
   fireEvent.click(screen.getByRole('button'));
   expect(handleClick).toHaveBeenCalledTimes(1);
 });
@@ -640,7 +640,7 @@ describe('Authentication', () => {
     cy.get('[data-testid=email]').type('test@example.com');
     cy.get('[data-testid=password]').type('password');
     cy.get('[data-testid=login-button]').click();
-    
+
     cy.url().should('include', '/dashboard');
     cy.contains('Welcome back').should('be.visible');
   });
@@ -754,7 +754,7 @@ async def health_check():
         "redis": await check_redis_connection(),
         "ai_models": await check_ai_models_status()
     }
-    
+
     status = "healthy" if all(checks.values()) else "degraded"
     return {"status": status, "checks": checks}
 ```

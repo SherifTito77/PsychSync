@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PsychSync - Complete Platform</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #FAFAFA;
+      overflow-x: hidden;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: 280px;
+      height: 100vh;
+      background: #111827;
+      color: white;
+      position: fixed;
+      left: 0;
+      top: 0;
+      overflow-y: auto;
+      transition: width 0.3s ease;
+      z-index: 1000;
+    }
+
+    .sidebar.collapsed {
+      width: 70px;
+    }
+
+    .sidebar.collapsed .nav-text,
+    .sidebar.collapsed .section-title,
+    .sidebar.collapsed .chevron {
+      display: none;
+    }
+
+    .sidebar-header {
+      height: 64px;
+      border-bottom: 1px solid #374151;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #818CF8;
+    }
+
+    .toggle-btn {
+      background: none;
+      border: none;
+      color: #9CA3AF;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn:hover {
+      background: #374151;
+      color: white;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6B7280;
+      padding: 16px 16px 8px;
+      font-weight: 600;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      color: #D1D5DB;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: #374151;
+      color: white;
+    }
+
+    .nav-item.active {
+      background: #374151;
+      color: white;
+      border-left-color: #6366F1;
+    }
+
+    .nav-icon {
+      font-size: 20px;
+      min-width: 28px;
+    }
+
+    .nav-text {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* ===== COLLAPSIBLE SECTIONS ===== */
+    .section-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      color: #D1D5DB;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border-left: 3px solid transparent;
+    }
+
+    .section-header:hover {
+      background: #374151;
+      color: white;
+    }
+
+    .section-header.clinical { border-left-color: #10B981; }
+    .section-header.services { border-left-color: #8B5CF6; }
+    .section-header.analytics { border-left-color: #F59E0B; }
+
+    .section-icon {
+      font-size: 20px;
+      min-width: 28px;
+    }
+
+    .section-icon.clinical-icon { color: #FBBF24; }
+    .section-icon.services-icon { color: #A78BFA; }
+    .section-icon.analytics-icon { color: #FB923C; }
+
+    .chevron {
+      transition: transform 0.2s;
+      font-size: 12px;
+    }
+
+    .chevron.rotated {
+      transform: rotate(180deg);
+    }
+
+    .submenu {
+      background: #1F2937;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      border-left: 3px solid;
+    }
+
+    .submenu.clinical-sub { border-left-color: #10B981; }
+    .submenu.services-sub { border-left-color: #8B5CF6; }
+    .submenu.analytics-sub { border-left-color: #F59E0B; }
+
+    .submenu.expanded {
+      max-height: 2000px;
+    }
+
+    .submenu-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 10px 16px 10px 48px;
+      color: #9CA3AF;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .submenu-item:hover {
+      background: #374151;
+      color: white;
+    }
+
+    .submenu-item.active {
+      background: #374151;
+      color: white;
+    }
+
+    .submenu-icon {
+      font-size: 16px;
+      margin-right: 8px;
+      min-width: 20px;
+    }
+
+    .submenu-text {
+      flex: 1;
+    }
+
+    .submenu-desc {
+      font-size: 11px;
+      color: #6B7280;
+      margin-top: 2px;
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .main-content {
+      margin-left: 280px;
+      min-height: 100vh;
+      transition: margin-left 0.3s ease;
+    }
+
+    .main-content.expanded {
+      margin-left: 70px;
+    }
+
+    .topbar {
+      height: 64px;
+      background: white;
+      border-bottom: 1px solid #E5E7EB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .search-bar {
+      width: 320px;
+      height: 40px;
+      padding: 0 16px;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .user-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .notification-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .notification-btn:hover {
+      background: #F3F4F6;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* ===== PAGE CONTENT ===== */
+    .page-content {
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .page-header {
+      margin-bottom: 32px;
+    }
+
+    .page-title {
+      font-size: 36px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      font-size: 16px;
+      color: #6B7280;
+    }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: white;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 16px;
+    }
+
+    /* ===== STATS GRID ===== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-title {
+      font-size: 14px;
+      color: #6B7280;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .stat-change {
+      font-size: 14px;
+      color: #10B981;
+      font-weight: 500;
+    }
+
+    /* ===== BUTTONS ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: #6366F1;
+      color: white;
+      box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: #4F46E5;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: #6366F1;
+      border: 2px solid #6366F1;
+    }
+
+    .btn-secondary:hover {
+      background: #EEF2FF;
+    }
+
+    /* ===== TABS ===== */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 2px solid #E5E7EB;
+      margin-bottom: 24px;
+    }
+
+    .tab {
+      padding: 12px 16px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #6B7280;
+      transition: all 0.2s;
+      margin-bottom: -2px;
+    }
+
+    .tab:hover {
+      color: #111827;
+    }
+
+    .tab.active {
+      color: #6366F1;
+      border-bottom-color: #6366F1;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ===== ALERTS ===== */
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .alert-success {
+      background: #F0FDF4;
+      border-left-color: #22C55E;
+    }
+
+    .alert-warning {
+      background: #FFFBEB;
+      border-left-color: #F59E0B;
+    }
+
+    .alert-danger {
+      background: #FEF2F2;
+      border-left-color: #EF4444;
+    }
+
+    .alert-info {
+      background: #EFF6FF;
+      border-left-color: #3B82F6;
+    }
+
+    /* ===== PROGRESS BAR ===== */
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #E5E7EB;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: #6366F1;
+      border-radius: 9999px;
+      transition: width 0.3s ease;
+    }
+
+    /* ===== BADGES ===== */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 9999px;
+    }
+
+    .badge-primary {
+      background: #EEF2FF;
+      color: #4338CA;
+    }
+
+    .badge-success {
+      background: #DCFCE7;
+      color: #15803D;
+    }
+
+    .badge-warning {
+      background: #FEF3C7;
+      color: #B45309;
+    }
+
+    .badge-danger {
+      background: #FEE2E2;
+      color: #B91C1C;
+    }
+
+    /* ===== CHART PLACEHOLDER ===== */
+    .chart-placeholder {
+      height: 300px;
+      background: linear-gradient(135deg, #F3F4F6, #E5E7EB);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6B7280;
+      font-size: 14px;
+    }
+
+    /* ===== GRID LAYOUTS ===== */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    /* ===== FORM ELEMENTS ===== */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      height: 48px;
+      padding: 0 16px;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #6366F1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    textarea.form-input {
+      height: auto;
+      min-height: 120px;
+      padding: 12px 16px;
+      resize: vertical;
+    }
+
+    /* ===== SCROLLBAR ===== */
+    .sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: #111827;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 3px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb:hover {
+      background: #4B5563;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+      .grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 70px;
+      }
+
+      .sidebar .nav-text,
+      .sidebar .section-title,
+      .sidebar .chevron {
+        display: none;
+      }
+
+      .main-content {
+        margin-left: 70px;
+      }
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== PUBLIC ACCESS SECTION ===== */
+    .public-access {
+      border-top: 1px solid #374151;
+      padding-top: 16px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">🧠 PsychSync</span>
+      <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
+        <svg id="toggleIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+        </svg>
+      </button>
+    </div>
+
+    <nav style="padding: 16px 0;">
+      <!-- CORE SECTION -->
+      <div class="section-title">Core</div>
+
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text">Dashboard</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('teams')">
+        <span class="nav-icon">👥</span>
+        <span class="nav-text">Teams</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('toxic-behavior')">
+        <span class="nav-icon">🛡️</span>
+        <span class="nav-text">Toxic Behavior Detection</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('burnout')">
+        <span class="nav-icon">🔥</span>
+        <span class="nav-text">Burnout Prevention</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('anonymous')">
+        <span class="nav-icon">🔒</span>
+        <span class="nav-text">Anonymous Feedback</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('behavioral')">
+        <span class="nav-icon">🧠</span>
+        <span class="nav-text">Behavioral Analytics</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('multi-framework')">
+        <span class="nav-icon">🧩</span>
+        <span class="nav-text">Multi-Framework Synthesis</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('legal-rights')">
+        <span class="nav-icon">⚖️</span>
+        <span class="nav-text">Legal Rights</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('equity')">
+        <span class="nav-icon">📈</span>
+        <span class="nav-text">Equity Dashboard</span>
+      </div>
+
+      <div class="nav-item" onclick="showPage('settings')">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-text">Settings</span>
+      </div>
+
+      <!-- CLINICAL SCREENING SECTION -->
+      <div class="section-title" style="margin-top: 24px;">Clinical</div>
+
+      <div class="section-header clinical" onclick="toggleSection('clinical')">
+        <span class="section-icon clinical-icon">🏥</span>
+        <span class="nav-text">Clinical Screening</span>
+        <span class="chevron" id="clinical-chevron">▼</span>
+      </div>
+
+      <div class="submenu clinical-sub" id="clinical-submenu">
+        <div class="submenu-item" onclick="showPage('phq9')">
+          <span class="submenu-icon">💙</span>
+          <div class="submenu-text">Depression Screening (PHQ-9)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('gad7')">
+          <span class="submenu-icon">💛</span>
+          <div class="submenu-text">Anxiety Screening (GAD-7)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('cssrs')">
+          <span class="submenu-icon">🚨</span>
+          <div class="submenu-text">Suicide Risk (C-SSRS)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('crisis')">
+          <span class="submenu-icon">🆘</span>
+          <div class="submenu-text">Crisis Resources</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('lsas')">
+          <span class="submenu-icon">😰</span>
+          <div class="submenu-text">Social Anxiety (LSAS)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('eat26')">
+          <span class="submenu-icon">🍎</span>
+          <div class="submenu-text">Eating Attitudes (EAT-26)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('ybocs')">
+          <span class="submenu-icon">🔄</span>
+          <div class="submenu-text">OCD Severity (Y-BOCS)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('bdi2')">
+          <span class="submenu-icon">😢</span>
+          <div class="submenu-text">Depression (BDI-II)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('bai')">
+          <span class="submenu-icon">😰</span>
+          <div class="submenu-text">Anxiety (BAI)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('dass21')">
+          <span class="submenu-icon">📊</span>
+          <div class="submenu-text">DASS-21 (Multi-Symptom)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('pcl5')">
+          <span class="submenu-icon">🎯</span>
+          <div class="submenu-text">PTSD Checklist (PCL-5)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('audit')">
+          <span class="submenu-icon">🍺</span>
+          <div class="submenu-text">Alcohol Use (AUDIT)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('pss10')">
+          <span class="submenu-icon">😰</span>
+          <div class="submenu-text">Perceived Stress (PSS-10)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('isi')">
+          <span class="submenu-icon">😴</span>
+          <div class="submenu-text">Insomnia Severity (ISI)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('cbi')">
+          <span class="submenu-icon">🔥</span>
+          <div class="submenu-text">Burnout Inventory (CBI)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('mdq')">
+          <span class="submenu-icon">🌈</span>
+          <div class="submenu-text">Mood Disorder (MDQ)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('dast10')">
+          <span class="submenu-icon">💊</span>
+          <div class="submenu-text">Drug Abuse (DAST-10)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('aq10')">
+          <span class="submenu-icon">🧩</span>
+          <div class="submenu-text">Autism Spectrum (AQ-10)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('ace')">
+          <span class="submenu-icon">👶</span>
+          <div class="submenu-text">Childhood Experiences (ACE)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('iesr')">
+          <span class="submenu-icon">💔</span>
+          <div class="submenu-text">Impact of Event (IES-R)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('iat')">
+          <span class="submenu-icon">📱</span>
+          <div class="submenu-text">Internet Addiction (IAT)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('asrs')">
+          <span class="submenu-icon">⚡</span>
+          <div class="submenu-text">ADHD Screening (ASRS)</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('telehealth')">
+          <span class="submenu-icon">📹</span>
+          <div class="submenu-text">Telehealth</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('ai-chat')">
+          <span class="submenu-icon">🤖</span>
+          <div class="submenu-text">AI Chat Support</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('clinical-analytics')">
+          <span class="submenu-icon">📊</span>
+          <div class="submenu-text">Clinical Analytics</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('population-health')">
+          <span class="submenu-icon">🏥</span>
+          <div class="submenu-text">Population Health</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('alerts-center')">
+          <span class="submenu-icon">🚨</span>
+          <div class="submenu-text">Alerts Center</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('enhanced-assessments')">
+          <span class="submenu-icon">⭐</span>
+          <div class="submenu-text">Enhanced Assessments</div>
+        </div>
+      </div>
+
+      <!-- SERVICES SECTION -->
+      <div class="section-title" style="margin-top: 24px;">Services</div>
+
+      <div class="section-header services" onclick="toggleSection('services')">
+        <span class="section-icon services-icon">🔧</span>
+        <span class="nav-text">Services & Connectors</span>
+        <span class="chevron" id="services-chevron">▼</span>
+      </div>
+
+      <div class="submenu services-sub" id="services-submenu">
+        <div class="submenu-item" onclick="showPage('corporate-integrations')">
+          <span class="submenu-icon">🔗</span>
+          <div class="submenu-text">Corporate Integrations</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('health-dashboard')">
+          <span class="submenu-icon">❤️</span>
+          <div class="submenu-text">Health Dashboard</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('team-health')">
+          <span class="submenu-icon">📊</span>
+          <div class="submenu-text">Team Health Analytics</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('mental-health')">
+          <span class="submenu-icon">🧘</span>
+          <div class="submenu-text">Mental Health</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('personality')">
+          <span class="submenu-icon">🧠</span>
+          <div class="submenu-text">Personality Assessments</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('behavioral-analysis')">
+          <span class="submenu-icon">📊</span>
+          <div class="submenu-text">Behavioral Analysis</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('email-connector')">
+          <span class="submenu-icon">📧</span>
+          <div class="submenu-text">Email Connector</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('hris-connector')">
+          <span class="submenu-icon">🏢</span>
+          <div class="submenu-text">HRIS Connector</div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS SECTION -->
+      <div class="section-title" style="margin-top: 24px;">Analytics</div>
+
+      <div class="section-header analytics" onclick="toggleSection('analytics')">
+        <span class="section-icon analytics-icon">🤖</span>
+        <span class="nav-text">Analytics & AI</span>
+        <span class="chevron" id="analytics-chevron">▼</span>
+      </div>
+
+      <div class="submenu analytics-sub" id="analytics-submenu">
+        <div class="submenu-item" onclick="showPage('team-optimizer')">
+          <span class="submenu-icon">⚡</span>
+          <div class="submenu-text">Team Optimizer</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('predictive')">
+          <span class="submenu-icon">🤖</span>
+          <div class="submenu-text">Predictive Analytics</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('reliability')">
+          <span class="submenu-icon">🔬</span>
+          <div class="submenu-text">Reliability & Validity</div>
+        </div>
+        <div class="submenu-item" onclick="showPage('analytics-dashboard')">
+          <span class="submenu-icon">📈</span>
+          <div class="submenu-text">General Analytics</div>
+        </div>
+      </div>
+
+      <!-- PUBLIC ACCESS -->
+      <div class="public-access">
+        <div class="section-title">Public Access</div>
+        <div class="nav-item" onclick="showPage('anonymous-public')">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-text">Anonymous Feedback</span>
+        </div>
+        <div class="nav-item" onclick="showPage('check-status')">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Check Status</span>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <div class="main-content" id="mainContent">
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <input type="text" class="search-bar" placeholder="Search...">
+      <div class="user-section">
+        <button class="notification-btn" title="Notifications">🔔</button>
+        <div class="user-avatar">JD</div>
+      </div>
+    </div>
+
+    <!-- PAGE CONTENT AREA -->
+    <div class="page-content">
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-subtitle">Welcome back, John! Here's your team's wellness overview.</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">Total Assessments</div>
+            <div class="stat-value">247</div>
+            <div class="stat-change">↑ +12.5% from last month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Team Members</div>
+            <div class="stat-value">48</div>
+            <div class="stat-change">↑ +3 from last month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Avg Wellness Score</div>
+            <div class="stat-value">7.8/10</div>
+            <div class="stat-change">↑ +0.5 from last month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">At Risk</div>
+            <div class="stat-value">5</div>
+            <div class="stat-change">↓ -2 from last month</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title">Wellness Trends</h3>
+            <div class="chart-placeholder">📈 Line Chart - Wellness Over Time</div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Team Distribution</h3>
+            <div class="chart-placeholder">🥧 Pie Chart - Team Composition</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEAMS PAGE -->
+      <div class="page" id="page-teams">
+        <div class="page-header">
+          <h1 class="page-title">Teams</h1>
+          <p class="page-subtitle">Manage your team members and assessments</p>
+        </div>
+
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 class="card-title" style="margin: 0;">Your Teams</h3>
+            <button class="btn btn-primary">+ Add Team Member</button>
+          </div>
+          <div class="stat-card" style="margin-bottom: 12px; padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-weight: 600; font-size: 16px;">Engineering Team</div>
+                <div style="color: #6B7280; font-size: 14px;">12 members • 8 assessments completed</div>
+              </div>
+              <span class="badge badge-success">Active</span>
+            </div>
+          </div>
+          <div class="stat-card" style="padding: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-weight: 600; font-size: 16px;">Marketing Team</div>
+                <div style="color: #6B7280; font-size: 14px;">8 members • 5 assessments completed</div>
+              </div>
+              <span class="badge badge-success">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOXIC BEHAVIOR PAGE -->
+      <div class="page" id="page-toxic-behavior">
+        <div class="page-header">
+          <h1 class="page-title">🛡️ Toxic Behavior Detection</h1>
+          <p class="page-subtitle">AI-powered analysis of communication patterns</p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('toxic', 'overview')">Overview</button>
+          <button class="tab" onclick="showTab('toxic', 'patterns')">Pattern Detection</button>
+          <button class="tab" onclick="showTab('toxic', 'reports')">Reports</button>
+        </div>
+
+        <div class="tab-content active" id="toxic-overview">
+          <div class="alert alert-info">
+            <span>🤖</span>
+            <div>
+              <div style="font-weight: 600;">AI Analysis Active</div>
+              <div style="font-size: 14px;">Monitoring 3,247 communications across 12 channels</div>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-title">Toxicity Score</div>
+              <div class="stat-value">12/100</div>
+              <div class="stat-change" style="color: #10B981;">Low Risk</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">Incidents This Week</div>
+              <div class="stat-value">2</div>
+              <div class="stat-change">↓ -50% from last week</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">Power Imbalance Detected</div>
+              <div class="stat-value">1</div>
+              <div class="stat-change">Requires review</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">Recent Detected Patterns</h3>
+            <div style="padding: 16px; background: #FEF2F2; border-left: 4px solid #EF4444; border-radius: 8px; margin-bottom: 12px;">
+              <div style="font-weight: 600; margin-bottom: 4px;">Microaggression Pattern</div>
+              <div style="font-size: 14px; color: #6B7280;">Slack #general • 2 hours ago</div>
+            </div>
+            <div style="padding: 16px; background: #FFFBEB; border-left: 4px solid #F59E0B; border-radius: 8px;">
+              <div style="font-weight: 600; margin-bottom: 4px;">Escalating Conflict</div>
+              <div style="font-size: 14px; color: #6B7280;">Email thread • 5 hours ago</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="toxic-patterns">
+          <div class="card">
+            <h3 class="card-title">Pattern Analysis</h3>
+            <div class="chart-placeholder" style="height: 400px;">📊 Toxicity Trends Over Time</div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="toxic-reports">
+          <div class="card">
+            <h3 class="card-title">Anonymous Reports</h3>
+            <p style="color: #6B7280; text-align: center; padding: 40px;">No anonymous reports submitted</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- BURNOUT PREVENTION PAGE -->
+      <div class="page" id="page-burnout">
+        <div class="page-header">
+          <h1 class="page-title">🔥 Burnout Prevention</h1>
+          <p class="page-subtitle">Predictive models and early intervention</p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('burnout', 'overview')">Overview</button>
+          <button class="tab" onclick="showTab('burnout', 'risk')">Risk Factors</button>
+          <button class="tab" onclick="showTab('burnout', 'interventions')">Interventions</button>
+        </div>
+
+        <div class="tab-content active" id="burnout-overview">
+          <div class="alert alert-warning">
+            <span>⚠️</span>
+            <div>
+              <div style="font-weight: 600;">3 Team Members at Elevated Risk</div>
+              <div style="font-size: 14px;">Recommend scheduling check-ins within 48 hours</div>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-title">Team Burnout Risk</div>
+              <div class="stat-value">Medium</div>
+              <div class="stat-change">42% average risk score</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">High Risk Individuals</div>
+              <div class="stat-value">3</div>
+              <div class="stat-change" style="color: #EF4444;">Requires attention</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">Avg Hours/Week</div>
+              <div class="stat-value">47.5</div>
+              <div class="stat-change" style="color: #F59E0B;">↑ +2.5 over baseline</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h3 class="card-title">7-Day Risk Prediction</h3>
+              <div class="chart-placeholder">📈 Risk Probability Chart</div>
+            </div>
+            <div class="card">
+              <h3 class="card-title">Burnout Contributors</h3>
+              <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 14px;">
+                  <span>Workload</span>
+                  <span>78%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-bar-fill" style="width: 78%; background: #EF4444;"></div></div>
+              </div>
+              <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 14px;">
+                  <span>Lack of Control</span>
+                  <span>65%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-bar-fill" style="width: 65%; background: #F59E0B;"></div></div>
+              </div>
+              <div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 14px;">
+                  <span>Reward Deficit</span>
+                  <span>52%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-bar-fill" style="width: 52%; background: #6366F1;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="burnout-risk">
+          <div class="card">
+            <h3 class="card-title">Individual Risk Assessment</h3>
+            <div class="stat-card" style="margin-bottom: 12px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600;">Sarah Chen</div>
+                  <div style="color: #6B7280; font-size: 14px;">Engineering • Risk Score: 78/100</div>
+                </div>
+                <span class="badge badge-danger">High Risk</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="burnout-interventions">
+          <div class="card">
+            <h3 class="card-title">Active Interventions</h3>
+            <div style="padding: 16px; background: #F0FDF4; border-radius: 8px; margin-bottom: 12px;">
+              <div style="font-weight: 600; margin-bottom: 4px;">✓ Workload Redistribution</div>
+              <div style="font-size: 14px; color: #6B7280;">Implemented Dec 15 • -15% hours for high-risk team</div>
+            </div>
+            <button class="btn btn-primary">+ Create New Intervention</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANONYMOUS FEEDBACK PAGE -->
+      <div class="page" id="page-anonymous">
+        <div class="page-header">
+          <h1 class="page-title">🔒 Anonymous Feedback</h1>
+          <p class="page-subtitle">Cryptographically secure anonymous feedback system</p>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('anon', 'submit')">Submit Feedback</button>
+          <button class="tab" onclick="showTab('anon', 'status')">Check Status</button>
+          <button class="tab" onclick="showTab('anon', 'hr')">HR Review</button>
+        </div>
+
+        <div class="tab-content active" id="anon-submit">
+          <div class="alert alert-info">
+            <span>🔐</span>
+            <div>
+              <div style="font-weight: 600;">Zero-Knowledge Privacy</div>
+              <div style="font-size: 14px;">Your feedback is encrypted. We cannot identify you even if we wanted to.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="card-title">Submit Anonymous Feedback</h3>
+            <form>
+              <div class="form-group">
+                <label class="form-label">Feedback Category</label>
+                <select class="form-input">
+                  <option>Select category...</option>
+                  <option>Workplace Concern</option>
+                  <option>Harassment</option>
+                  <option>Discrimination</option>
+                  <option>Safety Issue</option>
+                  <option>Policy Violation</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Your Feedback</label>
+                <textarea class="form-input" placeholder="Describe your concern anonymously..."></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tracking ID (Optional)</label>
+                <input type="text" class="form-input" placeholder="Generate or enter your own tracking ID">
+              </div>
+              <button type="submit" class="btn btn-primary">Submit Anonymously</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="tab-content" id="anon-status">
+          <div class="card">
+            <h3 class="card-title">Check Feedback Status</h3>
+            <div class="form-group">
+              <label class="form-label">Enter Your Tracking ID</label>
+              <input type="text" class="form-input" placeholder="e.g., ABC123XYZ">
+            </div>
+            <button class="btn btn-primary">Check Status</button>
+          </div>
+        </div>
+
+        <div class="tab-content" id="anon-hr">
+          <div class="card">
+            <h3 class="card-title">HR Review Dashboard</h3>
+            <div class="stat-card" style="margin-bottom: 12px; padding: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600;">Feedback #2847</div>
+                  <div style="color: #6B7280; font-size: 14px;">Submitted 2 days ago</div>
+                </div>
+                <span class="badge badge-warning">Pending Review</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BEHAVIORAL ANALYTICS PAGE -->
+      <div class="page" id="page-behavioral">
+        <div class="page-header">
+          <h1 class="page-title">🧠 Behavioral Analytics</h1>
+          <p class="page-subtitle">Pattern recognition and mental health insights</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">Patterns Analyzed</div>
+            <div class="stat-value">1,247</div>
+            <div class="stat-change">This month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Anomalies Detected</div>
+            <div class="stat-value">8</div>
+            <div class="stat-change">Requiring attention</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Insights Generated</div>
+            <div class="stat-value">34</div>
+            <div class="stat-change">Actionable insights</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Behavioral Patterns</h3>
+          <div class="chart-placeholder">📊 Multi-dimensional Behavior Analysis</div>
+        </div>
+      </div>
+
+      <!-- MULTI-FRAMEWORK PAGE -->
+      <div class="page" id="page-multi-framework">
+        <div class="page-header">
+          <h1 class="page-title">🧩 Multi-Framework Synthesis</h1>
+          <p class="page-subtitle">AI-powered synthesis across 7 personality frameworks</p>
+        </div>
+
+        <div class="alert alert-success">
+          <span>✨</span>
+          <div>
+            <div style="font-weight: 600;">Novel AI Technology</div>
+            <div style="font-size: 14px;">Synthesizing Big Five, MBTI, Enneagram, DISC, Social Styles, Clifton Strengths, and Predictive Index</div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">Frameworks Active</div>
+            <div class="stat-value">7/7</div>
+            <div class="stat-change">All frameworks enabled</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Team Profiles</div>
+            <div class="stat-value">48</div>
+            <div class="stat-change">Synthesis complete</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Contradictions Resolved</div>
+            <div class="stat-value">12</div>
+            <div class="stat-change">Using Bayesian inference</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Unified Trait Synthesis</h3>
+          <div class="chart-placeholder">🕸️ 20-Dimensional Trait Radar Chart</div>
+        </div>
+      </div>
+
+      <!-- LEGAL RIGHTS PAGE -->
+      <div class="page" id="page-legal-rights">
+        <div class="page-header">
+          <h1 class="page-title">⚖️ Legal Rights Dashboard</h1>
+          <p class="page-subtitle">Know your workplace rights and protections</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Your Rights</h3>
+          <div style="padding: 16px; background: #F0FDF4; border-radius: 8px; margin-bottom: 12px;">
+            <div style="font-weight: 600; margin-bottom: 4px;">✓ Anti-Discrimination Protection</div>
+            <div style="font-size: 14px; color: #6B7280;">Protected under Title VII and state laws</div>
+          </div>
+          <div style="padding: 16px; background: #F0FDF4; border-radius: 8px; margin-bottom: 12px;">
+            <div style="font-weight: 600; margin-bottom: 4px;">✓ Fair Labor Standards</div>
+            <div style="font-size: 14px; color: #6B7280;">Overtime, minimum wage, and break requirements</div>
+          </div>
+          <div style="padding: 16px; background: #F0FDF4; border-radius: 8px;">
+            <div style="font-weight: 600; margin-bottom: 4px;">✓ Whistleblower Protection</div>
+            <div style="font-size: 14px; color: #6B7280;">Protected reporting of violations</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EQUITY DASHBOARD PAGE -->
+      <div class="page" id="page-equity">
+        <div class="page-header">
+          <h1 class="page-title">📈 Equity Dashboard</h1>
+          <p class="page-subtitle">Monitor and promote workplace equity</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">Equity Score</div>
+            <div class="stat-value">87/100</div>
+            <div class="stat-change">Above industry avg</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Pay Equity Gap</div>
+            <div class="stat-value">2.3%</div>
+            <div class="stat-change" style="color: #10B981;">Below national avg (4.1%)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Promotion Rate</div>
+            <div class="stat-value">Equal</div>
+            <div class="stat-change">Across all demographics</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Demographic Distribution</h3>
+          <div class="chart-placeholder">📊 Equity Analysis Charts</div>
+        </div>
+      </div>
+
+      <!-- SETTINGS PAGE -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <h1 class="page-title">⚙️ Settings</h1>
+          <p class="page-subtitle">Manage your account and preferences</p>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Profile Settings</h3>
+          <form>
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-input" value="John Doe">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-input" value="john.doe@example.com">
+            </div>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">Notification Preferences</h3>
+          <div style="margin-bottom: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" checked>
+              <span>Email notifications</span>
+            </label>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" checked>
+              <span>Assessment reminders</span>
+            </label>
+          </div>
+          <div>
+            <label style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox">
+              <span>Weekly wellness digest</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLACEHOLDER FOR ALL OTHER PAGES -->
+      <!-- Clinical Screening Pages -->
+      <div class="page" id="page-phq9">
+        <div class="page-header"><h1 class="page-title">💙 PHQ-9 Depression Screening</h1></div>
+        <div class="card"><p>Evidence-based depression assessment tool</p></div>
+      </div>
+
+      <div class="page" id="page-gad7">
+        <div class="page-header"><h1 class="page-title">💛 GAD-7 Anxiety Screening</h1></div>
+        <div class="card"><p>Comprehensive anxiety assessment</p></div>
+      </div>
+
+      <div class="page" id="page-cssrs">
+        <div class="page-header"><h1 class="page-title">🚨 C-SSRS Suicide Risk Assessment</h1></div>
+        <div class="card"><p>Columbia-Suicide Severity Rating Scale</p></div>
+      </div>
+
+      <div class="page" id="page-crisis">
+        <div class="page-header"><h1 class="page-title">🆘 Crisis Resources</h1></div>
+        <div class="card"><p>24/7 emergency support resources</p></div>
+      </div>
+
+      <!-- Services Pages -->
+      <div class="page" id="page-corporate-integrations">
+        <div class="page-header"><h1 class="page-title">🔗 Corporate Integrations</h1></div>
+        <div class="card"><p>Connect 30+ data sources for behavioral intelligence</p></div>
+      </div>
+
+      <div class="page" id="page-health-dashboard">
+        <div class="page-header"><h1 class="page-title">❤️ Health Dashboard</h1></div>
+        <div class="card"><p>Personal health monitoring and stress tracking</p></div>
+      </div>
+
+      <div class="page" id="page-team-health">
+        <div class="page-header"><h1 class="page-title">📊 Team Health Analytics</h1></div>
+        <div class="card"><p>Manager view of team wellness (anonymized)</p></div>
+      </div>
+
+      <!-- Analytics Pages -->
+      <div class="page" id="page-team-optimizer">
+        <div class="page-header"><h1 class="page-title">⚡ Team Optimizer</h1></div>
+        <div class="card"><p>AI-powered team composition optimization</p></div>
+      </div>
+
+      <div class="page" id="page-predictive">
+        <div class="page-header"><h1 class="page-title">🤖 Predictive Analytics</h1></div>
+        <div class="card"><p>AI-powered predictions and forecasts</p></div>
+      </div>
+
+      <div class="page" id="page-reliability">
+        <div class="page-header"><h1 class="page-title">🔬 Reliability & Validity</h1></div>
+        <div class="card"><p>Research metrics and validation data</p></div>
+      </div>
+
+      <div class="page" id="page-analytics-dashboard">
+        <div class="page-header"><h1 class="page-title">📈 Analytics Dashboard</h1></div>
+        <div class="card"><p>Overall platform analytics</p></div>
+      </div>
+
+      <!-- Additional placeholder pages would go here for all 50+ routes -->
+    </div>
+  </div>
+
+  <script>
+    // ===== SIDEBAR TOGGLE =====
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      const toggleIcon = document.getElementById('toggleIcon');
+
+      sidebar.classList.toggle('collapsed');
+      mainContent.classList.toggle('expanded');
+
+      if (sidebar.classList.contains('collapsed')) {
+        toggleIcon.innerHTML = '<path d="M13 5l7 7-7 7M5 5l7 7-7 7"/>';
+      } else {
+        toggleIcon.innerHTML = '<path d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>';
+      }
+    }
+
+    // ===== PAGE NAVIGATION =====
+    function showPage(pageName) {
+      // Hide all pages
+      document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+      });
+
+      // Show selected page
+      const targetPage = document.getElementById('page-' + pageName);
+      if (targetPage) {
+        targetPage.classList.add('active');
+      } else {
+        // If page doesn't exist, show placeholder
+        console.log('Page not implemented:', pageName);
+      }
+
+      // Update active nav item
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      event.currentTarget.classList.add('active');
+    }
+
+    // ===== SECTION TOGGLE =====
+    function toggleSection(sectionName) {
+      const submenu = document.getElementById(sectionName + '-submenu');
+      const chevron = document.getElementById(sectionName + '-chevron');
+
+      submenu.classList.toggle('expanded');
+      chevron.classList.toggle('rotated');
+    }
+
+    // ===== TAB SWITCHING =====
+    function showTab(pagePrefix, tabName) {
+      // Hide all tab contents for this page
+      document.querySelectorAll('[id^="' + pagePrefix + '-"]').forEach(content => {
+        content.classList.remove('active');
+      });
+
+      // Show selected tab content
+      const targetTab = document.getElementById(pagePrefix + '-' + tabName);
+      if (targetTab) {
+        targetTab.classList.add('active');
+      }
+
+      // Update tab buttons
+      event.currentTarget.parentElement.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.currentTarget.classList.add('active');
+    }
+
+    // ===== INITIALIZE =====
+    // Auto-expand clinical section on load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Clinical section is expanded by default
+    });
+  </script>
+</body>
+</html>

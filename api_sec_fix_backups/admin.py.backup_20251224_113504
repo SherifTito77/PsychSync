@@ -55,7 +55,7 @@ def list_all_users(
     """
     # Note: get_all_users from the service returns User objects, not dicts.
     # You might need to adjust the service or the response model.
-    users = get_all_users(db, 
+    users = get_all_users(db,
 @check_rate_limit(identifier="public", endpoint_type="public")
 skip=skip, limit=limit, is_active=is_active)
     return users

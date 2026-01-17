@@ -197,7 +197,7 @@ const AssessmentDetail: React.FC = () => {
           >``
             Take Assessment
           </Link>
-        )}  
+        )}
         {canEdit && assessment.status === 'active' && (
           <Link
             to={`/assessments/${assessment.id}/analytics`}
@@ -205,7 +205,7 @@ const AssessmentDetail: React.FC = () => {
           >
             View Analytics
           </Link>
-        )}      
+        )}
         {canEdit && (
           <div className="flex space-x-2">
             <button

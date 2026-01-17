@@ -88,7 +88,7 @@ def list_campaigns(client):
     # TODO: Implement test logic
     response = client.get(
         "/campaigns"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -135,7 +135,7 @@ def list_user_segments(client):
     # TODO: Implement test logic
     response = client.get(
         "/segments"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -408,7 +408,7 @@ def list_available_triggers(client):
     # TODO: Implement test logic
     response = client.get(
         "/triggers"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -455,7 +455,7 @@ def list_growth_metrics(client):
     # TODO: Implement test logic
     response = client.get(
         "/metrics"
-        
+
     )
 
     assert response.status_code in [200, 201]

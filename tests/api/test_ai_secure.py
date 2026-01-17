@@ -263,7 +263,7 @@ def get_security_stats(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/security/stats"
-        
+
     )
 
     assert response.status_code in [200, 201]

@@ -7,17 +7,17 @@ from ai.processors.base import PersonalityFrameworkProcessor
 
 class SocialStylesProcessor(PersonalityFrameworkProcessor):
     """Process Social Styles assessment results"""
-    
+
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process raw Social Styles data into standardized format"""
         if not self._validate_input(raw_data):
             return self._fallback_result('social_styles', 'Invalid input data')
-        
+
         try:
             style = self._safe_get(raw_data, 'style', 'Analytical').title()
             assertiveness = self._clamp_value(self._safe_get(raw_data, 'assertiveness', 0.5))
             responsiveness = self._clamp_value(self._safe_get(raw_data, 'responsiveness', 0.5))
-            
+
             return {
                 'style': style,
                 'assertiveness': assertiveness,
@@ -28,10 +28,10 @@ class SocialStylesProcessor(PersonalityFrameworkProcessor):
                 'interaction_tips': self._get_interaction_tips(style),
                 'backup_behavior': self._get_backup_behavior(style)
             }
-            
+
         except Exception as e:
             return self._fallback_result('social_styles', str(e))
-    
+
     def _get_style_description(self, style: str) -> str:
         """Get description for social style"""
         descriptions = {
@@ -41,7 +41,7 @@ class SocialStylesProcessor(PersonalityFrameworkProcessor):
             'Analytical': 'Task-oriented, methodical, and precise'
         }
         return descriptions.get(style, 'Unknown style')
-    
+
     def _get_communication_preferences(self, style: str) -> List[str]:
         """Get communication preferences for style"""
         preferences = {
@@ -51,7 +51,7 @@ class SocialStylesProcessor(PersonalityFrameworkProcessor):
             'Analytical': ['Detailed information', 'Logical structure', 'Data-driven discussion']
         }
         return preferences.get(style, ['Clear communication'])
-    
+
     def _get_interaction_tips(self, style: str) -> List[str]:
         """Get tips for interacting with this style"""
         tips = {
@@ -61,7 +61,7 @@ class SocialStylesProcessor(PersonalityFrameworkProcessor):
             'Analytical': ['Provide detailed information', 'Be logical', 'Allow processing time']
         }
         return tips.get(style, ['Adapt communication style'])
-    
+
     def _get_backup_behavior(self, style: str) -> str:
         """Get backup behavior under stress"""
         backups = {
@@ -71,4 +71,3 @@ class SocialStylesProcessor(PersonalityFrameworkProcessor):
             'Analytical': 'Avoiding - withdraws and becomes indecisive'
         }
         return backups.get(style, 'Stress response varies')
-

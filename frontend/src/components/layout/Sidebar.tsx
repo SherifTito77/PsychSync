@@ -46,6 +46,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Teams', path: '/teams', icon: '👥' },
     { name: 'Toxic Behavior Detection', path: '/toxic-behavior-detection', icon: '🛡️' },
+    { name: 'Burnout Prevention', path: '/burnout-prevention', icon: '🔥' },
+    { name: 'Anonymous Feedback', path: '/anonymous-feedback', icon: '🔒' },
+    { name: 'Behavioral Analytics', path: '/behavioral-analytics', icon: '🧠' },
+    { name: 'Multi-Framework Synthesis', path: '/multi-framework-synthesis', icon: '🧩' },
+    { name: 'Legal Rights', path: '/legal-rights', icon: '⚖️' },
+    { name: 'Equity Dashboard', path: '/equity', icon: '📈' },
     { name: 'Settings', path: '/settings', icon: '⚙️' }
   ];
 
@@ -96,6 +102,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         path: '/screening/ybocs',
         icon: '🔄',
         description: 'Yale-Brown Obsessive Compulsive Scale (α=0.90)'
+      },
+      {
+        name: 'Depression (BDI-II)',
+        path: '/screening/bdi2',
+        icon: '😢',
+        description: 'Beck Depression Inventory-II (α=0.91)'
+      },
+      {
+        name: 'Anxiety (BAI)',
+        path: '/screening/bai',
+        icon: '😰',
+        description: 'Beck Anxiety Inventory (α=0.92)'
       },
       {
         name: 'DASS-21 (Depression/Anxiety/Stress)',
@@ -192,6 +210,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         path: '/analytics/clinical',
         icon: '📊',
         description: 'Population health insights dashboard'
+      },
+      {
+        name: 'Population Health',
+        path: '/analytics/population-health',
+        icon: '🏥',
+        description: 'Population metrics and high-risk identification'
+      },
+      {
+        name: 'Alerts Center',
+        path: '/clinical/alerts-center',
+        icon: '🚨',
+        description: 'Manage clinical alerts and notifications'
       },
       {
         name: 'Screening Home',

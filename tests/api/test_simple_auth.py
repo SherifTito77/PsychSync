@@ -88,7 +88,7 @@ def verify_token(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/verify-token/{token}"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -135,7 +135,7 @@ def get_current_user_info(client):
     # TODO: Implement test logic
     response = client.get(
         "/me"
-        
+
     )
 
     assert response.status_code in [200, 201]

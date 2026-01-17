@@ -103,6 +103,9 @@ class User(Base):
     # TEMPORARILY DISABLED: Organization relationship requires organization_id column
     # organization = relationship("Organization", back_populates="users", lazy="joined")  # TEMPORARILY DISABLED
 
+    # Biometric authentication relationship
+    biometric_keys = relationship("BiometricKey", back_populates="user", cascade="all, delete-orphan")
+
     # Define table indexes for performance
     __table_args__ = (
         Index("idx_user_email_active", "email", "is_active"),
@@ -164,3 +167,14 @@ class User(Base):
 
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"
+
+# Add to User model (after existing relationships)
+#clinician_assessments = relationship("ClinicalAssessmentExtended", foreign_keys=[ClinicalAssessmentExtended.reviewed_by_id], back_populates="reviewed_by")
+#assessments_extended = relationship("ClinicalAssessmentExtended", foreign_keys=[ClinicalAssessmentExtended.user_id], back_populates="user")
+#assessment_trends = relationship("AssessmentTrend", back_populates="user")
+#crisis_alerts = relationship("CrisisAlert", foreign_keys=[CrisisAlert.acknowledged_by_id], back_populates="acknowledged_by")
+#crisis_alerts_resolved = relationship("CrisisAlert", foreign_keys=[CrisisAlert.resolved_by_id])
+#telehealth_sessions_as_user = relationship("TelehealthSession", foreign_keys=[TelehealthSession.user_id], back_populates="user")
+#telehealth_sessions_as_clinician = relationship("TelehealthSession", foreign_keys=[TelehealthSession.clinician_id], back_populates="clinician")
+#chatbot_conversations = relationship("ChatbotConversation", back_populates="user")
+#mobile_devices = relationship("MobileDevice", back_populates="user")

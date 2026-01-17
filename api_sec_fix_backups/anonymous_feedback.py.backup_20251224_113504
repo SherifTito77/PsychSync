@@ -93,7 +93,7 @@ async def submit_anonymous_feedback(
                 "alternatives": [
                     "Try submitting again",
                     "Contact HR directly via confidential channel",
-                    "Use external 
+                    "Use external
 @check_rate_limit(identifier="public", endpoint_type="public")
 reporting hotlines"
                 ]

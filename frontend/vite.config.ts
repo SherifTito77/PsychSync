@@ -71,4 +71,3 @@ export default defineConfig({
     __PROD__: JSON.stringify(process.env.NODE_ENV === 'production'),
   }
 });
-

@@ -43,7 +43,7 @@ def get_ai_health_status(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/health"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -270,7 +270,7 @@ def get_ai_monitoring_dashboard(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/dashboard"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -317,7 +317,7 @@ def get_available_metric_types(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/metric-types"
-        
+
     )
 
     assert response.status_code in [200, 201]

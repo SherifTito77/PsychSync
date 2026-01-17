@@ -15,7 +15,8 @@ from app.services.clinical.scoring_algorithms import (
     score_aq10,
     score_ace,
     score_pss10,
-    score_asrs
+    score_asrs,
+    score_isi
 )
 
 
@@ -686,3 +687,83 @@ class TestASRSScoring:
         assert result['part_a_score'] == 34
         assert result['risk_level'] == 'high'
         assert 'severe_inattention' in result['risk_flags']
+
+
+class TestISIScoring:
+    """Test ISI Insomnia Severity Index scoring"""
+
+    def test_no_insomnia(self):
+        """Score 0-7 = No clinically significant insomnia"""
+        result = score_isi({
+            '1': 0, '2': 0, '3': 0, '4': 1, '5': 0,
+            '6': 0, '7': 1
+        })
+
+        assert result['total_score'] == 2
+        assert result['severity_level'] == 'no_insomnia'
+        assert result['risk_level'] == 'low'
+        assert result['crisis_alert'] == False
+
+    def test_subthreshold_insomnia(self):
+        """Score 8-14 = Subthreshold insomnia"""
+        result = score_isi({
+            '1': 1, '2': 1, '3': 1, '4': 2, '5': 1,
+            '6': 1, '7': 2
+        })
+
+        assert result['total_score'] == 9
+        assert result['severity_level'] == 'subthreshold_insomnia'
+        assert result['risk_level'] == 'low'
+        assert 'sleep hygiene' in ' '.join(result['recommendations']).lower()
+
+    def test_moderate_insomnia(self):
+        """Score 15-21 = Clinical insomnia (moderate)"""
+        result = score_isi({
+            '1': 2, '2': 2, '3': 2, '4': 3, '5': 2,
+            '6': 2, '7': 3
+        })
+
+        assert result['total_score'] == 16
+        assert result['severity_level'] == 'moderate_insomnia'
+        assert result['risk_level'] == 'moderate'
+        assert 'CBT-I' in ' '.join(result['recommendations']) or 'cognitive' in ' '.join(result['recommendations']).lower()
+
+    def test_severe_insomnia(self):
+        """Score 22-28 = Clinical insomnia (severe)"""
+        result = score_isi({
+            '1': 3, '2': 3, '3': 3, '4': 4, '5': 3,
+            '6': 4, '7': 4
+        })
+
+        assert result['total_score'] == 24
+        assert result['severity_level'] == 'severe_insomnia'
+        assert result['risk_level'] == 'high'
+        assert 'urgent' in ' '.join(result['recommendations']).lower() or 'sleep specialist' in ' '.join(result['recommendations']).lower()
+
+    def test_risk_flags_severe_symptoms(self):
+        """Severe individual symptoms trigger specific risk flags"""
+        result = score_isi({
+            '1': 3,  # Severe sleep onset difficulty
+            '2': 3,  # Severe sleep maintenance difficulty
+            '3': 0,
+            '4': 4,
+            '5': 0,
+            '6': 0,
+            '7': 3   # Severe daytime impairment
+        })
+
+        assert 'SEVERE_SLEEP_ONSET_DIFFICULTY' in result['risk_flags']
+        assert 'SEVERE_SLEEP_MAINTENANCE_DIFFICULTY' in result['risk_flags']
+        assert 'SEVERE_DAYTIME_IMPAIRMENT' in result['risk_flags']
+
+    def test_clinical_cutoff(self):
+        """Score ≥ 15 indicates clinical insomnia"""
+        result = score_isi({
+            '1': 2, '2': 2, '3': 2, '4': 2, '5': 2,
+            '6': 2, '7': 3
+        })
+
+        assert result['total_score'] == 15
+        assert result['clinical_cutoff'] == 15
+        assert result['risk_level'] in ['moderate', 'high']
+        assert 'clinical evaluation' in ' '.join(result['recommendations']).lower()

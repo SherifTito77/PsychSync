@@ -1,7 +1,7 @@
 # ✅ Clinical Screening Routes - Test Report
 
-**Test Date:** 2025-01-14  
-**Tested By:** Claude Code (Automated Testing)  
+**Test Date:** 2025-01-14
+**Tested By:** Claude Code (Automated Testing)
 **Status:** ✅ ALL TESTS PASSED
 
 ---
@@ -170,6 +170,6 @@ const CrisisResources = React.lazy(() => import('./components/clinical/CrisisRes
 
 ---
 
-**Test Completed:** 2025-01-14  
-**Frontend Server:** http://localhost:5177  
+**Test Completed:** 2025-01-14
+**Frontend Server:** http://localhost:5177
 **Backend API:** http://localhost:8000/docs

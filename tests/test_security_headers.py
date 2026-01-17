@@ -111,4 +111,3 @@ class TestSecurity_Headers:
         # This is an auto-generated test placeholder
         instance = SecurityReportingMiddleware()
         assert instance is not None
-

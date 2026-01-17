@@ -900,3 +900,936 @@ def score_asrs(responses: Dict[str, int]) -> Dict[str, any]:
         'hyperactive_adhd': hyperactive_adhd,
         'combined_adhd': combined_adhd
     }
+
+
+def score_isi(responses: Dict[str, int]) -> Dict[str, any]:
+    """
+    ISI (Insomnia Severity Index)
+
+    7 questions measuring insomnia severity over the past 2 weeks
+    Each question scored 0-4 (0=No problem, 4=Very severe problem)
+
+    Scoring:
+    - 0-7: No clinically significant insomnia
+    - 8-14: Subthreshold insomnia
+    - 15-21: Clinical insomnia (moderate)
+    - 22-28: Clinical insomnia (severe)
+
+    Reliability: Cronbach's α = 0.91
+    Validated for assessing insomnia severity and treatment outcomes
+    """
+    # ISI questions 1-7
+    isi_items = ['1', '2', '3', '4', '5', '6', '7']
+    total_score = sum(responses.get(item, 0) for item in isi_items)
+
+    # Determine severity based on total score
+    if total_score >= 22:
+        severity = 'severe_insomnia'
+        risk_level = 'high'
+        interpretation = "Severe insomnia: Significant sleep difficulties causing substantial impairment in daytime functioning. Comprehensive clinical evaluation strongly recommended. Consider sleep study, cognitive behavioral therapy for insomnia (CBT-I), and consultation with sleep specialist."
+    elif total_score >= 15:
+        severity = 'moderate_insomnia'
+        risk_level = 'moderate'
+        interpretation = "Moderate insomnia: Clinically significant sleep problems impacting daily life. Sleep hygiene improvements and clinical evaluation recommended. CBT-I has shown effectiveness for moderate insomnia."
+    elif total_score >= 8:
+        severity = 'subthreshold_insomnia'
+        risk_level = 'low'
+        interpretation = "Subthreshold insomnia: Some sleep difficulties present but below clinical threshold. Implement sleep hygiene practices and monitor for worsening. Consider evaluation if symptoms persist or impact daytime functioning."
+    else:
+        severity = 'no_insomnia'
+        risk_level = 'low'
+        interpretation = "No clinically significant insomnia: Sleep patterns appear normal. Continue maintaining good sleep hygiene practices to promote healthy sleep."
+
+    # Risk flags
+    risk_flags = []
+    if total_score >= 22:
+        risk_flags.append('SEVERE_INSOMNIA')
+        risk_flags.append('SUBSTANTIAL_IMPAIRMENT')
+    elif total_score >= 15:
+        risk_flags.append('MODERATE_INSOMNIA')
+        risk_flags.append('DAYTIME_IMPAIRMENT')
+    elif total_score >= 8:
+        risk_flags.append('SLEEP_DIFFICULTIES')
+
+    # Check for specific severe symptoms
+    if responses.get('1', 0) >= 3:  # Severe difficulty falling asleep
+        risk_flags.append('SEVERE_SLEEP_ONSET_DIFFICULTY')
+    if responses.get('2', 0) >= 3:  # Severe difficulty staying asleep
+        risk_flags.append('SEVERE_SLEEP_MAINTENANCE_DIFFICULTY')
+    if responses.get('7', 0) >= 3:  # Severe daytime impairment
+        risk_flags.append('SEVERE_DAYTIME_IMPAIRMENT')
+
+    # Recommendations based on severity
+    recommendations = []
+
+    if total_score >= 22:
+        recommendations.extend([
+            "Urgent: Comprehensive sleep evaluation by sleep medicine specialist",
+            "Consider polysomnography (sleep study) to assess for sleep disorders",
+            "Cognitive Behavioral Therapy for Insomnia (CBT-I) - first-line treatment",
+            "Evaluate for comorbid conditions (depression, anxiety, sleep apnea)",
+            "Review medications that may affect sleep",
+            "Implement structured sleep schedule and sleep hygiene optimization"
+        ])
+    elif total_score >= 15:
+        recommendations.extend([
+            "Clinical evaluation for insomnia recommended",
+            "Cognitive Behavioral Therapy for Insomnia (CBT-I) strongly recommended",
+            "Sleep hygiene education: consistent schedule, dark/quiet bedroom, avoid screens before bed",
+            "Limit caffeine after 2 PM and alcohol before bedtime",
+            "Relaxation techniques before bed: progressive muscle relaxation, deep breathing",
+            "Consider sleep diary to track patterns"
+        ])
+    elif total_score >= 8:
+        recommendations.extend([
+            "Practice good sleep hygiene: regular sleep schedule, comfortable sleep environment",
+            "Limit screen time 1 hour before bed (blue light affects melatonin)",
+            "Avoid caffeine, nicotine, and alcohol close to bedtime",
+            "Regular exercise but not within 4 hours of bedtime",
+            "Wind-down routine: reading, warm bath, relaxation exercises",
+            "Monitor symptoms and seek evaluation if they worsen"
+        ])
+    else:
+        recommendations.extend([
+            "Continue maintaining healthy sleep habits",
+            "Keep consistent sleep schedule, even on weekends",
+            "Create comfortable, dark, quiet sleep environment",
+            "Regular physical activity promotes better sleep",
+            "Limit caffeine and alcohol, especially in evening"
+        ])
+
+    # Add sleep hygiene tips to all recommendations
+    if total_score < 15:
+        recommendations.extend([
+            "Aim for 7-9 hours of sleep per night for optimal health",
+            "Keep bedroom temperature between 65-68°F for optimal sleep"
+        ])
+
+    return {
+        'screening_type': 'ISI',
+        'total_score': total_score,
+        'severity_level': severity,
+        'risk_level': risk_level,
+        'interpretation': interpretation,
+        'recommendations': recommendations,
+        'crisis_alert': False,  # Insomnia typically doesn't trigger crisis protocol
+        'risk_flags': risk_flags,
+        'subscale_scores': {},  # ISI is a unidimensional scale
+        'completed_at': '2025-01-15T00:00:00Z',
+        'clinical_cutoff': 15  # Score ≥ 15 indicates clinical insomnia
+    }
+
+
+# =====================================================================
+# ADVANCED CLINICAL ASSESSMENT SCORERS
+# =====================================================================
+
+class LSASScorer:
+    """
+    Liebowitz Social Anxiety Scale (LSAS)
+
+    Measures fear and avoidance of social interactions and performance situations
+
+    Reliability: α = 0.85-0.93
+    Items: 24 items (13 fear, 11 avoidance)
+    - 0 = None/Never
+    - 1 = Mild/Occasionally
+    - 2 = Moderate/Often
+    - 3 = Severe/Usually
+
+    Range: 0-144 (0-72 fear + 0-72 avoidance)
+
+    Clinical cutoffs:
+    - <30: Minimal social anxiety
+    - 30-49: Mild social anxiety
+    - 50-65: Moderate social anxiety
+    - 66-80: Marked social anxiety
+    - >80: Severe social anxiety
+    """
+
+    NAME = "LSAS"
+    ITEMS = 24
+    MAX_SCORE = 144
+
+    # Items 1-13: Fear, 14-24: Avoidance
+    FEAR_ITEMS = list(range(1, 14))
+    AVOIDANCE_ITEMS = list(range(14, 25))
+
+    @staticmethod
+    def score(responses: Dict[str, Dict[str, int]]) -> ScoringResult:
+        """
+        Score LSAS assessment
+
+        Args:
+            responses: Dict mapping item number to {'fear': X, 'avoidance': Y}
+                      Each item has both fear and avoidance ratings (0-3)
+
+        Returns:
+            ScoringResult with subscale scores (fear, avoidance)
+        """
+        # Validate input
+        if len(responses) != LSASScorer.ITEMS:
+            raise ValueError(f"LSAS requires {LSASScorer.ITEMS} items, got {len(responses)}")
+
+        fear_scores = []
+        avoidance_scores = []
+
+        # Calculate fear and avoidance scores
+        for item_num in range(1, 25):
+            item_key = f'item_{item_num}'
+            if item_key not in responses:
+                raise ValueError(f"Missing item_{item_num} in responses")
+
+            item_data = responses[item_key]
+            fear = item_data.get('fear', 0)
+            avoidance = item_data.get('avoidance', 0)
+
+            # Validate range
+            if not isinstance(fear, int) or not (0 <= fear <= 3):
+                raise ValueError(f"Item {item_num} fear must be 0-3, got {fear}")
+            if not isinstance(avoidance, int) or not (0 <= avoidance <= 3):
+                raise ValueError(f"Item {item_num} avoidance must be 0-3, got {avoidance}")
+
+            fear_scores.append(fear)
+            avoidance_scores.append(avoidance)
+
+        # Calculate total and subscale scores
+        fear_total = sum(fear_scores)
+        avoidance_total = sum(avoidance_scores)
+        total_score = fear_total + avoidance_total
+
+        # Determine severity
+        if total_score >= 81:
+            severity = SeverityLevel.SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Severe social anxiety disorder: Significant fear and avoidance across most social situations causing substantial impairment in occupational, academic, and social functioning. Comprehensive clinical evaluation and evidence-based treatment (CBT, medication, exposure therapy) strongly recommended."
+
+        elif total_score >= 66:
+            severity = SeverityLevel.MODERATELY_SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Marked social anxiety: Pronounced fear and avoidance of social interactions causing significant functional impairment. Clinical evaluation recommended. Consider CBT and gradual exposure to social situations."
+
+        elif total_score >= 50:
+            severity = SeverityLevel.MODERATE.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Moderate social anxiety: Noticeable fear and avoidance of social situations impacting daily life and relationships. Professional evaluation recommended. Cognitive-behavioral techniques and social skills training may be beneficial."
+
+        elif total_score >= 30:
+            severity = SeverityLevel.MILD.value
+            risk_level = RiskLevel.LOW.value
+            interpretation = "Mild social anxiety: Some fear and avoidance of social interactions but minimal functional impairment. Consider self-help strategies, mindfulness, and gradual exposure. Monitor for worsening symptoms."
+
+        else:
+            severity = SeverityLevel.MINIMAL.value
+            risk_level = RiskLevel.LOW.value
+            interpretation = "Minimal social anxiety: Normal levels of social discomfort. Continue healthy social engagement and stress management practices."
+
+        # Risk flags
+        risk_flags = []
+        if fear_total >= 40:
+            risk_flags.append('HIGH_SOCIAL_FEAR')
+        if avoidance_total >= 40:
+            risk_flags.append('HIGH_AVOIDANCE')
+        if total_score >= 66:
+            risk_flags.append('SIGNIFICANT_IMPAIRMENT')
+
+        # Recommendations
+        recommendations = []
+        if total_score >= 50:
+            recommendations.extend([
+                "Consult with a mental health professional specializing in anxiety disorders",
+                "Consider cognitive-behavioral therapy (CBT) for social anxiety",
+                "Discuss medication options (SSRIs) with a psychiatrist",
+                "Practice gradual exposure to feared social situations"
+            ])
+        elif total_score >= 30:
+            recommendations.extend([
+                "Consider speaking with a counselor about social anxiety",
+                "Practice social skills and assertiveness training",
+                "Try mindfulness and relaxation techniques",
+                "Gradually increase social engagement"
+            ])
+
+        return ScoringResult(
+            total_score=float(total_score),
+            severity_level=severity,
+            risk_level=risk_level,
+            subscale_scores={
+                'fear_score': float(fear_total),
+                'avoidance_score': float(avoidance_total)
+            },
+            interpretation=interpretation,
+            recommendations=recommendations,
+            crisis_alert=False,
+            risk_flags=risk_flags
+        )
+
+
+class EAT26Scorer:
+    """
+    Eating Attitudes Test-26 (EAT-26)
+
+    Screens for symptoms of eating disorders
+
+    Reliability: α = 0.79-0.90
+    Items: 26 items
+    - 0 = Never
+    - 1 = Rarely
+    - 2 = Sometimes
+    - 3 = Often
+    - 4 = Usually
+    - 5 = Always
+
+    Range: 0-78
+    Clinical cutoff: ≥20 indicates possible eating disorder
+
+    Behavioral questions (not scored but critical for triage):
+    - Binge eating frequency
+    - Self-induced vomiting/laxative use
+    - Recent weight loss
+    """
+
+    NAME = "EAT-26"
+    ITEMS = 26
+    MAX_SCORE = 78
+    CLINICAL_CUTOFF = 20
+
+    # Items scored in reverse (1, 4, 9, 18, 19, 23, 26)
+    REVERSE_SCORED = [1, 4, 9, 18, 19, 23, 26]
+
+    @staticmethod
+    def score(responses: Dict[int, int],
+              behavioral: Optional[Dict[str, any]] = None) -> ScoringResult:
+        """
+        Score EAT-26 assessment
+
+        Args:
+            responses: Dict mapping item number (1-26) to response value (0-5)
+            behavioral: Dict with behavioral questions:
+                - weight_loss_6months: bool
+                - binge_eating: str ('never', 'once_month', '2-3_times_month', 'weekly', 'daily')
+                - vomiting: str ('never', '1-2_times_month', 'weekly', 'daily')
+                - laxatives: str ('never', 'monthly', 'weekly', 'daily')
+                - exercise: str ('none', '1-3_times_week', '4-6_times_week', 'daily')
+
+        Returns:
+            ScoringResult with eating disorder risk assessment
+        """
+        # Validate input
+        if len(responses) != EAT26Scorer.ITEMS:
+            raise ValueError(f"EAT-26 requires {EAT26Scorer.ITEMS} responses, got {len(responses)}")
+
+        scores = []
+        for item_num in range(1, 27):
+            response = responses.get(item_num, 0)
+
+            # Validate range
+            if not isinstance(response, int) or not (0 <= response <= 5):
+                raise ValueError(f"Item {item_num} must be 0-5, got {response}")
+
+            # Reverse score these items
+            if item_num in EAT26Scorer.REVERSE_SCORED:
+                score = 5 - response
+            else:
+                score = response
+
+            scores.append(score)
+
+        total_score = sum(scores)
+
+        # Determine severity
+        if total_score >= 30:
+            severity = SeverityLevel.SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "High risk for eating disorder: Responses indicate significant preoccupation with weight, food, and body image, along with disordered eating patterns. Urgent clinical evaluation for anorexia nervosa, bulimia nervosa, or binge eating disorder recommended. Comprehensive assessment by eating disorder specialist is critical."
+
+        elif total_score >= 20:
+            severity = SeverityLevel.MODERATELY_SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Possible eating disorder: Scores above clinical threshold suggest problematic attitudes toward food, weight, and body image. Professional evaluation for eating disorder recommended. Early intervention improves outcomes significantly."
+
+        elif total_score >= 10:
+            severity = SeverityLevel.MILD.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Mild concerns about eating/weight: Some preoccupation with weight or food that may warrant monitoring. Consider discussing with a healthcare provider, especially if accompanied by changes in eating patterns or weight."
+
+        else:
+            severity = SeverityLevel.MINIMAL.value
+            risk_level = RiskLevel.LOW.value
+            interpretation = "Normal eating attitudes: No significant concerns about eating behaviors or body image. Continue maintaining healthy relationship with food and body."
+
+        # Behavioral risk assessment
+        crisis_alert = False
+        risk_flags = []
+
+        if behavioral:
+            # Check for high-risk behaviors
+            if behavioral.get('binge_eating') in ['weekly', 'daily']:
+                risk_flags.append('FREQUENT_BINGE_EATING')
+                risk_level = RiskLevel.HIGH.value
+
+            if behavioral.get('vomiting') in ['weekly', 'daily']:
+                risk_flags.append('FREQUENT_PURGING')
+                crisis_alert = True
+                risk_level = RiskLevel.CRITICAL.value
+
+            if behavioral.get('laxatives') in ['weekly', 'daily']:
+                risk_flags.append('LAXATIVE_ABUSE')
+                crisis_alert = True
+                risk_level = RiskLevel.CRITICAL.value
+
+            if behavioral.get('weight_loss_6months'):
+                risk_flags.append('RECENT_WEIGHT_LOSS')
+
+            if behavioral.get('exercise') == 'daily' and total_score >= 15:
+                risk_flags.append('COMPULSIVE_EXERCISE')
+
+        # Recommendations
+        recommendations = []
+        if total_score >= 20 or crisis_alert:
+            recommendations.extend([
+                "Urgent consultation with eating disorder specialist recommended",
+                "Comprehensive medical evaluation (cardiac, metabolic, nutritional)",
+                "Consider inpatient treatment if purging behaviors present",
+                "Family-based therapy (for adolescents) or CBT-E (for adults)"
+            ])
+        elif total_score >= 10:
+            recommendations.extend([
+                "Discuss eating attitudes with healthcare provider",
+                "Nutritional counseling with registered dietitian",
+                "Monitor for changes in eating patterns or weight"
+            ])
+
+        # Override interpretation if crisis behaviors
+        if crisis_alert:
+            interpretation = "CRITICAL: High-risk eating disorder behaviors detected requiring immediate clinical intervention. Frequent purging behaviors pose serious medical risks including electrolyte imbalances and cardiac complications. Urgent medical and psychiatric evaluation essential."
+
+        return ScoringResult(
+            total_score=float(total_score),
+            severity_level=severity,
+            risk_level=risk_level,
+            subscale_scores={
+                'dieting': float(sum(scores[0:13])),  # Items 1-13: Dieting
+                'bulimia': float(sum(scores[13:22])),  # Items 14-22: Bulimia
+                'oral_control': float(sum(scores[22:26]))  # Items 23-26: Oral control
+            },
+            interpretation=interpretation,
+            recommendations=recommendations,
+            crisis_alert=crisis_alert,
+            risk_flags=risk_flags
+        )
+
+
+class YBOCSScorer:
+    """
+    Yale-Brown Obsessive Compulsive Scale (Y-BOCS)
+
+    Gold standard for assessing OCD severity
+
+    Reliability: α = 0.89-0.97
+    Items: 10 items
+    - 0 = No symptoms
+    - 1 = Mild
+    - 2 = Moderate
+    - 3 = Severe
+    - 4 = Extreme
+
+    Range: 0-40
+    - Items 1-5: Obsessions (time, interference, distress, resistance, control)
+    - Items 6-10: Compulsions (time, interference, distress, resistance, control)
+
+    Severity cutoffs:
+    - 0-7: Subclinical
+    - 8-15: Mild
+    - 16-23: Moderate
+    - 24-31: Severe
+    - 32-40: Extreme
+    """
+
+    NAME = "Y-BOCS"
+    ITEMS = 10
+    MAX_SCORE = 40
+
+    OBSESSION_ITEMS = list(range(1, 6))
+    COMPULSION_ITEMS = list(range(6, 11))
+
+    @staticmethod
+    def score(responses: Dict[int, int]) -> ScoringResult:
+        """
+        Score Y-BOCS assessment
+
+        Args:
+            responses: Dict mapping item number (1-10) to response value (0-4)
+
+        Returns:
+            ScoringResult with obsession and compulsion subscale scores
+        """
+        # Validate input
+        if len(responses) != YBOCSScorer.ITEMS:
+            raise ValueError(f"Y-BOCS requires {YBOCSScorer.ITEMS} responses, got {len(responses)}")
+
+        obsession_scores = []
+        compulsion_scores = []
+
+        for item_num in range(1, 11):
+            response = responses.get(item_num, 0)
+
+            # Validate range
+            if not isinstance(response, int) or not (0 <= response <= 4):
+                raise ValueError(f"Item {item_num} must be 0-4, got {response}")
+
+            if item_num <= 5:
+                obsession_scores.append(response)
+            else:
+                compulsion_scores.append(response)
+
+        obsession_total = sum(obsession_scores)
+        compulsion_total = sum(compulsion_scores)
+        total_score = obsession_total + compulsion_total
+
+        # Determine severity
+        if total_score >= 32:
+            severity = SeverityLevel.SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Extreme OCD: Severe, nearly constant obsessions and compulsions causing profound impairment in all areas of functioning. Intensive treatment required - likely combination of high-dose SSRIs and CBT with exposure and response prevention (ERP). Consider intensive outpatient or residential treatment."
+
+        elif total_score >= 24:
+            severity = SeverityLevel.MODERATELY_SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Severe OCD: Obsessions and compulsions are time-consuming (3-5 hours daily) and cause major disruption to work, school, and relationships. Combination treatment with SSRIs and CBT/ERP strongly recommended. Consider psychiatric consultation for medication management."
+
+        elif total_score >= 16:
+            severity = SeverityLevel.MODERATE.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Moderate OCD: Noticeable OCD symptoms causing interference with daily activities and relationships. Evidence-based treatments (CBT with ERP, medication) are highly effective. Professional evaluation and treatment planning recommended."
+
+        elif total_score >= 8:
+            severity = SeverityLevel.MILD.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Mild OCD: Some obsessive-compulsive symptoms present but manageable. Consider evaluation by mental health professional experienced with OCD. CBT techniques can help prevent symptom worsening."
+
+        else:
+            severity = SeverityLevel.MINIMAL.value
+            risk_level = RiskLevel.LOW.value
+            interpretation = "Subclinical OCD: Minimal OCD symptoms not causing significant impairment. Continue monitoring and stress management. Consider evaluation if symptoms worsen or begin interfering with daily life."
+
+        # Risk flags
+        risk_flags = []
+        if obsession_total >= 16:
+            risk_flags.append('SEVERE_OBSESSIONS')
+        if compulsion_total >= 16:
+            risk_flags.append('SEVERE_COMPULSIONS')
+
+        # Check for specific concerning items
+        if responses.get(5, 0) >= 3:  # Poor control over obsessions
+            risk_flags.append('POOR_OBSERVSSION_CONTROL')
+        if responses.get(10, 0) >= 3:  # Poor control over compulsions
+            risk_flags.append('POOR_COMPULSION_CONTROL')
+
+        if total_score >= 24:
+            risk_flags.append('SIGNIFICANT_IMPAIRMENT')
+
+        # Crisis alert for extreme cases
+        crisis_alert = total_score >= 32
+
+        # Recommendations
+        recommendations = []
+        if total_score >= 24:
+            recommendations.extend([
+                "Consult with mental health professional specializing in OCD",
+                "Consider medication evaluation (SSRIs are first-line treatment)",
+                "Engage in Cognitive-Behavioral Therapy with Exposure and Response Prevention (ERP)",
+                "Consider intensive treatment programs for severe symptoms"
+            ])
+        elif total_score >= 16:
+            recommendations.extend([
+                "Professional evaluation for OCD recommended",
+                "Learn about ERP therapy from qualified provider",
+                "Consider support groups for OCD",
+                "Discuss treatment options with healthcare provider"
+            ])
+        elif total_score >= 8:
+            recommendations.extend([
+                "Consider speaking with therapist about OCD symptoms",
+                "Learn about OCD and evidence-based treatments",
+                "Practice self-help CBT techniques under professional guidance"
+            ])
+
+        return ScoringResult(
+            total_score=float(total_score),
+            severity_level=severity,
+            risk_level=risk_level,
+            subscale_scores={
+                'obsessions_severity': float(obsession_total),
+                'compulsions_severity': float(compulsion_total)
+            },
+            interpretation=interpretation,
+            recommendations=recommendations,
+            crisis_alert=crisis_alert,
+            risk_flags=risk_flags
+        )
+
+
+class BDI2Scorer:
+    """
+    Beck Depression Inventory-II (BDI-II)
+
+    One of the most widely used instruments for measuring the severity of depression.
+
+    Reliability: α = 0.91 (excellent internal consistency)
+    Test-retest reliability: r = 0.93
+    Concurrent validity: r = 0.71 with Hamilton Rating Scale for Depression
+
+    Items: 21 items, 0-3 scale
+    - 0 = Symptom not present
+    - 1 = Mild (symptom present but not disruptive)
+    - 2 = Moderate (definitely disturbing)
+    - 3 = Severe (incapacitating)
+
+    Range: 0-63
+
+    CLINICAL CUTOFFS:
+    - 0-13: Minimal depression
+    - 14-19: Mild depression
+    - 20-28: Moderate depression
+    - 29-63: Severe depression
+
+    SUBSCALES:
+    - Cognitive: items 1-5, 11-13, 15 (8 items)
+    - Affective: items 6, 7, 8, 10, 12, 14, 17, 18 (8 items)
+    - Somatic: items 16, 17, 18, 19, 20, 21 (5 items)
+    -  (Note: some items load on multiple factors in different factor analyses)
+
+    CRITICAL ITEMS:
+    - Item 2: Pessimism (suicide risk indicator)
+    - Item 9: Suicidal thoughts or wishes (CRITICAL - requires immediate attention)
+    """
+
+    NAME = "BDI-II"
+    ITEMS = 21
+    SCALE_RANGE = (0, 3)
+    MAX_SCORE = 63
+    SUICIDE_ITEMS = [2, 9]  # Items that may indicate suicide risk
+
+    @staticmethod
+    def score(responses: Dict[int, int]) -> ScoringResult:
+        """
+        Score BDI-II assessment
+
+        Args:
+            responses: Dict mapping item number (1-21) to response value (0-3)
+
+        Returns:
+            ScoringResult with interpretation and recommendations
+        """
+        # Validate input
+        if len(responses) != BDI2Scorer.ITEMS:
+            raise ValueError(f"BDI-II requires {BDI2Scorer.ITEMS} responses, got {len(responses)}")
+
+        for item, value in responses.items():
+            if not isinstance(value, int) or not (0 <= value <= 3):
+                raise ValueError(f"Item {item} response must be 0-3, got {value}")
+
+        # Calculate total score
+        total_score = sum(responses.values())
+
+        # Determine severity based on standardized cutoffs
+        if total_score >= 40:
+            severity = SeverityLevel.SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Severe Depression: Marked depressive symptoms causing significant impairment in daily functioning, relationships, and quality of life. Strongly recommends immediate evaluation by mental health professional. Depression at this level typically requires comprehensive treatment (psychotherapy, medication, or both)."
+
+        elif total_score >= 29:
+            severity = SeverityLevel.MODERATELY_SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Moderately Severe Depression: Significant depressive symptoms causing substantial interference with daily activities, work, and relationships. Professional evaluation and treatment strongly recommended. Evidence-based treatments (CBT, IPT, medication) are highly effective."
+
+        elif total_score >= 20:
+            severity = SeverityLevel.MODERATE.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Moderate Depression: Moderate level of depressive symptoms causing noticeable impairment in functioning. Professional evaluation recommended. Depression at this level often responds well to outpatient treatment (psychotherapy and/or medication)."
+
+        elif total_score >= 14:
+            severity = SeverityLevel.MILD.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Mild Depression: Presence of depressive symptoms causing some distress but manageable. Consider consultation with mental health professional to discuss symptoms and treatment options. Early intervention can prevent worsening."
+
+        else:
+            severity = SeverityLevel.MINIMAL.value
+            risk_level = RiskLevel.LOW.value
+            interpretation = "Minimal Depression: Few or no depressive symptoms present. No evidence of clinically significant depression. Continue self-monitoring and mental wellness practices. Consider evaluation if symptoms worsen or persist for more than 2 weeks."
+
+        # Subscale scores (based on factor-analytically derived subscales)
+        cognitive_items = [1, 2, 3, 4, 5, 11, 12, 13, 15]
+        affective_items = [6, 7, 8, 10, 14, 17, 18]
+        somatic_items = [16, 17, 18, 19, 20, 21]
+
+        cognitive_score = sum(responses.get(i, 0) for i in cognitive_items)
+        affective_score = sum(responses.get(i, 0) for i in affective_items)
+        somatic_score = sum(responses.get(i, 0) for i in somatic_items)
+
+        # Risk flags
+        risk_flags = []
+
+        # Check for suicide risk indicators
+        if responses.get(2, 0) >= 2:  # Pessimism about future
+            risk_flags.append('PESSIMISM')
+
+        if responses.get(9, 0) >= 1:  # Suicidal thoughts
+            risk_flags.append('SUICIDAL_THOUGHTS')
+            risk_level = RiskLevel.CRITICAL.value
+
+        # Check for anhedonia (loss of pleasure)
+        if responses.get(4, 0) >= 2:  # Loss of pleasure
+            risk_flags.append('ANHEDONIA')
+
+        # Check for worthlessness/guilt
+        if responses.get(5, 0) >= 2 or responses.get(7, 0) >= 2:
+            risk_flags.append('NEGATIVE_SELF_VIEWS')
+
+        # Check for somatic symptoms
+        if somatic_score >= 9:
+            risk_flags.append('SIGNIFICANT_SOMATIC_SYMPTOMS')
+
+        # Crisis alert for suicidal thoughts OR extreme depression
+        crisis_alert = (responses.get(9, 0) >= 2) or (total_score >= 50)
+
+        # Recommendations
+        recommendations = []
+        if total_score >= 29:
+            recommendations.extend([
+                "Urgent evaluation by mental health professional recommended",
+                "Consider comprehensive treatment: psychotherapy + medication",
+                "Cognitive Behavioral Therapy (CBT) is first-line treatment",
+                "Medication consultation (SSRIs or other antidepressants)",
+                "If experiencing suicidal thoughts, contact crisis services immediately: 988 or 911"
+            ])
+        elif total_score >= 20:
+            recommendations.extend([
+                "Professional evaluation by mental health provider recommended",
+                "Consider psychotherapy (CBT, IPT, or other evidence-based approaches)",
+                "Discuss medication options with healthcare provider",
+                "Build support network of friends and family",
+                "Engage in regular exercise and sleep hygiene"
+            ])
+        elif total_score >= 14:
+            recommendations.extend([
+                "Consider consultation with mental health professional",
+                "Learn about depression and evidence-based treatments",
+                "Practice self-care: regular exercise, healthy sleep, social activities",
+                "Monitor symptoms and seek help if they worsen",
+                "Consider online CBT programs or support groups"
+            ])
+        else:
+            recommendations.extend([
+                "Continue practicing good mental health habits",
+                "Regular exercise, adequate sleep, and balanced nutrition",
+                "Maintain social connections and activities",
+                "Practice stress management and relaxation techniques",
+                "Monitor for changes in mood and seek help if needed"
+            ])
+
+        # Add crisis resources if suicidal thoughts present
+        if responses.get(9, 0) >= 2:
+            recommendations.append("CRISIS: Please contact National Suicide Prevention Lifeline: 988 (24/7)")
+            recommendations.append("CRISIS: Text HOME to 741741 to connect with Crisis Text Line")
+
+        return ScoringResult(
+            total_score=float(total_score),
+            severity_level=severity,
+            risk_level=risk_level,
+            subscale_scores={
+                'cognitive': float(cognitive_score),
+                'affective': float(affective_score),
+                'somatic': float(somatic_score)
+            },
+            interpretation=interpretation,
+            recommendations=recommendations,
+            crisis_alert=crisis_alert,
+            risk_flags=risk_flags
+        )
+
+
+class BAIScorer:
+    """
+    Beck Anxiety Inventory (BAI)
+
+    Self-report questionnaire for measuring severity of anxiety in adults and adolescents.
+
+    Reliability: α = 0.92 (excellent internal consistency)
+    Test-retest reliability: r = 0.75 (1 week)
+    Concurrent validity: r = 0.67 with Hamilton Anxiety Rating Scale
+
+    Items: 21 items, 0-3 scale
+    - 0 = Not at all
+    - 1 = Mildly - it didn't bother me much
+    - 2 = Moderately - it was very unpleasant, but I could stand it
+    - 3 = Severely - I could barely stand it
+
+    Range: 0-63
+
+    CLINICAL CUTOFFS:
+    - 0-7: Minimal anxiety
+    - 8-15: Mild anxiety
+    - 16-25: Moderate anxiety
+    - 26-63: Severe anxiety
+
+    SUBSCALES:
+    - Cognitive: items 1-5, 8-10, 12-13, 15-17, 19, 21 (13 items)
+    - Somatic: items 6-7, 11, 14, 18, 20 (8 items)
+    - Panic: items 1, 5, 14, 17, 20 (5 items overlapping with cognitive/somatic)
+
+    IMPORTANT: BAI measures SEVERITY of anxiety symptoms, not frequency.
+    Different from GAD-7 which measures frequency over 2-week period.
+    """
+
+    NAME = "BAI"
+    ITEMS = 21
+    SCALE_RANGE = (0, 3)
+    MAX_SCORE = 63
+
+    @staticmethod
+    def score(responses: Dict[int, int]) -> ScoringResult:
+        """
+        Score BAI assessment
+
+        Args:
+            responses: Dict mapping item number (1-21) to response value (0-3)
+
+        Returns:
+            ScoringResult with interpretation and recommendations
+        """
+        # Validate input
+        if len(responses) != BAIScorer.ITEMS:
+            raise ValueError(f"BAI requires {BAIScorer.ITEMS} responses, got {len(responses)}")
+
+        for item, value in responses.items():
+            if not isinstance(value, int) or not (0 <= value <= 3):
+                raise ValueError(f"Item {item} response must be 0-3, got {value}")
+
+        # Calculate total score
+        total_score = sum(responses.values())
+
+        # Determine severity based on standardized cutoffs
+        if total_score >= 45:
+            severity = SeverityLevel.SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Severe Anxiety: Extreme anxiety symptoms causing severe distress and significantly impairing daily functioning, work, relationships, and quality of life. Urgent professional evaluation and treatment recommended. Anxiety disorders are highly treatable with CBT, medication, or both."
+
+        elif total_score >= 26:
+            severity = SeverityLevel.MODERATELY_SEVERE.value
+            risk_level = RiskLevel.HIGH.value
+            interpretation = "Moderately Severe to Severe Anxiety: Very high levels of anxiety causing substantial distress and interference with daily activities. Strongly recommends professional evaluation. Evidence-based treatments (CBT, exposure therapy, medication) can provide significant relief."
+
+        elif total_score >= 16:
+            severity = SeverityLevel.MODERATE.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Moderate Anxiety: Moderate anxiety symptoms causing noticeable distress and some impairment in functioning. Professional evaluation recommended. Anxiety at this level often responds well to outpatient treatment (CBT, medication, or combination)."
+
+        elif total_score >= 8:
+            severity = SeverityLevel.MILD.value
+            risk_level = RiskLevel.MODERATE.value
+            interpretation = "Mild Anxiety: Presence of anxiety symptoms causing some distress but generally manageable. Consider consultation with mental health professional to discuss symptoms and treatment options. Early intervention can prevent worsening and improve quality of life."
+
+        else:
+            severity = SeverityLevel.MINIMAL.value
+            risk_level = RiskLevel.LOW.value
+            interpretation = "Minimal Anxiety: Few or no anxiety symptoms present. No evidence of clinically significant anxiety. Continue self-monitoring and stress management practices. Consider evaluation if symptoms worsen or persist for extended period."
+
+        # Subscale scores
+        # Cognitive symptoms (worry, fear, inability to concentrate)
+        cognitive_items = [1, 2, 3, 4, 5, 8, 9, 10, 12, 13, 15, 16, 17, 19, 21]
+        # Somatic symptoms (physical manifestations of anxiety)
+        somatic_items = [6, 7, 8, 11, 14, 15, 18, 20]
+        # Panic symptoms
+        panic_items = [1, 5, 14, 17, 20]
+
+        cognitive_score = sum(responses.get(i, 0) for i in cognitive_items)
+        somatic_score = sum(responses.get(i, 0) for i in somatic_items)
+        panic_score = sum(responses.get(i, 0) for i in panic_items)
+
+        # Risk flags
+        risk_flags = []
+
+        # Check for significant panic symptoms
+        if panic_score >= 9:
+            risk_flags.append('SIGNIFICANT_PANIC')
+
+        # Check for somatic severity
+        if somatic_score >= 15:
+            risk_flags.append('SEVERE_SOMATIC_ANXIETY')
+
+        # Check for cognitive impairment
+        if cognitive_score >= 25:
+            risk_flags.append('SIGNIFICANT_COGNITIVE_ANXIETY')
+
+        # Check for specific severe symptoms
+        if responses.get(10, 0) >= 3:  # Faintness/dizziness
+            risk_flags.append('SEVERE_PHYSICAL_SYMPPTOMS')
+
+        if responses.get(2, 0) >= 3:  # Feelings of unreality/detachment
+            risk_flags.append('DEPERSONALIZATION')
+
+        if responses.get(9, 0) >= 3:  # Terrified or afraid
+            risk_flags.append('INTENSE_FEAR')
+
+        # Crisis alert for severe panic or extreme anxiety
+        crisis_alert = (panic_score >= 12) or (total_score >= 55)
+
+        # Recommendations
+        recommendations = []
+        if total_score >= 26:
+            recommendations.extend([
+                "Urgent evaluation by mental health professional recommended",
+                "Consider comprehensive anxiety treatment: CBT + medication",
+                "Cognitive Behavioral Therapy (CBT) is first-line treatment for anxiety",
+                "Exposure-based therapy for specific fears/phobias",
+                "Consider consultation with psychiatrist for medication evaluation",
+                "Practice anxiety management techniques daily (deep breathing, progressive muscle relaxation, mindfulness)"
+            ])
+        elif total_score >= 16:
+            recommendations.extend([
+                "Professional evaluation by mental health provider recommended",
+                "Consider psychotherapy (CBT, exposure therapy, or other evidence-based approaches)",
+                "Learn about anxiety disorders and evidence-based treatments",
+                "Practice regular relaxation techniques and stress management",
+                "Consider medication consultation with healthcare provider",
+                "Avoid caffeine, alcohol, and other substances that may worsen anxiety"
+            ])
+        elif total_score >= 8:
+            recommendations.extend([
+                "Consider consultation with mental health professional",
+                "Learn about anxiety and coping strategies",
+                "Practice regular exercise and adequate sleep",
+                "Limit caffeine and alcohol consumption",
+                "Try relaxation apps or guided meditation",
+                "Consider self-help CBT workbooks or online programs"
+            ])
+        else:
+            recommendations.extend([
+                "Continue practicing good stress management habits",
+                "Regular exercise (aim for 30 minutes most days)",
+                "Balanced nutrition and adequate sleep (7-9 hours nightly)",
+                "Mindfulness meditation or yoga can help prevent anxiety buildup",
+                "Maintain social connections and support network"
+            ])
+
+        # Add panic-specific recommendations if significant panic symptoms
+        if panic_score >= 9:
+            recommendations.insert(0, "Panic symptoms detected: Consider evaluation for panic disorder")
+            recommendations.insert(1, "Learn breathing techniques and grounding exercises for panic attacks")
+
+        return ScoringResult(
+            total_score=float(total_score),
+            severity_level=severity,
+            risk_level=risk_level,
+            subscale_scores={
+                'cognitive_anxiety': float(cognitive_score),
+                'somatic_anxiety': float(somatic_score),
+                'panic_severity': float(panic_score)
+            },
+            interpretation=interpretation,
+            recommendations=recommendations,
+            crisis_alert=crisis_alert,
+            risk_flags=risk_flags
+        )

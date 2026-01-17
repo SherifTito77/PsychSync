@@ -6,22 +6,22 @@ from ai.processors.processors_base import PersonalityFrameworkProcessor
 
 class MBTIProcessor(PersonalityFrameworkProcessor):
     """Process MBTI assessment results"""
-    
+
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process raw MBTI data into standardized format"""
         if not self._validate_input(raw_data):
             return self._fallback_result('mbti', 'Invalid input data')
-        
+
         try:
             mbti_type = self._safe_get(raw_data, 'type', 'INTJ').upper()
             confidence = self._safe_get(raw_data, 'confidence', 0.8)
-            
+
             if not self._is_valid_mbti(mbti_type):
                 mbti_type = 'INTJ'  # Default fallback
-            
+
             # Map to Big Five dimensions
             dimensions = self._mbti_to_big_five(mbti_type)
-            
+
             return {
                 'type': mbti_type,
                 'confidence': confidence,
@@ -31,35 +31,35 @@ class MBTIProcessor(PersonalityFrameworkProcessor):
                 'strengths': self._get_type_strengths(mbti_type),
                 'blind_spots': self._get_blind_spots(mbti_type)
             }
-            
+
         except Exception as e:
             return self._fallback_result('mbti', str(e))
-    
+
     def _is_valid_mbti(self, mbti_type: str) -> bool:
         """Validate MBTI type format"""
         if len(mbti_type) != 4:
             return False
-        return (mbti_type[0] in 'EI' and mbti_type[1] in 'SN' and 
+        return (mbti_type[0] in 'EI' and mbti_type[1] in 'SN' and
                 mbti_type[2] in 'TF' and mbti_type[3] in 'JP')
-    
+
     def _mbti_to_big_five(self, mbti_type: str) -> Dict[str, float]:
         """Convert MBTI type to Big Five dimensions"""
         dimensions = self._default_dimensions()
-        
+
         # Extraversion/Introversion
         dimensions['extraversion'] = 0.75 if mbti_type[0] == 'E' else 0.25
-        
+
         # Sensing/Intuition -> Openness
         dimensions['openness'] = 0.75 if mbti_type[1] == 'N' else 0.35
-        
+
         # Thinking/Feeling -> Agreeableness
         dimensions['agreeableness'] = 0.75 if mbti_type[2] == 'F' else 0.35
-        
+
         # Judging/Perceiving -> Conscientiousness
         dimensions['conscientiousness'] = 0.75 if mbti_type[3] == 'J' else 0.35
-        
+
         return dimensions
-    
+
     def _get_preferences(self, mbti_type: str) -> Dict[str, str]:
         """Get preference descriptions"""
         return {
@@ -68,7 +68,7 @@ class MBTIProcessor(PersonalityFrameworkProcessor):
             'decisions': 'Thinking' if mbti_type[2] == 'T' else 'Feeling',
             'lifestyle': 'Judging' if mbti_type[3] == 'J' else 'Perceiving'
         }
-    
+
     def _get_type_description(self, mbti_type: str) -> str:
         """Get type description"""
         descriptions = {
@@ -90,7 +90,7 @@ class MBTIProcessor(PersonalityFrameworkProcessor):
             'ESFP': "The Entertainer - Spontaneous, energetic, and enthusiastic"
         }
         return descriptions.get(mbti_type, "Unknown type")
-    
+
     def _get_type_strengths(self, mbti_type: str) -> List[str]:
         """Get strengths for MBTI type"""
         strengths = {
@@ -112,7 +112,7 @@ class MBTIProcessor(PersonalityFrameworkProcessor):
             'ESFP': ["Enthusiasm", "People skills", "Spontaneity"]
         }
         return strengths.get(mbti_type, ["Balanced perspective"])
-    
+
     def _get_blind_spots(self, mbti_type: str) -> List[str]:
         """Get potential blind spots for MBTI type"""
         blind_spots = {

@@ -22,7 +22,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     full_name: str
     password: str
-    
+
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, v):
@@ -30,7 +30,7 @@ class UserRegister(BaseModel):
         if not result['valid']:
             raise ValueError('Password does not meet security requirements: ' + '; '.join(result['errors']))
         return v
-    
+
     @field_validator('full_name')
     def validate_full_name(cls, v):
         if len(v) < 2:
@@ -55,7 +55,7 @@ class PasswordChange(BaseModel):
     """Password change request schema"""
     current_password: str
     new_password: str
-    
+
     @field_validator('new_password')
     def validate_new_password(cls, v):
         result = validate_password(v)
@@ -87,7 +87,7 @@ class PasswordResetConfirm(BaseModel):
     """Password reset confirmation schema"""
     token: str
     new_password: str
-    
+
     @field_validator('new_password')
     @classmethod
     def validate_new_password(cls, v):

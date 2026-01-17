@@ -43,7 +43,7 @@ def get_health_overview(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/health/overview"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -90,7 +90,7 @@ def get_service_health(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/services"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -412,7 +412,7 @@ def get_competitive_benchmarking(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/business/competitive-benchmarking"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -459,7 +459,7 @@ def get_business_dashboard_summary(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/business/dashboard-summary"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -506,7 +506,7 @@ def get_security_overview(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/security/overview"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -599,7 +599,7 @@ def get_security_by_tool(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/security/by-tool"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -646,7 +646,7 @@ def get_security_compliance(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/security/compliance"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -693,7 +693,7 @@ def get_security_score_endpoint(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/security/score"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -786,7 +786,7 @@ def get_security_dashboard(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/security/dashboard"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -878,7 +878,7 @@ def metrics_endpoint(client):
     # TODO: Implement test logic
     response = client.get(
         "/metrics"
-        
+
     )
 
     assert response.status_code in [200, 201]

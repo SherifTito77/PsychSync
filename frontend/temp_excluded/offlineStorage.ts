@@ -1,13 +1,13 @@
 /**
  * Offline Storage Utilities for PsychSync
- * 
+ *
  * Why we need this:
  * - Store assessment data when offline
  * - Cache user profile and preferences
  * - Queue failed API requests for retry
  * - Persist form progress
  * - Enable offline-first experience
- * 
+ *
  * Storage Strategy:
  * - localStorage: Small data, preferences, tokens
  * - IndexedDB: Large data, assessments, cached responses
@@ -80,13 +80,13 @@ export const getLocalStorage = (key, maxAge = null) => {
     if (!item) return null;
 
     const { data, timestamp } = JSON.parse(item);
-    
+
     // Check if data is expired
     if (maxAge && Date.now() - timestamp > maxAge) {
       localStorage.removeItem(key);
       return null;
     }
-    
+
     return data;
   } catch (error) {
     console.error('localStorage getItem error:', error);
@@ -114,10 +114,10 @@ const clearOldLocalStorage = () => {
   try {
     const keys = Object.keys(localStorage);
     const psychsyncKeys = keys.filter(key => key.startsWith('psychsync_'));
-    
+
     // Remove items older than 30 days
     const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    
+
     psychsyncKeys.forEach(key => {
       try {
         const item = JSON.parse(localStorage.getItem(key));
@@ -193,35 +193,35 @@ export const updatePreference = (key, value) => {
 const openDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      
+
       // Create object stores
       if (!db.objectStoreNames.contains(STORES.ASSESSMENTS)) {
         const assessmentStore = db.createObjectStore(STORES.ASSESSMENTS, { keyPath: 'id' });
         assessmentStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
-      
+
       if (!db.objectStoreNames.contains(STORES.RESPONSES)) {
         const responseStore = db.createObjectStore(STORES.RESPONSES, { keyPath: 'id', autoIncrement: true });
         responseStore.createIndex('assessmentId', 'assessmentId', { unique: false });
         responseStore.createIndex('synced', 'synced', { unique: false });
         responseStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
-      
+
       if (!db.objectStoreNames.contains(STORES.TEAM_DATA)) {
         db.createObjectStore(STORES.TEAM_DATA, { keyPath: 'id' });
       }
-      
+
       if (!db.objectStoreNames.contains(STORES.SYNC_QUEUE)) {
         const syncStore = db.createObjectStore(STORES.SYNC_QUEUE, { keyPath: 'id', autoIncrement: true });
         syncStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
-      
+
       if (!db.objectStoreNames.contains(STORES.CACHE)) {
         const cacheStore = db.createObjectStore(STORES.CACHE, { keyPath: 'key' });
         cacheStore.createIndex('expiry', 'expiry', { unique: false });
@@ -238,7 +238,7 @@ const dbOperation = async (storeName, mode, operation) => {
     const db = await openDB();
     const transaction = db.transaction(storeName, mode);
     const store = transaction.objectStore(storeName);
-    
+
     return new Promise((resolve, reject) => {
       const request = operation(store);
       request.onsuccess = () => resolve(request.result);
@@ -318,7 +318,7 @@ export const getUnsyncedResponses = async () => {
   const transaction = db.transaction(STORES.RESPONSES, 'readonly');
   const store = transaction.objectStore(STORES.RESPONSES);
   const index = store.index('synced');
-  
+
   return new Promise((resolve, reject) => {
     const request = index.getAll(false);
     request.onsuccess = () => resolve(request.result);
@@ -333,12 +333,12 @@ export const markResponseSynced = async (id) => {
   const db = await openDB();
   const transaction = db.transaction(STORES.RESPONSES, 'readwrite');
   const store = transaction.objectStore(STORES.RESPONSES);
-  
+
   const response = await new Promise((resolve) => {
     const req = store.get(id);
     req.onsuccess = () => resolve(req.result);
   });
-  
+
   if (response) {
     response.synced = true;
     response.syncedAt = Date.now();
@@ -357,13 +357,13 @@ export const cleanupOldResponses = async () => {
   const transaction = db.transaction(STORES.RESPONSES, 'readwrite');
   const store = transaction.objectStore(STORES.RESPONSES);
   const index = store.index('timestamp');
-  
+
   const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-  
+
   return new Promise((resolve) => {
     const request = index.openCursor();
     let deletedCount = 0;
-    
+
     request.onsuccess = (event) => {
       const cursor = event.target.result;
       if (cursor) {
@@ -425,12 +425,12 @@ export const incrementRetries = async (id) => {
   const db = await openDB();
   const transaction = db.transaction(STORES.SYNC_QUEUE, 'readwrite');
   const store = transaction.objectStore(STORES.SYNC_QUEUE);
-  
+
   const request = await new Promise((resolve) => {
     const req = store.get(id);
     req.onsuccess = () => resolve(req.result);
   });
-  
+
   if (request) {
     request.retries = (request.retries || 0) + 1;
     await new Promise((resolve) => {
@@ -466,9 +466,9 @@ export const getCachedAPIResponse = async (key) => {
     const cached = await dbOperation(STORES.CACHE, 'readonly', (store) => {
       return store.get(key);
     });
-    
+
     if (!cached) return null;
-    
+
     // Check if expired
     if (Date.now() > cached.expiry) {
       await dbOperation(STORES.CACHE, 'readwrite', (store) => {
@@ -476,7 +476,7 @@ export const getCachedAPIResponse = async (key) => {
       });
       return null;
     }
-    
+
     return cached.data;
   } catch (error) {
     console.error('Error getting cached response:', error);
@@ -492,11 +492,11 @@ export const clearExpiredCache = async () => {
   const transaction = db.transaction(STORES.CACHE, 'readwrite');
   const store = transaction.objectStore(STORES.CACHE);
   const index = store.index('expiry');
-  
+
   return new Promise((resolve) => {
     const request = index.openCursor();
     let deletedCount = 0;
-    
+
     request.onsuccess = (event) => {
       const cursor = event.target.result;
       if (cursor) {
@@ -585,7 +585,7 @@ export const clearAllOfflineData = async () => {
     Object.values(STORAGE_KEYS).forEach(key => {
       localStorage.removeItem(key);
     });
-    
+
     // Clear IndexedDB
     const db = await openDB();
     const stores = [
@@ -595,7 +595,7 @@ export const clearAllOfflineData = async () => {
       STORES.SYNC_QUEUE,
       STORES.CACHE
     ];
-    
+
     for (const storeName of stores) {
       const transaction = db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
@@ -604,7 +604,7 @@ export const clearAllOfflineData = async () => {
         req.onsuccess = () => resolve();
       });
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error clearing offline data:', error);
@@ -643,52 +643,52 @@ export default {
   setLocalStorage,
   getLocalStorage,
   removeLocalStorage,
-  
+
   // User & Auth
   saveUserProfile,
   getUserProfile,
   saveAuthToken,
   getAuthToken,
   clearAuthData,
-  
+
   // Preferences
   savePreferences,
   getPreferences,
   updatePreference,
-  
+
   // Assessments
   saveAssessment,
   getAssessment,
   getAllAssessments,
   deleteAssessment,
-  
+
   // Responses
   saveAssessmentResponse,
   getUnsyncedResponses,
   markResponseSynced,
   cleanupOldResponses,
-  
+
   // Sync Queue
   queueRequest,
   getQueuedRequests,
   removeFromQueue,
   incrementRetries,
-  
+
   // Cache
   cacheAPIResponse,
   getCachedAPIResponse,
   clearExpiredCache,
-  
+
   // Form Drafts
   saveFormDraft,
   getFormDraft,
   clearFormDraft,
-  
+
   // Sync Status
   updateLastSync,
   getLastSync,
   isDataStale,
-  
+
   // Utilities
   clearAllOfflineData,
   getStorageInfo

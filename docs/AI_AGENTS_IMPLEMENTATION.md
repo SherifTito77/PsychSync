@@ -117,7 +117,7 @@ All agents require database tables to be created. Run:
 PYTHONPATH=/Users/sheriftito/Downloads/psychsync python3 app/scripts/setup_sql_audit_tables.py
 PYTHONPATH=/Users/sheriftito/Downloads/psychsync python3 app/scripts/seed_sql_audit.py
 
-# Query Performance Agent  
+# Query Performance Agent
 PYTHONPATH=/Users/sheriftito/Downloads/psychsync python3 app/scripts/setup_query_performance_tables.py
 
 # Create tables for remaining agents (similar setup scripts needed for:)

@@ -681,4 +681,3 @@ The Unified Security Testing Framework provides comprehensive, 120% security cov
 **Version:** 1.0
 
 *This framework represents the state of the art in application security testing.*
-

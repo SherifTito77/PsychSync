@@ -313,7 +313,7 @@ def get_backup_statistics(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/backups/statistics"
-        
+
     )
 
     assert response.status_code in [200, 201]
@@ -496,7 +496,7 @@ def get_backup_config(client, auth_headers):
     # TODO: Implement test logic
     response = client.get(
         "/backups/config"
-        
+
     )
 
     assert response.status_code in [200, 201]

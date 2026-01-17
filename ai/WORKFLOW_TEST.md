@@ -8,4 +8,3 @@ This file was created to test all 5 GitHub Actions workflows:
 5. SLSA Deploy Verify (triggers after SLSA Build)
 
 Date: 2025-12-26 05:54:25 UTC
-

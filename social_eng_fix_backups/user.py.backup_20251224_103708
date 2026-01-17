@@ -47,7 +47,7 @@ class User(Base):
     # Password reset
     password_reset_token = Column(Text, nullable=True)
     password_reset_expires = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
@@ -60,7 +60,7 @@ class User(Base):
         nullable=False
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     # Foreign keys
     organization_id = Column(
         UUID(as_uuid=True),
@@ -122,6 +122,6 @@ class User(Base):
     # acknowledged_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.acknowledged_by", back_populates="acknowledged_user")
     # assigned_alerts = relationship("CommunicationAlert", foreign_keys="CommunicationAlert.assigned_to", back_populates="assigned_user")
     # managed_recommendations = relationship("CoachingRecommendation", foreign_keys="CoachingRecommendation.manager_id", back_populates="manager")
-    
+
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"

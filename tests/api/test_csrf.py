@@ -41,7 +41,7 @@ def get_csrf_token(client):
     # TODO: Implement test logic
     response = client.get(
         "/token"
-        
+
     )
 
     assert response.status_code in [200, 201]

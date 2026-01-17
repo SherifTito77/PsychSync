@@ -7,4 +7,3 @@ echo '{
   "tabWidth": 2,
   "printWidth": 100
 }' > .prettierrc
-

@@ -43,7 +43,7 @@ def get_personality_frameworks(client):
     # TODO: Implement test logic
     response = client.get(
         "/frameworks"
-        
+
     )
 
     assert response.status_code in [200, 201]

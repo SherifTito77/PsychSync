@@ -41,13 +41,13 @@ def start_response(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assessment not found"
         )
-    
+
     if assessment.status.value != "active":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Assessment is not published"
         )
-    
+
     # Create or get existing session
     response = ResponseService.create_response_session(
         db,
@@ -57,7 +57,7 @@ def start_response(
 @check_rate_limit(identifier="public", endpoint_type="public")
 t_id=response_in.assignment_id
     )
-    
+
     return response
 
 
@@ -90,13 +90,13 @@ def get_response(
     Get response details with score.
     """
     response = ResponseService.get_response(db, response_id=response_id)
-    
+
     if not response:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Response not found"
         )
-    
+
     # Check permission
     if response.respondent_id != current_user.id:
         # Check if user is assessment creator or team admin
@@ -106,13 +106,13 @@ def get_response(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to view this response"
             )
-    
+
     # Get score
     score = ResponseService.get_response_score(db, response_id=response_id)
-    
+
     response_dict = ResponseSchema.from_orm(response).dict()
     response_dict['score'] = score
-    
+
     return response_dict
 
 
@@ -127,27 +127,27 @@ def save_progress(
     Save progress on a response.
     """
     response = ResponseService.get_response(db, response_id=response_id)
-    
+
     if not response:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Response not found"
         )
-    
+
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only save your own responses"
         )
-    
+
     # Check if already completed
     if response.is_complete:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot modify completed response"
         )
-    
+
     # Save progress
     updated_response = ResponseService.save_progress(
         db,
@@ -155,7 +155,7 @@ def save_progress(
         responses_data=save_data.responses,
         current_section=save_data.current_section
     )
-    
+
     return updated_response
 
 
@@ -170,43 +170,43 @@ def submit_response(
     Submit completed response.
     """
     response = ResponseService.get_response(db, response_id=response_id)
-    
+
     if not response:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Response not found"
         )
-    
+
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only submit your own responses"
         )
-    
+
     # Check if already completed
     if response.is_complete:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Response already submitted"
         )
-    
+
     # Merge and validate responses
     all_responses = response.responses.copy()
     all_responses.update(submit_data.responses)
-    
+
     is_valid, error_msg = ResponseService.validate_response_data(
         db,
         assessment_id=response.assessment_id,
         responses_data=all_responses
     )
-    
+
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=error_msg
         )
-    
+
     # Submit response
     submitted_response = ResponseService.submit_response(
         db,
@@ -214,13 +214,13 @@ def submit_response(
         responses_data=submit_data.responses,
         time_taken=submit_data.time_taken
     )
-    
+
     # Get score
     score = ResponseService.get_response_score(db, response_id=response_id)
-    
+
     response_dict = ResponseSchema.from_orm(submitted_response).dict()
     response_dict['score'] = score
-    
+
     return response_dict
 
 
@@ -234,27 +234,27 @@ def delete_response(
     Delete a response (only if not completed).
     """
     response = ResponseService.get_response(db, response_id=response_id)
-    
+
     if not response:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Response not found"
         )
-    
+
     # Check permission
     if response.respondent_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own responses"
         )
-    
+
     # Cannot delete completed responses
     if response.is_complete:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot delete completed response"
         )
-    
+
     ResponseService.delete_response(db, response=response)
     return None
 
@@ -269,13 +269,13 @@ def get_response_score(
     Get score for a completed response.
     """
     response = ResponseService.get_response(db, response_id=response_id)
-    
+
     if not response:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Response not found"
         )
-    
+
     # Check permission
     if response.respondent_id != current_user.id:
         assessment = AssessmentService.get_by_id(db, assessment_id=response.assessment_id)
@@ -284,23 +284,23 @@ def get_response_score(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to view this score"
             )
-    
+
     if not response.is_complete:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Response not yet completed"
         )
-    
+
     score = ResponseService.get_response_score(db, response_id=response_id)
-    
+
     if not score:
         # Calculate score if it doesn't exist
         score = ResponseService.calculate_score(db, response=response)
-    
+
     if not score:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Score not available"
         )
-    
+
     return score

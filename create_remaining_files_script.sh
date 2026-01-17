@@ -45,28 +45,28 @@ cat > app/templates/email/subscription_confirmation.html << 'EOF'
         <div style="text-align: center; border-bottom: 2px solid #6366f1; padding-bottom: 20px;">
             <div style="font-size: 28px; font-weight: bold; color: #6366f1;">PsychSync AI</div>
         </div>
-        
+
         <h1>🎉 Subscription Confirmed!</h1>
         <p>Hi {{ user_name }},</p>
         <p>Welcome to PsychSync! Your subscription has been successfully activated.</p>
-        
+
         <div style="background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; margin: 20px 0;">
             {{ plan_name }} Plan
         </div>
-        
+
         <div style="background: #eff6ff; padding: 15px; border-radius: 6px; border-left: 4px solid #3b82f6;">
             <h3>Billing Details</h3>
             <p><strong>Plan:</strong> {{ plan_name }}</p>
             <p><strong>Amount:</strong> ${{ amount }}/{{ billing_cycle }}</p>
             <p><strong>Next Billing Date:</strong> {{ next_billing_date }}</p>
         </div>
-        
+
         <div style="text-align: center; margin: 30px 0;">
             <a href="{{ dashboard_link }}" style="display: inline-block; padding: 12px 30px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px;">
                 Access Your Dashboard
             </a>
         </div>
-        
+
         <p style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 40px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
             © 2025 PsychSync AI. All rights reserved.
         </p>
@@ -93,7 +93,7 @@ cat > app/templates/docs/gdpr_compliance.html << 'EOF'
 <body style="font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px;">
     <h1>🇪🇺 GDPR Compliance Documentation</h1>
     <p><strong>Last Updated:</strong> January 2025</p>
-    
+
     <h2>Your Rights Under GDPR</h2>
     <ul>
         <li>Right to Access</li>
@@ -102,7 +102,7 @@ cat > app/templates/docs/gdpr_compliance.html << 'EOF'
         <li>Right to Data Portability</li>
         <li>Right to Object</li>
     </ul>
-    
+
     <p>Contact our DPO: <a href="mailto:dpo@psychsync.ai">dpo@psychsync.ai</a></p>
 </body>
 </html>
@@ -119,17 +119,17 @@ cat > frontend/public/legal/cookies.html << 'EOF'
 <body style="font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px;">
     <h1>🍪 Cookie Policy</h1>
     <p><strong>Effective Date:</strong> January 1, 2025</p>
-    
+
     <h2>What Are Cookies?</h2>
     <p>Cookies are small text files stored on your device when you visit a website.</p>
-    
+
     <h2>Types of Cookies We Use</h2>
     <ul>
         <li><strong>Essential Cookies:</strong> Required for site functionality</li>
         <li><strong>Analytics Cookies:</strong> Help us improve our service</li>
         <li><strong>Marketing Cookies:</strong> Only with your consent</li>
     </ul>
-    
+
     <div style="text-align: center; margin: 30px 0;">
         <button style="padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 6px;">
             Manage Cookie Preferences
@@ -162,7 +162,7 @@ cat > frontend/public/marketing/features.html << 'EOF'
         <h1 style="font-size: 48px; margin: 0;">Powerful Features</h1>
         <p style="font-size: 20px;">Everything you need for high-performance teams</p>
     </div>
-    
+
     <div style="max-width: 1200px; margin: 60px auto; padding: 0 20px;">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -170,13 +170,13 @@ cat > frontend/public/marketing/features.html << 'EOF'
                 <h3>Multi-Framework Assessments</h3>
                 <p>MBTI, Big Five, Enneagram, DISC, and more</p>
             </div>
-            
+
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-size: 48px; margin-bottom: 15px;">🤖</div>
                 <h3>AI-Powered Optimization</h3>
                 <p>Machine learning for team composition</p>
             </div>
-            
+
             <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
                 <h3>Real-Time Analytics</h3>
@@ -184,7 +184,7 @@ cat > frontend/public/marketing/features.html << 'EOF'
             </div>
         </div>
     </div>
-    
+
     <div style="background: #f9fafb; padding: 60px 20px; text-align: center;">
         <h2>Ready to Get Started?</h2>
         <a href="/register" style="display: inline-block; padding: 15px 40px; background: #6366f1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">
@@ -207,7 +207,7 @@ cat > frontend/public/marketing/case-studies.html << 'EOF'
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 60px 20px; text-align: center;">
         <h1>Customer Success Stories</h1>
     </div>
-    
+
     <div style="max-width: 1100px; margin: 40px auto; padding: 0 20px;">
         <div style="background: white; padding: 40px; margin-bottom: 30px; border-radius: 12px;">
             <h2>TechCorp: 67% Reduction in Team Conflicts</h2>
@@ -248,23 +248,23 @@ cat > frontend/public/marketing/demo-request.html << 'EOF'
     <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px;">
         <h1>Request a Demo</h1>
         <p>See PsychSync AI in action</p>
-        
+
         <form action="/api/v1/demo-request" method="POST">
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 5px;">Full Name *</label>
                 <input type="text" name="fullName" required style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
-            
+
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 5px;">Work Email *</label>
                 <input type="email" name="email" required style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
-            
+
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 5px;">Company *</label>
                 <input type="text" name="company" required style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px;">
             </div>
-            
+
             <button type="submit" style="width: 100%; padding: 15px; background: #6366f1; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
                 Request Demo
             </button>
@@ -295,20 +295,20 @@ cat > frontend/public/help/getting-started.html << 'EOF'
     <div style="background: #6366f1; color: white; padding: 40px 20px; text-align: center;">
         <h1>Getting Started with PsychSync AI</h1>
     </div>
-    
+
     <div style="max-width: 900px; margin: 40px auto; padding: 0 20px;">
         <h2>Quick Start Guide</h2>
-        
+
         <div style="background: #f9fafb; padding: 20px; margin: 20px 0; border-left: 4px solid #6366f1; border-radius: 4px;">
             <h3>Step 1: Create Your Account</h3>
             <p>Sign up at psychsync.ai/register</p>
         </div>
-        
+
         <div style="background: #f9fafb; padding: 20px; margin: 20px 0; border-left: 4px solid #6366f1; border-radius: 4px;">
             <h3>Step 2: Complete Your First Assessment</h3>
             <p>Take a personality assessment (10 minutes)</p>
         </div>
-        
+
         <div style="background: #f9fafb; padding: 20px; margin: 20px 0; border-left: 4px solid #6366f1; border-radius: 4px;">
             <h3>Step 3: Create Your Team</h3>
             <p>Set up your team and invite members</p>
@@ -331,7 +331,7 @@ cat > frontend/public/help/contact.html << 'EOF'
         <h1>Contact Support</h1>
         <p>We're here to help!</p>
     </div>
-    
+
     <div style="max-width: 900px; margin: 40px auto; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
         <div style="background: white; padding: 30px; border-radius: 8px; text-align: center;">
             <div style="font-size: 48px;">💬</div>
@@ -341,7 +341,7 @@ cat > frontend/public/help/contact.html << 'EOF'
                 Start Chat
             </a>
         </div>
-        
+
         <div style="background: white; padding: 30px; border-radius: 8px; text-align: center;">
             <div style="font-size: 48px;">📧</div>
             <h3>Email</h3>
@@ -350,7 +350,7 @@ cat > frontend/public/help/contact.html << 'EOF'
                 Email Us
             </a>
         </div>
-        
+
         <div style="background: white; padding: 30px; border-radius: 8px; text-align: center;">
             <div style="font-size: 48px;">📞</div>
             <h3>Phone</h3>
@@ -408,31 +408,31 @@ cat > static/status.html << 'EOF'
             <div>System Status</div>
         </div>
     </div>
-    
+
     <div style="max-width: 1100px; margin: 40px auto; padding: 0 20px;">
         <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 40px;">
             <div style="font-size: 48px;">✅</div>
             <h1>All Systems Operational</h1>
             <p>Last updated: <span id="lastUpdate"></span></p>
         </div>
-        
+
         <h2>Services</h2>
         <div style="background: white; padding: 20px; margin: 10px 0; border-radius: 8px; display: flex; justify-content: space-between;">
             <span>Web Application</span>
             <span style="color: #10b981; font-weight: bold;">● Operational</span>
         </div>
-        
+
         <div style="background: white; padding: 20px; margin: 10px 0; border-radius: 8px; display: flex; justify-content: space-between;">
             <span>API Services</span>
             <span style="color: #10b981; font-weight: bold;">● Operational</span>
         </div>
-        
+
         <div style="background: white; padding: 20px; margin: 10px 0; border-radius: 8px; display: flex; justify-content: space-between;">
             <span>AI Processing Engine</span>
             <span style="color: #10b981; font-weight: bold;">● Operational</span>
         </div>
     </div>
-    
+
     <script>
         document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
         setTimeout(() => location.reload(), 30000);
