@@ -54,7 +54,10 @@ curl http://localhost:8000/api/v1/ai-agents/status \
       "name": "security_headers_validator",
       "status": "active",
       "description": "Validates security headers on all routes",
-      "endpoints": [...]
+      "endpoints": [
+        "GET /api/v1/ai-agents/security-headers/status",
+        "POST /api/v1/ai-agents/security-headers/validate"
+      ]
     }
   ]
 }
@@ -153,7 +156,13 @@ curl -X POST $API_URL/api/v1/ai-agents/security-headers/validate \
   "critical_issues": 2,
   "high_issues": 5,
   "overall_security_score": 0.78,
-  "reports": [...]
+  "reports": [
+    {
+      "route": "POST /api/v1/auth/login",
+      "issue_type": "missing_rate_limiting",
+      "severity": "high"
+    }
+  ]
 }
 ```
 
@@ -232,7 +241,20 @@ curl -X POST $API_URL/api/v1/ai-agents/encryption-strategy/analyze \
       "recommended_encrypted_fields": 6,
       "compliance_score": 0.75,
       "priority": "high",
-      "field_recommendations": [...]
+      "field_recommendations": [
+        {
+          "field_name": "email",
+          "current_encryption": "none",
+          "recommended": "AES-256-GCM",
+          "priority": "high"
+        },
+        {
+          "field_name": "ssn",
+          "current_encryption": "none",
+          "recommended": "AES-256-GCM",
+          "priority": "critical"
+        }
+      ]
     }
   ]
 }
@@ -574,8 +596,22 @@ curl -X POST "$API_URL/api/v1/ai-agents/release-notes/generate?version=v2.1.0" \
   "release_date": "2024-01-17T12:00:00Z",
   "summary": "Release v2.1.0 with 2 changes",
   "categories": {
-    "features": [...],
-    "fixes": [...]
+    "features": [
+      {
+        "type": "feature",
+        "message": "feat: Add new dashboard widgets",
+        "author": "john@example.com",
+        "date": "2024-01-17"
+      }
+    ],
+    "fixes": [
+      {
+        "type": "fix",
+        "message": "fix: Resolve login bug",
+        "author": "jane@example.com",
+        "date": "2024-01-16"
+      }
+    ]
   }
 }
 ```

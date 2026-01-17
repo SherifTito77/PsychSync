@@ -30,6 +30,17 @@ repos:
         language: system
         files: ^(frontend/).*\.(ts|tsx|js|jsx)$
 
+  # Documentation quality validation (Phase 1)
+  - repo: local
+    hooks:
+      - id: documentation-quality
+        name: Documentation Quality Check
+        entry: python tests/documentation/run_doc_tests.py
+        language: system
+        files: ^(docs/).*\.md$
+        pass_filenames: false
+        # Only run on documentation files
+
   # General checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
