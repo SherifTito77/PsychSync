@@ -97,7 +97,7 @@ async def get_quality_summary(    db: AsyncSession = Depends(get_db),
     response_model=list[CodeQualityMetric],
 )
 async def get_quality_metrics(    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=500, description="Number of records to return"),
+    limit: int = Query(100, ge=1, le=200, description="Number of records to return"),
     module_name: str | None = Query(None, description="Filter by module name"),
     start_date: datetime | None = Query(None, description="Filter by start date"),
     end_date: datetime | None = Query(None, description="Filter by end date"),
@@ -186,7 +186,7 @@ async def get_quality_trend(    days: int = Query(30, ge=1, le=365, description=
     response_model=list[CodeQualityIssue],
 )
 async def get_quality_issues(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=200),
     issue_type: str | None = Query(None, description="Filter by issue type"),
     severity: str | None = Query(None, description="Filter by severity"),
     status: str = Query("open", description="Filter by status"),
@@ -234,7 +234,7 @@ async def get_quality_hotspots(    limit: int = Query(20, ge=1, le=100, descript
     response_model=list[PullRequestQuality],
 )
 async def get_pull_request_quality(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=200),
     risk_level: str | None = Query(None, description="Filter by risk level"),
     min_score: float | None = Query(None, ge=0, le=100, description="Minimum quality score"),
     db: AsyncSession = Depends(get_db),

@@ -10,7 +10,7 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 
 async def create_simple_test_users():
     """Create test users using direct database connection"""

@@ -203,7 +203,7 @@ async def get_logs_by_event_type(
 @router.get("/logs/failed-logins", response_model=List[AuditLogResponse])
 async def get_failed_login_attempts(
     hours: int = Query(24, ge=1, le=168, description="Lookback period in hours (max 7 days)"),
-    limit: int = Query(100, ge=1, le=500, description="Max results"),
+    limit: int = Query(100, ge=1, le=200, description="Max results"),
     admin_user: User = Depends(get_admin_or_auditor),
     db: AsyncSession = Depends(get_async_db),
 ):

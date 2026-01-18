@@ -3,7 +3,7 @@ sys.path.insert(0, '/Users/sheriftito/Downloads/psychsync')
 
 from app.db.session import SessionLocal
 from app.db.models.user import User
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 import uuid
 
 db = SessionLocal()

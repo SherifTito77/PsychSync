@@ -19,7 +19,7 @@ from jose import JWTError, ExpiredSignatureError
 from fastapi import HTTPException, status
 
 # Import authentication modules
-from app.core.security import create_access_token, verify_token, get_password_hash
+from app.services.security import create_access_token, verify_token, get_password_hash
 from app.api.v1.deps import get_current_user
 from app.core.config import settings
 

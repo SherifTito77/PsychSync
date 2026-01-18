@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
+import asyncio
 import logging
 
-from app.core.database import get_db
-from app.core.security import get_current_user
+from app.api.deps import get_async_db, get_current_active_user
+from app.services.security import get_current_user
 from app.db.models.user import User
 from app.db.models.organization import Organization
 from app.services.enterprise_sales_service import (
@@ -40,8 +41,8 @@ async def create_enterprise_account(
     users_licensed: int = 100,
     customer_success_manager: str = "Unassigned",
     custom_requirements: Optional[List[str]] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Create new enterprise account
@@ -54,9 +55,13 @@ async def create_enterprise_account(
                 detail="Admin access required for enterprise account creation"
             ) from e
         # Get organization
-        organization = db.query(Organization).filter(
-            Organization.id == organization_id
-        ).first()
+        loop = asyncio.get_event_loop()
+        organization = await loop.run_in_executor(
+            None,
+            lambda: db.query(Organization).filter(
+                Organization.id == organization_id
+            ).first()
+        )
 
         if not organization:
             raise HTTPException(
@@ -101,8 +106,8 @@ async def create_enterprise_account(
 @router.get("/accounts/health/{organization_id}")
 async def get_account_health(
     organization_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get comprehensive customer health metrics
@@ -149,8 +154,8 @@ async def get_account_health(
 @router.get("/accounts/opportunities/{organization_id}")
 async def get_expansion_opportunities(
     organization_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get expansion and upsell opportunities
@@ -187,7 +192,7 @@ async def monitor_sla_compliance(
     sla_tier: SLATier,
     date_range_start: Optional[str] = None,
     date_range_end: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Monitor SLA compliance and calculate credits
@@ -233,8 +238,8 @@ async def schedule_qbr(
     qbr_type: str = "quarterly",
     attendees: Optional[List[str]] = None,
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Schedule Quarterly Business Review
@@ -277,8 +282,8 @@ async def schedule_qbr(
 
 @router.get("/accounts/dashboard")
 async def get_enterprise_dashboard(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get enterprise account management dashboard
@@ -291,9 +296,13 @@ async def get_enterprise_dashboard(
                 detail="Admin access required for enterprise dashboard"
             ) from e
         # Get all organizations with enterprise features
-        enterprise_orgs = db.query(Organization).filter(
-            Organization.subscription_tier.in_(["enterprise", "clinical"])
-        ).all()
+        loop = asyncio.get_event_loop()
+        enterprise_orgs = await loop.run_in_executor(
+            None,
+            lambda: db.query(Organization).filter(
+                Organization.subscription_tier.in_(["enterprise", "clinical"])
+            ).all()
+        )
 
         dashboard_data = {
             "summary": {
@@ -391,8 +400,8 @@ async def trigger_intervention_playbook(
     organization_id: int,
     intervention_type: str,
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Trigger customer success intervention playbook
@@ -412,9 +421,13 @@ async def trigger_intervention_playbook(
                 detail=f"Invalid intervention type. Valid options: {', '.join(valid_interventions)}"
             ) from e
         # Get organization
-        organization = db.query(Organization).filter(
-            Organization.id == organization_id
-        ).first()
+        loop = asyncio.get_event_loop()
+        organization = await loop.run_in_executor(
+            None,
+            lambda: db.query(Organization).filter(
+                Organization.id == organization_id
+            ).first()
+        )
 
         if not organization:
             raise HTTPException(

@@ -51,7 +51,7 @@ def mock_user():
 @pytest.fixture
 def mock_token():
     """Mock JWT token"""
-    from app.core.security import create_access_token
+    from app.services.security import create_access_token
     return create_access_token(data={"sub": "test@example.com"})
 
 

@@ -99,11 +99,28 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, clear tokens and redirect to login
+        // Refresh failed - trigger session expiry flow
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+
+        // Store session state for redirect after login
+        sessionStorage.setItem('session_expired', 'true');
+        sessionStorage.setItem('redirect_after_login', window.location.pathname);
+
+        // Dispatch custom event for SessionExpiryModal to catch
+        const sessionExpiryEvent = new CustomEvent('sessionExpired', {
+          detail: { reason: 'token_refresh_failed' }
+        });
+        window.dispatchEvent(sessionExpiryEvent);
+
+        // Fallback: redirect after delay (in case modal not mounted)
+        setTimeout(() => {
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login?reason=session_expired';
+          }
+        }, 30000); // 30 seconds to allow user to see modal
+
         return Promise.reject(refreshError);
       }
     }

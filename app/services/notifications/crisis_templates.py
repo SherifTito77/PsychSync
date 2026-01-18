@@ -217,8 +217,10 @@ This message is confidential and protected under HIPAA.
         Returns:
             SMS message text
         """
+        # ✅ FIX: Proper username validation (prevent crash on empty string)
+        first_name = user_name.split()[0] if user_name and ' ' in user_name else user_name or "Friend"
         return (
-            f"🚨 {user_name.split()[0] if ' ' in user_name else user_name}, immediate support available. "
+            f"🚨 {first_name}, immediate support available. "
             f"Your {screening_type} indicates you may need help right now. "
             f"Call 988 (Suicide & Crisis Lifeline) or text HELLO to 741741. "
             f"You're not alone - we're here 24/7."
@@ -400,8 +402,10 @@ Confidential & HIPAA-compliant
     @staticmethod
     def high_risk_sms(user_name: str, screening_type: str) -> str:
         """SMS for HIGH risk"""
+        # ✅ FIX: Proper username validation
+        first_name = user_name.split()[0] if user_name and ' ' in user_name else user_name or "Friend"
         return (
-            f"{user_name.split()[0] if ' ' in user_name else user_name}, your assessment indicates you may benefit from support. "
+            f"{first_name}, your assessment indicates you may benefit from support. "
             f"A clinician will call within 2 hours. "
             f"24/7 support: Call 988 or text HELLO to 741741. "
             f"You're not alone."

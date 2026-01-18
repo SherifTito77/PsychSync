@@ -319,7 +319,7 @@ from httpx import AsyncClient
 
         if any(func.security_relevant for func in module_info.functions):
             imports.extend([
-                "from app.core.security import create_access_token, verify_password, get_password_hash",
+                "from app.services.security import create_access_token, verify_password, get_password_hash",
                 "from app.core.config import settings"
             ])
 

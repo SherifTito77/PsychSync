@@ -91,7 +91,7 @@ class QuickTest(BaseModel):
 class SyncOptions(BaseModel):
     """Email sync options"""
     days_back: int = Field(30, ge=1, le=365, description="Number of days of emails to analyze")
-    max_emails: int = Field(1000, ge=100, le=10000, description="Maximum emails to fetch")
+    max_emails: int = Field(1000, ge=100, le=2000, description="Maximum emails to fetch")
     include_sent: bool = Field(True, description="Include sent emails in analysis")
     analyze_contacts: bool = Field(True, description="Analyze communication patterns")
 

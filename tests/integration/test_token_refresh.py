@@ -12,8 +12,8 @@ from httpx import AsyncClient
 from jose import JWTError, jwt
 
 from app.main import app
-from app.core.security import (
-    create_access_token, create_refresh_token, verify_token,
+from app.services.security import (
+create_access_token, create_refresh_token, verify_token,
     get_token_expiration, decode_token
 )
 from app.db.models.user import User

@@ -265,15 +265,30 @@ class NLPAnalysisService:
             if self._emotion_pipeline:
                 # Use transformer model
                 results = self._emotion_pipeline(subject[:512])
-                emotions = {result["label"]: result["score"] for result in results[0]}
-                dominant_emotion = max(emotions, key=emotions.get)
-                emotional_intensity = max(emotions.values())
 
-                return EmotionResult(
-                    emotions=emotions,
-                    dominant_emotion=dominant_emotion,
-                    emotional_intensity=emotional_intensity,
-                )
+                # ✅ FIX: Check if results exist before accessing
+                if not results or not results[0]:
+                    self.logger.warning("NLP emotion pipeline returned empty results")
+                    return self._rule_based_emotions(subject)
+
+                try:
+                    emotions = {result["label"]: result["score"] for result in results[0]}
+
+                    if not emotions:
+                        self.logger.warning("NLP emotion pipeline produced no emotions")
+                        return self._rule_based_emotions(subject)
+
+                    dominant_emotion = max(emotions, key=emotions.get)
+                    emotional_intensity = max(emotions.values())
+
+                    return EmotionResult(
+                        emotions=emotions,
+                        dominant_emotion=dominant_emotion,
+                        emotional_intensity=emotional_intensity,
+                    )
+                except (KeyError, TypeError, IndexError) as e:
+                    self.logger.error(f"Invalid NLP emotion result format: {e}")
+                    return self._rule_based_emotions(subject)
             # Fallback to basic emotion detection
             return self._rule_based_emotions(subject)
 

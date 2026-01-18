@@ -180,16 +180,32 @@ class StorageBackendInterface(ABC):
 
 
 class RedisStorage(StorageBackendInterface):
-    """Redis storage backend"""
+    """Redis storage backend with thread-safe connection initialization"""
 
     def __init__(self, redis_url: str | None = None):
         self.redis_url = redis_url or getattr(settings, "REDIS_URL", "redis://localhost:6379")
         self._redis: aioredis.Redis | None = None
         self._initialized = False
+        self._connection_lock = asyncio.Lock()  # **Fixed Race:** Add lock for connection initialization
 
     async def _ensure_connected(self):
-        """Ensure Redis connection is established"""
-        if not self._initialized:
+        """
+        Ensure Redis connection is established.
+
+        **Fixed Race Condition:** Uses lock to prevent multiple concurrent connections.
+        Previously, multiple coroutines could pass the `_initialized` check simultaneously,
+        creating duplicate Redis connections.
+        """
+        # Fast path: already initialized
+        if self._initialized and self._redis:
+            return
+
+        # Use lock to prevent race condition during initialization
+        async with self._connection_lock:
+            # Double-check inside lock (another coroutine may have initialized while we waited)
+            if self._initialized and self._redis:
+                return
+
             try:
                 self._redis = aioredis.from_url(self.redis_url, encoding="utf-8", decode_responses=True)
                 await self._redis.ping()
@@ -261,14 +277,22 @@ class MemoryStorage(StorageBackendInterface):
         self._lock = asyncio.Lock()
 
     async def _cleanup_expired(self):
-        """Remove expired entries"""
+        """
+        Remove expired entries.
+
+        **Fixed Race Condition:** Creates snapshot before iteration to avoid
+        RuntimeError: dictionary changed size during iteration.
+        """
         now = time.time()
         async with self._lock:
-            for key in list(self._expires.keys()):
-                if self._expires[key] < now:
-                    self._storage.pop(key, None)
-                    self._sorted_sets.pop(key, None)
-                    self._expires.pop(key, None)
+            # Create snapshot of expired keys BEFORE modifying dictionaries
+            expired_keys = [key for key, expiry in self._expires.items() if expiry < now]
+
+            # Now safe to modify dictionaries
+            for key in expired_keys:
+                self._storage.pop(key, None)
+                self._sorted_sets.pop(key, None)
+                self._expires.pop(key, None)
 
     async def get(self, key: str) -> str | None:
         await self._cleanup_expired()
@@ -348,7 +372,78 @@ class RateLimitStrategyInterface(ABC):
 
 
 class TokenBucketStrategy(RateLimitStrategyInterface):
-    """Token bucket rate limiting strategy"""
+    """Token bucket rate limiting strategy with atomic operations"""
+
+    # Lua script for atomic token bucket check and consume
+    TOKEN_BUCKET_SCRIPT = """
+        local tokens_key = KEYS[1]
+        local refill_key = KEYS[2]
+        local current_time = tonumber(ARGV[1])
+        local capacity = tonumber(ARGV[2])
+        local refill_rate = tonumber(ARGV[3])
+
+        -- Get current state
+        local tokens_str = redis.call('GET', tokens_key)
+        local last_refill_str = redis.call('GET', refill_key)
+
+        local tokens
+        local last_refill
+
+        if tokens_str == false then
+            -- First request - start with full bucket
+            tokens = capacity
+            last_refill = current_time
+            redis.call('SET', tokens_key, tostring(tokens))
+            redis.call('SET', refill_key, tostring(last_refill))
+            redis.call('EXPIRE', tokens_key, tonumber(ARGV[4]))
+            redis.call('EXPIRE', refill_key, tonumber(ARGV[4]))
+        else
+            tokens = tonumber(tokens_str)
+            last_refill = tonumber(last_refill_str)
+
+            -- Calculate tokens to add based on elapsed time
+            local elapsed = current_time - last_refill
+            local tokens_to_add = elapsed * refill_rate
+
+            -- Refill tokens up to capacity
+            tokens = math.min(capacity, tokens + tokens_to_add)
+        end
+
+        -- Check if we have enough tokens
+        local allowed = tokens >= 1.0
+        local remaining
+        local retry_after
+
+        if allowed then
+            -- Consume one token
+            tokens = tokens - 1.0
+            redis.call('SET', tokens_key, tostring(tokens))
+            redis.call('SET', refill_key, tostring(current_time))
+            remaining = math.floor(tokens)
+            retry_after = 0
+        else
+            -- Calculate retry_after: time needed for 1 token
+            local tokens_needed = 1.0 - tokens
+            retry_after = math.ceil(tokens_needed / refill_rate)
+            remaining = 0
+        end
+
+        -- Calculate reset time (when bucket will be full again)
+        local tokens_until_full = capacity - tokens
+        local reset_time
+        if tokens_until_full > 0 then
+            reset_time = current_time + (tokens_until_full / refill_rate)
+        else
+            reset_time = current_time
+        end
+
+        -- Return: allowed, remaining, reset_time, retry_after
+        return {allowed and 1 or 0, remaining, reset_time, retry_after}
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._lua_scripts: dict[str, Any] = {}
 
     async def check(
         self,
@@ -357,75 +452,177 @@ class TokenBucketStrategy(RateLimitStrategyInterface):
         config: RateLimitConfig,
     ) -> RateLimitResult:
         """
-        Token bucket algorithm implementation.
+        Token bucket algorithm with ATOMIC operations using Lua script.
 
         The bucket has capacity and refill rate. Tokens are added at a constant rate.
         Requests consume tokens. If insufficient tokens, request is denied.
+
+        **Fixed Race Condition:** Uses Redis Lua script for atomic check-and-consume.
         """
         current_time = time.time()
         bucket_key = f"{key}:token_bucket"
 
-        # Get current state from storage
         tokens_key = f"{bucket_key}:tokens"
         refill_key = f"{bucket_key}:last_refill"
 
-        tokens_str = await storage.get(tokens_key)
-        last_refill_str = await storage.get(refill_key)
-
-        # Initialize bucket if first request
+        # Calculate parameters
         capacity = config.limit + config.burst
         refill_rate = config.limit / config.window  # tokens per second
+        expire_time = config.window * 2
 
-        if tokens_str is None:
-            # First request - start with full bucket
-            tokens = float(capacity)
-            last_refill = current_time
-            await storage.set(tokens_key, str(tokens))
-            await storage.set(refill_key, str(last_refill))
-            await storage.expire(tokens_key, config.window * 2)
-            await storage.expire(refill_key, config.window * 2)
+        # Use atomic Lua script for Redis backend
+        if isinstance(storage, RedisStorage):
+            result = await self._check_atomic_redis(
+                storage, tokens_key, refill_key, current_time, capacity, refill_rate, expire_time
+            )
         else:
-            tokens = float(tokens_str)
-            last_refill = float(last_refill_str)
-
-            # Calculate tokens to add based on elapsed time
-            elapsed = current_time - last_refill
-            tokens_to_add = elapsed * refill_rate
-
-            # Refill tokens up to capacity
-            tokens = min(capacity, tokens + tokens_to_add)
-
-        # Check if we have enough tokens
-        allowed = tokens >= 1.0
-
-        if allowed:
-            # Consume one token
-            tokens -= 1.0
-            await storage.set(tokens_key, str(tokens))
-            await storage.set(refill_key, str(current_time))
-            retry_after = 0
-        else:
-            # Calculate retry_after: time needed for 1 token
-            tokens_needed = 1.0 - tokens
-            retry_after = int((tokens_needed / refill_rate) + 1)  # Round up
-
-        # Calculate reset time (when bucket will be full again)
-        tokens_until_full = capacity - tokens
-        reset_time = current_time + (tokens_until_full / refill_rate) if tokens_until_full > 0 else current_time
+            # Fallback for in-memory storage (still has race, but only for development)
+            result = await self._check_memory(
+                storage, tokens_key, refill_key, current_time, capacity, refill_rate, expire_time
+            )
 
         return RateLimitResult(
-            allowed=allowed,
+            allowed=result["allowed"],
             limit=config.limit,
-            remaining=int(max(0, tokens)),
-            reset_time=reset_time,
-            retry_after=retry_after,
+            remaining=result["remaining"],
+            reset_time=result["reset_time"],
+            retry_after=result["retry_after"],
             current_count=0,  # Token bucket doesn't track count in window
             metadata={"capacity": capacity, "refill_rate": refill_rate},
         )
 
+    async def _check_atomic_redis(
+        self,
+        storage: "RedisStorage",
+        tokens_key: str,
+        refill_key: str,
+        current_time: float,
+        capacity: float,
+        refill_rate: float,
+        expire_time: int,
+    ) -> dict[str, Any]:
+        """Execute atomic token bucket check using Lua script"""
+        # Get or register Lua script
+        script_key = "token_bucket"
+        if script_key not in self._lua_scripts:
+            self._lua_scripts[script_key] = storage._redis.register_script(self.TOKEN_BUCKET_SCRIPT)
+
+        script = self._lua_scripts[script_key]
+
+        # Execute script atomically
+        result = await script(
+            keys=[tokens_key, refill_key],
+            args=[current_time, capacity, refill_rate, expire_time]
+        )
+
+        return {
+            "allowed": bool(result[0]),
+            "remaining": int(result[1]),
+            "reset_time": float(result[2]),
+            "retry_after": int(result[3]),
+        }
+
+    async def _check_memory(
+        self,
+        storage: "MemoryStorage",
+        tokens_key: str,
+        refill_key: str,
+        current_time: float,
+        capacity: float,
+        refill_rate: float,
+        expire_time: int,
+    ) -> dict[str, Any]:
+        """Fallback check for in-memory storage (dev/test only)"""
+        tokens_str = await storage.get(tokens_key)
+        last_refill_str = await storage.get(refill_key)
+
+        if tokens_str is None:
+            tokens = capacity
+            last_refill = current_time
+            await storage.set(tokens_key, str(tokens))
+            await storage.set(refill_key, str(last_refill))
+            await storage.expire(tokens_key, expire_time)
+            await storage.expire(refill_key, expire_time)
+        else:
+            tokens = float(tokens_str)
+            last_refill = float(last_refill_str)
+
+            elapsed = current_time - last_refill
+            tokens_to_add = elapsed * refill_rate
+            tokens = min(capacity, tokens + tokens_to_add)
+
+        allowed = tokens >= 1.0
+
+        if allowed:
+            tokens -= 1.0
+            await storage.set(tokens_key, str(tokens))
+            await storage.set(refill_key, str(current_time))
+            retry_after = 0
+            remaining = int(tokens)
+        else:
+            tokens_needed = 1.0 - tokens
+            retry_after = int((tokens_needed / refill_rate) + 1)
+            remaining = 0
+
+        tokens_until_full = capacity - tokens
+        reset_time = current_time + (tokens_until_full / refill_rate) if tokens_until_full > 0 else current_time
+
+        return {
+            "allowed": allowed,
+            "remaining": remaining,
+            "reset_time": reset_time,
+            "retry_after": retry_after,
+        }
+
 
 class SlidingWindowStrategy(RateLimitStrategyInterface):
-    """Sliding window rate limiting strategy"""
+    """Sliding window rate limiting strategy with atomic operations"""
+
+    # Lua script for atomic sliding window check
+    SLIDING_WINDOW_SCRIPT = """
+        local key = KEYS[1]
+        local current_time = tonumber(ARGV[1])
+        local window_start = tonumber(ARGV[2])
+        local window_size = tonumber(ARGV[3])
+        local limit = tonumber(ARGV[4])
+
+        -- Remove old entries (outside window)
+        redis.call('ZREMRANGEBYSCORE', key, 0, window_start)
+
+        -- Add current request timestamp
+        redis.call('ZADD', key, current_time, tostring(current_time))
+
+        -- Set expiration
+        redis.call('EXPIRE', key, window_size + 1)
+
+        -- Count requests in window
+        local count = redis.call('ZCARD', key)
+
+        -- Get oldest timestamp for reset time calculation
+        local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+        local reset_time
+        if oldest and #oldest > 0 then
+            reset_time = tonumber(oldest[2]) + window_size
+        else
+            reset_time = current_time + window_size
+        end
+
+        local allowed = count <= limit
+        local remaining = math.max(0, limit - count)
+        local retry_after
+        if not allowed then
+            retry_after = math.ceil(reset_time - current_time)
+        else
+            retry_after = 0
+        end
+
+        -- Return: count, allowed, remaining, reset_time, retry_after
+        return {count, allowed and 1 or 0, remaining, reset_time, retry_after}
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._lua_scripts: dict[str, Any] = {}
 
     async def check(
         self,
@@ -434,15 +631,77 @@ class SlidingWindowStrategy(RateLimitStrategyInterface):
         config: RateLimitConfig,
     ) -> RateLimitResult:
         """
-        Sliding window algorithm using Redis sorted sets.
+        Sliding window algorithm with ATOMIC operations using Lua script.
 
         Each request adds a timestamp to the sorted set.
         Old timestamps outside the window are removed.
         Count is the number of timestamps in the window.
+
+        **Fixed Race Condition:** Uses Redis Lua script for atomic remove-add-count.
         """
         current_time = time.time()
         window_start = current_time - config.window
 
+        # Use atomic Lua script for Redis backend
+        if isinstance(storage, RedisStorage):
+            result = await self._check_atomic_redis(
+                storage, key, current_time, window_start, config.window, config.limit
+            )
+        else:
+            # Fallback for in-memory storage
+            result = await self._check_memory(
+                storage, key, current_time, window_start, config
+            )
+
+        return RateLimitResult(
+            allowed=result["allowed"],
+            limit=config.limit,
+            remaining=result["remaining"],
+            reset_time=result["reset_time"],
+            retry_after=result["retry_after"],
+            current_count=result["count"],
+        )
+
+    async def _check_atomic_redis(
+        self,
+        storage: "RedisStorage",
+        key: str,
+        current_time: float,
+        window_start: float,
+        window_size: int,
+        limit: int,
+    ) -> dict[str, Any]:
+        """Execute atomic sliding window check using Lua script"""
+        # Get or register Lua script
+        script_key = "sliding_window"
+        if script_key not in self._lua_scripts:
+            self._lua_scripts[script_key] = storage._redis.register_script(self.SLIDING_WINDOW_SCRIPT)
+
+        script = self._lua_scripts[script_key]
+
+        # Execute script atomically
+        result = await script(
+            keys=[key],
+            args=[current_time, window_start, window_size, limit]
+        )
+
+        return {
+            "count": int(result[0]),
+            "allowed": bool(result[1]),
+            "remaining": int(result[2]),
+            "reset_time": float(result[3]),
+            "retry_after": int(result[4]),
+        }
+
+    async def _check_memory(
+        self,
+        storage: "MemoryStorage",
+        key: str,
+        current_time: float,
+        window_start: float,
+        config: RateLimitConfig,
+    ) -> dict[str, Any]:
+        """Fallback check for in-memory storage (dev/test only)"""
         # Remove old entries
         await storage.zremrangebyscore(key, 0, window_start)
 
@@ -465,18 +724,56 @@ class SlidingWindowStrategy(RateLimitStrategyInterface):
         allowed = count <= config.limit
         retry_after = int(reset_time - current_time) if not allowed else 0
 
-        return RateLimitResult(
-            allowed=allowed,
-            limit=config.limit,
-            remaining=max(0, config.limit - count + 1),  # +1 because we just added
-            reset_time=reset_time,
-            retry_after=retry_after,
-            current_count=count,
-        )
+        return {
+            "count": count,
+            "allowed": allowed,
+            "remaining": max(0, config.limit - count + 1),
+            "reset_time": reset_time,
+            "retry_after": retry_after,
+        }
 
 
 class FixedWindowStrategy(RateLimitStrategyInterface):
-    """Fixed window rate limiting strategy"""
+    """Fixed window rate limiting strategy with atomic operations"""
+
+    # Lua script for atomic fixed window check and increment
+    FIXED_WINDOW_SCRIPT = """
+        local window_key = KEYS[1]
+        local limit = tonumber(ARGV[1])
+        local window_expire = tonumber(ARGV[2])
+
+        -- Get current count
+        local count_str = redis.call('GET', window_key)
+        local count = count_str and tonumber(count_str) or 0
+
+        -- Check if allowed
+        local allowed = count < limit
+        local new_count
+        local remaining
+
+        if allowed then
+            -- Increment atomically
+            new_count = redis.call('INCR', window_key)
+
+            -- Set expiration on first increment
+            if new_count == 1 then
+                redis.call('EXPIRE', window_key, window_expire)
+            end
+
+            count = new_count
+            remaining = math.max(0, limit - count)
+        else
+            -- Already at limit, return current count
+            remaining = 0
+        end
+
+        -- Return: allowed, count, remaining
+        return {allowed and 1 or 0, count, remaining}
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._lua_scripts: dict[str, Any] = {}
 
     async def check(
         self,
@@ -485,27 +782,41 @@ class FixedWindowStrategy(RateLimitStrategyInterface):
         config: RateLimitConfig,
     ) -> RateLimitResult:
         """
-        Fixed window algorithm using simple counters.
+        Fixed window algorithm with ATOMIC check-and-increment.
 
         Window resets at fixed intervals (e.g., every minute).
         Less accurate but simpler than sliding window.
+
+        **Fixed Oversubscription:** Uses Redis Lua script for atomic check-then-increment.
+        Prevents race condition where multiple concurrent requests all pass the check.
         """
         current_time = time.time()
         window_id = int(current_time / config.window)
         window_key = f"{key}:window:{window_id}"
 
-        # Get current count
-        count_str = await storage.get(window_key)
-        count = int(count_str) if count_str else 0
+        # Use atomic Lua script for Redis backend
+        if isinstance(storage, RedisStorage):
+            result = await self._check_atomic_redis(
+                storage, window_key, config.limit, config.window + 1
+            )
+            count = result["count"]
+            allowed = result["allowed"]
+            remaining = result["remaining"]
+        else:
+            # Fallback for in-memory storage
+            count_str = await storage.get(window_key)
+            count = int(count_str) if count_str else 0
 
-        allowed = count < config.limit
+            allowed = count < config.limit
 
-        if allowed:
-            # Increment counter
-            new_count = await storage.incr(window_key)
-            # Set expiration
-            await storage.expire(window_key, config.window + 1)
-            count = new_count
+            if allowed:
+                # Increment counter
+                new_count = await storage.incr(window_key)
+                # Set expiration
+                await storage.expire(window_key, config.window + 1)
+                count = new_count
+
+            remaining = max(0, config.limit - count - 1)
 
         # Calculate reset time (start of next window)
         reset_time = (window_id + 1) * config.window
@@ -514,11 +825,38 @@ class FixedWindowStrategy(RateLimitStrategyInterface):
         return RateLimitResult(
             allowed=allowed,
             limit=config.limit,
-            remaining=max(0, config.limit - count - 1),
+            remaining=remaining,
             reset_time=reset_time,
             retry_after=retry_after,
             current_count=count,
         )
+
+    async def _check_atomic_redis(
+        self,
+        storage: "RedisStorage",
+        window_key: str,
+        limit: int,
+        window_expire: int,
+    ) -> dict[str, Any]:
+        """Execute atomic fixed window check using Lua script"""
+        # Get or register Lua script
+        script_key = "fixed_window"
+        if script_key not in self._lua_scripts:
+            self._lua_scripts[script_key] = storage._redis.register_script(self.FIXED_WINDOW_SCRIPT)
+
+        script = self._lua_scripts[script_key]
+
+        # Execute script atomically
+        result = await script(
+            keys=[window_key],
+            args=[limit, window_expire]
+        )
+
+        return {
+            "allowed": bool(result[0]),
+            "count": int(result[1]),
+            "remaining": int(result[2]),
+        }
 
 
 # ============================================================================

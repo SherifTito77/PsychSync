@@ -1,6 +1,7 @@
 # app/schemas/response.py
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -8,22 +9,22 @@ from pydantic import BaseModel, ConfigDict
 class ResponseAnswer(BaseModel):
     """Individual answer schema"""
 
-    question_id: int
+    question_id: UUID  # Changed from int to UUID
     answer: Any  # Can be string, int, list, etc.
 
 
 class ResponseCreate(BaseModel):
     """Create new response session"""
 
-    assessment_id: int
-    assignment_id: int | None = None
+    assessment_id: UUID  # Changed from int to UUID
+    assignment_id: UUID | None = None  # Changed from int to UUID
 
 
 class ResponseUpdate(BaseModel):
     """Update response with answers"""
 
     responses: dict[str, Any]
-    current_section: int | None = None
+    current_section: UUID | None = None  # Changed from int to UUID
     is_complete: bool = False
 
 
@@ -31,7 +32,7 @@ class ResponseSave(BaseModel):
     """Save progress"""
 
     responses: dict[str, Any]
-    current_section: int | None = None
+    current_section: UUID | None = None  # Changed from int to UUID
 
 
 class ResponseSubmit(BaseModel):
@@ -49,14 +50,14 @@ class ResponseSubmit(BaseModel):
 class Response(BaseModel):
     """Response response schema"""
 
-    id: int
-    assessment_id: int
-    assignment_id: int | None = None
-    respondent_id: int | None = None
+    id: UUID  # Changed from int to UUID
+    assessment_id: UUID  # Changed from int to UUID
+    assignment_id: UUID | None = None  # Changed from int to UUID
+    respondent_id: UUID | None = None  # Changed from int to UUID
     responses: dict[str, Any]
     status: str
     is_complete: bool
-    current_section: int
+    current_section: UUID  # Changed from int to UUID
     progress_percentage: float
     time_taken: int | None = None
     started_at: datetime

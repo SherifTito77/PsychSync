@@ -47,8 +47,11 @@ class SendGridProvider(EmailProvider):
         text_body: str,
         from_email: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Send email via SendGrid"""
-        import httpx
+        """Send email via SendGrid with resilient HTTP client
+
+        Uses automatic retries, timeouts, and circuit breaker for improved reliability.
+        """
+        from app.core.resilient_client import resilient_http_client, HTTPClientError
 
         if from_email is None:
             from_email = os.getenv("SENDGRID_FROM_EMAIL", "notifications@psychsync.io")
@@ -73,31 +76,38 @@ class SendGridProvider(EmailProvider):
         }
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    self.api_url,
-                    json=payload,
-                    headers=headers,
-                    timeout=30.0
-                )
+            # Resilient client provides automatic retries and circuit breaker
+            response = await resilient_http_client.post(
+                self.api_url,
+                json=payload,
+                headers=headers,
+                timeout=30.0
+            )
 
-                if response.status_code in [200, 202]:
-                    logger.info(f"SendGrid email sent successfully to {to}")
-                    return {
-                        "provider": "sendgrid",
-                        "success": True,
-                        "message_id": response.headers.get("X-Message-Id"),
-                        "status_code": response.status_code
-                    }
-                else:
-                    logger.error(f"SendGrid error: {response.status_code} - {response.text}")
-                    return {
-                        "provider": "sendgrid",
-                        "success": False,
-                        "error": response.text,
-                        "status_code": response.status_code
-                    }
+            if response.status_code in [200, 202]:
+                logger.info(f"SendGrid email sent successfully to {to}")
+                return {
+                    "provider": "sendgrid",
+                    "success": True,
+                    "message_id": response.headers.get("X-Message-Id"),
+                    "status_code": response.status_code
+                }
+            else:
+                logger.error(f"SendGrid error: {response.status_code} - {response.text}")
+                return {
+                    "provider": "sendgrid",
+                    "success": False,
+                    "error": response.text,
+                    "status_code": response.status_code
+                }
 
+        except HTTPClientError as e:
+            logger.error(f"SendGrid HTTP client error: {str(e)}")
+            return {
+                "provider": "sendgrid",
+                "success": False,
+                "error": str(e)
+            }
         except Exception as e:
             logger.error(f"SendGrid exception: {str(e)}")
             return {
@@ -186,8 +196,11 @@ class MailgunProvider(EmailProvider):
         text_body: str,
         from_email: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Send email via Mailgun"""
-        import httpx
+        """Send email via Mailgun with resilient HTTP client
+
+        Uses automatic retries, timeouts, and circuit breaker for improved reliability.
+        """
+        from app.core.resilient_client import resilient_http_client, HTTPClientError
 
         if from_email is None:
             from_email = os.getenv("MAILGUN_FROM_EMAIL", f"notifications@{self.domain}")
@@ -206,32 +219,39 @@ class MailgunProvider(EmailProvider):
         }
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    self.api_url,
-                    auth=auth,
-                    data=data,
-                    timeout=30.0
-                )
+            # Resilient client provides automatic retries and circuit breaker
+            response = await resilient_http_client.post(
+                self.api_url,
+                auth=auth,
+                data=data,
+                timeout=30.0
+            )
 
-                if response.status_code == 200:
-                    result = response.json()
-                    logger.info(f"Mailgun email sent successfully to {to}")
-                    return {
-                        "provider": "mailgun",
-                        "success": True,
-                        "message_id": result.get("id"),
-                        "status_code": response.status_code
-                    }
-                else:
-                    logger.error(f"Mailgun error: {response.status_code} - {response.text}")
-                    return {
-                        "provider": "mailgun",
-                        "success": False,
-                        "error": response.text,
-                        "status_code": response.status_code
-                    }
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"Mailgun email sent successfully to {to}")
+                return {
+                    "provider": "mailgun",
+                    "success": True,
+                    "message_id": result.get("id"),
+                    "status_code": response.status_code
+                }
+            else:
+                logger.error(f"Mailgun error: {response.status_code} - {response.text}")
+                return {
+                    "provider": "mailgun",
+                    "success": False,
+                    "error": response.text,
+                    "status_code": response.status_code
+                }
 
+        except HTTPClientError as e:
+            logger.error(f"Mailgun HTTP client error: {str(e)}")
+            return {
+                "provider": "mailgun",
+                "success": False,
+                "error": str(e)
+            }
         except Exception as e:
             logger.error(f"Mailgun exception: {str(e)}")
             return {

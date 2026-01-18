@@ -6,7 +6,7 @@ This test validates that our critical security and functionality fixes work corr
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.security import verify_password, get_password_hash, validate_password
+from app.services.security import verify_password, get_password_hash, validate_password
 from app.services.user_service import UserService, user_to_dict
 from app.db.models.user import User, UserRole
 from app.db.models.response import AssessmentResponse, Response

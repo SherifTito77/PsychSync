@@ -4,7 +4,7 @@
 
 from pydantic import BaseModel, EmailStr, field_validator  # ,validator
 
-from app.core.security import validate_password
+from app.services.security import validate_password
 
 
 class UserLogin(BaseModel):

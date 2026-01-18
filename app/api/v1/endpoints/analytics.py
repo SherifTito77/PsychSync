@@ -35,7 +35,8 @@ def get_assessment_analytics(
     """
     assessment = AssessmentService.get_by_id(db, assessment_id=assessment_id)
 
-    if not assessment:
+    # Defensive null check before accessing assessment properties
+    if assessment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
 
     # Check permission

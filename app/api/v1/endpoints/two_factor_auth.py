@@ -2,15 +2,16 @@
 Two-Factor Authentication API Endpoints
 """
 
+import asyncio
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user
-from app.core.database import get_db
+from app.api.deps import get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.services.two_factor_service import two_factor_service
 
@@ -57,7 +58,7 @@ class TwoFactorLoginRequest(BaseModel):
 
 @router.post("/enable", response_model=TwoFactorEnableResponse)
 async def enable_two_factor(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
 ) -> dict[str, Any]:
     """
     Enable 2FA for the current user
@@ -86,8 +87,8 @@ async def enable_two_factor(
 @router.post("/verify")
 async def verify_two_factor_setup(
     request: TwoFactorVerifyRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
     """
     Verify 2FA setup with TOTP code
@@ -110,8 +111,8 @@ async def verify_two_factor_setup(
 @router.post("/disable")
 async def disable_two_factor(
     request: TwoFactorDisableRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
     """
     Disable 2FA for the current user
@@ -134,7 +135,7 @@ async def disable_two_factor(
 
 
 @router.get("/status")
-async def get_two_factor_status(current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def get_two_factor_status(current_user: User = Depends(get_current_active_user)) -> dict[str, Any]:
     """
     Get 2FA status for current user
     """
@@ -150,7 +151,7 @@ async def get_two_factor_status(current_user: User = Depends(get_current_user)) 
 
 @router.post("/recovery-codes/regenerate")
 async def regenerate_recovery_codes(
-    password: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    password: str, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
 ) -> dict[str, Any]:
     """
     Regenerate recovery codes

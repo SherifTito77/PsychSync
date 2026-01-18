@@ -5,12 +5,13 @@ from app.api.v1.deps import get_current_user
 
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, get_current_active_user
+from app.api.deps import get_db, get_current_active_user, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.assessment import Assessment
 from app.db.models.scoring import AssessmentScoringConfig
+import asyncio
 import app.services.assessment_service as AssessmentService
 from app.services.scoring_service import ScoringService
 from app.services.scoring.mbti_scorer import MBTIScorer
@@ -38,7 +39,7 @@ class ScoringConfigUpdate(BaseModel):
 def create_scoring_config(
     assessment_id: int,
     config_data: ScoringConfigCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -94,7 +95,7 @@ def create_scoring_config(
 @router.get("/assessments/{assessment_id}/scoring-config", dependencies=[Depends(get_current_user)])
 def get_scoring_config(
     assessment_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Get scoring configuration for an assessment"""
@@ -128,7 +129,7 @@ def get_scoring_config(
 def update_scoring_config(
     config_id: int,
     config_update: ScoringConfigUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Update scoring configuration"""

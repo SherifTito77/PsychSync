@@ -105,7 +105,7 @@ async def create_test_user():
     """Create a test user for authentication testing"""
     print("\n👤 Creating test user...")
     try:
-        from app.core.security import get_password_hash
+        from app.services.security import get_password_hash
 
         async with async_engine.begin() as conn:
             # Check if test user already exists

@@ -11,9 +11,9 @@ from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.core.path_utils import sanitize_path, safe_filename
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.services.voice_video_analysis import (
     VoiceVideoAnalysisEngine,
@@ -89,8 +89,8 @@ class AnalysisStatisticsResponse(BaseModel):
 async def start_video_analysis(
     video_file: UploadFile = File(..., description="Video file to analyze"),
     config: Optional[VideoRecordingConfigRequest] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Process video recording with comprehensive analysis including transcription,
@@ -141,8 +141,8 @@ async def start_video_analysis(
 async def transcribe_audio(
     audio_file: UploadFile = File(..., description="Audio file to transcribe"),
     config: Optional[TranscriptionConfigRequest] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Transcribe audio file to text with confidence scoring and timestamps.
@@ -187,8 +187,8 @@ async def transcribe_audio(
 @router.get("/analysis/{analysis_id}", response_model=ComprehensiveAnalysisResponse)
 async def get_analysis_result(
     analysis_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get comprehensive analysis results by analysis ID.
@@ -289,8 +289,8 @@ async def get_analysis_history(
     limit: int = Query(50, description="Maximum number of analyses to return"),
     date_from: Optional[str] = Query(None, description="Filter analyses from date"),
     date_to: Optional[str] = Query(None, description="Filter analyses to date"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get user's analysis history with optional date filtering.
@@ -333,8 +333,8 @@ async def get_analysis_history(
 @router.get("/statistics", response_model=AnalysisStatisticsResponse)
 async def get_analysis_statistics(
     timeframe_days: int = Query(30, description="Timeframe in days"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get comprehensive analysis statistics for a user.
@@ -360,8 +360,8 @@ async def get_analysis_statistics(
 async def get_transcription_history(
     limit: int = Query(50, description="Maximum number of transcriptions to return"),
     date_from: Optional[str] = Query(None, description="Filter transcriptions from date"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get user's transcription history with sentiment analysis.
@@ -383,8 +383,8 @@ async def get_transcription_history(
 @router.post("/analyze/facial-expressions")
 async def analyze_facial_expressions(
     video_file: UploadFile = File(..., description="Video file for facial analysis"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Perform facial expression analysis on uploaded video.
@@ -439,8 +439,8 @@ async def analyze_facial_expressions(
 @router.post("/analyze/voice-sentiment")
 async def analyze_voice_sentiment(
     audio_file: UploadFile = File(..., description="Audio file for sentiment analysis"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Perform voice sentiment analysis on uploaded audio.
@@ -506,8 +506,8 @@ async def analyze_voice_sentiment(
 
 @router.get("/models/status")
 async def get_analysis_models_status(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get status of available analysis models and their capabilities.
@@ -593,8 +593,8 @@ async def get_analysis_models_status(
 
 @router.get("/recording/config")
 async def get_recording_config(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get recording configuration options and capabilities.
@@ -667,8 +667,8 @@ async def get_recording_config(
 @router.delete("/analysis/{analysis_id}")
 async def delete_analysis(
     analysis_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Delete a specific analysis result.
@@ -689,8 +689,8 @@ async def export_analysis(
     analysis_id: str,
     format: str = Query("json", description="Export format (json, csv, pdf)"),
     include_video: bool = Query(False, description="Include video file in export"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Export analysis results in specified format.

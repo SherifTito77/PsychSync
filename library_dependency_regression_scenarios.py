@@ -452,7 +452,7 @@ class LibraryDependencyRegressionTester:
                 expected_behavior="All security operations work, tokens validate correctly",
                 rollback_plan="pip install 'cryptography==3.4.8' && restart security services",
                 test_commands=[
-                    "python -c 'from app.core.security import create_access_token; print(\"Cryptography OK\")'",
+                    "python -c 'from app.services.security import create_access_token; print(\"Cryptography OK\")'",
                     "python -m pytest tests/test_security.py -v",
                     "curl -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@example.com\",\"password\":\"test123\"}'"
                 ]

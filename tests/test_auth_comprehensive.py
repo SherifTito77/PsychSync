@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from unittest.mock import patch, AsyncMock
 
-from app.core.security import verify_password, create_access_token, get_password_hash
+from app.services.security import verify_password, create_access_token, get_password_hash
 from app.db.models.user import User, UserRole
 from app.schemas.user import UserCreate
 from app.services.user_service import create_user, authenticate_user, get_user_by_email

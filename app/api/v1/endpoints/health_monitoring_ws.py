@@ -16,7 +16,8 @@ from datetime import datetime
 from typing import Dict, Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
-from sqlalchemy.orm import Session
+# from sqlalchemy.orm import Session  # Replaced with AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
 from app.db.models.user import User
@@ -123,7 +124,7 @@ manager = ConnectionManager()
 async def websocket_health_monitoring(
     websocket: WebSocket,
     token: str = Query(..., description="JWT authentication token"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     WebSocket endpoint for real-time health monitoring updates
@@ -148,7 +149,7 @@ async def websocket_health_monitoring(
     # Verify user authentication
     try:
         # Import auth dependency to verify token
-        from app.core.security import verify_token
+        from app.services.security import verify_token
         payload = verify_token(token, db)
         user_id = payload.get("sub")
 

@@ -551,29 +551,32 @@ class GoogleCalendarAPIIntegration:
         days: int = 30,
         max_results: int = 2500
     ) -> List[Dict[str, Any]]:
-        """Fetch calendar events from Google Calendar"""
-        import httpx
+        """Fetch calendar events from Google Calendar
 
+        Uses resilient HTTP client with automatic retries, timeouts, and circuit breaker.
+        """
+        from app.core.resilient_client import resilient_http_client
         from datetime import datetime, timedelta
         time_min = (datetime.utcnow() - timedelta(days=days)).isoformat() + 'Z'
         time_max = datetime.utcnow().isoformat() + 'Z'
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f'{self.base_url}/events',
-                headers={'Authorization': f'Bearer {self.access_token}'},
-                params={
-                    'timeMin': time_min,
-                    'timeMax': time_max,
-                    'maxResults': max_results,
-                    'singleEvents': 'true',
-                    'orderBy': 'startTime'
-                }
-            )
-            response.raise_for_status()
+        # Resilient client provides: 30s timeout, 3 retries with exponential backoff,
+        # circuit breaker to prevent cascading failures, connection pooling
+        response = await resilient_http_client.get(
+            f'{self.base_url}/events',
+            headers={'Authorization': f'Bearer {self.access_token}'},
+            params={
+                'timeMin': time_min,
+                'timeMax': time_max,
+                'maxResults': max_results,
+                'singleEvents': 'true',
+                'orderBy': 'startTime'
+            }
+        )
+        response.raise_for_status()
 
-            data = response.json()
-            return data.get('items', [])
+        data = response.json()
+        return data.get('items', [])
 
 
 class OutlookCalendarAPIIntegration:
@@ -588,27 +591,30 @@ class OutlookCalendarAPIIntegration:
         days: int = 30,
         max_results: int = 500
     ) -> List[Dict[str, Any]]:
-        """Fetch calendar events from Outlook"""
-        import httpx
+        """Fetch calendar events from Outlook
 
+        Uses resilient HTTP client with automatic retries, timeouts, and circuit breaker.
+        """
+        from app.core.resilient_client import resilient_http_client
         from datetime import datetime, timedelta
         start_date = (datetime.utcnow() - timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%S')
         end_date = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f'{self.base_url}/calendarView',
-                headers={'Authorization': f'Bearer {self.access_token}'},
-                params={
-                    'startDateTime': start_date,
-                    'endDateTime': end_date,
-                    '$top': max_results
-                }
-            )
-            response.raise_for_status()
+        # Resilient client provides: 30s timeout, 3 retries with exponential backoff,
+        # circuit breaker to prevent cascading failures, connection pooling
+        response = await resilient_http_client.get(
+            f'{self.base_url}/calendarView',
+            headers={'Authorization': f'Bearer {self.access_token}'},
+            params={
+                'startDateTime': start_date,
+                'endDateTime': end_date,
+                '$top': max_results
+            }
+        )
+        response.raise_for_status()
 
-            data = response.json()
-            return data.get('value', [])
+        data = response.json()
+        return data.get('value', [])
 
 
 # Export

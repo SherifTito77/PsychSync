@@ -259,7 +259,7 @@ class TestAssessmentCRUDRegression:
         Security: IDOR protection
         """
         from app.db.models.assessment import Assessment
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create assessment as admin
         assessment = Assessment(
@@ -317,7 +317,7 @@ class TestAssessmentCRUDRegression:
         Priority: P0
         Security: Access control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create auth headers for different user
         token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
@@ -363,7 +363,7 @@ class TestAssessmentCRUDRegression:
         Priority: P0
         Security: Access control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create auth headers for different user
         token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
@@ -500,7 +500,7 @@ class TestAssessmentSectionQuestionRegression:
         Priority: P0
         Security: Access control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
         headers = {"Authorization": f"Bearer {token}"}

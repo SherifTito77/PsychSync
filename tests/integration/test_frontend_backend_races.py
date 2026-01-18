@@ -27,7 +27,7 @@ from httpx import AsyncClient, ASGITransport
 
 from app.main import app
 from app.db.models.user import User
-from app.core.security import create_access_token, create_refresh_token, verify_token
+from app.services.security import create_access_token, create_refresh_token, verify_token
 from app.core.config import settings
 
 

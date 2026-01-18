@@ -9,9 +9,9 @@ from typing import List, Optional, Dict, Any
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.services.skill_gap_analysis import (
     SkillGapAnalyzer,
@@ -204,8 +204,8 @@ def _convert_career_trajectory(trajectory: CareerTrajectory) -> CareerTrajectory
 @router.get("/individual/skill-gaps", response_model=List[SkillAssessmentResponse])
 async def get_individual_skill_gaps(
     user_id: Optional[str] = Query(None, description="User ID to analyze (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get skill gap analysis for an individual user.
@@ -231,8 +231,8 @@ async def get_individual_skill_gaps(
 @router.get("/individual/summary", response_model=SkillGapSummaryResponse)
 async def get_individual_skill_summary(
     user_id: Optional[str] = Query(None, description="User ID to analyze (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get skill gap summary for an individual user.
@@ -273,8 +273,8 @@ async def get_individual_skill_summary(
 async def get_organizational_skill_gaps(
     department: Optional[str] = Query(None, description="Filter by department"),
     role: Optional[str] = Query(None, description="Filter by role"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get skill gap analysis for the entire organization or filtered subset.
@@ -320,8 +320,8 @@ async def get_organizational_skill_gaps(
 @router.get("/organization/future-demands", response_model=List[SkillDemandResponse])
 async def get_future_skill_demands(
     timeframe_months: int = Query(24, ge=1, le=60, description="Timeframe in months for prediction"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get future skill demand predictions for the organization.
@@ -354,8 +354,8 @@ async def get_future_skill_demands(
 async def generate_learning_path(
     request: LearningPathRequest,
     user_id: Optional[str] = Query(None, description="User ID to generate path for (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Generate personalized learning recommendations for target skills.
@@ -394,8 +394,8 @@ async def generate_learning_path(
 @router.get("/individual/development-programs", response_model=List[DevelopmentProgramResponse])
 async def get_development_programs(
     user_id: Optional[str] = Query(None, description="User ID to get programs for (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get recommended development programs for a user.
@@ -428,8 +428,8 @@ async def get_development_programs(
 @router.get("/individual/career-trajectories", response_model=List[CareerTrajectoryResponse])
 async def get_career_trajectories(
     user_id: Optional[str] = Query(None, description="User ID to analyze (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get career trajectory analysis with development requirements.
@@ -454,8 +454,8 @@ async def get_career_trajectories(
 
 @router.get("/skills/categories", response_model=List[str])
 async def get_skill_categories(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get available skill categories.
@@ -469,8 +469,8 @@ async def get_skill_categories(
 
 @router.get("/learning/styles", response_model=List[str])
 async def get_learning_styles(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get available learning styles.
@@ -485,8 +485,8 @@ async def get_learning_styles(
 @router.post("/analyze/batch", response_model=Dict[str, List[SkillAssessmentResponse]])
 async def batch_skill_analysis(
     request: SkillAnalysisRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Perform batch skill gap analysis for multiple users or organization.
@@ -566,8 +566,8 @@ async def batch_skill_analysis(
 @router.get("/analytics/skill-distribution", response_model=Dict[str, Any])
 async def get_skill_distribution_analytics(
     organization_id: Optional[str] = Query(None, description="Organization ID to analyze"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get analytics on skill distribution across the organization.

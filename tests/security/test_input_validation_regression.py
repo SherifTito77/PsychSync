@@ -316,7 +316,7 @@ class TestAuthenticationSecurityRegression:
         Priority: P0
         OWASP: A07:2021 - Identification and Authentication Failures
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
         from datetime import timedelta
 
         # Create expired token
@@ -342,7 +342,7 @@ class TestAuthenticationSecurityRegression:
         Priority: P0
         OWASP: A07:2021 - Identification and Authentication Failures
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         valid_token = create_access_token(
             data={"sub": test_user.email, "user_id": test_user.id}
@@ -413,7 +413,7 @@ class TestAuthorizationSecurityRegression:
         Security: Critical
         """
         from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create private assessment as admin
         assessment = Assessment(
@@ -449,7 +449,7 @@ class TestAuthorizationSecurityRegression:
         OWASP: A01:2021 - Broken Access Control
         """
         from app.db.models.response import Response
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
         from uuid import uuid4
 
         # Create response as admin
@@ -483,7 +483,7 @@ class TestAuthorizationSecurityRegression:
         Priority: P0
         OWASP: A01:2021 - Broken Access Control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
         headers = {"Authorization": f"Bearer {token}"}
@@ -506,7 +506,7 @@ class TestAuthorizationSecurityRegression:
         Priority: P0
         OWASP: A01:2021 - Broken Access Control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create token for different user
         token = create_access_token(data={"sub": "other@example.com", "user_id": str(test_user.id)})

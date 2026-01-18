@@ -11,7 +11,7 @@ sys.path.insert(0, '/Users/sheriftito/Downloads/psychsync')
 
 from app.core.database import get_async_db, async_engine
 from app.db.models.user import User
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 from sqlalchemy import select, text
 
 async def create_test_users():

@@ -42,8 +42,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.core.account_lockout_enhanced import account_lockout_manager
 from app.core.config import settings
-from app.core.security import (
-    create_access_token,
+from app.services.security import (
+create_access_token,
     create_refresh_token,
     get_password_hash,
     verify_password,

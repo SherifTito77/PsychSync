@@ -178,7 +178,7 @@ def create_sample_data():
         from app.db.session import SessionLocal
         from app.db.models.user import User
         from app.db.models.organization import Organization
-        from app.core.security import get_password_hash
+        from app.services.security import get_password_hash
 
         db = SessionLocal()
 

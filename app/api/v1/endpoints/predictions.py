@@ -18,12 +18,12 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 import asyncio
 import logging
 
-from app.core.database import get_db
+from app.api.deps import get_async_db
 from app.services.prediction_service import (
     PredictionService, ModelType, TargetType,
     ModelComparisonResult
@@ -78,7 +78,7 @@ class PredictionRequest(BaseModel):
     model_id: Optional[str] = Field(None, description="Specific model to use")
     include_confidence: bool = Field(True, description="Include confidence intervals")
     include_feature_importance: bool = Field(True, description="Include feature contributions")
-    batch_size: Optional[int] = Field(50, ge=1, le=1000, description="Batch size for processing")
+    batch_size: Optional[int] = Field(50, ge=1, le=200, description="Batch size for processing")
 
 class ModelEvaluationRequest(BaseModel):
     """Request model for model evaluation."""
@@ -152,7 +152,7 @@ data_service = PredictionDataCollectionService()
 async def train_prediction_model(
     request: TrainingRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Train a new prediction model.
@@ -221,7 +221,7 @@ async def train_prediction_model(
 @router.post("/predict", response_model=PredictionResponse)
 async def make_predictions(
     request: PredictionRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Make predictions for specified entities.
@@ -278,7 +278,7 @@ async def predict_team_performance(
     model_id: Optional[str] = Query(None, description="Specific model to use"),
     include_confidence: bool = Query(True, description="Include confidence intervals"),
     include_feature_importance: bool = Query(True, description="Include feature contributions"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Predict performance for a specific team.
@@ -323,7 +323,7 @@ async def predict_team_performance(
 @router.get("/models", response_model=ModelsListResponse)
 async def list_models(
     prediction_type: Optional[PredictionType] = Query(None, description="Filter by prediction type"),
-    limit: int = Query(50, ge=1, le=1000, description="Maximum number of models to return")
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of models to return")
 ):
     """
     List all trained prediction models.
@@ -387,7 +387,7 @@ async def get_model_info(model_id: str):
 async def evaluate_model(
     model_id: str,
     request: ModelEvaluationRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Evaluate a trained model's performance.
@@ -465,7 +465,7 @@ async def delete_model(model_id: str):
 async def batch_train_models(
     request: BatchTrainingRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Train multiple models in batch.
@@ -535,7 +535,7 @@ async def batch_train_models(
 
 @router.get("/data/quality")
 async def assess_data_quality(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     team_ids: Optional[List[int]] = Query(None, description="Team IDs to assess"),
     user_ids: Optional[List[str]] = Query(None, description="User IDs to assess")
 ):

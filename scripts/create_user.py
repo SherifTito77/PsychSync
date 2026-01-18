@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.core.database import AsyncSessionLocal
 from app.db.models.user import User
 import asyncio
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 
 async def main():
     # Create async session

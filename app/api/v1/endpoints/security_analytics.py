@@ -19,7 +19,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.security import get_current_user
+from app.services.security import get_current_user
 from app.db.models import User
 from app.monitoring.audit_logger import AuditQuery, audit_logger
 from app.monitoring.security_analytics import ThreatLevel, security_analyzer
@@ -120,7 +120,7 @@ async def get_security_events(
     event_type: str | None = Query(default=None),
     severity: str | None = Query(default=None),
     hours: int = Query(default=24, ge=1, le=168),
-    limit: int = Query(default=100, ge=1, le=1000),
+    limit: int = Query(default=100, ge=1, le=100),
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """
@@ -229,7 +229,7 @@ async def get_audit_logs(
     severity: str | None = Query(default=None),
     user_id: int | None = Query(default=None),
     hours: int = Query(default=24, ge=1, le=168),
-    limit: int = Query(default=100, ge=1, le=1000),
+    limit: int = Query(default=100, ge=1, le=100),
     current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """

@@ -50,7 +50,22 @@ class FreeEmailConnectorService:
 
     def get_provider_config(self, email_address: str) -> IMAPConfig:
         """Get IMAP config based on email domain"""
-        domain = email_address.split("@")[-1].lower()
+        # ✅ FIX: Validate email format before parsing (prevents IndexError)
+        if not email_address or "@" not in email_address:
+            logger.error(f"Invalid email address (missing @): {email_address}")
+            return IMAP_PROVIDERS["custom"]  # Requires manual config
+
+        parts = email_address.split("@")
+        if len(parts) != 2:
+            logger.error(f"Invalid email address (multiple @): {email_address}")
+            return IMAP_PROVIDERS["custom"]
+
+        username, domain = parts
+        if not username or not domain:
+            logger.error(f"Invalid email address (empty parts): {email_address}")
+            return IMAP_PROVIDERS["custom"]
+
+        domain = domain.lower()
 
         if "gmail.com" in domain:
             return IMAP_PROVIDERS["gmail"]
@@ -123,8 +138,20 @@ class FreeEmailConnectorService:
                 raise ValueError(f"IMAP connection test failed: {message}")
 
             # Store provider info
-            domain = email_address.split("@")[-1].lower()
-            provider = "custom" if custom_imap_config else domain.split(".")[0]
+            # ✅ FIX: Validate email format before parsing
+            if "@" not in email_address:
+                raise ValueError(f"Invalid email address format: {email_address}")
+
+            email_parts = email_address.split("@")
+            if len(email_parts) != 2:
+                raise ValueError(f"Invalid email address format: {email_address}")
+
+            username, domain = email_parts
+            if not username or not domain:
+                raise ValueError(f"Invalid email address format: {email_address}")
+
+            domain = domain.lower()
+            provider = "custom" if custom_imap_config else domain.split(".")[0] if "." in domain else "custom"
 
             # Encrypt password for storage
             from cryptography.fernet import Fernet
@@ -139,7 +166,7 @@ class FreeEmailConnectorService:
                 email_address=email_address,
                 access_token=encrypted_password,  # Store app password here
                 refresh_token=None,  # Not needed for IMAP
-                account_name=account_name or email_address.split("@")[0],
+                account_name=account_name or username,
                 is_active=True,
                 connection_type="imap",  # Custom field for connection type
                 custom_imap_config=custom_imap_config,  # Store custom config if provided
@@ -209,7 +236,8 @@ class FreeEmailConnectorService:
             search_criteria = f"(SINCE {date_filter})"
             _, message_ids = imap.search(None, search_criteria)
 
-            if not message_ids[0]:
+            # ✅ FIX: Check message_ids exists and has content
+            if not message_ids or not message_ids[0]:
                 imap.logout()
                 return 0
 

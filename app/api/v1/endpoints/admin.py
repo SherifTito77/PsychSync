@@ -8,9 +8,9 @@
 
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_superuser, get_db
+from app.api.deps import get_current_active_superuser, get_db, get_async_db
 from app.api.v1.deps import get_current_user
 from app.db.models.user import User as UserModel
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
@@ -49,7 +49,7 @@ router = APIRouter()
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/users", response_model=list[UserSchema])
 def list_all_users(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1),
     is_active: bool | None = None,
@@ -67,7 +67,7 @@ def list_all_users(
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def soft_delete_user(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: UserModel = Depends(get_current_active_superuser),
 ):
     """
@@ -86,7 +86,7 @@ def soft_delete_user(
 )
 def restore_user_endpoint(
     user_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: UserModel = Depends(get_current_active_superuser),
 ):
     """

@@ -6,15 +6,15 @@ Provides comprehensive endpoints for managing interventions and analyzing their 
 """
 
 from datetime import datetime, timedelta
+import asyncio
 
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
-from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.api.deps import get_current_active_user, get_async_db
 from app.db.models.user import User
 from app.db.models.intervention_effectiveness import (
     Intervention, InterventionParticipant, PreInterventionMeasurement,
@@ -168,11 +168,14 @@ class AnalysisSummaryResponse(BaseModel):
 @router.post("/interventions", response_model=InterventionResponse)
 async def create_intervention(
     request: InterventionCreateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Create a new intervention"""
     try:
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
         intervention = Intervention(
             organization_id=current_user.organization_id,
             team_id=request.team_id,
@@ -196,14 +199,14 @@ async def create_intervention(
             tags=request.tags
         )
 
-        db.add(intervention)
-        db.commit()
-        db.refresh(intervention)
+        await loop.run_in_executor(None, lambda: db.add(intervention))
+        await loop.run_in_executor(None, db.commit)
+        await loop.run_in_executor(None, lambda: db.refresh(intervention))
 
         return InterventionResponse.from_orm(intervention)
 
     except Exception as e:
-        db.rollback()
+        await loop.run_in_executor(None, db.rollback)
         raise HTTPException(status_code=500, detail=f"Failed to create intervention: {str(e)}")
 
 @router.get("/interventions", response_model=List[InterventionResponse])
@@ -214,26 +217,33 @@ async def list_interventions(
     team_id: Optional[str] = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """List interventions with filtering"""
     try:
-        query = db.query(Intervention).filter(
-            Intervention.organization_id == current_user.organization_id,
-            Intervention.is_active == True
-        )
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
 
-        if status:
-            query = query.filter(Intervention.status == status)
-        if intervention_type:
-            query = query.filter(Intervention.intervention_type == intervention_type)
-        if category:
-            query = query.filter(Intervention.category == category)
-        if team_id:
-            query = query.filter(Intervention.team_id == team_id)
+        def query_db():
+            query = db.query(Intervention).filter(
+                Intervention.organization_id == current_user.organization_id,
+                Intervention.is_active == True
+            )
 
-        interventions = query.order_by(Intervention.created_at.desc()).offset(offset).limit(limit).all()
+            if status:
+                query = query.filter(Intervention.status == status)
+            if intervention_type:
+                query = query.filter(Intervention.intervention_type == intervention_type)
+            if category:
+                query = query.filter(Intervention.category == category)
+            if team_id:
+                query = query.filter(Intervention.team_id == team_id)
+
+            interventions = query.order_by(Intervention.created_at.desc()).offset(offset).limit(limit).all()
+            return interventions
+
+        interventions = await loop.run_in_executor(None, query_db)
 
         return [InterventionResponse.from_orm(intervention) for intervention in interventions]
 
@@ -243,16 +253,22 @@ async def list_interventions(
 @router.get("/interventions/{intervention_id}", response_model=InterventionResponse)
 async def get_intervention(
     intervention_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Get specific intervention details"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id,
-            Intervention.is_active == True
-        ).first()
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
+        intervention = await loop.run_in_executor(
+            None,
+            lambda: db.query(Intervention).filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+                Intervention.is_active == True
+            ).first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -268,15 +284,21 @@ async def get_intervention(
 async def update_intervention(
     intervention_id: str,
     request: InterventionUpdateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Update intervention details"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
+        intervention = await loop.run_in_executor(
+            None,
+            lambda: db.query(Intervention).filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id
+            ).first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -287,15 +309,15 @@ async def update_intervention(
             setattr(intervention, field, value)
 
         intervention.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(intervention)
+        await loop.run_in_executor(None, db.commit)
+        await loop.run_in_executor(None, lambda: db.refresh(intervention))
 
         return InterventionResponse.from_orm(intervention)
 
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await loop.run_in_executor(None, db.rollback)
         raise HTTPException(status_code=500, detail=f"Failed to update intervention: {str(e)}")
 
 # Participant Management
@@ -303,8 +325,8 @@ async def update_intervention(
 async def enroll_participants(
     intervention_id: str,
     request: ParticipantEnrollmentRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Enroll participants in intervention"""
     try:
@@ -356,8 +378,8 @@ async def enroll_participants(
 @router.get("/interventions/{intervention_id}/participants")
 async def list_participants(
     intervention_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """List intervention participants"""
     try:
@@ -396,8 +418,8 @@ async def list_participants(
 async def add_pre_measurement(
     intervention_id: str,
     request: MeasurementRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Add pre-intervention measurement"""
     try:
@@ -439,8 +461,8 @@ async def add_pre_measurement(
 async def add_post_measurement(
     intervention_id: str,
     request: MeasurementRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Add post-intervention measurement"""
     try:
@@ -484,8 +506,8 @@ async def list_measurements(
     measurement_type: str = Query(..., pattern="^(pre|post)$"),
     metric_name: Optional[str] = None,
     user_id: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """List intervention measurements"""
     try:
@@ -538,8 +560,8 @@ async def list_measurements(
 async def analyze_intervention_effectiveness(
     request: AnalysisRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Analyze intervention effectiveness"""
     try:
@@ -637,8 +659,8 @@ async def analyze_intervention_effectiveness(
 async def get_effectiveness_results(
     intervention_id: str,
     metric_name: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """Get saved effectiveness analysis results"""
     try:
@@ -671,7 +693,7 @@ async def save_analysis_results(
     intervention_id: str,
     analysis_results: List[Any],
     user_id: str,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """Save analysis results to database"""
     try:

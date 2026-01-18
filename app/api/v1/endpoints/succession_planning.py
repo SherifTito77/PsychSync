@@ -9,9 +9,9 @@ from typing import List, Optional, Dict, Any
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.services.succession_planning import (
     SuccessionPlanner,
@@ -159,8 +159,8 @@ def _convert_succession_scenario(scenario: SuccessionScenario) -> SuccessionScen
 @router.get("/leadership-pipeline", response_model=List[LeadershipPipelineResponse])
 async def get_leadership_pipeline(
     organization_id: Optional[str] = Query(None, description="Organization ID to analyze"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get comprehensive leadership pipeline analysis.
@@ -194,8 +194,8 @@ async def get_succession_candidates(
     include_external: bool = Query(False, description="Include external candidates"),
     min_match_score: float = Query(50, description="Minimum match score threshold"),
     organization_id: Optional[str] = Query(None, description="Organization ID to search within"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get succession candidates for a specific role.
@@ -237,8 +237,8 @@ async def get_succession_candidates(
 async def analyze_skill_gaps(
     request: GapAnalysisRequest,
     organization_id: Optional[str] = Query(None, description="Organization ID"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Analyze skill gaps for succession planning.
@@ -322,8 +322,8 @@ async def analyze_skill_gaps(
 async def simulate_succession_scenarios(
     scenarios: List[SuccessionScenarioRequest],
     organization_id: Optional[str] = Query(None, description="Organization ID"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Simulate succession scenarios and assess organizational readiness.
@@ -368,8 +368,8 @@ async def simulate_succession_scenarios(
 async def create_development_programs(
     target_roles: Optional[List[str]] = Query(None, description="Target roles for development"),
     organization_id: Optional[str] = Query(None, description="Organization ID"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Create comprehensive development programs for succession candidates.
@@ -401,8 +401,8 @@ async def create_development_programs(
 async def get_succession_dashboard(
     time_horizon_months: int = Query(24, description="Time horizon for analysis in months"),
     organization_id: Optional[str] = Query(None, description="Organization ID"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Generate comprehensive succession planning dashboard.
@@ -450,8 +450,8 @@ async def get_succession_dashboard(
 async def get_succession_risk_assessment(
     organization_id: Optional[str] = Query(None, description="Organization ID"),
     include_mitigation_strategies: bool = Query(True, description="Include risk mitigation strategies"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get comprehensive succession risk assessment.
@@ -586,8 +586,8 @@ async def get_succession_risk_assessment(
 async def get_readiness_timeline(
     role_id: Optional[str] = Query(None, description="Specific role to analyze"),
     organization_id: Optional[str] = Query(None, description="Organization ID"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get readiness timeline for succession candidates.

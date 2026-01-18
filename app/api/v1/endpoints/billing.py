@@ -5,13 +5,13 @@ Enterprise-grade revenue generation and subscription management
 
 from datetime import datetime, timedelta
 import logging
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.security import get_current_user
+from app.api.deps import get_current_active_user, get_async_db
 from app.db.models.organization import Organization
 from app.db.models.user import User
 from app.services.billing import PRICING_TIERS, BillingCycle, SubscriptionTier, revenue_service
@@ -59,8 +59,8 @@ async def create_subscription(
     trial_period_days: int = 14,
     promotion_code: str | None = None,
     idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new subscription with idempotency protection
@@ -76,9 +76,13 @@ async def create_subscription(
     # For now, the idempotency protection already prevents most abuse
 
     try:
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
         # Create or retrieve Stripe customer
-        organization = (
-            db.query(Organization).filter(Organization.id == current_user.organization_id).first()
+        organization = await loop.run_in_executor(
+            None,
+            lambda: db.query(Organization).filter(Organization.id == current_user.organization_id).first()
         )
 
         if not current_user.stripe_customer_id:
@@ -133,7 +137,7 @@ async def cancel_subscription(
     subscription_id: str,
     reason: str = "user_request",
     immediate: bool = False,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Cancel subscription
@@ -171,7 +175,7 @@ async def modify_subscription(
     new_billing_cycle: BillingCycle | None = None,
     prorate: bool = True,
     idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Upgrade or downgrade subscription with idempotency protection
@@ -270,7 +274,7 @@ async def get_pricing_tiers():
 
 @router.get("/subscription/current")
 async def get_current_subscription(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get user's current subscription details
@@ -304,7 +308,7 @@ async def get_current_subscription(
 
 @router.get("/usage")
 async def get_usage_metrics(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get user's current usage metrics
@@ -341,7 +345,7 @@ async def get_usage_metrics(
 
 
 @router.post("/feature-check")
-async def check_feature_access(feature: str, current_user: User = Depends(get_current_user)):
+async def check_feature_access(feature: str, current_user: User = Depends(get_current_active_user)):
     """
     Check if user has access to a specific feature
     """
@@ -377,7 +381,7 @@ async def check_feature_access(feature: str, current_user: User = Depends(get_cu
 async def get_invoices(
     limit: int = 10,
     starting_after: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get user's invoice history
@@ -406,7 +410,7 @@ async def get_invoices(
 async def add_payment_method(
     payment_method_id: str,
     set_as_default: bool = True,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Add a payment method to customer account
@@ -435,7 +439,7 @@ async def add_payment_method(
 
 
 @router.get("/payment-methods")
-async def get_payment_methods(current_user: User = Depends(get_current_user)):
+async def get_payment_methods(current_user: User = Depends(get_current_active_user)):
     """
     Get user's saved payment methods
     """
@@ -596,7 +600,7 @@ async def handle_payment_failure(event: dict):
 async def get_billing_analytics(
     date_range_start: str | None = None,
     date_range_end: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive billing analytics (admin only)
@@ -645,7 +649,7 @@ async def create_promotional_code(
     duration: str = "once",
     duration_in_months: int | None = None,
     metadata: dict[str, str] | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create promotional discount code (admin only)

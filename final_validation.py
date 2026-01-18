@@ -209,7 +209,7 @@ def test_security():
     print("🔒 Testing security...")
 
     try:
-        from app.core.security import verify_password, get_password_hash, validate_password
+        from app.services.security import verify_password, get_password_hash, validate_password
 
         # Test password validation
         result = validate_password("TestPass123!")

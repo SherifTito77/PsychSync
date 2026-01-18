@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Clock, CheckCircle, Filter, Download, TrendingUp, Shield } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, Filter, Download, TrendingUp, Shield, AlertOctagon } from 'lucide-react';
+import { useError } from '../contexts/ErrorContext';
+import { handleError } from '../utils/errorHandler';
 interface FeedbackItem {
   id: string;
   feedback_type: string;
@@ -24,9 +26,11 @@ interface FeedbackSummary {
   pending_review_count: number;
 }
 const AnonymousFeedbackHRDashboard: React.FC = () => {
+  const { showError, showSuccess } = useError();
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
   const [summary, setSummary] = useState<FeedbackSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [filters, setFilters] = useState({
     status: 'pending_review',
@@ -46,6 +50,7 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
   }, [filters]);
   const loadFeedbackData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const queryParams = new URLSearchParams({
         organization_id: organizationId,
@@ -55,12 +60,32 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
       });
       const response = await fetch(`/api/v1/anonymous-feedback/review?${queryParams}`);
       const data = await response.json();
-      if (response.ok) {
-        setFeedbacks(data.feedbacks || []);
-        setSummary(data.summary || {});
+
+      if (!response.ok) {
+        // Handle error response from API
+        const errorInfo = handleError({
+          response: { status: response.status, data: data },
+          message: data.detail || data.message || 'Failed to load feedback'
+        }, 'Load feedback data');
+
+        setLoadError(errorInfo.userMessage);
+        setFeedbacks([]);
+        setSummary(null);
+        return;
       }
-    } catch (error) {
-      console.error('Failed to load feedback data:', error);
+
+      setFeedbacks(data.feedbacks || []);
+      setSummary(data.summary || {});
+    } catch (error: any) {
+      // Handle network or unexpected errors
+      const errorInfo = handleError(error, 'Load feedback data');
+      setLoadError(errorInfo.userMessage);
+      showError(errorInfo.userMessage, {
+        retryable: errorInfo.retryable,
+        onRetry: errorInfo.retryable ? loadFeedbackData : undefined,
+      });
+      setFeedbacks([]);
+      setSummary(null);
     } finally {
       setLoading(false);
     }
@@ -74,14 +99,36 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
         },
         body: JSON.stringify(statusUpdate),
       });
-      if (response.ok) {
-        setShowStatusModal(false);
-        setSelectedFeedback(null);
-        setStatusUpdate({ new_status: '', resolution_notes: '', public_resolution_notes: '' });
-        loadFeedbackData();
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle error response from API
+        const errorInfo = handleError({
+          response: { status: response.status, data: data },
+          message: data.detail || data.message || 'Failed to update status'
+        }, 'Update feedback status');
+
+        showError(errorInfo.userMessage, {
+          retryable: errorInfo.retryable,
+          onRetry: errorInfo.retryable ? () => updateFeedbackStatus(feedbackId) : undefined,
+        });
+        return;
       }
-    } catch (error) {
-      console.error('Failed to update feedback status:', error);
+
+      // Success
+      showSuccess('Feedback status updated successfully');
+      setShowStatusModal(false);
+      setSelectedFeedback(null);
+      setStatusUpdate({ new_status: '', resolution_notes: '', public_resolution_notes: '' });
+      loadFeedbackData();
+    } catch (error: any) {
+      // Handle network or unexpected errors
+      const errorInfo = handleError(error, 'Update feedback status');
+      showError(errorInfo.userMessage, {
+        retryable: errorInfo.retryable,
+        onRetry: errorInfo.retryable ? () => updateFeedbackStatus(feedbackId) : undefined,
+      });
     }
   };
   const getSeverityColor = (severity: string) => {
@@ -117,6 +164,34 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
       </div>
     );
   }
+
+  // Error state
+  if (loadError) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 text-center">
+          <AlertOctagon className="w-12 h-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-red-900 mb-2">Unable to Load Feedback</h2>
+          <p className="text-red-700 mb-4">{loadError}</p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={loadFeedbackData}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}

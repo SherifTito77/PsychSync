@@ -8,7 +8,7 @@ import os
 sys.path.append(os.path.dirname(__file__))
 
 # Import backend security utilities
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 
 def create_test_users():
     """Create test users with passlib-generated hashes"""

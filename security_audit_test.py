@@ -272,7 +272,7 @@ class SecurityAuditSuite:
         recommendations = []
 
         try:
-            from app.core.security import validate_password
+            from app.services.security import validate_password
 
             # Test various password strengths
             test_passwords = [
@@ -451,7 +451,7 @@ class SecurityAuditSuite:
         recommendations = []
 
         try:
-            from app.core.security import create_access_token, verify_token
+            from app.services.security import create_access_token, verify_token
 
             # Test 1: JWT token forging
             await self._test_jwt_forging()

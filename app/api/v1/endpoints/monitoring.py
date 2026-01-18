@@ -27,7 +27,7 @@ from app.core.audit import audit_action
 from app.core.deps import get_async_db, get_current_user
 from app.core.rate_limiting import rate_limit
 from app.core.response import StandardResponse, create_response
-from app.core.security import require_permissions
+from app.services.security import require_permissions
 from app.db.models.response import Response
 from app.db.models.user import User
 from app.monitoring.prometheus_metrics import generate_prometheus_metrics
@@ -171,7 +171,7 @@ async def get_system_metrics(
 async def get_alerts(
     level: AlertLevel | None = Query(None, description="Filter by alert level"),
     status: AlertStatus | None = Query(None, description="Filter by alert status"),
-    limit: int = Query(50, ge=1, le=500, description="Maximum number of alerts"),
+    limit: int = Query(50, ge=1, le=200, description="Maximum number of alerts"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[list[dict[str, Any]]]:
@@ -245,7 +245,7 @@ async def _calculate_system_health() -> dict[str, Any]:
     """Calculate overall system health score"""
     try:
         # Get current system metrics
-        cpu_percent = psutil.cpu_percent(interval=1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
 
@@ -1231,7 +1231,7 @@ async def get_security_vulnerabilities(
         None, description="Filter by severity: critical, high, medium, low"
     ),
     source: str | None = Query(None, description="Filter by source: SAST, DAST, SCA"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum number of vulnerabilities"),
+    limit: int = Query(100, ge=1, le=200, description="Maximum number of vulnerabilities"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[list[dict[str, Any]]]:

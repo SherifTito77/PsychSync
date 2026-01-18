@@ -22,8 +22,8 @@ from fastapi import status
 from jose import jwt, JWTError
 import bcrypt
 
-from app.core.security import (
-    verify_password,
+from app.services.security import (
+verify_password,
     get_password_hash,
     create_access_token,
     create_refresh_token,
@@ -66,7 +66,7 @@ from app.core.security_monitoring import (
 )
 from app.core.csrf import CSRFMiddleware
 from app.api.v1.endpoints.auth_unified import router as auth_router
-from app.core.security import sanitize_input
+from app.services.security import sanitize_input
 from app.schemas.user import UserCreate, UserResponse
 from app.db.models.user import User, UserRole
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1579,7 +1579,7 @@ class TestSecurityIntegration:
     @pytest.mark.asyncio
     async def test_complete_authentication_flow_security(self):
         """Test complete authentication flow with all security controls"""
-        from app.core.security import create_token_pair
+        from app.services.security import create_token_pair
         from app.core.account_security import account_security_manager
 
         user_id = "integration_test_user"
@@ -1618,7 +1618,7 @@ class TestSecurityIntegration:
         assert tokens["expires_in"] > 0
 
         # Step 4: Verify access token
-        from app.core.security import verify_token
+        from app.services.security import verify_token
         decoded_user = verify_token(tokens["access_token"], "access")
         assert decoded_user == user_id
 
@@ -1698,7 +1698,7 @@ class TestSecurityIntegration:
     async def test_error_handling_security_integration(self):
         """Test secure error handling across all components"""
         # Test authentication error handling
-        from app.core.security import verify_token
+        from app.services.security import verify_token
 
         # Invalid token should return None, not raise exception
         result = verify_token("invalid_token", "access")
@@ -1760,7 +1760,7 @@ class TestSecurityIntegration:
         async_db.execute = AsyncMock(return_value=AsyncMock(scalar_one_or_none=AsyncMock(return_value=mock_user)))
 
         # Test user retrieval with proper error handling
-        from app.core.security import get_current_user
+        from app.services.security import get_current_user
 
         # This would normally require a real database session
         # For testing, we verify the concept works

@@ -98,9 +98,10 @@ class LegalRightsService:
         try:
             laws = await self.get_labor_laws_by_country(country_code, state_region=state_region)
 
+            # ✅ FIX: Proper empty check (prevent IndexError on empty list)
             summary = {
                 "country_code": country_code,
-                "country_name": laws[0].country_name if laws else country_code,
+                "country_name": laws[0].country_name if laws and len(laws) > 0 else country_code,
                 "total_laws": len(laws),
                 "categories": {},
                 "key_protections": {

@@ -4,15 +4,16 @@ Communication Analysis API Endpoints
 Provides insights into behavioral patterns and communication analytics
 """
 
+import asyncio
 from typing import List, Dict, Any, Optional
 
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.services.nlp_analysis_service import nlp_analysis_service
 from app.services.communication_pattern_service import communication_pattern_service
@@ -90,8 +91,8 @@ class InsightsSummaryResponse(BaseModel):
 @router.get("/sentiment/summary", response_model=Dict[str, Any])
 async def get_sentiment_summary(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get sentiment analysis summary for user's communications
@@ -112,8 +113,8 @@ async def get_sentiment_summary(
 @router.get("/patterns/analysis", response_model=CommunicationPatternsResponse)
 async def get_communication_patterns(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get detailed communication patterns analysis
@@ -151,8 +152,8 @@ async def get_communication_patterns(
 @router.get("/patterns/behavioral", response_model=BehavioralIndicatorsResponse)
 async def get_behavioral_indicators(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get behavioral indicators based on communication analysis
@@ -193,8 +194,8 @@ async def get_behavioral_indicators(
 async def get_team_culture_health(
     team_id: Optional[str] = Query(None, description="Team ID (optional, uses user's team if not provided)"),
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get culture health analysis for team
@@ -242,8 +243,8 @@ async def get_team_culture_health(
 @router.get("/culture/organization", response_model=CultureHealthResponse)
 async def get_organization_culture_health(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get culture health analysis for organization
@@ -286,8 +287,8 @@ async def get_organization_culture_health(
 @router.get("/coaching/recommendations", response_model=List[CoachingRecommendationResponse])
 async def get_coaching_recommendations(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get personalized coaching recommendations
@@ -305,10 +306,14 @@ async def get_coaching_recommendations(
         await db.commit()
 
         # Get all recommendations for the user
-        all_recommendations = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.user_id == current_user.id,
-            CoachingRecommendation.expires_at > datetime.utcnow()
-        ).order_by(CoachingRecommendation.created_at.desc()).limit(20).all()
+        loop = asyncio.get_event_loop()
+        all_recommendations = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation).filter(
+                CoachingRecommendation.user_id == current_user.id,
+                CoachingRecommendation.expires_at > datetime.utcnow()
+            ).order_by(CoachingRecommendation.created_at.desc()).limit(20).all()
+        )
 
         return [
             CoachingRecommendationResponse(
@@ -334,8 +339,8 @@ async def get_coaching_recommendations(
 @router.get("/insights/summary", response_model=InsightsSummaryResponse)
 async def get_insights_summary(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get comprehensive insights summary combining all analysis types
@@ -345,16 +350,23 @@ async def get_insights_summary(
         sentiment_insights = await nlp_analysis_service.generate_insights_summary(db, current_user.id, days_back)
 
         # Get communication patterns
-        patterns = db.query(CommunicationPatterns).filter(
-            CommunicationPatterns.user_id == current_user.id,
-            CommunicationPatterns.period_start >= datetime.utcnow() - timedelta(days=days_back)
-        ).all()
+        loop = asyncio.get_event_loop()
+        patterns = await loop.run_in_executor(
+            None,
+            lambda: db.query(CommunicationPatterns).filter(
+                CommunicationPatterns.user_id == current_user.id,
+                CommunicationPatterns.period_start >= datetime.utcnow() - timedelta(days=days_back)
+            ).all()
+        )
 
         # Get coaching recommendations count
-        recommendations_count = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.user_id == current_user.id,
-            CoachingRecommendation.created_at >= datetime.utcnow() - timedelta(days=days_back)
-        ).count()
+        recommendations_count = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation).filter(
+                CoachingRecommendation.user_id == current_user.id,
+                CoachingRecommendation.created_at >= datetime.utcnow() - timedelta(days=days_back)
+            ).count()
+        )
 
         # Build summary
         summary = InsightsSummaryResponse(
@@ -378,17 +390,21 @@ async def get_insights_summary(
 async def complete_recommendation(
     recommendation_id: str,
     completion_notes: Optional[str] = Query(None, description="Notes about completion"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Mark a coaching recommendation as completed
     """
     try:
-        recommendation = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.id == recommendation_id,
-            CoachingRecommendation.user_id == current_user.id
-        ).first()
+        loop = asyncio.get_event_loop()
+        recommendation = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation).filter(
+                CoachingRecommendation.id == recommendation_id,
+                CoachingRecommendation.user_id == current_user.id
+            ).first()
+        )
 
         if not recommendation:
             raise HTTPException(
@@ -419,8 +435,8 @@ async def complete_recommendation(
 @router.get("/coaching/effectiveness")
 async def get_coaching_effectiveness(
     days_back: int = Query(default=90, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get analysis of coaching recommendation effectiveness
@@ -441,8 +457,8 @@ async def get_coaching_effectiveness(
 @router.post("/analysis/trigger")
 async def trigger_analysis(
     analysis_type: str = Query(..., description="Type of analysis to trigger: 'patterns', 'culture', 'recommendations'"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Manually trigger analysis for the user
@@ -495,31 +511,41 @@ async def trigger_analysis(
 
 @router.get("/dashboard/metrics")
 async def get_dashboard_metrics(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get key metrics for dashboard display
     """
     try:
         # Get recent patterns
-        recent_patterns = db.query(CommunicationPatterns).filter(
-            CommunicationPatterns.user_id == current_user.id,
-            CommunicationPatterns.period_end >= datetime.utcnow() - timedelta(days=7)
-        ).first()
+        loop = asyncio.get_event_loop()
+        recent_patterns = await loop.run_in_executor(
+            None,
+            lambda: db.query(CommunicationPatterns).filter(
+                CommunicationPatterns.user_id == current_user.id,
+                CommunicationPatterns.period_end >= datetime.utcnow() - timedelta(days=7)
+            ).first()
+        )
 
         # Get active recommendations
-        active_recommendations = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.user_id == current_user.id,
-            CoachingRecommendation.status != "completed",
-            CoachingRecommendation.expires_at > datetime.utcnow()
-        ).count()
+        active_recommendations = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation).filter(
+                CoachingRecommendation.user_id == current_user.id,
+                CoachingRecommendation.status != "completed",
+                CoachingRecommendation.expires_at > datetime.utcnow()
+            ).count()
+        )
 
         # Get recent sentiment trend
-        recent_analyses = db.query(CommunicationAnalysis).filter(
-            CommunicationAnalysis.user_id == current_user.id,
-            CommunicationAnalysis.analysis_timestamp >= datetime.utcnow() - timedelta(days=7)
-        ).all()
+        recent_analyses = await loop.run_in_executor(
+            None,
+            lambda: db.query(CommunicationAnalysis).filter(
+                CommunicationAnalysis.user_id == current_user.id,
+                CommunicationAnalysis.analysis_timestamp >= datetime.utcnow() - timedelta(days=7)
+            ).all()
+        )
 
         sentiment_trend = "stable"
         if recent_analyses:

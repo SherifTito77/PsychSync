@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from unittest.mock import Mock, patch
 
-from app.core.security import (
-    create_access_token,
+from app.services.security import (
+create_access_token,
     verify_password,
     get_password_hash,
     decode_access_token
@@ -162,7 +162,7 @@ class TestAuthorization:
 
     def test_admin_authorization(self):
         """Test admin role authorization"""
-        from app.core.security import has_role
+        from app.services.security import has_role
 
         user = Mock(role="admin")
 
@@ -171,7 +171,7 @@ class TestAuthorization:
 
     def test_user_authorization(self):
         """Test regular user authorization"""
-        from app.core.security import has_role
+        from app.services.security import has_role
 
         user = Mock(role="user")
 
@@ -182,7 +182,7 @@ class TestAuthorization:
 
     def test_cross_site_request_forgery_protection(self):
         """Test CSRF protection mechanisms"""
-        from app.core.security import generate_csrf_token, validate_csrf_token
+        from app.services.security import generate_csrf_token, validate_csrf_token
 
         # Test that CSRF tokens are generated correctly
         token1 = generate_csrf_token()
@@ -204,7 +204,7 @@ class TestAuthorization:
 
     def test_sql_injection_prevention(self):
         """Test SQL injection prevention"""
-        from app.core.security import sanitize_input
+        from app.services.security import sanitize_input
 
         # Test malicious SQL injection attempts
         malicious_inputs = [
@@ -234,7 +234,7 @@ class TestAuthorization:
 
     def test_xss_prevention(self):
         """Test Cross-Site Scripting prevention"""
-        from app.core.security import escape_html
+        from app.services.security import escape_html
 
         # Test malicious XSS attempts
         xss_inputs = [
@@ -291,7 +291,7 @@ class TestAuthorization:
 
     def test_resource_ownership(self):
         """Test checking resource ownership"""
-        from app.core.security import is_owner
+        from app.services.security import is_owner
 
         user = Mock(id=123)
         resource = Mock(user_id=123)
@@ -319,7 +319,7 @@ class TestInputValidation:
 
     def test_email_validation(self):
         """Test email format validation"""
-        from app.core.security import validate_email
+        from app.services.security import validate_email
 
         valid_emails = [
             "user@example.com",
@@ -344,7 +344,7 @@ class TestInputValidation:
 
     def test_sql_injection_prevention(self):
         """Test SQL injection prevention"""
-        from app.core.security import sanitize_input
+        from app.services.security import sanitize_input
 
         malicious_inputs = [
             "'; DROP TABLE users; --",
@@ -361,7 +361,7 @@ class TestInputValidation:
 
     def test_xss_prevention(self):
         """Test XSS attack prevention"""
-        from app.core.security import escape_html
+        from app.services.security import escape_html
 
         xss_inputs = [
             "<script>alert('xss')</script>",
@@ -428,7 +428,7 @@ class TestCSRFProtection:
 
     def test_generate_csrf_token(self):
         """Test CSRF token generation"""
-        from app.core.security import generate_csrf_token
+        from app.services.security import generate_csrf_token
 
         token = generate_csrf_token()
 
@@ -437,7 +437,7 @@ class TestCSRFProtection:
 
     def test_validate_csrf_token(self):
         """Test CSRF token validation"""
-        from app.core.security import generate_csrf_token, validate_csrf_token
+        from app.services.security import generate_csrf_token, validate_csrf_token
 
         token = generate_csrf_token()
 
@@ -449,7 +449,7 @@ class TestCSRFProtection:
 
     def test_csrf_token_expiration(self):
         """Test that CSRF tokens expire"""
-        from app.core.security import generate_csrf_token, validate_csrf_token
+        from app.services.security import generate_csrf_token, validate_csrf_token
 
         token = generate_csrf_token(expires_in=1)  # 1 second
 
@@ -501,7 +501,7 @@ class TestPasswordPolicy:
 
     def test_weak_password_rejected(self):
         """Test that weak passwords are rejected"""
-        from app.core.security import validate_password_strength
+        from app.services.security import validate_password_strength
 
         weak_passwords = [
             "password",
@@ -517,7 +517,7 @@ class TestPasswordPolicy:
 
     def test_strong_password_accepted(self):
         """Test that strong passwords are accepted"""
-        from app.core.security import validate_password_strength
+        from app.services.security import validate_password_strength
 
         strong_passwords = [
             "MySecure123!Password",
@@ -531,7 +531,7 @@ class TestPasswordPolicy:
 
     def test_password_min_length(self):
         """Test minimum password length"""
-        from app.core.security import validate_password_strength
+        from app.services.security import validate_password_strength
 
         short_password = "Abc1!"
         is_valid, message = validate_password_strength(short_password, min_length=8)
@@ -540,7 +540,7 @@ class TestPasswordPolicy:
 
     def test_password_requires_special_char(self):
         """Test that password requires special character"""
-        from app.core.security import validate_password_strength
+        from app.services.security import validate_password_strength
 
         no_special = "Password123"
         is_valid, message = validate_password_strength(

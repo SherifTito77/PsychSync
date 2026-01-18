@@ -13,13 +13,14 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 from app.core.path_utils import sanitize_path, safe_filename
-from sqlalchemy.orm import Session
+# from sqlalchemy.orm import Session  # Replaced with AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 import logging
 from datetime import datetime, timedelta
 
-from app.core.database import get_db
-from app.core.security import get_current_user, verify_password
+# from app.core.database import get_db  # Replaced with get_async_db
+from app.services.security import get_current_user, verify_password
 from app.db.models.user import User
 from app.services.user_service import UserService
 from pydantic import BaseModel
@@ -93,8 +94,8 @@ class UserDeleteResponse(BaseModel):
 @router.get("/export", response_model=UserExportResponse)
 async def export_user_data(
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Export all user data (GDPR Article 15 - Right of Access)
@@ -167,8 +168,8 @@ async def export_user_data(
 
 @router.get("/export/status")
 async def get_export_status(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Check status of data export request
@@ -217,8 +218,8 @@ async def get_export_status(
 async def delete_user_account(
     delete_request: UserDeleteRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Request account deletion (GDPR Article 17 - Right to Erasure)
@@ -341,8 +342,8 @@ async def delete_user_account(
 @router.post("/cancel-deletion")
 async def cancel_account_deletion(
     token: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Cancel pending account deletion
@@ -404,8 +405,8 @@ async def cancel_account_deletion(
 
 @router.get("/privacy-settings")
 async def get_privacy_settings(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get user's privacy and data settings
@@ -443,8 +444,8 @@ async def get_privacy_settings(
 @router.put("/privacy-settings")
 async def update_privacy_settings(
     settings: Dict[str, bool],
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Update privacy and consent settings

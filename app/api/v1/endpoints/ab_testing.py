@@ -3,17 +3,18 @@
 
 API endpoints for managing A/B experiments, variant assignment, and event tracking.
 """
+import asyncio
 import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, List, Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, and_, desc
 
 from app.api.v1.deps import get_current_user
-from app.core.database import get_db
+from app.api.deps import get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.ab_testing import ABExperiment, ABVariant, ABEvent, ABConversion
 
@@ -102,8 +103,8 @@ class ExperimentResults(BaseModel):
 )
 async def assign_variant(
     request: AssignRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Assign user to a variant for the given experiment.
@@ -111,10 +112,15 @@ async def assign_variant(
     Uses deterministic hashing for consistent assignment.
     Results are cached for 1 hour.
     """
+    loop = asyncio.get_event_loop()
+
     # Get experiment
-    experiment = db.query(ABExperiment).filter(
-        ABExperiment.name == request.experiment
-    ).first()
+    experiment = await loop.run_in_executor(
+        None,
+        lambda: db.query(ABExperiment).filter(
+            ABExperiment.name == request.experiment
+        ).first()
+    )
 
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -134,9 +140,12 @@ async def assign_variant(
         return AssignResponse(variant="control", status="ended")
 
     # Get variants
-    variants = db.query(ABVariant).filter(
-        ABVariant.experiment_id == experiment.id
-    ).all()
+    variants = await loop.run_in_executor(
+        None,
+        lambda: db.query(ABVariant).filter(
+            ABVariant.experiment_id == experiment.id
+        ).all()
+    )
 
     if not variants:
         raise HTTPException(status_code=404, detail="No variants found for experiment")
@@ -165,8 +174,8 @@ async def assign_variant(
         variant_id=next(v.id for v in variants if v.name == assigned_variant),
         event_type="assigned"
     )
-    db.add(assignment_event)
-    db.commit()
+    await loop.run_in_executor(None, lambda: db.add(assignment_event))
+    await loop.run_in_executor(None, lambda: db.commit())
 
     return AssignResponse(
         variant=assigned_variant,
@@ -182,27 +191,35 @@ async def assign_variant(
 )
 async def track_event(
     request: TrackRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Track an event for an A/B test variant.
 
     Events can be views, clicks, conversions, or any custom event type.
     """
+    loop = asyncio.get_event_loop()
+
     # Get experiment
-    experiment = db.query(ABExperiment).filter(
-        ABExperiment.name == request.experiment
-    ).first()
+    experiment = await loop.run_in_executor(
+        None,
+        lambda: db.query(ABExperiment).filter(
+            ABExperiment.name == request.experiment
+        ).first()
+    )
 
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
 
     # Get variant
-    variant = db.query(ABVariant).filter(
-        ABVariant.experiment_id == experiment.id,
-        ABVariant.name == request.variant
-    ).first()
+    variant = await loop.run_in_executor(
+        None,
+        lambda: db.query(ABVariant).filter(
+            ABVariant.experiment_id == experiment.id,
+            ABVariant.name == request.variant
+        ).first()
+    )
 
     if not variant:
         raise HTTPException(status_code=404, detail="Variant not found")
@@ -216,7 +233,7 @@ async def track_event(
         properties=request.properties
     )
 
-    db.add(event)
+    await loop.run_in_executor(None, lambda: db.add(event))
 
     # If this is a conversion event, also record in conversions table
     if request.event_type in ["signup", "purchase", "activation", "upgrade"]:
@@ -226,9 +243,9 @@ async def track_event(
             variant_id=variant.id,
             conversion_type="primary"
         )
-        db.add(conversion)
+        await loop.run_in_executor(None, lambda: db.add(conversion))
 
-    db.commit()
+    await loop.run_in_executor(None, lambda: db.commit())
 
     return TrackResponse(status="tracked")
 
@@ -240,23 +257,36 @@ async def track_event(
 async def list_experiments(    status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     List all A/B experiments.
 
     Requires user authentication.
     """
-    query = db.query(ABExperiment)
+    loop = asyncio.get_event_loop()
 
-    if status:
-        query = query.filter(ABExperiment.status == status)
+    # Build query
+    def build_query():
+        query = db.query(ABExperiment)
+        if status:
+            query = query.filter(ABExperiment.status == status)
+        return query
 
-    experiments = query.order_by(desc(ABExperiment.created_at)).offset(offset).limit(limit).all()
+    query = await loop.run_in_executor(None, build_query)
+
+    # Execute experiments query
+    def get_experiments():
+        return query.order_by(desc(ABExperiment.created_at)).offset(offset).limit(limit).all()
+
+    experiments = await loop.run_in_executor(None, get_experiments)
+
+    # Get total count
+    total = await loop.run_in_executor(None, lambda: query.count())
 
     return {
-        "total": query.count(),
+        "total": total,
         "experiments": [
             {
                 "id": str(exp.id),
@@ -278,7 +308,7 @@ async def list_experiments(    status: Optional[str] = Query(None, description="
     response_model=ExperimentResults,
 )
 async def get_experiment_results(    experiment_name: str,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get results for an experiment including conversion rates and statistical significance.
@@ -288,35 +318,49 @@ async def get_experiment_results(    experiment_name: str,
     - Lift vs control
     - Statistical significance (p-value)
     """
+    loop = asyncio.get_event_loop()
+
     # Get experiment
-    experiment = db.query(ABExperiment).filter(
-        ABExperiment.name == experiment_name
-    ).first()
+    experiment = await loop.run_in_executor(
+        None,
+        lambda: db.query(ABExperiment).filter(
+            ABExperiment.name == experiment_name
+        ).first()
+    )
 
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
 
     # Get variants
-    variants = db.query(ABVariant).filter(
-        ABVariant.experiment_id == experiment.id
-    ).all()
+    variants = await loop.run_in_executor(
+        None,
+        lambda: db.query(ABVariant).filter(
+            ABVariant.experiment_id == experiment.id
+        ).all()
+    )
 
     results = []
 
     for variant in variants:
         # Count assignments (unique users with 'assigned' event)
-        assignments = db.query(func.count(func.distinct(ABEvent.user_id))).filter(
-            ABEvent.experiment_id == experiment.id,
-            ABEvent.variant_id == variant.id,
-            ABEvent.event_type == "assigned"
-        ).scalar()
+        assignments = await loop.run_in_executor(
+            None,
+            lambda: db.query(func.count(func.distinct(ABEvent.user_id))).filter(
+                ABEvent.experiment_id == experiment.id,
+                ABEvent.variant_id == variant.id,
+                ABEvent.event_type == "assigned"
+            ).scalar()
+        )
 
         # Count conversions (unique users with 'conversion' event)
-        conversions = db.query(func.count(func.distinct(ABEvent.user_id))).filter(
-            ABEvent.experiment_id == experiment.id,
-            ABEvent.variant_id == variant.id,
-            ABEvent.event_type == "conversion"
-        ).scalar()
+        conversions = await loop.run_in_executor(
+            None,
+            lambda: db.query(func.count(func.distinct(ABEvent.user_id))).filter(
+                ABEvent.experiment_id == experiment.id,
+                ABEvent.variant_id == variant.id,
+                ABEvent.event_type == "conversion"
+            ).scalar()
+        )
 
         conversion_rate = (conversions / assignments * 100) if assignments > 0 else 0
 

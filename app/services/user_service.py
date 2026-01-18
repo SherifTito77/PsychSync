@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit_logger import AuditLogger, SecurityEventType
 from app.core.cache import cache_delete_pattern, cached
 from app.core.config import settings
-from app.core.security import get_password_hash, verify_password
+from app.services.security import get_password_hash, verify_password
 from app.core.security_validator import security_validator
 from app.db.models.organization import Organization
 from app.db.models.user import User

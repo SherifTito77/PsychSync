@@ -14,7 +14,7 @@ from sqlalchemy import text
 
 from app.main import app
 from app.core.database import get_db
-from app.core.security import create_access_token, get_password_hash
+from app.services.security import create_access_token, get_password_hash
 from app.db.models.user import User
 from app.db.models.assessment import Assessment
 from app.db.models.team import Team

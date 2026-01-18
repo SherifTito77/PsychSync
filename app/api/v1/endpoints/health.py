@@ -25,6 +25,9 @@ from app.db.models.user import User
 router = APIRouter()
 logger = get_logger(__name__)
 
+# **Fixed Uptime Calculation:** Store application start time at module load
+_APP_START_TIME = time.time()
+
 
 @router.get("/health/public", summary="Public Health Check")
 async def public_health_check(request: Request):
@@ -57,7 +60,7 @@ async def health_check(request: Request):
 
     try:
         # System metrics
-        cpu_percent = psutil.cpu_percent(interval=0.1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
 
@@ -178,7 +181,7 @@ async def detailed_health_check(
             health_status = "degraded" if health_status == "healthy" else "unhealthy"
 
         # System metrics
-        cpu_percent = psutil.cpu_percent(interval=0.1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
         load_avg = psutil.getloadavg() if hasattr(psutil, "getloadavg") else None
 
@@ -511,13 +514,17 @@ async def get_business_metrics_endpoint(
 
 
 def get_uptime_seconds() -> int:
-    """Get application uptime in seconds"""
-    try:
-        import os
+    """
+    Get application uptime in seconds.
 
-        # Simple approximation - in production, this should be stored at startup
-        return int(time.time() - os.getpid())
+    **Fixed Bug:** Previously used os.getpid() (process ID) instead of start time,
+    resulting in completely incorrect uptime calculations. Now uses the stored
+    application start time from module initialization.
+    """
+    try:
+        return int(time.time() - _APP_START_TIME)
     except Exception as e:
+        logger.log_error(e, operation="get_uptime_seconds")
         return 0
 
 
@@ -566,7 +573,7 @@ def get_system_metrics() -> dict[str, Any]:
     """Get system-level metrics"""
     try:
         return {
-            "cpu_percent": round(psutil.cpu_percent(interval=0.1), 2),
+            "cpu_percent": round(psutil.cpu_percent(interval=None), 2),
             "memory": {
                 "total_gb": round(psutil.virtual_memory().total / (1024**3), 2),
                 "available_gb": round(psutil.virtual_memory().available / (1024**3), 2),

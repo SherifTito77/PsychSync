@@ -490,7 +490,7 @@ class TestProductManagementPerformance:
 @pytest.fixture
 async def test_user(db: AsyncSession) -> User:
     """Create a test user."""
-    from app.core.security import get_password_hash
+    from app.services.security import get_password_hash
 
     user = User(
         email="test@example.com",

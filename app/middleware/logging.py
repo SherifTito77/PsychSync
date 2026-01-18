@@ -13,6 +13,8 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from app.core.correlation import set_correlation_id, clear_correlation_id
+
 # Configure structured logger
 logger = logging.getLogger("psychsync.api")
 
@@ -47,9 +49,17 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         correlation_id = str(uuid.uuid4())
         request.state.correlation_id = correlation_id
 
+        # Set correlation ID in context for all downstream code
+        set_correlation_id(correlation_id)
+
         # Skip logging for excluded paths
         if request.url.path in self.exclude_paths:
-            return await call_next(request)
+            try:
+                response = await call_next(request)
+                return response
+            finally:
+                # Clear correlation context at end of request
+                clear_correlation_id()
 
         # Record start time
         start_time = time.time()
@@ -188,6 +198,9 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             }
             logger.error("API Request Failed", extra=error_log, exc_info=True)
             raise
+        finally:
+            # Clear correlation context at end of request
+            clear_correlation_id()
 
     def _get_client_ip(self, request: Request) -> str:
         """Extract client IP from request, considering proxies"""

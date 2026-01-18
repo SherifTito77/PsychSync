@@ -381,16 +381,16 @@ class ExcelExporter:
                         "Total Assessments",
                     ],
                     "Value": [
-                        assessment_data["score"].iloc[0],
-                        assessment_data["score"].iloc[-1],
-                        assessment_data["score"].iloc[0] - assessment_data["score"].iloc[-1],
+                        assessment_data["score"].iloc[0] if not assessment_data.empty else 0,
+                        assessment_data["score"].iloc[-1] if not assessment_data.empty else 0,
+                        assessment_data["score"].iloc[0] - assessment_data["score"].iloc[-1] if len(assessment_data) >= 2 else 0,
                         (
                             (assessment_data["score"].iloc[0] - assessment_data["score"].iloc[-1])
                             / assessment_data["score"].iloc[0]
                             * 100
-                        )
-                        if assessment_data["score"].iloc[0] > 0
-                        else 0,
+                            if assessment_data["score"].iloc[0] != 0 and len(assessment_data) >= 2
+                            else 0
+                        ),
                         len(assessment_data),
                     ],
                 }

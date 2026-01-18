@@ -14,7 +14,7 @@ from app.core.database import SessionLocal, engine
 from app.db.models.user import User, UserRole
 from app.db.models.organization import Organization
 from app.db.models.team import Team, TeamMember, TeamRole
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 from datetime import datetime
 import logging
 

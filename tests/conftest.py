@@ -38,7 +38,7 @@ from aiofiles import tempfile as aiotempfile
 from app.main import app
 from app.core.database import Base, get_async_db
 from app.core.config import settings
-from app.core.security import create_access_token
+from app.services.security import create_access_token
 from app.db.models.user import User, UserRole
 from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.organization import Organization

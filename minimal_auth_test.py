@@ -14,10 +14,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database_minimal import AsyncSessionLocalMinimal, get_async_db_minimal
-from app.core.security import verify_password
+from app.services.security import verify_password
 from app.db.models.user import User
 from datetime import timedelta
-# from app.core.security import create_access_token  # Using basic JWT instead
+# from app.services.security import create_access_token  # Using basic JWT instead
 
 # Basic JWT imports for simple token creation
 import jwt

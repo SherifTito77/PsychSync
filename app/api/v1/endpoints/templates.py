@@ -5,9 +5,9 @@ from app.api.v1.deps import get_current_user, Depends
 
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, get_current_active_user, get_current_admin_user
+from app.api.deps import get_db, get_current_active_user, get_current_admin_user, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.template import Template
 from app.schemas.template import (
@@ -49,7 +49,7 @@ router = APIRouter(prefix="/templates", tags=["templates"])
 @router.post("", response_model=TemplateSchema, status_code=status.HTTP_201_CREATED)
 def create_template(
     template_in: TemplateCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -68,8 +68,8 @@ def list_templates(
     category: Optional[str] = Query(None),
     is_official: Optional[bool] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    db: Session = Depends(get_db)
+    limit: int = Query(100, ge=1, le=100),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     List all public templates.
@@ -93,7 +93,7 @@ def list_templates(
 @router.get("/search", response_model=List[TemplateSchema])
 def search_templates(
     q: str = Query(..., min_length=2),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Search templates by name or description.
@@ -105,7 +105,7 @@ def search_templates(
 @router.get("/{template_id}", response_model=TemplateWithData)
 def get_template(
     template_id: int,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get template details with full data.
@@ -131,7 +131,7 @@ def get_template(
 def create_assessment_from_template(
     template_id: int,
     team_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -166,7 +166,7 @@ def create_template_from_assessment(
     assessment_id: int,
     name: str = Query(..., min_length=3),
     description: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -204,7 +204,7 @@ def create_template_from_assessment(
 def update_template(
     template_id: int,
     template_in: TemplateUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
@@ -234,7 +234,7 @@ def update_template(
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])
 def delete_template(
     template_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """

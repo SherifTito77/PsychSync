@@ -34,7 +34,7 @@ router = APIRouter(prefix="/sql_audit", tags=["sql_audit"])
     response_model=list[SQLQuery],
 )
 async def get_sql_queries(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=200),
     risk_level: str | None = Query(None, description="Filter by risk level"),
     file_path: str | None = Query(None, description="Filter by file path"),
     unfixed_only: bool = Query(False, description="Show only unfixed queries"),
@@ -194,7 +194,7 @@ async def get_risk_trends(    days: int = Query(30, ge=1, le=365, description="N
     response_model=list[SQLVulnerability],
 )
 async def get_vulnerabilities(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=200),
     severity: str | None = Query(None, description="Filter by severity"),
     unresolved_only: bool = Query(True, description="Show only unresolved vulnerabilities"),
     db: AsyncSession = Depends(get_db),

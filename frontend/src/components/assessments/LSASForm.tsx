@@ -37,10 +37,13 @@ import {
   LinearProgress,
   Stack,
   Divider,
+  AlertTitle,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import axios from 'axios';
+import { useError } from '../../contexts/ErrorContext';
+import { handleError } from '../../utils/errorHandler';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -122,6 +125,7 @@ const RatingButton = styled(Button)<{ selected: boolean }>(({ selected, theme })
 }));
 
 const LSASForm: React.FC = () => {
+  const { showError, showSuccess } = useError();
   const [responses, setResponses] = useState<LSASItem[]>(
     LSAS_ITEMS.map((_, index) => ({
       item_number: index + 1,
@@ -192,10 +196,24 @@ const LSASForm: React.FC = () => {
 
       setResult(response.data);
 
+      // Show success notification
+      showSuccess('Assessment submitted successfully! Your results are ready.');
+
       // Scroll to top to show results
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to submit assessment. Please try again.');
+      // Handle error with user-friendly message
+      const errorInfo = handleError(err, 'Submit LSAS assessment');
+      const errorMessage = errorInfo.userMessage;
+
+      setError(errorMessage);
+
+      // Show error toast with retry option
+      showError(errorMessage, {
+        retryable: errorInfo.retryable,
+        onRetry: errorInfo.retryable ? handleSubmit : undefined,
+      });
+
       console.error('LSAS submission error:', err);
     } finally {
       setIsSubmitting(false);

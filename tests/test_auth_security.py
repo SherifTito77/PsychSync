@@ -17,8 +17,8 @@ import secrets
 import json
 
 from app.main import app
-from app.core.security import (
-    verify_password,
+from app.services.security import (
+verify_password,
     get_password_hash,
     create_token_pair,
     verify_token,

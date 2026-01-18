@@ -4,16 +4,17 @@ Provides comprehensive endpoints for data export, deletion, consent management, 
 """
 
 from datetime import datetime
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.security import get_current_user
+from app.api.deps import get_async_db, get_current_active_user
+from app.services.security import get_current_user
 from app.db.models.user import User
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.services.compliance_audit_service import AuditAction, ComplianceAuditService
@@ -38,8 +39,8 @@ async def request_data_export(
     request: Request,
     background_tasks: BackgroundTasks,
     format: str = "json",
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Request export of all user data (GDPR Right to Data Portability)
@@ -87,7 +88,7 @@ async def request_data_export(
 
 @router.get("/download/{filename}")
 async def download_export(
-    filename: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    filename: str, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
 ):
     """Download exported data file"""
     try:
@@ -124,8 +125,8 @@ async def request_data_deletion(
     request: Request,
     deletion_reason: str = "user_request",
     soft_delete: bool = True,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Request deletion of user data (GDPR Right to be Forgotten)
@@ -173,7 +174,7 @@ async def request_data_deletion(
 
 
 @router.get("/privacy-policy")
-async def get_privacy_policy(version: str | None = None, db: Session = Depends(get_db)):
+async def get_privacy_policy(version: str | None = None, db: AsyncSession = Depends(get_async_db)):
     """Get current or specific privacy policy version"""
     try:
         if version:
@@ -200,7 +201,7 @@ async def get_privacy_policy(version: str | None = None, db: Session = Depends(g
 
 @router.get("/privacy-policy/versions")
 async def list_privacy_policy_versions(
-    include_inactive: bool = False, db: Session = Depends(get_db)
+    include_inactive: bool = False, db: AsyncSession = Depends(get_async_db)
 ):
     """List all privacy policy versions"""
     try:
@@ -222,8 +223,8 @@ async def list_privacy_policy_versions(
 async def update_consent(
     request: Request,
     consent_data: dict[str, Any],
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Update user consent preferences
@@ -297,8 +298,8 @@ async def update_consent(
 @router.get("/consent")
 async def get_user_consents(
     include_history: bool = False,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get user's current consent status and history"""
     try:
@@ -320,8 +321,8 @@ async def get_user_consents(
 async def check_consent(
     consent_type: str,
     granular_check: str | None = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Check if user has valid consent for a specific purpose"""
     try:
@@ -354,8 +355,8 @@ async def get_user_audit_logs(
     limit: int = 50,
     start_date: str | None = None,
     end_date: str | None = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get user's audit logs (GDPR transparency requirement)"""
     try:
@@ -397,7 +398,7 @@ async def get_user_audit_logs(
 
 @router.get("/data-summary")
 async def get_user_data_summary(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
 ):
     """Get summary of user's stored data (GDPR transparency requirement)"""
     try:
@@ -433,8 +434,8 @@ async def get_user_data_summary(
 async def initiate_compliance_request(
     request: Request,
     request_data: dict[str, Any],
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Initiate various GDPR compliance requests

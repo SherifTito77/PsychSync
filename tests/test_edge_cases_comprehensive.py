@@ -18,7 +18,7 @@ from app.services.user_service import UserService
 from app.services.team_service import TeamService
 from app.services.assessment_service import AssessmentService
 from app.services.response_service import ResponseService
-from app.core.security import create_access_token, verify_token
+from app.services.security import create_access_token, verify_token
 from app.db.models.user import User, UserRole
 from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.assessment import Assessment, AssessmentStatus, AssessmentCategory

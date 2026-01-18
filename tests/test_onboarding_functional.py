@@ -32,7 +32,7 @@ from app.main import app
 from app.core.database import get_async_db
 from app.db.models.user import User, UserRole
 from app.db.models.team import Team
-from app.core.security import get_password_hash, verify_password
+from app.services.security import get_password_hash, verify_password
 from app.core.redis_client import get_redis_client
 
 

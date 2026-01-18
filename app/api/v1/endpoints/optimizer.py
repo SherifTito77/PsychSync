@@ -155,8 +155,8 @@ class CompatibilityCheckResponse(BaseModel):
 @router.post("/optimize", response_model=OptimizedTeamResponse)
 async def optimize_team(
     request: OptimizeTeamRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Optimize team composition based on requirements
@@ -250,8 +250,8 @@ async def optimize_team(
 @router.post("/analyze", response_model=OptimizedTeamResponse)
 async def analyze_team(
     request: TeamAnalysisRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Analyze existing team composition
@@ -342,8 +342,8 @@ async def analyze_team(
 @router.post("/compatibility", response_model=CompatibilityCheckResponse)
 async def check_compatibility(
     request: CompatibilityCheckRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Check compatibility between two team members
@@ -451,8 +451,8 @@ async def get_optimization_candidates(
     required_skills: Optional[str] = Query(None),
     department: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get list of candidates available for team optimization

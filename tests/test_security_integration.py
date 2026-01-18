@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.core.security import create_token_pair, verify_token
+from app.services.security import create_token_pair, verify_token
 from app.core.config import settings
 from app.core.account_security import account_security_manager
 from app.core.session_management import session_manager
@@ -38,7 +38,7 @@ class TestCompleteSecurityIntegration:
         test_password = "SecureP@ssw0rd123!"
 
         # Password should be strong
-        from app.core.security import validate_password
+        from app.services.security import validate_password
         validation = validate_password(test_password)
         assert validation["valid"] is True
         assert validation["strength_score"] >= 80

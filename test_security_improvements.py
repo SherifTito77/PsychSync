@@ -194,7 +194,7 @@ class SecurityImprovementsValidator:
         print("\n🔐 Testing Password Policy...")
 
         try:
-            from app.core.security import validate_password, get_password_hash
+            from app.services.security import validate_password, get_password_hash
 
             # Test password validation
             weak_passwords = [
@@ -281,7 +281,7 @@ class SecurityImprovementsValidator:
         print("\n🎫 Testing JWT Security...")
 
         try:
-            from app.core.security import create_access_token, verify_token
+            from app.services.security import create_access_token, verify_token
             from datetime import timedelta
 
             # Test token creation

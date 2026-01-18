@@ -26,7 +26,7 @@ from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.organization import Organization
 from app.db.models.response import Response, AssessmentResponse
 from app.db.models.assessment import Assessment
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 
 
 @pytest.mark.asyncio

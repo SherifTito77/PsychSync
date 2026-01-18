@@ -10,10 +10,10 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field, validator
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.employee_safety import (
     SafetyIncidentType, IncidentSeverity, IncidentStatus, WellnessMetricType, AlertLevel
@@ -97,8 +97,8 @@ class SafetyResourceRequest(BaseModel):
 @router.post("/incidents", response_model=Dict[str, Any])
 async def report_incident(
     incident_data: IncidentReportRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Report a new safety incident
@@ -168,8 +168,8 @@ async def get_incidents(
     team_id: Optional[UUID] = None,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get list of safety incidents with filtering options
@@ -246,8 +246,8 @@ status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 @router.get("/incidents/{incident_id}", response_model=Dict[str, Any])
 async def get_incident(
     incident_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get details of a specific safety incident
@@ -280,8 +280,8 @@ async def get_incident(
 async def update_incident(
     incident_id: UUID,
     update_data: IncidentUpdateRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Update incident status and investigation details
@@ -329,8 +329,8 @@ async def update_incident(
 async def get_incidents_dashboard(
     team_id: Optional[UUID] = None,
     days: int = Query(30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get safety incidents dashboard with statistics and trends
@@ -374,8 +374,8 @@ async def get_incidents_dashboard(
 @router.post("/wellness/assessments", response_model=Dict[str, Any])
 async def create_wellness_assessment(
     assessment_data: WellnessAssessmentRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Create a new wellness assessment
@@ -455,8 +455,8 @@ async def create_wellness_assessment(
 async def get_wellness_dashboard(
     team_id: Optional[UUID] = None,
     days: int = Query(30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get wellness dashboard with organizational/team metrics
@@ -493,8 +493,8 @@ async def get_wellness_dashboard(
 async def get_employee_wellness_history(
     user_id: UUID,
     days: int = Query(90, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get wellness assessment history for a specific employee
@@ -540,8 +540,8 @@ async def get_employee_wellness_history(
 @router.post("/resources", response_model=Dict[str, Any])
 async def create_safety_resource(
     resource_data: SafetyResourceRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Create a new safety resource
@@ -605,8 +605,8 @@ async def get_safety_resources(
     resource_type: Optional[str] = None,
     category: Optional[str] = None,
     search: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get safety resources with filtering options
@@ -647,8 +647,8 @@ async def get_safety_resources(
 async def upload_evidence(
     incident_id: UUID,
     files: List[UploadFile] = File(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Upload evidence files for a safety incident

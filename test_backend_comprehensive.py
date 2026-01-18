@@ -65,7 +65,7 @@ class BackendValidator:
             print("✓ Configuration imports successful")
 
             # Test security imports
-            from app.core.security import verify_password, get_password_hash
+            from app.services.security import verify_password, get_password_hash
             print("✓ Security imports successful")
 
             self.add_result(test_name, True, "All core modules imported successfully")
@@ -181,7 +181,7 @@ class BackendValidator:
         """Test security utility functions"""
         test_name = "Security Functions"
         try:
-            from app.core.security import verify_password, get_password_hash, validate_password
+            from app.services.security import verify_password, get_password_hash, validate_password
 
             # Test password hashing
             password = "SecureP@ss123!"

@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
@@ -370,8 +370,8 @@ async def get_rights_resources(
 async def mark_resource_helpful(
     resource_id: str,
     helpful: bool = Query(..., description="True if helpful, False if not"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> dict:
     """Mark a resource as helpful or not helpful"""
     try:
@@ -401,8 +401,8 @@ async def mark_resource_helpful(
 @router.post("/violations/report", response_model=ContractViolationResponse)
 async def report_violation(
     violation_data: ContractViolationCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Report a potential contract or labor law violation
@@ -433,7 +433,7 @@ async def report_violation(
 async def get_violations(
     status: Optional[str] = Query(None, description="Filter by status"),
     severity: Optional[str] = Query(None, description="Filter by severity"),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=200),
 ) -> Any:
     """
     Get contract violations for your organization
@@ -458,8 +458,8 @@ async def get_violations(
 @router.post("/knowledge-check", response_model=KnowledgeCheckResponse)
 async def submit_knowledge_check(
     check_data: KnowledgeCheckRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Submit a knowledge check assessment
@@ -488,8 +488,8 @@ async def submit_knowledge_check(
 @router.get("/knowledge-check/history", response_model=List[KnowledgeCheckResponse])
 async def get_knowledge_check_history(
     limit: int = Query(20, ge=1, le=50),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """Get your knowledge check history"""
     try:
@@ -587,8 +587,8 @@ async def find_legal_aid(
 
 @router.get("/compliance/report", response_model=ComplianceReportResponse)
 async def get_compliance_report(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Get organization compliance report (Admin/HR only)

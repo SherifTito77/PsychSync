@@ -465,11 +465,16 @@ class DataExportService:
 
     async def _export_json(self, data: dict[str, Any], file_path: str):
         """Export data as JSON"""
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+        import aiofiles
+        # ✅ NON-BLOCKING - async file I/O
+        async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(data, indent=2, ensure_ascii=False, default=str))
 
     async def _export_csv(self, data: dict[str, Any], file_path: str):
         """Export data as CSV"""
+        import aiofiles
+        import io
+
         # For CSV, we'll flatten the data structure
         csv_data = []
 
@@ -485,15 +490,20 @@ class DataExportService:
 
         # Write to CSV
         if csv_data:
-            with open(file_path, "w", newline="", encoding="utf-8") as f:
-                if csv_data:
-                    fieldnames = set()
-                    for item in csv_data:
-                        fieldnames.update(item.keys())
+            # ✅ NON-BLOCKING - prepare CSV in memory, then write async
+            output = io.StringIO()
+            if csv_data:
+                fieldnames = set()
+                for item in csv_data:
+                    fieldnames.update(item.keys())
 
-                    writer = csv.DictWriter(f, fieldnames=list(fieldnames))
-                    writer.writeheader()
-                    writer.writerows(csv_data)
+                writer = csv.DictWriter(output, fieldnames=list(fieldnames))
+                writer.writeheader()
+                writer.writerows(csv_data)
+
+            # Write the entire CSV content asynchronously
+            async with aiofiles.open(file_path, "w", newline="", encoding="utf-8") as f:
+                await f.write(output.getvalue())
 
     async def _export_xml(self, data: dict[str, Any], file_path: str):
         """Export data as XML"""
@@ -556,8 +566,10 @@ class DataExportService:
 
         except ImportError:
             # Fallback: save as text file with .pdf extension
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, default=str)
+            import aiofiles
+            # ✅ NON-BLOCKING - async file I/O
+            async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(data, indent=2, default=str))
 
     async def _export_excel(self, data: dict[str, Any], file_path: str):
         """Export data as Excel spreadsheet"""

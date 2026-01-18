@@ -21,7 +21,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
 from app.core.rate_limiter_unified import SimpleRateLimiter, RateLimitStrategy
-from app.core.security import constant_time_compare, hash_string
+from app.services.security import constant_time_compare, hash_string
 from app.db.crud import users as user_crud
 from app.services.email_service import send_email
 

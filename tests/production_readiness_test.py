@@ -212,7 +212,7 @@ class ProductionReadinessTest:
 
     def test_password_hashing(self):
         """Test password hashing functionality"""
-        from app.core.security import get_password_hash
+        from app.services.security import get_password_hash
 
         password = 'SecurePass123!@#Complex'
         hashed = get_password_hash(password)
@@ -223,7 +223,7 @@ class ProductionReadinessTest:
 
     def test_jwt_tokens(self):
         """Test JWT token creation with correct API"""
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Use correct parameter name: subject, not data
         token = create_access_token(subject='test@example.com')
@@ -233,7 +233,7 @@ class ProductionReadinessTest:
 
     def test_password_verification(self):
         """Test password verification"""
-        from app.core.security import get_password_hash, verify_password
+        from app.services.security import get_password_hash, verify_password
 
         password = 'SecurePass123!@#Complex'
         hashed = get_password_hash(password)

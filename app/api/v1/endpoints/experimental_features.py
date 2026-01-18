@@ -9,9 +9,9 @@ from typing import List, Optional, Dict, Any
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.services.experimental_features import (
     ExperimentalFeaturesLab,
@@ -108,8 +108,8 @@ class LeaderboardResponse(BaseModel):
 @router.post("/experiments", response_model=str)
 async def create_experiment(
     config: ExperimentConfigRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Create a new A/B testing experiment.
@@ -150,8 +150,8 @@ async def get_experiments(
     status: Optional[str] = Query(None, description="Filter by experiment status"),
     test_type: Optional[str] = Query(None, description="Filter by test type"),
     limit: int = Query(50, description="Maximum number of experiments to return"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get list of experiments with optional filtering.
@@ -220,8 +220,8 @@ async def get_experiments(
 @router.post("/experiments/{experiment_id}/assign", response_model=Optional[str])
 async def assign_user_to_experiment(
     experiment_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Assign current user to an experiment variant.
@@ -240,8 +240,8 @@ async def track_experiment_event(
     experiment_id: str,
     event_name: str,
     event_data: Dict[str, Any],
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Track user events for experiment analysis.
@@ -263,8 +263,8 @@ async def track_experiment_event(
 @router.get("/experiments/{experiment_id}/results")
 async def get_experiment_results(
     experiment_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get detailed results and analysis for a specific experiment.
@@ -297,8 +297,8 @@ async def get_experiment_results(
 @router.get("/gamification/profile", response_model=GamificationProfileResponse)
 async def get_gamification_profile(
     user_id: Optional[str] = Query(None, description="User ID to get profile for (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get gamification profile for a user.
@@ -335,8 +335,8 @@ async def get_gamification_profile(
 async def award_achievement(
     request: AchievementRequest,
     user_id: Optional[str] = Query(None, description="User ID to award achievement to (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Award an achievement to a user.
@@ -376,8 +376,8 @@ async def award_achievement(
 async def get_leaderboard(
     leaderboard_type: str = Query("points", description="Type of leaderboard"),
     limit: int = Query(50, description="Maximum number of entries to return"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get gamification leaderboard.
@@ -408,8 +408,8 @@ async def get_leaderboard(
 async def analyze_voice_response(
     audio_file: UploadFile = File(..., description="Audio file to analyze"),
     analysis_types: List[str] = Query(..., description="Types of analysis to perform"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Analyze voice response for emotional and behavioral insights.
@@ -453,8 +453,8 @@ async def analyze_voice_response(
 @router.get("/voice/analysis/{analysis_id}")
 async def get_voice_analysis_result(
     analysis_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get specific voice analysis result.
@@ -491,8 +491,8 @@ async def get_voice_analysis_result(
 
 @router.get("/voice/stats")
 async def get_voice_analysis_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get voice analysis platform statistics.
@@ -509,8 +509,8 @@ async def get_voice_analysis_stats(
 
 @router.get("/dashboard", response_model=LabDashboardResponse)
 async def get_experimental_lab_dashboard(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get comprehensive experimental features lab dashboard.
@@ -536,8 +536,8 @@ async def get_experimental_lab_dashboard(
 async def opt_in_experimental_features(
     opt_in: bool = Field(..., description="Whether to opt in to experimental features"),
     feature_types: Optional[List[str]] = Field(None, description="Specific feature types to opt in to"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Opt in or out of experimental features.
@@ -557,8 +557,8 @@ async def opt_in_experimental_features(
 
 @router.get("/available-features")
 async def get_available_experimental_features(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get list of available experimental features.
@@ -602,8 +602,8 @@ async def get_available_experimental_features(
 async def submit_experimental_feature_feedback(
     feature_type: str = Field(..., description="Type of experimental feature"),
     feedback_data: Dict[str, Any] = Field(..., description="Feedback data"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Submit feedback for experimental features.
@@ -624,8 +624,8 @@ async def submit_experimental_feature_feedback(
 @router.get("/analytics/experiment-participation")
 async def get_experiment_participation_analytics(
     timeframe_days: int = Query(30, description="Timeframe in days"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get analytics about experiment participation.
@@ -669,8 +669,8 @@ async def get_experiment_participation_analytics(
 @router.get("/analytics/gamification-engagement")
 async def get_gamification_engagement_analytics(
     timeframe_days: int = Query(30, description="Timeframe in days"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get analytics about gamification engagement.

@@ -3,16 +3,17 @@ Toxic Behavior Detection API Endpoints
 REST API for detecting, analyzing, and preventing toxic workplace behaviors
 """
 
+import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_
 from pydantic import BaseModel, Field
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.toxicity_detection import (
     ToxicityPattern, ToxicityType, ToxicityLevel,
@@ -108,8 +109,8 @@ class InterventionResponse(BaseModel):
 @router.post("/detect", response_model=ToxicityAnalysisResponse)
 async def detect_toxic_behavior(
     request: ToxicityDetectionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Analyze team/organization for toxic behavior patterns
@@ -156,8 +157,8 @@ async def get_toxicity_patterns(
     status: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get detected toxicity patterns for organization/team
@@ -165,26 +166,33 @@ async def get_toxicity_patterns(
     Returns paginated list of toxicity patterns with filtering options
     """
     try:
+        loop = asyncio.get_event_loop()
+
         # Build query
-        query = db.query(ToxicityPattern).filter(
-            ToxicityPattern.organization_id == organization_id
-        )
+        def build_query():
+            query = db.query(ToxicityPattern).filter(
+                ToxicityPattern.organization_id == organization_id
+            )
 
-        if team_id:
-            query = query.filter(ToxicityPattern.team_id == team_id)
+            if team_id:
+                query = query.filter(ToxicityPattern.team_id == team_id)
 
-        if severity:
-            query = query.filter(ToxicityPattern.severity_level == severity.value)
+            if severity:
+                query = query.filter(ToxicityPattern.severity_level == severity.value)
 
-        if status:
-            query = query.filter(ToxicityPattern.status == status)
+            if status:
+                query = query.filter(ToxicityPattern.status == status)
 
-        # Order by detection date (most recent first)
-        query = query.order_by(ToxicityPattern.detection_date.desc())
+            # Order by detection date (most recent first)
+            query = query.order_by(ToxicityPattern.detection_date.desc())
+
+            return query
+
+        query = await loop.run_in_executor(None, build_query)
 
         # Paginate
-        total = query.count()
-        patterns = query.offset(offset).limit(limit).all()
+        total = await loop.run_in_executor(None, query.count)
+        patterns = await loop.run_in_executor(None, lambda: query.offset(offset).limit(limit).all())
 
         return {
             "patterns": [
@@ -223,8 +231,8 @@ async def get_toxicity_trends(
     organization_id: UUID,
     team_id: Optional[UUID] = None,
     days_back: int = Query(default=90, ge=7, le=365),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get toxicity trends over time
@@ -252,7 +260,7 @@ async def get_toxicity_trends(
 @router.post("/anonymous-report", response_model=AnonymousReportResponse)
 async def submit_anonymous_report(
     request: AnonymousReportRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Submit anonymous toxic behavior report
@@ -316,7 +324,7 @@ async def submit_anonymous_report(
 @router.get("/anonymous-report/{tracking_id}")
 async def check_anonymous_report_status(
     tracking_id: str,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Check status of anonymous report using tracking ID
@@ -324,9 +332,13 @@ async def check_anonymous_report_status(
     Allows reporters to check on their report status without revealing identity
     """
     try:
-        pattern = db.query(ToxicityPattern).filter(
-            ToxicityPattern.evidence_summary.ilike(f"%{tracking_id}%")
-        ).first()
+        loop = asyncio.get_event_loop()
+        pattern = await loop.run_in_executor(
+            None,
+            lambda: db.query(ToxicityPattern).filter(
+                ToxicityPattern.evidence_summary.ilike(f"%{tracking_id}%")
+            ).first()
+        )
 
         if not pattern:
             raise HTTPException(
@@ -357,8 +369,8 @@ async def check_anonymous_report_status(
 @router.post("/interventions", response_model=InterventionResponse)
 async def create_intervention(
     request: InterventionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Create behavioral intervention for toxicity pattern
@@ -366,10 +378,15 @@ async def create_intervention(
     Creates an intervention plan to address detected toxic behavior
     """
     try:
+        loop = asyncio.get_event_loop()
+
         # Get toxicity pattern
-        pattern = db.query(ToxicityPattern).filter(
-            ToxicityPattern.id == request.toxicity_pattern_id
-        ).first()
+        pattern = await loop.run_in_executor(
+            None,
+            lambda: db.query(ToxicityPattern).filter(
+                ToxicityPattern.id == request.toxicity_pattern_id
+            ).first()
+        )
 
         if not pattern:
             raise HTTPException(
@@ -425,8 +442,8 @@ async def get_interventions(
     team_id: Optional[UUID] = None,
     status: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=100),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get behavioral interventions for organization/team
@@ -434,27 +451,34 @@ async def get_interventions(
     Returns list of interventions with their status and details
     """
     try:
+        loop = asyncio.get_event_loop()
+
         # Get all pattern IDs for this org
-        pattern_query = db.query(ToxicityPattern.id).filter(
-            ToxicityPattern.organization_id == organization_id
-        )
+        def build_pattern_query():
+            pattern_query = db.query(ToxicityPattern.id).filter(
+                ToxicityPattern.organization_id == organization_id
+            )
 
-        if team_id:
-            pattern_query = pattern_query.filter(ToxicityPattern.team_id == team_id)
+            if team_id:
+                pattern_query = pattern_query.filter(ToxicityPattern.team_id == team_id)
 
-        pattern_ids = [p[0] for p in pattern_query.all()]
+            return pattern_query
+
+        pattern_query = await loop.run_in_executor(None, build_pattern_query)
+        pattern_ids = [p[0] for p in await loop.run_in_executor(None, pattern_query.all)]
 
         # Get interventions
-        query = db.query(BehavioralIntervention).filter(
-            BehavioralIntervention.toxicity_pattern_id.in_(pattern_ids)
-        )
+        def build_intervention_query():
+            query = db.query(BehavioralIntervention).filter(
+                BehavioralIntervention.toxicity_pattern_id.in_(pattern_ids)
+            )
 
-        if status:
-            query = query.filter(BehavioralIntervention.status == status)
+            if status:
+                query = query.filter(BehavioralIntervention.status == status)
 
-        interventions = query.order_by(
-            BehavioralIntervention.created_at.desc()
-        ).limit(limit).all()
+            return query.order_by(BehavioralIntervention.created_at.desc()).limit(limit)
+
+        interventions = await loop.run_in_executor(None, lambda: build_intervention_query().all())
 
         return {
             "interventions": [
@@ -490,8 +514,8 @@ async def get_psychological_safety_metrics(
     organization_id: UUID,
     team_id: Optional[UUID] = None,
     days_back: int = Query(default=90, ge=7, le=365),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get psychological safety metrics for team/organization
@@ -504,21 +528,23 @@ async def get_psychological_safety_metrics(
     - Challenge safety
     """
     try:
+        loop = asyncio.get_event_loop()
         cutoff_date = datetime.utcnow().date() - timedelta(days=days_back)
 
-        query = db.query(PsychologicalSafetyMetrics).filter(
-            and_(
-                PsychologicalSafetyMetrics.organization_id == organization_id,
-                PsychologicalSafetyMetrics.measurement_date >= cutoff_date
+        def build_query():
+            query = db.query(PsychologicalSafetyMetrics).filter(
+                and_(
+                    PsychologicalSafetyMetrics.organization_id == organization_id,
+                    PsychologicalSafetyMetrics.measurement_date >= cutoff_date
+                )
             )
-        )
 
-        if team_id:
-            query = query.filter(PsychologicalSafetyMetrics.team_id == team_id)
+            if team_id:
+                query = query.filter(PsychologicalSafetyMetrics.team_id == team_id)
 
-        metrics = query.order_by(
-            PsychologicalSafetyMetrics.measurement_date.desc()
-        ).all()
+            return query.order_by(PsychologicalSafetyMetrics.measurement_date.desc())
+
+        metrics = await loop.run_in_executor(None, lambda: build_query().all())
 
         if not metrics:
             return {
@@ -587,8 +613,8 @@ async def get_psychological_safety_metrics(
 async def get_toxicity_dashboard(
     organization_id: UUID,
     team_id: Optional[UUID] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Get comprehensive dashboard data for toxic behavior detection
@@ -596,20 +622,24 @@ async def get_toxicity_dashboard(
     Returns summary statistics and key metrics for dashboard view
     """
     try:
+        loop = asyncio.get_event_loop()
         cutoff_date = datetime.utcnow().date() - timedelta(days=30)
 
         # Get recent patterns
-        pattern_query = db.query(ToxicityPattern).filter(
-            and_(
-                ToxicityPattern.organization_id == organization_id,
-                ToxicityPattern.detection_date >= cutoff_date
+        def build_pattern_query():
+            pattern_query = db.query(ToxicityPattern).filter(
+                and_(
+                    ToxicityPattern.organization_id == organization_id,
+                    ToxicityPattern.detection_date >= cutoff_date
+                )
             )
-        )
 
-        if team_id:
-            pattern_query = pattern_query.filter(ToxicityPattern.team_id == team_id)
+            if team_id:
+                pattern_query = pattern_query.filter(ToxicityPattern.team_id == team_id)
 
-        recent_patterns = pattern_query.all()
+            return pattern_query
+
+        recent_patterns = await loop.run_in_executor(None, lambda: build_pattern_query().all())
 
         # Calculate statistics
         total_patterns = len(recent_patterns)
@@ -624,17 +654,23 @@ async def get_toxicity_dashboard(
 
         # Get active interventions
         pattern_ids = [p.id for p in recent_patterns]
-        active_interventions = db.query(BehavioralIntervention).filter(
-            and_(
-                BehavioralIntervention.toxicity_pattern_id.in_(pattern_ids),
-                BehavioralIntervention.status.in_(["planned", "in_progress"])
-            )
-        ).count()
+        active_interventions = await loop.run_in_executor(
+            None,
+            lambda: db.query(BehavioralIntervention).filter(
+                and_(
+                    BehavioralIntervention.toxicity_pattern_id.in_(pattern_ids),
+                    BehavioralIntervention.status.in_(["planned", "in_progress"])
+                )
+            ).count()
+        )
 
         # Get latest psychological safety score
-        latest_ps = db.query(PsychologicalSafetyMetrics).filter(
-            PsychologicalSafetyMetrics.organization_id == organization_id
-        ).order_by(PsychologicalSafetyMetrics.measurement_date.desc()).first()
+        latest_ps = await loop.run_in_executor(
+            None,
+            lambda: db.query(PsychologicalSafetyMetrics).filter(
+                PsychologicalSafetyMetrics.organization_id == organization_id
+            ).order_by(PsychologicalSafetyMetrics.measurement_date.desc()).first()
+        )
 
         ps_score = float(latest_ps.calculate_overall_score()) if latest_ps else None
         ps_risk_level = latest_ps.get_risk_level() if latest_ps else None

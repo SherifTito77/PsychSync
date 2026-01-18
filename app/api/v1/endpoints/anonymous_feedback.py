@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
@@ -48,7 +48,7 @@ class FeedbackStatusUpdate(BaseModel):
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/submit", response_model=dict[str, Any])
 async def submit_anonymous_feedback(
-    feedback_data: AnonymousFeedbackSubmission, db: Session = Depends(get_db)
+    feedback_data: AnonymousFeedbackSubmission, db: AsyncSession = Depends(get_async_db)
 ):
     """
     Submit completely anonymous feedback with enhanced psychological safety features
@@ -114,7 +114,7 @@ async def submit_anonymous_feedback(
 
 
 @router.get("/status/{tracking_id}", response_model=dict[str, Any])
-async def check_feedback_status(tracking_id: str, db: Session = Depends(get_db)):
+async def check_feedback_status(tracking_id: str, db: AsyncSession = Depends(get_async_db)):
     """
     Check status of anonymous feedback using tracking ID
 
@@ -225,7 +225,7 @@ async def get_feedback_for_review(
     severity_filter: str | None = None,
     category_filter: str | None = None,
     limit: int = 50,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user=Depends(get_current_user),
 ):
     """
@@ -273,7 +273,7 @@ async def get_feedback_for_review(
 async def update_feedback_status(
     feedback_id: str,
     status_update: FeedbackStatusUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user=Depends(get_current_user),
 ):
     """
@@ -314,7 +314,7 @@ async def update_feedback_status(
 async def get_anonymous_feedback_statistics(
     organization_id: str,
     days_back: int = 90,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user=Depends(get_current_user),
 ):
     """

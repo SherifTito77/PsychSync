@@ -24,7 +24,7 @@ from app.db.models.organization import Organization
 from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.assessment import Assessment
 from app.db.models.response import Response
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 
 class RealDatabaseTestResult:
     def __init__(self, test_name: str, success: bool, duration: float, details: str = "", error: str = None):

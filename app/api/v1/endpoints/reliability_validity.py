@@ -16,14 +16,14 @@ from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import Dict, List, Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 import pandas as pd
 import numpy as np
 import asyncio
 import logging
 
-from app.core.database import get_db
+from app.api.deps import get_async_db
 from app.services.reliability_validity_service import (
     ReliabilityValidityService, ReliabilityType, ValidityType,
     FactorAnalysisMethod, RotationMethod, ReliabilityResult,
@@ -51,7 +51,7 @@ class FactorAnalysisRequest(BaseModel):
     extraction_method: FactorAnalysisMethod = Field(FactorAnalysisMethod.PRINCIPAL_AXIS)
     rotation_method: RotationMethod = Field(RotationMethod.VARIMAX)
     n_factors: Optional[int] = Field(None, description="Number of factors to extract")
-    parallel_analysis_samples: int = Field(100, ge=10, le=1000, description="Samples for parallel analysis")
+    parallel_analysis_samples: int = Field(100, ge=10, le=200, description="Samples for parallel analysis")
 
 class ValidityAnalysisRequest(BaseModel):
     """Request model for validity analysis."""
@@ -126,7 +126,7 @@ data_service = PredictionDataCollectionService()
 @router.post("/reliability/analyze", response_model=ReliabilityAnalysisResponse)
 async def analyze_reliability(
     request: ReliabilityAnalysisRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Conduct reliability analysis for an assessment.
@@ -239,7 +239,7 @@ async def analyze_reliability(
 @router.post("/factor-analysis", response_model=FactorAnalysisResponse)
 async def conduct_factor_analysis(
     request: FactorAnalysisRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Conduct exploratory factor analysis for construct validity.
@@ -330,7 +330,7 @@ async def conduct_factor_analysis(
 @router.post("/validity/analyze", response_model=ValidityAnalysisResponse)
 async def analyze_validity(
     request: ValidityAnalysisRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Conduct validity analysis for an assessment.
@@ -441,7 +441,7 @@ async def analyze_validity(
 @router.post("/items/analyze", response_model=ItemAnalysisResponse)
 async def analyze_items(
     request: ItemAnalysisRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Conduct comprehensive item analysis.
@@ -527,7 +527,7 @@ async def analyze_items(
 @router.post("/comprehensive/analyze", response_model=ComprehensiveAnalysisResponse)
 async def conduct_comprehensive_analysis(
     request: ComprehensiveAnalysisRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Conduct comprehensive reliability and validity analysis.
@@ -652,7 +652,7 @@ async def conduct_comprehensive_analysis(
 @router.get("/dashboard/{assessment_id}")
 async def get_reliability_validity_dashboard(
     assessment_id: int,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get reliability and validity dashboard data for an assessment.

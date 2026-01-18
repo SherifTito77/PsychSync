@@ -31,7 +31,7 @@ from app.core.response import (
 )
 
 # Enhanced Core - Updated imports
-from app.core.security import verify_password
+from app.services.security import verify_password
 from app.core.security_validator import security_validator
 
 # Models

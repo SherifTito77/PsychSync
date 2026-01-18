@@ -256,8 +256,19 @@ class ScoringService:
 
         # Determine primary and secondary styles
         sorted_disc = sorted(final_disc.items(), key=lambda x: x[1], reverse=True)
-        primary_style = sorted_disc[0][0]
-        secondary_style = sorted_disc[1][0]
+
+        # ✅ FIX: Check list length before accessing (prevents IndexError)
+        if not sorted_disc:
+            logger.warning("DISC scoring produced empty results, using defaults")
+            primary_style = "Unknown"
+            secondary_style = "Unknown"
+        elif len(sorted_disc) == 1:
+            logger.warning(f"DISC scoring produced only 1 dimension: {sorted_disc[0][0]}")
+            primary_style = sorted_disc[0][0]
+            secondary_style = "Unknown"
+        else:
+            primary_style = sorted_disc[0][0]
+            secondary_style = sorted_disc[1][0]
 
         return {
             "framework": "DISC",
@@ -407,8 +418,17 @@ class ScoringService:
     def _get_disc_pattern(scores: dict[str, float]) -> str:
         """Determine DISC behavioral pattern"""
         sorted_styles = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        top_two = [style[0] for style in sorted_styles[:2]]
-        return f"{top_two[0]}{top_two[1]} Pattern"
+
+        # ✅ FIX: Check list length before accessing (prevents IndexError)
+        if len(sorted_styles) >= 2:
+            top_two = [style[0] for style in sorted_styles[:2]]
+            return f"{top_two[0]}{top_two[1]} Pattern"
+        elif len(sorted_styles) == 1:
+            logger.warning(f"Only 1 style found in DISC pattern: {sorted_styles[0][0]}")
+            return f"{sorted_styles[0][0]}Unknown Pattern"
+        else:
+            logger.error("No styles found in DISC pattern")
+            return "Unknown Pattern"
 
     @staticmethod
     def _get_disc_interpretation(primary_style: str, scores: dict[str, float]) -> dict[str, str]:

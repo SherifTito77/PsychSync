@@ -3,6 +3,7 @@ Advanced Reporting API Endpoints
 REST API for report generation, templates, scheduling, and management
 """
 
+import asyncio
 from datetime import datetime, timedelta
 
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
@@ -10,10 +11,10 @@ from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field, validator
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
 from app.db.models.user import User
 from app.db.models.reports import (
     ReportType, ReportStatus, ExportFormat, ScheduleFrequency
@@ -92,8 +93,8 @@ class ReportScheduleRequest(BaseModel):
 async def generate_report(
     report_request: ReportGenerationRequestModel,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Generate a new report
@@ -167,8 +168,8 @@ async def list_reports(
     team_id: Optional[UUID] = None,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get list of reports with filtering options
@@ -221,8 +222,8 @@ async def list_reports(
 @router.get("/{report_id}", response_model=Dict[str, Any])
 async def get_report(
     report_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get details of a specific report
@@ -253,8 +254,8 @@ async def get_report(
 @router.get("/{report_id}/download")
 async def download_report(
     report_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Download a generated report file
@@ -275,9 +276,13 @@ async def download_report(
 
         # Get file path from database
         from app.db.models.reports import GeneratedReport
-        report_record = db.query(GeneratedReport).filter(
-            GeneratedReport.id == report_id
-        ).first()
+        loop = asyncio.get_event_loop()
+        report_record = await loop.run_in_executor(
+            None,
+            lambda: db.query(GeneratedReport).filter(
+                GeneratedReport.id == report_id
+            ).first()
+        )
 
         if not report_record or not report_record.file_path:
             raise HTTPException(
@@ -312,8 +317,8 @@ async def download_report(
 @router.post("/templates", response_model=Dict[str, Any])
 async def create_template(
     template_data: ReportTemplateRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Create a new report template
@@ -369,8 +374,8 @@ async def get_templates(
     report_type: Optional[ReportType] = None,
     category: Optional[str] = None,
     is_public: Optional[bool] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get available report templates
@@ -402,8 +407,8 @@ async def get_templates(
 @router.post("/schedules", response_model=Dict[str, Any])
 async def create_schedule(
     schedule_data: ReportScheduleRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Create a new report schedule
@@ -460,8 +465,8 @@ async def create_schedule(
 @router.get("/schedules", response_model=List[Dict[str, Any]])
 async def get_schedules(
     is_active: Optional[bool] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get report schedules
@@ -489,8 +494,8 @@ async def get_schedules(
 @router.get("/analytics", response_model=Dict[str, Any])
 async def get_report_analytics(
     days: int = Query(30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get comprehensive report analytics
@@ -531,8 +536,8 @@ async def get_report_analytics(
 @router.post("/execute-scheduled", response_model=Dict[str, Any])
 async def execute_scheduled_reports(
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Execute all pending scheduled reports (Admin only)
@@ -566,8 +571,8 @@ async def execute_scheduled_reports(
 
 @router.post("/cleanup", response_model=Dict[str, Any])
 async def cleanup_expired_reports(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Clean up expired reports (Admin only)

@@ -2,7 +2,10 @@
 // AI Assessment Orchestrator UI - Personalized assessment recommendations
 import React, { useState, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { orchestratorService } from '../../services/orchestratorService';
+import { useError } from '../../contexts/ErrorContext';
+import { handleError } from '../../utils/errorHandler';
 import {
   UserContext,
   Recommendation,
@@ -137,8 +140,10 @@ const InsightCard: React.FC<{ insight: OrchestratorInsight }> = memo(({ insight 
 
 const AssessmentOrchestrator: React.FC<AssessmentOrchestratorProps> = ({ userContext }) => {
   const navigate = useNavigate();
+  const { showError } = useError();
   const [response, setResponse] = useState<OrchestratorResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<'recommendations' | 'path' | 'insights'>('recommendations');
 
   useEffect(() => {
@@ -146,16 +151,25 @@ const AssessmentOrchestrator: React.FC<AssessmentOrchestratorProps> = ({ userCon
   }, [userContext]);
 
   const loadRecommendations = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const data = await orchestratorService.getRecommendations(userContext, {
         maxRecommendations: 6,
         includeClinicalTools: true,
         prioritizeTeamFeatures: userContext.role === 'hr_manager' || userContext.role === 'team_lead',
       });
       setResponse(data);
-    } catch (error) {
-      console.error('Failed to load recommendations:', error);
+    } catch (err: any) {
+      // Handle error with user-friendly message
+      const errorInfo = handleError(err, 'Load assessment recommendations');
+      setError(errorInfo.userMessage);
+
+      // Show toast notification
+      showError(errorInfo.userMessage, {
+        retryable: errorInfo.retryable,
+        onRetry: errorInfo.retryable ? loadRecommendations : undefined,
+      });
     } finally {
       setLoading(false);
     }
@@ -194,8 +208,25 @@ const AssessmentOrchestrator: React.FC<AssessmentOrchestratorProps> = ({ userCon
 
   if (!response) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-        <p className="text-red-800">Failed to load recommendations. Please try again.</p>
+      <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-red-900 mb-2">Unable to Load Recommendations</h3>
+        <p className="text-red-700 mb-6">{error || 'Failed to load recommendations. Please try again.'}</p>
+        <div className="flex justify-center gap-3">
+          <button
+            onClick={loadRecommendations}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </button>
+          <button
+            onClick={() => navigate('/assessments')}
+            className="px-4 py-2 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            Browse All Assessments
+          </button>
+        </div>
       </div>
     );
   }

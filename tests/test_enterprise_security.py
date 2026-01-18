@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 
 from app.core.database import get_async_db
-from app.core.security import verify_password, create_access_token, create_password_hash
+from app.services.security import verify_password, create_access_token, create_password_hash
 from app.core.row_level_security import rls_manager, execute_secure_query
 from app.db.models.user_secure import SecureUser, UserRole, DataClassification
 from app.db.models.organization_secure import SecureOrganization, OrganizationType
@@ -279,7 +279,7 @@ class TestPasswordSecurity:
 
     def test_password_strength_validation(self):
         """Test password strength validation"""
-        from app.core.security import validate_password
+        from app.services.security import validate_password
 
         # Test strong password
         strong_password = "StrongP@ssw0rd123!"

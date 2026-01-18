@@ -17,7 +17,7 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
 # --- Now we can import from our app ---
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 from app.core.config import settings
 
 async def create_test_user():

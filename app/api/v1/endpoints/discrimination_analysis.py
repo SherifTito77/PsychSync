@@ -3,15 +3,16 @@ Discrimination & Equity Analysis API Endpoints
 Provides comprehensive analysis of workplace discrimination and equity
 """
 
+import asyncio
 from datetime import datetime
 from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, get_db
+from app.api.v1.deps import get_current_active_user, get_async_db
 from app.core.logging_config import logger
 from app.db.models.user import User
 from app.services.discrimination_analysis_service import DiscriminationAnalysisService
@@ -95,8 +96,8 @@ class EquityReportResponse(BaseModel):
 @router.post("/demographic-profile")
 async def save_demographic_profile(
     profile_data: DemographicProfileCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> dict:
     """
     Save or update your demographic profile
@@ -130,16 +131,20 @@ async def save_demographic_profile(
 
 @router.get("/demographic-profile")
 async def get_demographic_profile(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> dict:
     """Get your current demographic profile"""
     try:
         from app.db.models.discrimination_analysis import DemographicProfile
 
-        profile = db.query(DemographicProfile).filter(
-            DemographicProfile.user_id == current_user.id
-        ).first()
+        loop = asyncio.get_event_loop()
+        profile = await loop.run_in_executor(
+            None,
+            lambda: db.query(DemographicProfile).filter(
+                DemographicProfile.user_id == current_user.id
+            ).first()
+        )
 
         if not profile:
             return {"message": "No profile found", "profile": None}
@@ -171,8 +176,8 @@ async def get_demographic_profile(
 @router.post("/analyze/pay-equity", response_model=EquityAnalysisResponse)
 async def analyze_pay_equity(
     request: AnalysisRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Analyze pay equity across demographic groups (Admin/HR only)
@@ -209,8 +214,8 @@ async def analyze_pay_equity(
 @router.post("/analyze/promotion-equity", response_model=EquityAnalysisResponse)
 async def analyze_promotion_equity(
     request: AnalysisRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Analyze promotion equity (Admin/HR only)
@@ -246,8 +251,8 @@ async def analyze_promotion_equity(
 @router.post("/analyze/hiring-disparity", response_model=EquityAnalysisResponse)
 async def analyze_hiring_disparity(
     request: AnalysisRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Analyze hiring disparities (Admin/HR only)
@@ -338,8 +343,8 @@ async def get_equity_compliance_report(
 @router.post("/complaints")
 async def create_complaint(
     complaint_data: ComplaintCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> dict:
     """
     Report a discrimination complaint
@@ -374,9 +379,9 @@ async def create_complaint(
 async def get_complaints(
     status: Optional[str] = Query(None, description="Filter by status"),
     severity: Optional[str] = Query(None, description="Filter by severity"),
-    limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    limit: int = Query(100, ge=1, le=200),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> dict:
     """
     Get discrimination complaints (Admin/HR only)

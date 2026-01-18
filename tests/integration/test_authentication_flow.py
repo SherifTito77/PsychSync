@@ -16,8 +16,8 @@ from jose import JWTError, jwt
 
 from app.main import app
 from app.core.database import get_db
-from app.core.security import (
-    create_access_token, create_refresh_token, verify_password,
+from app.services.security import (
+create_access_token, create_refresh_token, verify_password,
     get_password_hash, verify_token, get_current_user
 )
 from app.db.models.user import User

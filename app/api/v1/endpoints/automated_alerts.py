@@ -204,7 +204,7 @@ async def get_unresolved_alerts(
 async def get_alert_history(
     user_id: Optional[UUID] = Query(None, description="Filter by specific user"),
     days_back: int = Query(30, ge=1, le=365, description="Number of days to look back"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum alerts to return"),
+    limit: int = Query(100, ge=1, le=200, description="Maximum alerts to return"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):

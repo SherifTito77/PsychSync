@@ -9,6 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Progress from '@/components/ui/progress';
+import { useError } from '@/contexts/ErrorContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Tabs,
   TabsContent,
@@ -165,11 +167,13 @@ interface RecordingConfig {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
 const VoiceVideoAnalysis: React.FC = () => {
+  const { showError, showWarning } = useError();
   const [activeTab, setActiveTab] = useState('recording');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
+  const [mediaError, setMediaError] = useState<{ message: string; details: string } | null>(null);
   const [recordingConfig, setRecordingConfig] = useState<RecordingConfig>({
     maxDuration: 300,
     quality: 'high',
@@ -353,8 +357,35 @@ const VoiceVideoAnalysis: React.FC = () => {
       setIsRecording(true);
       startRecordingTimer();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accessing media devices:', error);
+
+      // Handle specific permission errors with user-friendly messages
+      let errorMessage = 'Unable to access media devices.';
+      let errorDetails = '';
+
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage = 'Camera/Microphone Access Denied';
+        errorDetails = 'Please grant camera and microphone permissions in your browser settings to use this feature. Click the lock/icon in the address bar to allow access.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No Camera/Microphone Found';
+        errorDetails = 'No camera or microphone device was detected on your system. Please connect a device and try again.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Device in Use';
+        errorDetails = 'The camera or microphone is already being used by another application. Please close other applications and try again.';
+      } else {
+        errorMessage = 'Unable to Access Media Devices';
+        errorDetails = error.message || 'An unexpected error occurred while trying to access your camera or microphone.';
+      }
+
+      // Set error state for display in UI
+      setMediaError({ message: errorMessage, details: errorDetails });
+
+      // Show error toast notification
+      showError(`${errorMessage}: ${errorDetails}`, {
+        retryable: true,
+        onRetry: startRecording,
+      });
     }
   };
 

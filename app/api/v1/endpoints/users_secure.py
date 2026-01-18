@@ -41,8 +41,8 @@ from app.core.response import (
     create_paginated_response,
     create_success_response,
 )
-from app.core.security import (
-    check_password_history,
+from app.services.security import (
+check_password_history,
     hash_password,
     validate_password_strength,
     verify_password,

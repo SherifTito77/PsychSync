@@ -36,7 +36,7 @@ from app.core.database import get_async_db
 from app.core.config import settings
 from app.db.models.user import User, UserRole, UserStatus
 from app.schemas.user import UserCreate, UserUpdate, UserProfile, PasswordChangeRequest
-from app.core.security import create_access_token, hash_password
+from app.services.security import create_access_token, hash_password
 from app.core.exceptions import PsychSyncException, ValidationError
 from app.api.v1.endpoints.users_production import (
     RequestContext,

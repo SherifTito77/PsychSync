@@ -11,6 +11,7 @@ Endpoints:
 - GET /manager-dashboard - Manager view of team health (anonymized)
 """
 
+import asyncio
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
 from uuid import UUID
@@ -175,7 +176,7 @@ class ConsentRequest(BaseModel):
 async def analyze_health_risks(
     request: HealthAnalysisRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
     Analyze health risks based on work patterns, communication, and biometric data
@@ -251,7 +252,7 @@ async def analyze_health_risks(
 async def get_health_report(
     days: int = Query(30, ge=7, le=90, description="Days to include in report"),
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
     Get comprehensive health report for current user
@@ -305,7 +306,7 @@ async def get_health_report(
 async def create_intervention_plan(
     request: InterventionCreateRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
     Create intervention plan based on health risks
@@ -385,7 +386,7 @@ async def create_intervention_plan(
 async def submit_biometric_data(
     data: BiometricDataSubmit,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
     Submit biometric health data from wearables or manual entry
@@ -435,7 +436,7 @@ async def submit_biometric_data(
         )
 
         db.add(biometric_record)
-        db.commit()
+        await db.commit()
 
         # Analyze for critical health alerts
         risk_indicators = biometric_record.get_cardiovascular_risk_indicators()
@@ -453,7 +454,7 @@ async def submit_biometric_data(
         }
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to submit biometric data: {str(e)}"
@@ -462,8 +463,8 @@ async def submit_biometric_data(
 
 @router.get("/manager-access")
 async def check_manager_access(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
     Check if current user has manager/HR access to team health analytics
@@ -599,7 +600,7 @@ async def get_manager_dashboard(
 async def update_consent_preferences(
     request: ConsentRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
     Update consent preferences for health data collection and processing
@@ -609,10 +610,14 @@ async def update_consent_preferences(
     try:
         from app.db.models.biometric_health import HealthDataConsent
 
-        # Check if consent record exists
-        consent_record = db.query(HealthDataConsent).filter(
-            HealthDataConsent.user_id == current_user.id
-        ).first()
+        # Check if consent record exists using run_in_executor
+        loop = asyncio.get_event_loop()
+        consent_record = await loop.run_in_executor(
+            None,
+            lambda: db.query(HealthDataConsent).filter(
+                HealthDataConsent.user_id == current_user.id
+            ).first()
+        )
 
         if consent_record:
             # Update existing record
@@ -638,7 +643,7 @@ async def update_consent_preferences(
             )
             db.add(consent_record)
 
-        db.commit()
+        await db.commit()
 
         return {
             "success": True,
@@ -647,7 +652,7 @@ async def update_consent_preferences(
         }
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update consent: {str(e)}"
@@ -657,15 +662,20 @@ async def update_consent_preferences(
 @router.get("/consent")
 async def get_consent_status(
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get current consent status for health data"""
     try:
         from app.db.models.biometric_health import HealthDataConsent
 
-        consent_record = db.query(HealthDataConsent).filter(
-            HealthDataConsent.user_id == current_user.id
-        ).first()
+        # Query using run_in_executor
+        loop = asyncio.get_event_loop()
+        consent_record = await loop.run_in_executor(
+            None,
+            lambda: db.query(HealthDataConsent).filter(
+                HealthDataConsent.user_id == current_user.id
+            ).first()
+        )
 
         if not consent_record:
             return {

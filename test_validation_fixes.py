@@ -13,7 +13,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
 from pydantic import ValidationError
 from app.schemas.auth import UserRegister, PasswordChange, PasswordResetConfirm
-from app.core.security import validate_password
+from app.services.security import validate_password
 
 def test_password_validation_fixes():
     """Test that password validation now works correctly after schema fixes"""

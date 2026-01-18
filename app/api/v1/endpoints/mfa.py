@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_db
-from app.core.security import get_current_user
+from app.services.security import get_current_user
 from app.db.models.user import User
 from app.services.mfa_service import (
     BackupCodeError,
@@ -274,7 +274,7 @@ async def disable_mfa(
     - Should log security event
     """
     # Verify password (using existing auth service)
-    from app.core.security import verify_password
+    from app.services.security import verify_password
 
     if not verify_password(request.password, current_user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password")

@@ -35,7 +35,7 @@ router = APIRouter(prefix="/jira_integration", tags=["jira_integration"])
     response_model=list[JiraIssue],
 )
 async def get_jira_issues(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(100, ge=1, le=200),
     project_key: str | None = Query(None, description="Filter by project key"),
     issue_type: str | None = Query(None, description="Filter by issue type"),
     status: str | None = Query(None, description="Filter by status"),

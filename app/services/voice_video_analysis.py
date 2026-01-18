@@ -475,8 +475,10 @@ class VoiceVideoAnalysisEngine:
 
         os.makedirs(os.path.dirname(video_path), exist_ok=True)
 
-        with open(video_path, "wb") as f:
-            f.write(video_data)
+        # ✅ NON-BLOCKING - async file I/O (video files can be GB in size!)
+        import aiofiles
+        async with aiofiles.open(video_path, "wb") as f:
+            await f.write(video_data)
 
         return video_path
 
@@ -488,8 +490,10 @@ class VoiceVideoAnalysisEngine:
 
         os.makedirs(os.path.dirname(audio_path), exist_ok=True)
 
-        with open(audio_path, "wb") as f:
-            f.write(audio_data)
+        # ✅ NON-BLOCKING - async file I/O
+        import aiofiles
+        async with aiofiles.open(audio_path, "wb") as f:
+            await f.write(audio_data)
 
         return audio_path
 
@@ -498,11 +502,15 @@ class VoiceVideoAnalysisEngine:
         try:
             audio_path = video_path.replace(".mp4", ".wav").replace(".webm", ".wav")
 
-            # Use ffmpeg to extract audio
-            import subprocess
-
+            # ✅ NON-BLOCKING - async subprocess call
+            import asyncio
             command = f"ffmpeg -i {video_path} -vn -acodec pcm_s16le -ar 16000 -ac 1 {audio_path}"
-            subprocess.run(command, shell=True, check=True)
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process.communicate()
 
             return audio_path
 

@@ -23,7 +23,7 @@ from typing import Any
 from app.core.audit_logging import AuditAction, AuditEvent, audit_logger
 from app.core.config import settings
 from app.core.redis_client import get_redis_client, redis_delete, redis_get, redis_set
-from app.core.security import generate_secure_token
+from app.services.security import generate_secure_token
 
 logger = logging.getLogger(__name__)
 

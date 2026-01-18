@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.core.security import get_password_hash
+from app.services.security import get_password_hash
 from app.db.models.assessment import Assessment, UserAssessment
 from app.db.models.response import Response, ResponseScore
 from app.db.models.team import Team, TeamMember

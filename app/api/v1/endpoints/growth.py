@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import logging
 
 from app.core.database import get_db
-from app.core.security import get_current_user
+from app.services.security import get_current_user
 from app.db.models.user import User
 from app.services.growth_marketing_service import (
     GrowthMarketingService,

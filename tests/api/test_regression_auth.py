@@ -27,7 +27,7 @@ import json
 
 from app.main import app
 from app.db.models.user import User, UserRole
-from app.core.security import create_access_token, verify_password
+from app.services.security import create_access_token, verify_password
 from tests.conftest import fake
 
 

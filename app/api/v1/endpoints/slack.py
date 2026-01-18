@@ -11,12 +11,13 @@ from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException
 
 from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi.responses import Response
-from sqlalchemy.orm import Session
+# from sqlalchemy.orm import Session  # Replaced with AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from typing import Dict, Any
 
-from app.core.database import get_db
-from app.core.security import get_current_user
+# from app.core.database import get_db  # Replaced with get_async_db
+from app.services.security import get_current_user
 from app.db.models.user import User
 from app.integrations.slack.bot import slack_bot
 from app.integrations.slack.client import SlackClient
@@ -89,7 +90,7 @@ async def handle_slack_commands(request: Request):
 async def slack_oauth_callback(
     code: str,
     state: str,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Handle Slack OAuth callback
@@ -147,7 +148,7 @@ async def slack_oauth_callback(
 
 @router.post("/test-connection")
 async def test_slack_connection(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Test Slack connection
@@ -195,8 +196,8 @@ async def send_slack_notification(
     channel: str,
     message: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Send custom notification to Slack channel
@@ -228,7 +229,7 @@ async def send_slack_notification(
 
 @router.get("/channels")
 async def list_slack_channels(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     List available Slack channels
@@ -307,7 +308,7 @@ async def get_slack_status():
 
 @router.post("/install-url")
 async def get_slack_install_url(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     Generate Slack installation URL
@@ -345,8 +346,8 @@ async def get_slack_install_url(
 @router.delete("/workspace/{team_id}")
 async def uninstall_slack_workspace(
     team_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db)
 ):
     """
     Remove Slack workspace integration

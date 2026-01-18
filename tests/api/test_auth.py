@@ -1,5 +1,5 @@
 from app.core.database import get_async_db
-from app.core.security import create_access_token
+from app.services.security import create_access_token
 from app.db.models.user import User
 from app.main import app
 from app.schemas.user import UserCreate

@@ -26,7 +26,7 @@ from uuid import UUID
 import bleach
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, constr, field_validator
 
-from app.core.security import validate_password
+from app.services.security import validate_password
 from app.db.models.user_secure import UserRole, UserSecurityLevel
 
 # Security logger

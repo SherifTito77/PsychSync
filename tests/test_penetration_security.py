@@ -19,8 +19,8 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.core.security import (
-    create_token_pair,
+from app.services.security import (
+create_token_pair,
     verify_token,
     get_password_hash,
     verify_password

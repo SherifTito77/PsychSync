@@ -465,7 +465,7 @@ class TestAuthenticationSecurity:
 
     def test_jwt_token_expiration(self):
         """Test JWT tokens have proper expiration"""
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
         from datetime import datetime, timedelta
 
         token = create_access_token(subject="test@example.com")

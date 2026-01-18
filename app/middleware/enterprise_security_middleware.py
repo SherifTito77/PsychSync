@@ -317,17 +317,54 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             pass
 
     async def _check_burst_protection(self, client_ip: str):
-        """Check burst protection for rapid requests"""
+        """
+        Check burst protection for rapid requests.
+
+        **Fixed Race Condition:** Uses Lua script for atomic increment-with-expire.
+        Previously, concurrent requests could bypass the limit by incrementing between
+        the incr() and expire() calls.
+        """
+        # Lua script for atomic increment with expiration
+        BURST_PROTECTION_SCRIPT = """
+            local burst_key = KEYS[1]
+            local block_key = KEYS[2]
+            local burst_limit = tonumber(ARGV[1])
+            local block_duration = tonumber(ARGV[2])
+            local window_duration = tonumber(ARGV[3])
+
+            -- Increment burst counter
+            local burst_count = redis.call('INCR', burst_key)
+
+            -- Set expiration on first increment
+            if burst_count == 1 then
+                redis.call('EXPIRE', burst_key, window_duration)
+            end
+
+            -- Check if burst limit exceeded
+            if burst_count > burst_limit then
+                -- Block the IP
+                redis.call('SETEX', block_key, block_duration, '1')
+                return {burst_count, 1}  -- 1 means blocked
+            end
+
+            return {burst_count, 0}  -- 0 means allowed
+        """
+
         try:
             burst_key = f"burst:{client_ip}"
-            burst_count = self.redis_client.incr(burst_key)
+            block_key = f"blocked_ip:{client_ip}"
 
-            if burst_count == 1:
-                self.redis_client.expire(burst_key, 10)  # 10 second window
+            # Register and execute Lua script atomically
+            script = self.redis_client.register_script(BURST_PROTECTION_SCRIPT)
+            result = script(
+                keys=[burst_key, block_key],
+                args=[20, 300, 10]  # burst_limit=20, block_duration=300s, window=10s
+            )
 
-            # Allow maximum of 20 requests in 10 seconds
-            if burst_count > 20:
-                self.redis_client.setex(f"blocked_ip:{client_ip}", 300, "1")  # Block for 5 minutes
+            burst_count = int(result[0])
+            is_blocked = bool(result[1])
+
+            if is_blocked:
                 logger.warning(
                     f"Burst limit exceeded for IP: {client_ip}",
                     extra={"client_ip": client_ip, "burst_count": burst_count}
@@ -335,6 +372,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                 raise HTTPException(
                     status_code=429, detail="Burst limit exceeded - temporarily blocked"
                 )
+
         except HTTPException:
             raise
         except redis.ConnectionError as e:
@@ -426,21 +464,64 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             logger.error(f"Failed to log security event: {e!s}")
 
     async def _increment_suspicious_activity(self, request: Request, activity_type: str):
-        """Track suspicious activity for potential blocking"""
+        """
+        Track suspicious activity for potential blocking.
+
+        **Fixed Race Condition:** Uses Lua script for atomic increment-with-expire-and-block.
+        Previously, multiple concurrent requests could bypass the threshold.
+        """
         if not self.redis_client:
             return
 
-        client_ip = await self._get_client_ip(request)
-        suspicious_key = f"suspicious:{client_ip}:{activity_type}"
+        # Lua script for atomic increment, expire, and block
+        SUSPICIOUS_ACTIVITY_SCRIPT = """
+            local suspicious_key = KEYS[1]
+            local block_key = KEYS[2]
+            local threshold = tonumber(ARGV[1])
+            local expire_duration = tonumber(ARGV[2])
 
-        count = self.redis_client.incr(suspicious_key)
-        self.redis_client.expire(suspicious_key, 3600)  # 1 hour
+            -- Increment suspicious counter
+            local count = redis.call('INCR', suspicious_key)
 
-        # Block IP after too much suspicious activity
-        if count >= 10:
-            self.redis_client.setex(f"blocked_ip:{client_ip}", 3600, "1")  # Block for 1 hour
-            await self._log_security_event(
-                request, "SUSPICIOUS_ACTIVITY_BLOCKED", f"IP blocked for {activity_type}", False
+            -- Set expiration on first increment
+            if count == 1 then
+                redis.call('EXPIRE', suspicious_key, expire_duration)
+            end
+
+            -- Block if threshold reached
+            if count >= threshold then
+                redis.call('SETEX', block_key, expire_duration, '1')
+                return {count, 1}  -- 1 means blocked
+            end
+
+            return {count, 0}  -- 0 means not blocked
+        """
+
+        try:
+            client_ip = await self._get_client_ip(request)
+            suspicious_key = f"suspicious:{client_ip}:{activity_type}"
+            block_key = f"blocked_ip:{client_ip}"
+
+            # Register and execute Lua script atomically
+            script = self.redis_client.register_script(SUSPICIOUS_ACTIVITY_SCRIPT)
+            result = script(
+                keys=[suspicious_key, block_key],
+                args=[10, 3600]  # threshold=10, expire_duration=3600s (1 hour)
+            )
+
+            count = int(result[0])
+            is_blocked = bool(result[1])
+
+            if is_blocked:
+                await self._log_security_event(
+                    request, "SUSPICIOUS_ACTIVITY_BLOCKED", f"IP blocked for {activity_type}", False
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Error tracking suspicious activity: {e!s}",
+                extra={"activity_type": activity_type, "error_type": type(e).__name__},
+                exc_info=True
             )
 
     async def _monitor_slow_request(self, request: Request, processing_time: float):

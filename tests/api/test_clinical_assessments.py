@@ -74,7 +74,7 @@ async def clinician_user(db: AsyncSession):
 @pytest.fixture
 def auth_headers(test_user: User):
     """Get authentication headers for test user"""
-    from app.core.security import create_access_token
+    from app.services.security import create_access_token
 
     token = create_access_token(data={"sub": str(test_user.id)})
     return {"Authorization": f"Bearer {token}"}
@@ -418,7 +418,7 @@ class TestAnalyticsEndpoints:
         clinician_user: User
     ):
         """Test population metrics endpoint with clinician access"""
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         token = create_access_token(data={"sub": str(clinician_user.id)})
         headers = {"Authorization": f"Bearer {token}"}

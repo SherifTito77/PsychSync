@@ -6,13 +6,14 @@ Privacy-first approach: only fetches headers, never content
 
 from datetime import datetime, timedelta
 import hashlib
+import json
 import re
 from typing import Any
 
 from dateutil import parser as date_parser
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-import requests
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging_config import logger
@@ -249,11 +250,14 @@ class EmailFetchingService:
         # Get messages
         url = f"https://graph.microsoft.com/v1.0/me/messages?$filter=receivedDateTime ge {date_since}&$top={max_messages}&$orderby=receivedDateTime desc"
 
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        # ✅ NON-BLOCKING - async HTTP request with httpx
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
 
-        data = response.json()
-        messages = data.get("value", [])
+            data = response.json()
+            messages = data.get("value", [])
 
         if not messages:
             logger.info(f"No messages found for Outlook connection {connection.id}")
@@ -391,12 +395,19 @@ class EmailFetchingService:
             return "outgoing"
         return "incoming"
 
-    async def _save_email_metadata(self, db: AsyncSession, email_data: dict[str, Any]):
+    async def _save_email_metadata(self, db: AsyncSession, email_metadata: EmailMetadata):
         """Save email metadata to database, avoiding duplicates"""
 
         # Check if already exists
-        existing = result = await db.execute(query)
-        return result.scalars().all()
+        from app.db.models.email_metadata import EmailMetadata
+
+        result = await db.execute(
+            select(EmailMetadata).where(
+                EmailMetadata.message_id == email_metadata.message_id,
+                EmailMetadata.connection_id == email_metadata.connection_id
+            )
+        )
+        existing = result.scalar_one_or_none()
 
         if existing:
             logger.debug(f"Email {email_metadata.message_id} already exists, skipping")
@@ -405,6 +416,7 @@ class EmailFetchingService:
         try:
             db.add(email_metadata)
             await db.commit()
+            await db.refresh(email_metadata)
             logger.debug(f"Saved email metadata for {email_metadata.message_id}")
         except Exception as e:
             logger.error(f"Error saving email metadata: {e}")
@@ -415,12 +427,12 @@ class EmailFetchingService:
         """Calculate response times for emails by analyzing thread patterns"""
 
         # Get all emails for the user
-        emails = (
-            db.query(EmailMetadata)
-            .filter(EmailMetadata.user_id == user_id)
+        result = await db.execute(
+            select(EmailMetadata)
+            .where(EmailMetadata.user_id == user_id)
             .order_by(EmailMetadata.date_received)
-            .all()
         )
+        emails = result.scalars().all()
 
         # Group by thread
         threads = {}
