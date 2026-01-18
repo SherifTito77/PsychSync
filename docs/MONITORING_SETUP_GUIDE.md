@@ -250,6 +250,6 @@ rate(cache_evictions_total[5m])
 
 ---
 
-**Last Updated:** 2025-01-18  
-**Status:** Ready for Deployment  
+**Last Updated:** 2025-01-18
+**Status:** Ready for Deployment
 **Next Review:** After 1 week in production
