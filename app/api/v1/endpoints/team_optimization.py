@@ -4,7 +4,7 @@ API endpoints for team optimization
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 import logging
@@ -128,7 +128,7 @@ class CompatibilityResponse(BaseModel):
 # =================================================================
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/optimize", response_model=OptimizedTeamResponse, status_code=status.HTTP_200_OK)
 async def optimize_team(
     request: TeamOptimizationRequest,

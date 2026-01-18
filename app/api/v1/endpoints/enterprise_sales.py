@@ -5,7 +5,7 @@ B2B account management, health monitoring, and customer success operations
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Optional
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/enterprise", tags=["Enterprise Sales & Success"])
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/accounts/create")
 async def create_enterprise_account(
     organization_id: int,

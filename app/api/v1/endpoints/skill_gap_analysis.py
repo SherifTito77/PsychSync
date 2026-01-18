@@ -6,7 +6,7 @@ Advanced skill gap analysis and development planning endpoints.
 
 from typing import List, Optional, Dict, Any
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -200,7 +200,7 @@ def _convert_career_trajectory(trajectory: CareerTrajectory) -> CareerTrajectory
 
 # API Endpoints
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/individual/skill-gaps", response_model=List[SkillAssessmentResponse])
 async def get_individual_skill_gaps(
     user_id: Optional[str] = Query(None, description="User ID to analyze (defaults to current user)"),

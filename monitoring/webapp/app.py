@@ -184,7 +184,7 @@ class PsychSyncAPI:
                         if response.status == 200:
                             # Could parse OpenAPI spec here for more endpoints
                             pass
-                except:
+                except Exception as e:
                     pass
 
             # Add standard endpoints if base app is accessible

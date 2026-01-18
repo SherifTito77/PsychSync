@@ -872,3 +872,40 @@ STRICT = RateLimitConfig(limit=10, window=60)
 LENIENT = RateLimitConfig(limit=1000, window=60)
 AUTH = RateLimitConfig(limit=5, window=300)
 API = RateLimitConfig(limit=1000, window=60)
+
+
+# ============================================================================
+# BACKWARD COMPATIBILITY ALIASES
+# ============================================================================
+
+# Alias for UnifiedRateLimiter (old name)
+RateLimiter = UnifiedRateLimiter
+
+# Alias for rate_limit decorator (was used in old imports)
+# These are kept for backward compatibility with existing code
+def check_rate_limit(identifier: str, limit: int = 100, window: int = 60) -> tuple[bool, str | None, dict]:
+    """
+    Backward compatibility wrapper for old check_rate_limit function.
+
+    Deprecated: Use UnifiedRateLimiter.check() instead.
+    """
+    import asyncio
+
+    limiter = UnifiedRateLimiter(
+        config=RateLimitConfig(limit=limit, window=window),
+        backend=StorageBackend.MEMORY,  # Use memory backend for sync compatibility
+    )
+
+    # Run async function in sync context
+    result = asyncio.get_event_loop().run_until_complete(
+        limiter.check(identifier=identifier)
+    )
+
+    if result.allowed:
+        return True, None, {"remaining": result.remaining, "limit": result.limit}
+    else:
+        return False, f"Rate limit exceeded: {result.retry_after}s", {"retry_after": result.retry_after}
+
+
+# Legacy class name for middleware
+RateLimitMiddleware = RateLimitMiddleware

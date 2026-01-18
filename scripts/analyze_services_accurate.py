@@ -61,7 +61,7 @@ def check_service_usage(service_name):
                         usage_count += 1
                         filepath = line.split(':')[0]
                         usage_files.add(filepath)
-        except:
+        except Exception as e:
             pass
 
     # Also check for direct service name usage (more permissive)
@@ -81,7 +81,7 @@ def check_service_usage(service_name):
                         usage_count += 1
                         filepath = line.split(':')[0]
                         usage_files.add(filepath)
-    except:
+    except Exception as e:
         pass
 
     return usage_count, list(usage_files)

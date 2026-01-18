@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.deps import get_current_active_user, get_current_user, get_db
 from app.db.models.assessment import Assessment, AssessmentResponse
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 # AI Processing imports
 try:
@@ -76,7 +76,7 @@ PERSONALITY_FRAMEWORKS = {
 }
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/frameworks")
 async def get_personality_frameworks():
     """

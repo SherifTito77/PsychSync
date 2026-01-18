@@ -263,7 +263,7 @@ class NetworkRoutingLeakTester:
                         sock.send(b"GET / HTTP/1.1\r\n\r\n")
                         banner = sock.recv(1024)
                         port_result["banner"] = banner.decode('utf-8', errors='ignore')[:200]
-                    except:
+                    except Exception as e:
                         pass
 
                     # Check for security issues
@@ -349,7 +349,7 @@ class NetworkRoutingLeakTester:
                                         "config": network_config
                                     })
 
-                            except:
+                            except Exception as e:
                                 pass
 
             else:

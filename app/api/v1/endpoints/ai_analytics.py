@@ -11,14 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_current_user, get_db
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.services.ai_enhanced_analytics import AIEnhancedAnalyticsService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai-analytics", tags=["ai-analytics"])
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/dashboard", dependencies=[Depends(get_current_user)])
 async def get_ai_enhanced_dashboard(
     organization_id: str | None = Query(None, description="Organization ID filter"),

@@ -411,7 +411,7 @@ class CICDIntegrationPipeline:
                 try:
                     success_rate = float(line.split("Success Rate:")[1].strip().split("%")[0])
                     metrics["success_rate"] = success_rate
-                except:
+                except Exception as e:
                     pass
             elif "Tests Passed:" in line:
                 try:
@@ -420,13 +420,13 @@ class CICDIntegrationPipeline:
                     metrics["tests_passed"] = passed
                     metrics["tests_total"] = total
                     metrics["success_rate"] = (passed / total) * 100 if total > 0 else 0
-                except:
+                except Exception as e:
                     pass
             elif "Overall Score:" in line:
                 try:
                     score = float(line.split("Overall Score:")[1].strip().split("%")[0])
                     metrics["overall_score"] = score
-                except:
+                except Exception as e:
                     pass
 
         return metrics

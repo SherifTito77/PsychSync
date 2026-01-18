@@ -5,7 +5,7 @@ REST API for report generation, templates, scheduling, and management
 
 from datetime import datetime, timedelta
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 
@@ -87,7 +87,7 @@ class ReportScheduleRequest(BaseModel):
 # Report Generation Endpoints
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/generate", response_model=Dict[str, Any])
 async def generate_report(
     report_request: ReportGenerationRequestModel,

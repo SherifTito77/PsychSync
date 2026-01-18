@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.services.anonymous_feedback import anonymous_feedback_system
 
 router = APIRouter()
@@ -45,7 +45,7 @@ class FeedbackStatusUpdate(BaseModel):
     )
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/submit", response_model=dict[str, Any])
 async def submit_anonymous_feedback(
     feedback_data: AnonymousFeedbackSubmission, db: Session = Depends(get_db)

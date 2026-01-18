@@ -12,7 +12,7 @@ REST API endpoints for comprehensive psychometric analysis including:
 
 from datetime import datetime, timedelta
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import Dict, List, Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
@@ -122,7 +122,7 @@ reliability_service = ReliabilityValidityService()
 data_service = PredictionDataCollectionService()
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/reliability/analyze", response_model=ReliabilityAnalysisResponse)
 async def analyze_reliability(
     request: ReliabilityAnalysisRequest,

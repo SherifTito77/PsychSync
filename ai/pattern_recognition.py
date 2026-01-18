@@ -286,7 +286,7 @@ class PatternDetector:
         from sklearn.metrics import silhouette_score
         try:
             return float(silhouette_score(features, labels))
-        except:
+        except Exception as e:
             return 0.0
 
 

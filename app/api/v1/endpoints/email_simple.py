@@ -6,7 +6,7 @@ Easy setup for non-technical users using IMAP and app passwords
 
 from typing import List, Dict, Any, Optional
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,7 +96,7 @@ class SyncOptions(BaseModel):
     analyze_contacts: bool = Field(True, description="Analyze communication patterns")
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/providers", response_model=Dict[str, Any])
 async def get_email_providers():
     """Get list of supported email providers with setup information"""

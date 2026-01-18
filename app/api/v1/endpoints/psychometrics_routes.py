@@ -6,7 +6,7 @@
 
 from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -74,7 +74,7 @@ def get_anomaly_detector() -> AnomalyDetector:
 
 # Routes
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/personality/from-text")
 async def analyze_personality_from_text(
     request: TextSampleRequest,

@@ -5,7 +5,7 @@ Provides team optimization and analysis features
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
@@ -151,7 +151,7 @@ class CompatibilityCheckResponse(BaseModel):
 # =================================================================
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/optimize", response_model=OptimizedTeamResponse)
 async def optimize_team(
     request: OptimizeTeamRequest,

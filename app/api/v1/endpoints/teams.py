@@ -15,7 +15,7 @@ from app.core.security_utils import sanitize_dict
 from app.db.models.team import Team
 from app.db.models.team import TeamMember as TeamMemberModel
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.schemas.team import (
     TeamCreate,
     TeamWithMembers,
@@ -32,7 +32,7 @@ router = APIRouter()
 # ==================== TEAM CRUD ====================
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/")
 @async_cached(expire=120, key_prefix="teams_list")  # ✅ ASYNC: Non-blocking cache
 async def list_teams(

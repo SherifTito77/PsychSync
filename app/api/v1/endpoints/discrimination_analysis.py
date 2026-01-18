@@ -15,7 +15,7 @@ from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
 from app.db.models.user import User
 from app.services.discrimination_analysis_service import DiscriminationAnalysisService
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 router = APIRouter(prefix="/discrimination-analysis")
 
@@ -334,7 +334,7 @@ async def get_equity_compliance_report(
 # DISCRIMINATION COMPLAINT ENDPOINTS
 # ============================================
 
-@check_rate_limit(identifier="user", limit_name="strict")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/complaints")
 async def create_complaint(
     complaint_data: ComplaintCreate,

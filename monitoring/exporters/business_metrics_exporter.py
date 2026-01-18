@@ -324,7 +324,7 @@ class BusinessMetricsCollector:
                 # This would need more sophisticated tracking in production
                 conversion_rate = 0.15  # Placeholder
                 BusinessMetrics.CONVERSION_RATE_TRIAL_TO_PAID.set(conversion_rate)
-            except:
+            except Exception as e:
                 pass
 
         except Exception as e:
@@ -400,19 +400,19 @@ class BusinessMetricsCollector:
             # Check database health
             try:
                 self.db.query("SELECT 1")
-            except:
+            except Exception as e:
                 health_status["database"] = "unhealthy"
 
             # Check Redis health
             try:
                 self.redis.client.ping()
-            except:
+            except Exception as e:
                 health_status["redis"] = "unhealthy"
 
             # Check Stripe health
             try:
                 stripe.Account.retrieve()
-            except:
+            except Exception as e:
                 health_status["stripe"] = "unhealthy"
 
             BusinessMetrics.SYSTEM_HEALTH.info(health_status)

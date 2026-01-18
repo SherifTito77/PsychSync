@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.db.models.email_connection import EmailProvider
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 # Temporarily disabled due to async conversion issues
 # from app.services.email_connector_service import email_connector_service
@@ -87,7 +87,7 @@ class EmailSyncResponse(BaseModel):
     error_message: str | None = None
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/connect/oauth-url", response_model=OAuthUrlResponse)
 async def get_oauth_url(
     provider: EmailProvider,

@@ -6,7 +6,7 @@ Advanced multimodal analysis endpoints with transcription, facial recognition, a
 
 from typing import List, Optional, Dict, Any
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 from app.core.path_utils import sanitize_path, safe_filename
 from datetime import datetime, timedelta
@@ -84,7 +84,7 @@ class AnalysisStatisticsResponse(BaseModel):
 
 # API Endpoints
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/record", response_model=Dict[str, Any])
 async def start_video_analysis(
     video_file: UploadFile = File(..., description="Video file to analyze"),

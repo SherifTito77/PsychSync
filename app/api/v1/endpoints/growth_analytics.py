@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import get_current_user
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.services.growth_analytics_service import (
     ConversionEvent,
     ConversionEventType,
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics/growth", tags=["Growth Analytics"])
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/events/track")
 async def track_conversion_event(
     user_id: str,

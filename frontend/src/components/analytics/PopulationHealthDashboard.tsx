@@ -104,10 +104,10 @@ interface SummaryStatistics {
 }
 
 // =============================================================================
-// Components
+// Memoized Components
 // =============================================================================
 
-function MetricCard({
+const MetricCard = memo(function MetricCard({
   title,
   value,
   icon: Icon,
@@ -160,9 +160,9 @@ function MetricCard({
       </CardContent>
     </Card>
   );
-}
+});
 
-function HighRiskUsersList({ users }: { users: HighRiskUser[] }) {
+const HighRiskUsersList = memo(function HighRiskUsersList({ users }: { users: HighRiskUser[] }) {
   const getRiskColor = (level: string) => {
     switch (level) {
       case 'critical':
@@ -197,6 +197,43 @@ function HighRiskUsersList({ users }: { users: HighRiskUser[] }) {
                     {user.risk_level.toUpperCase()}
                   </span>
                   <span className="text-xs text-gray-500">{user.prediction_type}</span>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Current Score: </span>
+                    <span className="font-semibold">{user.current_score.toFixed(1)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {getTrendIcon(user.trend)}
+                    <span className="text-gray-600 capitalize">{user.trend}</span>
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    Last: {new Date(user.last_assessment).toLocaleDateString()}
+                  </div>
+                </div>
+                {user.factors.risk_flags && user.factors.risk_flags.length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-xs font-semibold text-gray-700">Risk Flags: </span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {user.factors.risk_flags.slice(0, 3).map((flag, idx) => (
+                        <span key={idx} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded">
+                          {flag.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Button size="sm" variant="outline">
+                View Details
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+});
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   <div>

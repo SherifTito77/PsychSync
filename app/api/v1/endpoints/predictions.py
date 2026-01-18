@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 
 from app.api.v1.deps import get_current_user
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import Dict, List, Any, Optional, Union, Tuple
 from enum import Enum
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
@@ -147,7 +147,7 @@ prediction_service = PredictionService()
 data_service = PredictionDataCollectionService()
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/train", response_model=TrainingResponse, dependencies=[Depends(get_current_user)])
 async def train_prediction_model(
     request: TrainingRequest,

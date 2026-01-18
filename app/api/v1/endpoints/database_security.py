@@ -13,7 +13,7 @@ from app.api.v1.deps import get_current_admin_user, get_db
 from app.core.responses import APIResponse, get_request_id
 from app.core.structured_logging import EventType, get_logger
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -28,7 +28,7 @@ except (ImportError, SyntaxError) as e:
     DATABASE_SECURITY_AVAILABLE = False
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/database/security/scan", summary="Database Security Scan")
 async def scan_database_security(
     request: Request,

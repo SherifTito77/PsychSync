@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_async_db, get_current_admin_user
 from app.api.v1.deps import Depends, get_current_user
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.schemas.responses import PaginatedResponse, SuccessResponse
 from app.services.database_backup_service import (
     BackupConfig,
@@ -111,7 +111,7 @@ class BackupStatisticsResponse(BaseModel):
     success_rate: float
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/backups", response_model=SuccessResponse[BackupResponse])
 async def create_backup(
     backup_request: BackupRequest,

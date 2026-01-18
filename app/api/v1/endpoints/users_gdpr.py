@@ -10,7 +10,7 @@ designed for quick implementation and easy integration.
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 from app.core.path_utils import sanitize_path, safe_filename
 from sqlalchemy.orm import Session
@@ -89,7 +89,7 @@ class UserDeleteResponse(BaseModel):
 # ============================================
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/export", response_model=UserExportResponse)
 async def export_user_data(
     background_tasks: BackgroundTasks,

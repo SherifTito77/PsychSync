@@ -129,7 +129,7 @@ class LogEntry:
             if json_match:
                 data = json.loads(json_match.group(0))
                 return data.get(field_name)
-        except:
+        except Exception as e:
             pass
 
         # Try pattern matching

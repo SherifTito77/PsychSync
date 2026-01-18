@@ -6,7 +6,7 @@ Separate from other services with dedicated HRIS functionality
 
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import asyncio
@@ -39,7 +39,7 @@ hris_sync = HRISSyncService()
 
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/connection/setup", response_model=HRISConnectionResponse)
 async def setup_hris_connection(
     request: HRISConnectionRequest,
@@ -131,7 +131,7 @@ async def setup_hris_connection(
         logger.error(f"HRIS connection setup failed: {str(e)}")
         raise HTTPException(
             status_code=500
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 ,
             detail="HRIS connection setup failed"
         )

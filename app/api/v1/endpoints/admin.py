@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_active_superuser, get_db
 from app.api.v1.deps import get_current_user
 from app.db.models.user import User as UserModel
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.schemas.user import UserOut as UserSchema
 
 # Temporarily disabled due to syntax issues after async conversion
@@ -46,7 +46,7 @@ router = APIRouter()
 # All endpoints in this file require a superuser
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/users", response_model=list[UserSchema])
 def list_all_users(
     db: Session = Depends(get_db),

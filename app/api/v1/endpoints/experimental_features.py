@@ -6,7 +6,7 @@ Advanced R&D platform endpoints for A/B testing, gamification, and voice analysi
 
 from typing import List, Optional, Dict, Any
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
@@ -104,7 +104,7 @@ class LeaderboardResponse(BaseModel):
 
 # API Endpoints
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/experiments", response_model=str)
 async def create_experiment(
     config: ExperimentConfigRequest,

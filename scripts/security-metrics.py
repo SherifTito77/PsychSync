@@ -129,7 +129,7 @@ class SecurityMetrics:
         for file in python_files:
             try:
                 total_lines += len(file.read_text(encoding='utf-8', errors='ignore').split('\n'))
-            except:
+            except Exception as e:
                 pass
 
         metrics = {

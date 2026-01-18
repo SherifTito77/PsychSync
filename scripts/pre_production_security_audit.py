@@ -108,7 +108,7 @@ class SecurityAuditor:
                                'Use more random characters')
             else:
                 self.log_pass('Secrets', f'SECRET_KEY is strong ({len(secret_key)} chars)')
-        except:
+        except Exception as e:
             self.log_warning('Secrets', 'Could not check SECRET_KEY entropy')
 
         # Check token expiration

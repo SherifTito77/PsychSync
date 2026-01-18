@@ -764,7 +764,7 @@ curl -X POST "http://localhost:8000/api/v1/auth/token" \\
                             }
                             if feature['user_facing']:
                                 features.append(feature)
-        except:
+        except Exception as e:
             # Fallback to static analysis
             pass
 
@@ -1012,7 +1012,7 @@ For a complete history, see: `git log`
                         with open(file_path, 'r', encoding='utf-8') as f:
                             content = f.read()
                             examples_count += content.count('```')
-                    except:
+                    except Exception as e:
                         pass
 
         docstring_coverage = (documented_functions / total_functions * 100) if total_functions > 0 else 0

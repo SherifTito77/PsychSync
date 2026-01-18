@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 
 from app.api.v1.deps import get_current_user
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,7 +66,7 @@ class TeamPsychologyResponse(BaseModel):
 
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/assessment/{assessment_id}/score", response_model=PsychologicalScoreResponse, dependencies=[Depends(get_current_user)])
 async def get_assessment_psychological_score(
     assessment_id: str,

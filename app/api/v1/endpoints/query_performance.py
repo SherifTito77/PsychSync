@@ -6,7 +6,7 @@ Provides real-time query performance monitoring and optimization suggestions
 
 from typing import Dict, Any, Optional, List
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +24,7 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/query-performance/stats", summary="Real-time Query Performance Stats")
 async def get_query_performance_stats(
     request: Request,

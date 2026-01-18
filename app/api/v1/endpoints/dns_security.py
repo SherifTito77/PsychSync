@@ -12,13 +12,13 @@ from app.core.dns_security import dns_security_manager
 from app.core.responses import APIResponse, get_request_id
 from app.core.structured_logging import EventType, get_logger
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/dns/security/status", summary="DNS Security Status")
 async def get_dns_security_status(
     request: Request, current_user: User = Depends(get_current_admin_user)

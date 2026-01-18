@@ -164,7 +164,7 @@ class SyntaxCorruptionFixer:
                             )
                             remaining = result.stdout.count('B904') if 'B904' in result.stdout else 0
                             self.log(f"  📊 Remaining B904 errors: {remaining}")
-                        except:
+                        except Exception as e:
                             self.log(f"  ⚠️  Could not verify with ruff")
 
                         return True, fixes_count
@@ -257,7 +257,7 @@ Examples:
     try:
         import subprocess
         subprocess.run(['ruff', '--version'], capture_output=True, check=True)
-    except:
+    except Exception as e:
         print("⚠️  Warning: ruff not found. Install with: pip install ruff")
 
     # Create fixer

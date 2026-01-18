@@ -5,7 +5,7 @@
 
 from fastapi import APIRouter, HTTPException, Depends, status
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional
 from datetime import datetime
@@ -56,7 +56,7 @@ def get_nlp_service() -> NLPService:
 
 # Routes
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/analyze", response_model=TextAnalysisResponse)
 async def analyze_text(
     request: TextAnalysisRequest,

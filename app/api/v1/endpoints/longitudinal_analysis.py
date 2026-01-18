@@ -5,7 +5,7 @@ REST API endpoints for longitudinal behavioral analysis, change detection, and t
 
 from typing import List, Dict, Any, Optional
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -131,7 +131,7 @@ class UserProgressionResponse(BaseModel):
     analysis_timestamp: str
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/aggregate-time-series", response_model=TimeSeriesAggregationResponse)
 async def aggregate_time_series_data(
     request: TimeSeriesAggregationRequest,

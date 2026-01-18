@@ -345,7 +345,7 @@ def analyze_code_complexity(code: str) -> Dict[str, int]:
             "lines_of_code": lines_of_code,
             "complexity_score": functions + classes * 2 + imports
         }
-    except:
+    except Exception as e:
         return {"error": "Could not parse code"}
 
 

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.services.compliance_audit_service import AuditAction, ComplianceAuditService
 from app.services.consent_service import ConsentManagementService
 from app.services.gdpr_service import GDPRService
@@ -32,7 +32,7 @@ consent_service = ConsentManagementService()
 audit_service = ComplianceAuditService()
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/data-export")
 async def request_data_export(
     request: Request,

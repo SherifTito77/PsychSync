@@ -9,7 +9,7 @@ Why we need these endpoints:
 """
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 import logging
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/events")
 async def handle_slack_events(request: Request):
     """

@@ -6,7 +6,7 @@ Separate from personality assessments and clinical mental health tools
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import asyncio
@@ -38,7 +38,7 @@ anomaly_service = AnomalyDetectionService()
 
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/patterns/analyze", response_model=BehavioralPatternResponse)
 async def analyze_behavioral_patterns(
     request: BehavioralPatternRequest,

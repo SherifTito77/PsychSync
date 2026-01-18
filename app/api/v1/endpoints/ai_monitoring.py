@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_db
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.services.ai_monitoring_service import AIMonitoringService, MetricType
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ async def get_ai_health_status(
         raise HTTPException(status_code=500, detail=f"Failed to get AI health status: {e!s}") from e
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/metrics")
 async def get_performance_metrics(
     hours: int = Query(24, ge=1, le=168, description="Time period in hours (1-168)"),

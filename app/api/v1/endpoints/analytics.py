@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.deps import get_current_active_user, get_current_admin_user, get_db
 from app.core.async_cache import async_cached  # ✅ ASYNC: Non-blocking cache
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 # --- CORRECTED IMPORTS ---
 # from app.services.Analytics_service import analytics_service as AnalyticsService
@@ -22,7 +22,7 @@ from app.services.analytics_dashboard import AnalyticsDashboard, TimePeriod
 router = APIRouter()
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/assessments/{assessment_id}")
 def get_assessment_analytics(
     assessment_id: int,
@@ -64,7 +64,7 @@ def get_my_analytics(
 ) -> dict[str, Any]:
     """
         Get analytics fo
-    @check_rate_limit(identifier="public", limit_name="public")
+    @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
     r current user.
     """
     analytics = AnalyticsService.get_user_analytics(db, user_id=current_user.id)

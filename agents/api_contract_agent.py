@@ -167,7 +167,7 @@ class FastAPIParser:
                         if func_node.returns:
                             try:
                                 endpoint.return_type = ast.unparse(func_node.returns)
-                            except:
+                            except Exception as e:
                                 endpoint.return_type = None
 
                         # Extract status codes from docstring

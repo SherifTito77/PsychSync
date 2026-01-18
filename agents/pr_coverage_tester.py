@@ -450,7 +450,7 @@ class PRCoverageTester:
         try:
             # The comment itself serves as the mark
             pass
-        except:
+        except Exception as e:
             pass
 
 

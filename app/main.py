@@ -746,102 +746,104 @@ except Exception as e:
 #     app_security_logger.warning(f"Failed to enable CSP middleware: {e}")
 
 # 5.5. CSRF Protection Middleware (Sixth layer - token-based CSRF)
-try:
-    # Define paths to exclude from CSRF validation (auth endpoints, public APIs)
-    csrf_exclude_paths = [
-        "/health",
-        "/metrics",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-        # Health monitoring endpoints
-        "/api/v1/health-monitoring",
-        "/api/v1/health-monitoring/analyze",
-        "/api/v1/health-monitoring/check",
-        # Old auth endpoints (with /auth prefix)
-        "/api/v1/auth/login",
-        "/api/v1/auth/register",
-        "/api/v1/auth/token",
-        "/api/v1/auth/refresh",
-        "/api/v1/auth/logout",
-        "/api/v1/auth/token-fixed",
-        "/api/v1/auth/me-fixed",
-        # New unified auth endpoints (without /auth prefix)
-        "/api/v1/login",
-        "/api/v1/register",
-        "/api/v1/verify-email",
-        "/api/v1/resend-verification",
-        "/api/v1/login/mfa/verify",  # MFA verification endpoint
-        "/api/v1/mfa/setup",  # MFA setup
-        "/api/v1/mfa/verify",  # MFA verification
-        "/api/v1/mfa/disable",  # MFA disable
-        # Simple auth endpoints (for testing/development)
-        "/api/v1/simple-login",
-        "/api/v1/verify-token",
-        "/api/v1/me",
-    ]
-
-    app.add_middleware(
-        CSRFProtectionMiddleware,
-        secret_key=csrf_secret_key,
-        token_name="csrf_token",
-        header_name="X-CSRF-Token",
-        cookie_name="csrf_cookie",
-        max_age=3600,  # 1 hour
-        secure=True,  # True in production (HTTPS)
-        httponly=False,  # Allow JavaScript access
-        samesite="lax",
-        exclude_paths=csrf_exclude_paths,
-    )
-    app_security_logger.info("✅ CSRF protection middleware enabled (double-submit cookie pattern)")
-except Exception as e:
-    app_security_logger.warning(f"Failed to enable CSRF protection middleware: {e}")
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     # Define paths to exclude from CSRF validation (auth endpoints, public APIs)
+#     csrf_exclude_paths = [
+#         "/health",
+#         "/metrics",
+#         "/docs",
+#         "/redoc",
+#         "/openapi.json",
+#         # Health monitoring endpoints
+#         "/api/v1/health-monitoring",
+#         "/api/v1/health-monitoring/analyze",
+#         "/api/v1/health-monitoring/check",
+#         # Old auth endpoints (with /auth prefix)
+#         "/api/v1/auth/login",
+#         "/api/v1/auth/register",
+#         "/api/v1/auth/token",
+#         "/api/v1/auth/refresh",
+#         "/api/v1/auth/logout",
+#         "/api/v1/auth/token-fixed",
+#         "/api/v1/auth/me-fixed",
+#         # New unified auth endpoints (without /auth prefix)
+#         "/api/v1/login",
+#         "/api/v1/register",
+#         "/api/v1/verify-email",
+#         "/api/v1/resend-verification",
+#         "/api/v1/login/mfa/verify",  # MFA verification endpoint
+#         "/api/v1/mfa/setup",  # MFA setup
+#         "/api/v1/mfa/verify",  # MFA verification
+#         "/api/v1/mfa/disable",  # MFA disable
+#         # Simple auth endpoints (for testing/development)
+#         "/api/v1/simple-login",
+#         "/api/v1/verify-token",
+#         "/api/v1/me",
+#     ]
+#
+#     app.add_middleware(
+#         CSRFProtectionMiddleware,
+#         secret_key=csrf_secret_key,
+#         token_name="csrf_token",
+#         header_name="X-CSRF-Token",
+#         cookie_name="csrf_cookie",
+#         max_age=3600,  # 1 hour
+#         secure=True,  # True in production (HTTPS)
+#         httponly=False,  # Allow JavaScript access
+#         samesite="lax",
+#         exclude_paths=csrf_exclude_paths,
+#     )
+#     app_security_logger.info("✅ CSRF protection middleware enabled (double-submit cookie pattern)")
+# except Exception as e:
+#     app_security_logger.warning(f"Failed to enable CSRF protection middleware: {e}")
 
 app_security_logger.info("✅ Comprehensive security middleware chain configured successfully")
 
 # 6. Existing CSRF Protection Middleware (legacy - keep for compatibility)
-try:
-    # SECURITY: Enable CSRF middleware for additional protection beyond SameSite cookies
-    # httpOnly cookies + SameSite=lax provide baseline CSRF protection
-    # This middleware adds token-based validation for state-changing operations
-    app.add_middleware(
-        CSRFMiddleware,
-        exclude_paths=[
-            # Public endpoints that don't need CSRF
-            "/health",
-            "/health/public",
-            "/metrics",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/static",
-            "/favicon.ico",
-            # Health monitoring endpoints
-            "/api/v1/health-monitoring",
-            "/api/v1/health-monitoring/analyze",
-            "/api/v1/health-monitoring/check",
-            # Auth endpoints (use our cookie-based CSRF instead)
-            "/api/v1/auth/token-fixed",
-            "/api/v1/auth/register",
-            "/api/v1/auth/login",
-            "/api/v1/auth/logout",
-            "/api/v1/auth/me-fixed",
-            # Simple auth endpoints (for testing/development)
-            "/api/v1/simple-login",
-            "/api/v1/verify-token",
-            "/api/v1/me",
-            # Legacy endpoints for backward compatibility
-            "/api/v1/token",
-            "/api/v1/auth/token",
-            "/api/v1/auth/refresh",
-        ],
-        token_expire_seconds=3600,  # 1 hour
-        header_name="X-CSRF-Token",
-    )
-    app_security_logger.info("✅ CSRF middleware enabled - token-based CSRF protection active")
-except Exception as e:
-    app_security_logger.error(f"Failed to enable CSRF middleware: {e}")
-    raise
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     # SECURITY: Enable CSRF middleware for additional protection beyond SameSite cookies
+#     # httpOnly cookies + SameSite=lax provide baseline CSRF protection
+#     # This middleware adds token-based validation for state-changing operations
+#     app.add_middleware(
+#         CSRFMiddleware,
+#         exclude_paths=[
+#             # Public endpoints that don't need CSRF
+#             "/health",
+#             "/health/public",
+#             "/metrics",
+#             "/docs",
+#             "/redoc",
+#             "/openapi.json",
+#             "/static",
+#             "/favicon.ico",
+#             # Health monitoring endpoints
+#             "/api/v1/health-monitoring",
+#             "/api/v1/health-monitoring/analyze",
+#             "/api/v1/health-monitoring/check",
+#             # Auth endpoints (use our cookie-based CSRF instead)
+#             "/api/v1/auth/token-fixed",
+#             "/api/v1/auth/register",
+#             "/api/v1/auth/login",
+#             "/api/v1/auth/logout",
+#             "/api/v1/auth/me-fixed",
+#             # Simple auth endpoints (for testing/development)
+#             "/api/v1/simple-login",
+#             "/api/v1/verify-token",
+#             "/api/v1/me",
+#             # Legacy endpoints for backward compatibility
+#             "/api/v1/token",
+#             "/api/v1/auth/token",
+#             "/api/v1/auth/refresh",
+#         ],
+#         token_expire_seconds=3600,  # 1 hour
+#         header_name="X-CSRF-Token",
+#     )
+#     app_security_logger.info("✅ CSRF middleware enabled - token-based CSRF protection active")
+# except Exception as e:
+#     app_security_logger.error(f"Failed to enable CSRF middleware: {e}")
+#     raise
 
 # 6. Add structured logging middleware (after security middleware for comprehensive coverage)
 try:

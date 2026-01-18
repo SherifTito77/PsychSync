@@ -5,7 +5,7 @@ REST API endpoints for behavioral pattern analysis, anomaly detection, and insig
 
 from typing import List, Dict, Any, Optional
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from fastapi.responses import JSONResponse

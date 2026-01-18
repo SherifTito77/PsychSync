@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_active_user, get_db
 from app.api.v1.deps import Depends, get_current_user
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.schemas.response import Response as ResponseSchema
 from app.schemas.response import ResponseCreate, ResponseSave, ResponseSubmit, ResponseWithScore
 from app.schemas.response import ResponseScore as ResponseScoreSchema
@@ -16,7 +16,7 @@ from app.services.response_service import ResponseService
 router = APIRouter(prefix="/responses", tags=["responses"])
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post(
     "/start",
     response_model=ResponseSchema,

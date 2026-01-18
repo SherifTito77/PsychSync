@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 
 from app.api.v1.deps import get_current_user
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import date
@@ -85,7 +85,7 @@ class OptimizationResponse(BaseModel):
 # =================================================================
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/optimize", response_model=OptimizationResponse)
 async def optimize_lineups(request: OptimizationRequest):
     """
@@ -340,7 +340,7 @@ async def analyze_player_pool(players: List[PlayerInput]):
                 'max': round(max(scores), 2)
             }
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
       }
 
     except Exception as e:

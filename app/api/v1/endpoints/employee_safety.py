@@ -5,7 +5,7 @@ REST API for safety incident reporting, wellness monitoring, and safety manageme
 
 from datetime import datetime, timedelta
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
@@ -93,7 +93,7 @@ class SafetyResourceRequest(BaseModel):
 # Incident Reporting Endpoints
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/incidents", response_model=Dict[str, Any])
 async def report_incident(
     incident_data: IncidentReportRequest,

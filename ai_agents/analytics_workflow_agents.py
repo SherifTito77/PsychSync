@@ -101,7 +101,7 @@ class ErrorRateMonitorAgent(BaseAgent):
                             error_type = error_match.group(1)
                             error_stats["error_types"][error_type] = \
                                 error_stats["error_types"].get(error_type, 0) + 1
-            except:
+            except Exception as e:
                 pass
 
         findings.append({

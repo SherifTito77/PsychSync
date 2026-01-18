@@ -77,6 +77,9 @@ coverage==7.10.7
 python-dotenv==1.1.1
 PyYAML==6.0.3
 
+# Performance Optimizations
+orjson>=3.9.0  # 2-3x faster JSON serialization/deserialization
+
 # Additional Core Dependencies
 annotated-types==0.7.0
 anyio==3.7.1

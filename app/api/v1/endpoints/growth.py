@@ -5,7 +5,7 @@ Enterprise-grade user acquisition, retention, and growth automation
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Optional
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/growth", tags=["Growth Marketing"])
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/campaigns/trigger")
 async def trigger_growth_campaign(
     campaign_id: str,

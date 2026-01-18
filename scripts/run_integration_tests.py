@@ -220,7 +220,7 @@ class TestExecutor:
                 # Cleanup JSON file
                 try:
                     os.remove(json_file)
-                except:
+                except Exception as e:
                     pass
 
             except Exception as e:

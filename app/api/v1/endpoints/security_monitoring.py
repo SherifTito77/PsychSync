@@ -13,13 +13,13 @@ from app.core.responses import APIResponse, get_request_id
 from app.core.security_monitoring import AlertSeverity, AnomalyType, RiskLevel, security_monitor
 from app.core.structured_logging import EventType, get_logger
 from app.db.models.user import User
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/security/dashboard", summary="Security Dashboard")
 async def get_security_dashboard(
     request: Request,

@@ -3,7 +3,7 @@ from typing import Dict, Any
 
 from app.api.v1.deps import get_current_user
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -33,7 +33,7 @@ class ScoringConfigUpdate(BaseModel):
 
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/assessments/{assessment_id}/scoring-config", dependencies=[Depends(get_current_user)])
 def create_scoring_config(
     assessment_id: int,
@@ -116,7 +116,7 @@ def get_scoring_config(
 
     return {
         "id": config.id
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 ,
         "assessment_id": config.assessment_id,
         "algorithm": config.algorithm,

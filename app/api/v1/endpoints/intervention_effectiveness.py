@@ -7,7 +7,7 @@ Provides comprehensive endpoints for managing interventions and analyzing their 
 
 from datetime import datetime, timedelta
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -164,7 +164,7 @@ class AnalysisSummaryResponse(BaseModel):
 
 # Core Endpoints
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/interventions", response_model=InterventionResponse)
 async def create_intervention(
     request: InterventionCreateRequest,

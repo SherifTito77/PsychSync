@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 # Import assessment modules
 from app.assessments.scoring_engine import ScoringEngine
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 # Initialize router
 router = APIRouter(prefix="/assessments", tags=["Assessments"])
@@ -86,7 +86,7 @@ class AssessmentResultResponse(BaseModel):
 # ============================================================================
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/catalog", response_model=list[AssessmentListItem])
 async def get_assessment_catalog(category: str | None = None, search: str | None = None):
     """

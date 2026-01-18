@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.api.v1.deps import get_current_user, Depends
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
@@ -89,7 +89,7 @@ def list_templates(
 
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/search", response_model=List[TemplateSchema])
 def search_templates(
     q: str = Query(..., min_length=2),

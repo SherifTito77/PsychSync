@@ -14,7 +14,7 @@ import logging
 import os
 from datetime import datetime
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse
@@ -87,7 +87,7 @@ class ExportStatisticsResponse(BaseModel):
 
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/data-exports", response_model=SuccessResponse[ExportResponse])
 async def create_export_request(
     export_request: ExportRequestModel,
@@ -132,7 +132,7 @@ async def create_export_request(
 
     except Exception as e:
         logger.error(f"Failed to create export request: {str(e)}"
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 )
         raise HTTPException(status_code=500, detail=str(e))
 

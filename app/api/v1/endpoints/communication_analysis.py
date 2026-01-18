@@ -6,7 +6,7 @@ Provides insights into behavioral patterns and communication analytics
 
 from typing import List, Dict, Any, Optional
 
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -86,7 +86,7 @@ class InsightsSummaryResponse(BaseModel):
     recommendations_count: int
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/sentiment/summary", response_model=Dict[str, Any])
 async def get_sentiment_summary(
     days_back: int = Query(default=30, ge=1, le=365),

@@ -15,7 +15,7 @@ from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
 from app.db.models.user import User
 from app.services.legal_rights_service import LegalRightsService, LegalRightsAnalyzer
-from app.core.rate_limiter_unified import check_rate_limit
+from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 router = APIRouter(prefix="/legal-rights")
 
@@ -397,7 +397,7 @@ async def mark_resource_helpful(
 # CONTRACT VIOLATION ENDPOINTS
 # ============================================
 
-@check_rate_limit(identifier="user", limit_name="strict")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/violations/report", response_model=ContractViolationResponse)
 async def report_violation(
     violation_data: ContractViolationCreate,
