@@ -125,7 +125,7 @@ const BDI2_QUESTIONS = [
       { value: 0, text: "I don't cry any more than I used to" },
       { value: 1, text: 'I cry more than I used to' },
       { value: 2, text: 'I cry over every little thing' },
-      { value: 3, text: 'I feel like crying, but I can't' },
+      { value: 3, text: "I feel like crying, but I can't" },
     ],
     category: 'Affective',
   },
