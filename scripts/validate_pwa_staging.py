@@ -143,9 +143,9 @@ class PWAStagingValidator:
                         response = await client.get(f"http://localhost:8000{endpoint}", timeout=5)
                         if response.status_code == 200:
                             endpoints_found += 1
-                    except:
+                    except Exception as e:
                         pass
-        except:
+        except Exception as e:
             pass
 
         backend_results["pwa_endpoints"] = endpoints_found > 0

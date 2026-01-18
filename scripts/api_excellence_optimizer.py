@@ -501,7 +501,7 @@ class APIExcellenceOptimizer:
                     ) as response:
                         response_time = (time.time() - start_time) * 1000
                         rapid_requests.append((response.status, response_time))
-                except:
+                except Exception as e:
                     rapid_requests.append((500, 5000))
 
             # If no 429 or 503 responses, rate limiting might be missing

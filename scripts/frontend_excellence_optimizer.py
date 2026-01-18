@@ -377,7 +377,7 @@ class FrontendExcellenceOptimizer:
                 try:
                     with open(file_path, 'rb') as f:
                         gzipped_size = len(gzip.compress(f.read()))
-                except:
+                except Exception as e:
                     gzipped_size = file_size
 
                 relative_path = os.path.relpath(file_path, dist_path)

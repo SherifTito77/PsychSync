@@ -158,7 +158,7 @@ def main():
     try:
         response = requests.get(f"{BASE_URL}/api/v1/health", timeout=2)
         print(f"✅ Server is running (HTTP {response.status_code})")
-    except:
+    except Exception as e:
         print("❌ Server not running! Start it first:")
         print("   uvicorn app.main:app --reload")
         return

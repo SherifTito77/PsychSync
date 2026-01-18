@@ -904,7 +904,7 @@ class MonitoringObservabilitySystem:
                         for check_name, check_result in response_data['checks'].items():
                             if not check_result.get('passed', True):
                                 issues.append(f"{check_name}: {check_result.get('message', 'Failed')}")
-            except:
+            except Exception as e:
                 pass
 
             if status == 'UNHEALTHY' and not issues:
