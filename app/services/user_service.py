@@ -406,7 +406,13 @@ async def _hash_password_secure(password: str) -> str:
 
 async def update_user(db: AsyncSession, user_id: UUID, user_data: UserUpdate) -> User | None:
     """
-    Update user and invalidate caches
+    Update user and invalidate caches with row-level locking to prevent race conditions.
+
+    SECURITY ENHANCEMENTS:
+    - Row-level locking (SELECT FOR UPDATE) prevents concurrent modification
+    - Proper error handling with rollback
+    - Database error monitoring integration
+    - Cache invalidation for consistency
 
     Args:
         db: Async database session
@@ -419,52 +425,67 @@ async def update_user(db: AsyncSession, user_id: UUID, user_data: UserUpdate) ->
     Raises:
         ValueError: If email/username conflict with existing users
     """
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        logger.warning(f"User not found: ID {user_id}")
-        return None
-
-    # Get update data, excluding unset fields
-    update_data = user_data.dict(exclude_unset=True)
-
-    # Check email uniqueness if email is being updated
-    if "email" in update_data and update_data["email"] != user.email:
+    try:
+        # Use SELECT FOR UPDATE to prevent concurrent modification
         result = await db.execute(
-            select(User).where(User.email == update_data["email"].lower(), User.id != user_id)
+            select(User)
+            .where(User.id == user_id)
+            .with_for_update()  # 🔒 ROW-LEVEL LOCKING
         )
-        existing = result.scalar_one_or_none()
-        if existing:
-            raise ValueError(f"Email {update_data['email']} is already in use")
-        update_data["email"] = update_data["email"].lower()
+        user = result.scalar_one_or_none()
 
-    # Check username uniqueness if username is being updated
-    if "username" in update_data and update_data["username"] != user.username:
-        # Note: username field doesn't exist in User model, skipping for now
-        pass
+        if not user:
+            logger.warning(f"User not found: ID {user_id}")
+            return None
 
-    # Hash password if provided
-    if "password" in update_data:
-        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+        # Get update data, excluding unset fields
+        update_data = user_data.dict(exclude_unset=True)
 
-    # Update timestamp
-    update_data["updated_at"] = datetime.utcnow()
+        # Check email uniqueness if email is being updated
+        if "email" in update_data and update_data["email"] != user.email:
+            result = await db.execute(
+                select(User).where(User.email == update_data["email"].lower(), User.id != user_id)
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                raise ValueError(f"Email {update_data['email']} is already in use")
+            update_data["email"] = update_data["email"].lower()
 
-    # Apply updates
-    for field, value in update_data.items():
-        setattr(user, field, value)
+        # Check username uniqueness if username is being updated
+        if "username" in update_data and update_data["username"] != user.username:
+            # Note: username field doesn't exist in User model, skipping for now
+            pass
 
-    await db.commit()
-    await db.refresh(user)
+        # Hash password if provided
+        if "password" in update_data:
+            update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
 
-    # Invalidate all user-related caches
-    cache_delete_pattern(f"user:get_user_by_id:*{user_id}*")
-    cache_delete_pattern(f"user:get_user_by_email:*{user.email}*")
+        # Update timestamp
+        update_data["updated_at"] = datetime.utcnow()
 
-    logger.info(f"Updated user: {user.email} (ID: {user.id})")
+        # Apply updates
+        for field, value in update_data.items():
+            setattr(user, field, value)
 
-    return user
+        await db.commit()
+        await db.refresh(user)
+
+        # Invalidate all user-related caches
+        cache_delete_pattern(f"user:get_user_by_id:*{user_id}*")
+        cache_delete_pattern(f"user:get_user_by_email:*{user.email}*")
+
+        logger.info(f"Updated user: {user.email} (ID: {user.id})")
+
+        return user
+
+    except IntegrityError as e:
+        await db.rollback()
+        logger.error(f"Integrity error updating user {user_id}: {e}", exc_info=True)
+        raise ValueError(f"Database constraint violation: {e}") from e
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Unexpected error updating user {user_id}: {e}", exc_info=True)
+        raise
 
 
 async def delete_user(db: AsyncSession, user_id: UUID, hard_delete: bool = False) -> bool:

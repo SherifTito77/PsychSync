@@ -532,7 +532,22 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             app_security_logger.warning(f"⚠️ Database security validation error: {e}")
 
-        # 6. Performance security initialization
+        # 6. Database error monitoring initialization
+        try:
+            from app.monitoring.database_error_monitor import db_monitor, start_database_error_monitoring
+
+            # Start background database error monitoring
+            asyncio.create_task(
+                start_database_error_monitoring(
+                    report_interval_minutes=60,
+                    alert_on_patterns=True,
+                )
+            )
+            app_security_logger.info("✅ Database error monitoring initialized (reports every 60 min)")
+        except Exception as e:
+            app_security_logger.warning(f"⚠️ Database monitoring initialization failed: {e}")
+
+        # 7. Performance security initialization
         try:
             # Initialize performance security monitoring
             app_security_logger.info("✅ Performance security monitoring initialized")
