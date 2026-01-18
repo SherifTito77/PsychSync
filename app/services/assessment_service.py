@@ -67,83 +67,117 @@ class AssessmentService:
         organization_id: UUID | None = None,
         team_id: UUID | None = None,
     ) -> Assessment:
-        """Create new assessment"""
-        assessment = Assessment(
-            user_id=user_id,
-            framework_code=framework_code,
-            organization_id=organization_id,
-            team_id=team_id,
-            status="in_progress",
-            started_at=datetime.utcnow(),
-        )
+        """Create new assessment with proper error handling"""
+        try:
+            assessment = Assessment(
+                user_id=user_id,
+                framework_code=framework_code,
+                organization_id=organization_id,
+                team_id=team_id,
+                status="in_progress",
+                started_at=datetime.utcnow(),
+            )
 
-        db.add(assessment)
-        await db.commit()
-        await db.refresh(assessment)
+            db.add(assessment)
+            await db.commit()
+            await db.refresh(assessment)
 
-        logger.info(f"Created assessment ID: {assessment.id} for user: {user_id}")
-        return assessment
+            logger.info(f"Created assessment ID: {assessment.id} for user: {user_id}")
+            return assessment
+
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to create assessment for user {user_id}: {e}", exc_info=True)
+            raise
 
     @staticmethod
     async def update(db: AsyncSession, assessment_id: UUID, update_data: dict) -> Assessment | None:
-        """Update assessment"""
-        result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
-        assessment = result.scalar_one_or_none()
+        """Update assessment with proper error handling and row-level locking"""
+        try:
+            # Use SELECT FOR UPDATE to prevent concurrent modification
+            result = await db.execute(
+                select(Assessment)
+                .where(Assessment.id == assessment_id)
+                .with_for_update()
+            )
+            assessment = result.scalar_one_or_none()
 
-        if not assessment:
-            return None
+            if not assessment:
+                return None
 
-        # Update fields
-        for field, value in update_data.items():
-            if hasattr(assessment, field):
-                setattr(assessment, field, value)
+            # Update fields
+            for field, value in update_data.items():
+                if hasattr(assessment, field):
+                    setattr(assessment, field, value)
 
-        assessment.updated_at = datetime.utcnow()
-        await db.commit()
-        await db.refresh(assessment)
+            assessment.updated_at = datetime.utcnow()
+            await db.commit()
+            await db.refresh(assessment)
 
-        # Invalidate cache for this assessment
-        await async_redis_client.delete_pattern(f"assessment_results:*:{assessment_id}")
+            # Invalidate cache for this assessment
+            await async_redis_client.delete_pattern(f"assessment_results:*:{assessment_id}")
 
-        logger.info(f"Updated assessment ID: {assessment_id}")
-        return assessment
+            logger.info(f"Updated assessment ID: {assessment_id}")
+            return assessment
+
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to update assessment {assessment_id}: {e}", exc_info=True)
+            raise
 
     @staticmethod
     async def complete(db: AsyncSession, assessment_id: UUID) -> Assessment | None:
-        """Mark assessment as completed"""
-        result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
-        assessment = result.scalar_one_or_none()
+        """Mark assessment as completed with proper error handling and row-level locking"""
+        try:
+            # Use SELECT FOR UPDATE to prevent concurrent modification
+            result = await db.execute(
+                select(Assessment)
+                .where(Assessment.id == assessment_id)
+                .with_for_update()
+            )
+            assessment = result.scalar_one_or_none()
 
-        if not assessment:
-            return None
+            if not assessment:
+                return None
 
-        assessment.status = "completed"
-        assessment.completed_at = datetime.utcnow()
-        assessment.updated_at = datetime.utcnow()
+            assessment.status = "completed"
+            assessment.completed_at = datetime.utcnow()
+            assessment.updated_at = datetime.utcnow()
 
-        await db.commit()
-        await db.refresh(assessment)
+            await db.commit()
+            await db.refresh(assessment)
 
-        # Invalidate cache for this assessment so results are recalculated
-        await async_redis_client.delete_pattern(f"assessment_results:*:{assessment_id}")
+            # Invalidate cache for this assessment so results are recalculated
+            await async_redis_client.delete_pattern(f"assessment_results:*:{assessment_id}")
 
-        logger.info(f"Completed assessment ID: {assessment_id}")
-        return assessment
+            logger.info(f"Completed assessment ID: {assessment_id}")
+            return assessment
+
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to complete assessment {assessment_id}: {e}", exc_info=True)
+            raise
 
     @staticmethod
     async def delete(db: AsyncSession, assessment_id: UUID) -> bool:
-        """Delete assessment"""
-        result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
-        assessment = result.scalar_one_or_none()
+        """Delete assessment with proper error handling"""
+        try:
+            result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
+            assessment = result.scalar_one_or_none()
 
-        if not assessment:
-            return False
+            if not assessment:
+                return False
 
-        await db.delete(assessment)
-        await db.commit()
+            await db.delete(assessment)
+            await db.commit()
 
-        logger.info(f"Deleted assessment ID: {assessment_id}")
-        return True
+            logger.info(f"Deleted assessment ID: {assessment_id}")
+            return True
+
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to delete assessment {assessment_id}: {e}", exc_info=True)
+            raise
 
     @staticmethod
     @async_cached(expire=3600, key_prefix="assessment_results")
