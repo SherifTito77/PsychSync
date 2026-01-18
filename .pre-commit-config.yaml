@@ -50,6 +50,16 @@ repos:
         pass_filenames: false
         # Only run when explicitly requested or in CI
 
+  # Prevent bare exception handlers
+  - repo: local
+    hooks:
+      - id: no-bare-except
+        name: No Bare Exception Handlers
+        entry: python scripts/check_no_bare_except.py
+        language: system
+        types: [python]
+        exclude: ^(archived_services/|migrations/)
+
   # General checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0

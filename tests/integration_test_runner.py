@@ -117,7 +117,7 @@ class IntegrationTestRunner:
                 async with self.session.get(f"{self.backend_url}{endpoint}") as response:
                     if response.status == 200:
                         working_endpoints.append(endpoint)
-            except:
+            except Exception as e:
                 pass  # Skip failed endpoints
 
         duration = time.time() - start_time

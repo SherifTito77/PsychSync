@@ -50,7 +50,7 @@ def test_mbti_questions_directly():
             try:
                 error_data = response.json()
                 print(f"   Error: {error_data}")
-            except:
+            except Exception as e:
                 print(f"   Response: {response.text[:200]}")
 
     except Exception as e:

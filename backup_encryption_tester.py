@@ -113,7 +113,8 @@ class BackupSecurityTester:
                     if any(keyword in text_content.lower() for keyword in ["password", "secret", "key", "token"]):
                         result["security_issues"].append("Unencrypted backup contains sensitive keywords")
                         result["risk_level"] = "HIGH"
-                except:
+                except (UnicodeDecodeError, AttributeError):
+                    # Binary data or non-text header - skip keyword check
                     pass
 
             # Check file permissions
@@ -342,7 +343,8 @@ class BackupSecurityTester:
                     if any(keyword in content.lower() for keyword in sensitive_keywords):
                         access_result["security_issues"].append("File may contain sensitive information")
 
-                except:
+                except (OSError, IOError, UnicodeDecodeError):
+                    # File can't be read or decoded - skip content check
                     pass
 
                 if access_result["security_issues"]:

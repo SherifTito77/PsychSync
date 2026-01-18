@@ -331,11 +331,15 @@ class BackupSecurityTester:
         try:
             with gzip.open(file_path, 'rt', encoding='utf-8', errors='ignore') as f:
                 return f.read(1024 * 1024)  # Read first 1MB
-        except:
+        except (OSError, gzip.BadGzipFile) as e:
             # If text decompression fails, try binary
-            with gzip.open(file_path, 'rb') as f:
-                binary_data = f.read(1024 * 1024)
-                return binary_data.decode('utf-8', errors='ignore')
+            try:
+                with gzip.open(file_path, 'rb') as f:
+                    binary_data = f.read(1024 * 1024)
+                    return binary_data.decode('utf-8', errors='ignore')
+            except (OSError, gzip.BadGzipFile) as e:
+                logger.warning(f"Failed to read gzipped file {file_path}: {e}")
+                return ""
 
     async def read_zip_file(self, file_path: str) -> str:
         """Read zip file contents"""
@@ -346,8 +350,8 @@ class BackupSecurityTester:
                     if not file_info.is_dir():
                         with zip_file.open(file_info) as file:
                             content += file.read(1024 * 512).decode('utf-8', errors='ignore')
-        except:
-            pass
+        except (zipfile.BadZipFile, OSError) as e:
+            logger.warning(f"Failed to read zip file {file_path}: {e}")
         return content
 
     async def check_file_permissions(self, file_path: str):

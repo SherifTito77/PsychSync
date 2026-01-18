@@ -179,7 +179,7 @@ class InternalAPISecurityTester:
                 try:
                     response_data = response.json()
                     endpoint_result["response_data"] = json.dumps(response_data)[:200]  # Truncate
-                except:
+                except Exception as e:
                     endpoint_result["response_data"] = response.text[:200]
 
             except requests.exceptions.RequestException as e:
@@ -292,7 +292,7 @@ class InternalAPISecurityTester:
                 try:
                     response_data = response.json()
                     exposure_result["response_data"] = json.dumps(response_data)[:200]
-                except:
+                except Exception as e:
                     exposure_result["response_data"] = response.text[:200]
 
             except requests.exceptions.RequestException:

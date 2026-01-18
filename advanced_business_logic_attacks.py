@@ -384,7 +384,7 @@ class AdvancedBusinessLogicAttacks:
                         try:
                             response_data = response.json()
                             current_resource_id = response_data.get('id')
-                        except:
+                        except Exception as e:
                             pass
 
                     workflow_results.append({

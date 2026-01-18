@@ -377,7 +377,7 @@ async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> 
                 else {"since_date": seven_days_ago},
             )
             active_users = active_users_result.scalar() or 0
-        except:
+        except Exception as e:
             # Fallback if user_activity_log table doesn't exist
             active_users = 0
 
@@ -438,8 +438,7 @@ async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> 
                     (completed_assessments / max(total_assessments, 1)) * 100, 2
                 ),
             }
-        except:
-            # Tables might not exist in development
+except Exception as e:            # Tables might not exist in development
             assessment_metrics = {
                 "total_assessments": 0,
                 "completed_assessments": 0,
@@ -518,8 +517,7 @@ def get_uptime_seconds() -> int:
 
         # Simple approximation - in production, this should be stored at startup
         return int(time.time() - os.getpid())
-    except:
-        return 0
+except Exception as e:        return 0
 
 
 async def get_database_metrics(db: AsyncSession) -> dict[str, Any]:
@@ -559,8 +557,7 @@ async def get_application_metrics() -> dict[str, Any]:
             "open_files": len(process.open_files()) if hasattr(process, "open_files") else 0,
             "connections": len(process.connections()) if hasattr(process, "connections") else 0,
         }
-    except:
-        return {"memory_mb": 0, "cpu_percent": 0, "threads": 0, "open_files": 0, "connections": 0}
+except Exception as e:        return {"memory_mb": 0, "cpu_percent": 0, "threads": 0, "open_files": 0, "connections": 0}
 
 
 def get_system_metrics() -> dict[str, Any]:
@@ -585,8 +582,7 @@ def get_system_metrics() -> dict[str, Any]:
             if hasattr(psutil, "boot_time")
             else None,
         }
-    except:
-        return {
+except Exception as e:        return {
             "cpu_percent": 0,
             "memory": {"total_gb": 0, "available_gb": 0, "percent_used": 0},
             "disk": {"total_gb": 0, "free_gb": 0, "percent_used": 0},

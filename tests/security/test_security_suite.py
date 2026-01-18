@@ -160,8 +160,8 @@ class SecurityTestSuite:
                             print(f"  ⚠ WARN: Token expiry too long ({exp_minutes:.0f} minutes)")
                         else:
                             print(f"  ✓ PASS: Token expiry appropriate ({exp_minutes:.0f} minutes)")
-                except:
-                    print("  ⊘ SKIP: Could not verify token expiry")
+                except (KeyError, TypeError, ValueError) as e:
+                    print(f"  ⊘ SKIP: Could not verify token expiry ({type(e).__name__})")
         else:
             print("  ⊘ SKIP: Could not test JWT security")
 

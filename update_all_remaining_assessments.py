@@ -268,7 +268,7 @@ def main():
                 print(f"   DISC API: {q_count} questions ✅")
             else:
                 print(f"   DISC API: Error {response.status_code} ❌")
-        except:
+        except Exception as e:
             print("   DISC API: Connection error ❌")
 
     # Update Social Styles
@@ -285,7 +285,7 @@ def main():
                 print(f"   Social Styles API: {q_count} questions ✅")
             else:
                 print(f"   Social Styles API: Error {response.status_code} ❌")
-        except:
+        except Exception as e:
             print("   Social Styles API: Connection error ❌")
 
     print(f"\n🎉 COMPLETED UPDATING {success_count} ASSESSMENTS!")

@@ -405,7 +405,7 @@ class APISecurityTester:
                             is_vulnerable = True
                             print(f"  🚨 MASS ASSIGNMENT VULNERABILITY: Field '{field}' was accepted!")
                             break
-                except:
+                except Exception as e:
                     pass  # JSON parse errors are not mass assignment vulnerabilities
 
             # Check if the request was rejected (good protection)
@@ -582,7 +582,7 @@ class APISecurityTester:
                 async with self.session.post(url, json={"test": "data"}) as post_response:
                     post_status = post_response.status
                     post_response_text = await post_response.text()
-            except:
+            except Exception as e:
                 post_status = None
                 post_response_text = ""
 
@@ -647,7 +647,7 @@ class APISecurityTester:
                                      if any(pattern in field.lower() for pattern in sensitive_patterns)]
                     if sensitive_fields:
                         leakage_indicators.append(f"Sensitive fields: {sensitive_fields[:3]}")
-            except:
+            except Exception as e:
                 pass
 
             # Determine if vulnerable

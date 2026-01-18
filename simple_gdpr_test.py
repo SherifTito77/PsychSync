@@ -50,7 +50,7 @@ def test_gdpr_endpoints():
             if response.status_code == 200:
                 try:
                     result["response_data"] = response.json()
-                except:
+                except Exception as e:
                     result["response_data"] = "Invalid JSON"
             else:
                 result["error"] = response.text[:200]
@@ -80,7 +80,7 @@ def test_gdpr_endpoints():
             try:
                 data = response.json()
                 print(f"   Response: {json.dumps(data, indent=2)[:200]}...")
-            except:
+            except Exception as e:
                 print("   Response: Invalid JSON format")
         else:
             print(f"❌ Public data summary endpoint: HTTP {response.status_code}")
@@ -112,7 +112,7 @@ def test_gdpr_endpoints():
                 data = response.json()
                 print(f"   Consent ID: {data.get('consent_id', 'N/A')}")
                 print(f"   Status: {data.get('status', 'N/A')}")
-            except:
+            except Exception as e:
                 print("   Response: Invalid JSON format")
         else:
             print(f"❌ Cookie consent endpoint: HTTP {response.status_code}")

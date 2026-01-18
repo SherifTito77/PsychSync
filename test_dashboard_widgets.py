@@ -46,7 +46,7 @@ class DashboardWidgetVerifier:
             if response.headers.get('content-type', '').startswith('application/json'):
                 try:
                     result["json_data"] = response.json()
-                except:
+                except Exception as e:
                     result["json_data"] = None
 
             return result

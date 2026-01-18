@@ -85,7 +85,7 @@ def test_live_api_validation():
                 try:
                     error_detail = response.json()
                     print(f"   Validation Error: {error_detail.get('detail', 'Unknown error')}")
-                except:
+                except Exception as e:
                     print(f"   Raw Response: {response.text[:200]}...")
             elif response.status_code == 201:
                 print(f"   ✅ Registration successful")

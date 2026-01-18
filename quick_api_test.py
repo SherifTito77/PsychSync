@@ -87,7 +87,7 @@ class QuickAPITester:
                     response_json = response.json()
                     if "error" in response_json or "message" in response_json:
                         has_error_structure = True
-                except:
+                except Exception as e:
                     pass
 
                 status = "✅" if graceful and has_error_structure else "⚠️" if graceful else "❌"
@@ -102,7 +102,7 @@ class QuickAPITester:
                             error_data = response.json()
                             if "message" in error_data:
                                 print(f"    Message: {error_data['message'][:80]}...")
-                        except:
+                        except Exception as e:
                             pass
                 else:
                     print(f"    ⚠️  Server error - needs investigation")

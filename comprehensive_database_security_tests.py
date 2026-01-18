@@ -366,7 +366,8 @@ class ComprehensiveDatabaseSecurityTester:
                             if b'CREATE TABLE' in decoded or b'INSERT INTO' in decoded:
                                 is_encrypted = False
                                 backup_info["issues"].append("Base64 encoded backup - not true encryption")
-                        except:
+                        except (binascii.Error, ValueError):
+                            # Not valid base64 - continue checking
                             pass
 
                     backup_info["encrypted"] = is_encrypted

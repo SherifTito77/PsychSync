@@ -372,7 +372,7 @@ class PWATestSuite:
                 response = requests.get(manifest_url, timeout=5)
                 manifest_accessible = response.status_code == 200
                 manifest_valid = response.headers.get('Content-Type', '').startswith('application/json')
-            except:
+            except Exception as e:
                 manifest_accessible = False
                 manifest_valid = False
 

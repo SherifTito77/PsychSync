@@ -487,7 +487,7 @@ class NoSQLInjectionTester:
         """Analyze HTTP response for injection indicators"""
         try:
             data = await response.json()
-        except:
+        except Exception as e:
             data = await response.text()
 
         # Check for injection success indicators
@@ -545,7 +545,7 @@ class NoSQLInjectionTester:
                     "severity": "CRITICAL",
                     "description": "MongoDB admin database accessible without authentication"
                 })
-            except:
+            except Exception as e:
                 pass  # This is expected - authentication should be required
 
             # Test for dangerous query operations
@@ -568,7 +568,7 @@ class NoSQLInjectionTester:
                             "severity": "CRITICAL",
                             "description": f"Dangerous query returned {len(result)} results"
                         })
-                except:
+                except Exception as e:
                     pass
 
             client.close()

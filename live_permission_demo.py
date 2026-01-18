@@ -118,7 +118,7 @@ class LivePermissionDemo:
             # Parse response
             try:
                 response_data = response.json() if response.content else None
-            except:
+            except Exception as e:
                 response_data = response.text[:200] if response.text else None
 
             # Determine if result matches expectations
