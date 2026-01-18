@@ -60,6 +60,16 @@ repos:
         types: [python]
         exclude: ^(archived_services/|migrations/)
 
+  # Dependency security audit
+  - repo: local
+    hooks:
+      - id: pip-audit
+        name: Dependency Security Audit (pip-audit)
+        entry: pip-audit -r requirements.txt -r requirements-dev.txt -r requirements-analytics.txt
+        language: system
+        pass_filenames: false
+        always_run: true
+
   # General checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
