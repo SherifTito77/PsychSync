@@ -594,7 +594,7 @@ Confidential & HIPAA-compliant
             Dictionary with subject, html_body, and text_body
         """
         risk_flags_html = "".join([
-            f'<span style="display: inline-block; padding: 4px 12px; background: #FEE2E2; color: #991B1B; border-radius: 12px; margin: 4px;">{flag.replace(/_/g, ' ')}</span>'
+            f'<span style="display: inline-block; padding: 4px 12px; background: #FEE2E2; color: #991B1B; border-radius: 12px; margin: 4px;">{flag.replace("_", " ")}</span>'
             for flag in alert_details.get('risk_flags', [])
         ])
 
