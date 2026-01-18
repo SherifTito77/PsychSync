@@ -104,32 +104,32 @@ class ComprehensiveUATExecutor:
             if "Generated" in line and "test cases" in line:
                 try:
                     summary["test_scenarios_generated"] = int(line.split()[2])
-                except:
+                except Exception as e:
                     pass
             elif "Generated" in line and "scenarios" in line:
                 try:
                     summary["test_scenarios_generated"] = int(line.split()[2])
-                except:
+                except Exception as e:
                     pass
             elif "Generated" in line and "questions" in line:
                 try:
                     summary["test_scenarios_generated"] = int(line.split()[2])
-                except:
+                except Exception as e:
                     pass
             elif "Success Rate:" in line:
                 try:
                     summary["success_rate"] = float(line.split("Success Rate:")[1].strip().replace("%", ""))
-                except:
+                except Exception as e:
                     pass
             elif "business functions" in line.lower():
                 try:
                     summary["business_functions_covered"] = int(line.split()[-2])
-                except:
+                except Exception as e:
                     pass
             elif "stakeholder" in line.lower() and "groups" in line.lower():
                 try:
                     summary["stakeholder_groups"] = int(line.split()[-2])
-                except:
+                except Exception as e:
                     pass
 
         # Determine overall status
@@ -161,12 +161,12 @@ class ComprehensiveUATExecutor:
             if "Progress:" in line and "%" in line:
                 try:
                     metrics["completion_percentage"] = float(line.split("%")[0].split()[-1])
-                except:
+                except Exception as e:
                     pass
             elif "Critical" in line and "Remaining:" in line:
                 try:
                     metrics["critical_issues"] = int(line.split("Critical")[1].split()[1])
-                except:
+                except Exception as e:
                     pass
             elif "SUCCESS" in line or "COMPLETED" in line:
                 if "EXCELLENCE" in line:

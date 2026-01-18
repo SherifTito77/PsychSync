@@ -292,7 +292,7 @@ class LocalizationGapDetectorAgent(BaseAgent):
                     reference_keys = self._get_all_keys(data)
                     reference_file = locale_file
                     break
-                except:
+                except Exception as e:
                     continue
 
         if not reference_keys:
@@ -319,7 +319,7 @@ class LocalizationGapDetectorAgent(BaseAgent):
                         "extra_keys": list(extra_keys)[:10],
                         "coverage": f"{(len(current_keys) / len(reference_keys) * 100):.0f}%"
                     })
-            except:
+            except Exception as e:
                 findings.append({
                     "type": "localization_error",
                     "locale": str(locale_file.relative_to(project_root)),
@@ -646,7 +646,7 @@ class UptimeMonitorAgent(BaseAgent):
             conn = psycopg2.connect("postgresql://postgres:postgres@localhost:5432/psychsync_db")
             conn.close()
             db_status = "connected"
-        except:
+        except Exception as e:
             db_status = "disconnected"
 
         findings.append({
@@ -845,7 +845,7 @@ class DependencyUpdaterAgent(BaseAgent):
                     "dependencies_count": total_deps,
                     "last_updated": "Unknown - run 'npm outdated'"
                 })
-            except:
+            except Exception as e:
                 pass
 
         metrics = {

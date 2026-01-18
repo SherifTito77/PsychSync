@@ -155,7 +155,7 @@ class SessionSecurityTester:
 
                 forced_cookie_after_auth = dict(forced_session.cookies)
                 attack_successful = forced_cookie_after_auth.get("sessionid") == "attacker-controlled-id"
-            except:
+            except Exception as e:
                 attack_successful = False
 
             vulnerability_found = not session_changed or attack_successful or old_session_response.status_code == 200
@@ -377,7 +377,7 @@ class SessionSecurityTester:
                         if response.status_code != 200:
                             sessions_invalidated += 1
                             session_statuses[f"session_{i+1}"]["invalidated_by_logout"] = True
-                    except:
+                    except Exception as e:
                         pass
 
             # Step 4: Test session limit enforcement
@@ -569,7 +569,7 @@ class SessionSecurityTester:
 
                     expired_response = expired_session.get(f"{self.base_url}/api/v1/me", timeout=10)
                     token_properly_expired = expired_response.status_code != 200
-                except:
+                except Exception as e:
                     token_properly_expired = False
                     expired_token = None
             else:
@@ -703,7 +703,7 @@ class SessionSecurityTester:
                         "contains_stack_trace": "traceback" in error_response.text.lower(),
                         "contains_session_info": any(p in error_response.text.lower() for p in sensitive_patterns)
                     }
-                except:
+                except Exception as e:
                     error_responses[endpoint] = {"error": "Request failed"}
 
             # Step 4: Test session ID predictability

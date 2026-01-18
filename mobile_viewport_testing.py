@@ -148,7 +148,7 @@ class MobileViewportTester:
             overflow_amount = max(0, page_width - viewport_width)
 
             return has_horizontal_scroll, overflow_amount
-        except:
+        except Exception as e:
             return False, 0
 
     def check_touch_targets(self) -> Tuple[bool, List[str]]:
@@ -171,11 +171,11 @@ class MobileViewportTester:
                         if size.width < 44 or size.height < 44:
                             issues.append(f"Touch target too small: {size.width}x{size.height}px")
                             usable = False
-                except:
+                except Exception as e:
                     continue
 
             return usable, issues
-        except:
+        except Exception as e:
             return True, []
 
     def check_text_readability(self) -> Tuple[bool, List[str]]:
@@ -220,7 +220,7 @@ class MobileViewportTester:
                 issues.extend([f"Text too small: {elem}" for elem in small_text])
 
             return len(issues) == 0, issues
-        except:
+        except Exception as e:
             return True, []
 
     def test_page(self, page_name: str, route: str, viewport_name: str, viewport_size: Dict) -> PageTestResult:
@@ -296,7 +296,7 @@ class MobileViewportTester:
                         description="Missing or improper viewport meta tag",
                         severity="critical"
                     ))
-            except:
+            except Exception as e:
                 issues.append(UsabilityIssue(
                     page=page_name,
                     viewport=viewport_name,

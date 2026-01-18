@@ -238,7 +238,7 @@ class DevOpsSecurityScanner:
                                         file_path=str(file_path),
                                         remediation=f"Run: chmod 600 {file_path}"
                                     ))
-                        except:
+                        except Exception as e:
                             pass
 
         details["secure_count"] = len(secure_perms)
@@ -522,7 +522,7 @@ class DevOpsSecurityScanner:
                 trivy_available = True
                 details["trivy_available"] = True
                 print(f"   ✅ Trivy scanner found: {result.stdout.split()[1]}")
-        except:
+        except Exception as e:
             print(f"   ⚠️  Trivy not found (install: brew install trivy)")
 
         # Check if Grype is available
@@ -538,7 +538,7 @@ class DevOpsSecurityScanner:
                 grype_available = True
                 details["grype_available"] = True
                 print(f"   ✅ Grype scanner found")
-        except:
+        except Exception as e:
             print(f"   ⚠️  Grype not found (install: brew install grype)")
 
         if not trivy_available and not grype_available:
@@ -640,7 +640,7 @@ class DevOpsSecurityScanner:
                         image = line.split('image:')[1].strip().strip('"\'')
                         if image and not any(x in image for x in ['${', 'LOCAL']):
                             images.add(image)
-            except:
+            except Exception as e:
                 pass
 
         return list(images)

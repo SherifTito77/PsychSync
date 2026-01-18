@@ -411,7 +411,7 @@ class SecurityReleaseTester:
                 elif response.status_code == 200:
                     # Possibly unprotected
                     unprotected_count += 1
-            except:
+            except Exception as e:
                 pass
 
         return {
@@ -446,7 +446,7 @@ class SecurityReleaseTester:
                 if response.status_code in [400, 422]:
                     sanitized_count += 1
 
-            except:
+            except Exception as e:
                 pass
 
         return {
@@ -481,7 +481,7 @@ class SecurityReleaseTester:
                 'content_length': len(content)
             }
 
-        except:
+        except Exception as e:
             return {
                 'sensitive_data_exposed': False,
                 'error': 'Could not fetch content'
@@ -548,7 +548,7 @@ class SecurityReleaseTester:
                 if response.status_code in [400, 422, 401] or 'error' in response.text.lower():
                     protected_count += 1
 
-            except:
+            except Exception as e:
                 protected_count += 1  # Connection error is better than vulnerability
 
         return {
@@ -583,7 +583,7 @@ class SecurityReleaseTester:
                 if response.status_code in [400, 422] or payload not in response.text:
                     protected_count += 1
 
-            except:
+            except Exception as e:
                 protected_count += 1
 
         return {
@@ -615,7 +615,7 @@ class SecurityReleaseTester:
                         rate_limited = True
                         break
 
-            except:
+            except Exception as e:
                 pass
 
             results['endpoint_tests'][endpoint] = {
@@ -642,7 +642,7 @@ class SecurityReleaseTester:
             response = requests.get(f"{self.base_url}/privacy", timeout=5)
             results['has_privacy_policy'] = response.status_code == 200
             results['details']['privacy_policy_status'] = response.status_code
-        except:
+        except Exception as e:
             results['details']['privacy_policy_status'] = 'error'
 
         # Check for GDPR compliance pages
@@ -655,7 +655,7 @@ class SecurityReleaseTester:
                 if response.status_code == 200:
                     gdpr_found = True
                     break
-            except:
+            except Exception as e:
                 pass
 
         results['has_gdpr_compliance'] = gdpr_found

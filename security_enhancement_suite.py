@@ -185,7 +185,7 @@ class SecurityEnhancer:
                         if 'stack' in str(error_data).lower() or 'traceback' in str(error_data).lower():
                             vulnerabilities.append("API may disclose sensitive error information")
                             security_score -= 15
-                    except:
+                    except Exception as e:
                         pass
 
             # Check CORS configuration
@@ -262,7 +262,7 @@ class SecurityEnhancer:
                             vulnerabilities.extend([f"{py_file.name}: {issue}" for issue in set(file_issues)])
                             security_score -= 10
 
-                    except:
+                    except Exception as e:
                         continue
 
             # Check frontend input validation
@@ -288,7 +288,7 @@ class SecurityEnhancer:
                         if 'validate' not in content and 'form' in content.lower():
                             frontend_validation_issues += 1
 
-                    except:
+                    except Exception as e:
                         continue
 
             # Generate recommendations
@@ -372,7 +372,7 @@ class SecurityEnhancer:
                             vulnerabilities.append(f"Potentially vulnerable npm package: {package}")
                             security_score -= 5
 
-                except:
+                except Exception as e:
                     pass
 
             # Check for security-related tools
