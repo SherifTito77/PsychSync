@@ -23,7 +23,7 @@ from app.core.service_provider import (
     get_scoring_strategy_registry_dep,
     get_token_service_dep,
 )
-from app.services.security.assessment_scoring_strategies import (
+from app.services.assessment_scoring_strategies import (
     ScoringStrategyRegistry,
 )
 from app.services.security.authorization_service import (

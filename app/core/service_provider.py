@@ -32,7 +32,7 @@ Version: 1.0 (Phase 2 - Service Layer Refactoring)
 import threading
 from typing import Optional
 
-from app.services.security.assessment_scoring_strategies import (
+from app.services.assessment_scoring_strategies import (
     ScoringStrategyRegistry,
     get_scoring_strategy_registry,
 )

@@ -749,3 +749,21 @@ def create_email_verification_token(email: str) -> str:
 def verify_email_verification_token(token: str) -> str | None:
     """Verify email verification token using default service."""
     return get_token_service().verify_email_verification_token(token)
+
+
+def generate_secure_token(length: int = 32) -> str:
+    """
+    Generate a cryptographically secure random token.
+
+    Args:
+        length: Length of token in bytes (default: 32)
+
+    Returns:
+        URL-safe base64-encoded random token
+
+    Example:
+        >>> token = generate_secure_token()
+        >>> len(token)
+        43  # URL-safe base64 encoding
+    """
+    return secrets.token_urlsafe(length)

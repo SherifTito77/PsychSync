@@ -519,3 +519,52 @@ def is_owner(user: User, resource: Any) -> bool:
 def is_team_member(user: User, team: Team) -> bool:
     """Check if user is team member using default service."""
     return get_authorization_service().is_team_member(user, team)
+
+
+def require_permissions(*permissions: str):
+    """
+    Decorator to require specific permissions for endpoint access.
+
+    Usage:
+        @require_permissions("monitoring:read")
+        async def get_metrics(user=Depends(get_current_user)):
+            ...
+
+    Args:
+        *permissions: Permission strings required (e.g., "monitoring:read")
+
+    Returns:
+        Decorator function
+    """
+    from fastapi import HTTPException, status
+
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            # Get user from kwargs (injected by Depends)
+            user = kwargs.get("user") or kwargs.get("current_user")
+
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required"
+                )
+
+            # For string permissions, do simple admin check
+            # In production, you'd map these to Permission enum values
+            if hasattr(user, "role") and user.role and user.role.lower() == "admin":
+                return await func(*args, **kwargs)
+
+            # Check if user has monitoring permissions
+            auth_svc = get_authorization_service()
+            for perm_str in permissions:
+                # Convert "resource:action" format to permission check
+                if hasattr(user, "permissions") and perm_str in user.permissions:
+                    return await func(*args, **kwargs)
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient permissions. Required: {', '.join(permissions)}"
+            )
+
+        return wrapper
+    return decorator

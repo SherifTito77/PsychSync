@@ -25,6 +25,7 @@ Author: Security Team
 Version: 1.0
 """
 
+# Import from service modules
 from app.services.security.password_service import (
     PasswordService,
     get_password_service,
@@ -46,6 +47,7 @@ from app.services.security.token_service import (
     verify_password_reset_token,
     create_email_verification_token,
     verify_email_verification_token,
+    generate_secure_token,
 )
 
 from app.services.security.authorization_service import (
@@ -54,6 +56,7 @@ from app.services.security.authorization_service import (
     has_role,
     is_owner,
     is_team_member,
+    require_permissions,
 )
 
 from app.services.security.input_sanitizer_service import (
@@ -64,6 +67,12 @@ from app.services.security.input_sanitizer_service import (
     validate_email,
     generate_csrf_token,
     validate_csrf_token,
+)
+
+# Re-export core security functions for backward compatibility
+from app.core.security import (
+    get_current_user,
+    get_current_active_user,
 )
 
 __all__ = [
@@ -86,12 +95,14 @@ __all__ = [
     "verify_password_reset_token",
     "create_email_verification_token",
     "verify_email_verification_token",
+    "generate_secure_token",
     # Authorization Service
     "AuthorizationService",
     "get_authorization_service",
     "has_role",
     "is_owner",
     "is_team_member",
+    "require_permissions",
     # Input Sanitizer Service
     "InputSanitizerService",
     "get_input_sanitizer_service",
@@ -100,4 +111,7 @@ __all__ = [
     "validate_email",
     "generate_csrf_token",
     "validate_csrf_token",
+    # Core Security (re-exported for backward compatibility)
+    "get_current_user",
+    "get_current_active_user",
 ]
