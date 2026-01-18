@@ -10,14 +10,39 @@ import logging
 import time
 from typing import Any
 
-from sqlalchemy import event, text
+from sqlalchemy import event, text, Table
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.sql import quoted_name
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_table_name(table_name: str) -> str:
+    """
+    Validate and safely quote table name to prevent SQL injection.
+
+    Args:
+        table_name: The table name to validate
+
+    Returns:
+        Safely quoted table identifier
+
+    Raises:
+        ValueError: If table_name contains invalid characters
+    """
+    # Allow only alphanumeric characters and underscores
+    if not table_name.replace("_", "").isalnum():
+        raise ValueError(
+            f"Invalid table name '{table_name}'. "
+            "Table names must contain only alphanumeric characters and underscores."
+        )
+
+    # Use SQLAlchemy's quoted_name to safely quote the identifier
+    return str(quoted_name(table_name, quote=True))
 
 
 class Base(DeclarativeBase):
@@ -202,8 +227,11 @@ class QueryOptimizer:
     async def analyze_table(db: AsyncSession, table_name: str) -> dict[str, Any]:
         """Analyze table statistics and suggest optimizations"""
         try:
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
             result = await db.execute(
-                text(f"""
+                text("""
                 SELECT
                     schemaname,
                     tablename,
@@ -217,15 +245,16 @@ class QueryOptimizer:
                     last_analyze,
                     last_autoanalyze
                 FROM pg_stat_user_tables
-                WHERE tablename = '{table_name}'
-            """)
+                WHERE tablename = :table_name
+            """),
+                {"table_name": table_name}  # Parameterized query
             )
 
             stats = result.mappings().first()
 
             # Get index usage statistics
             index_result = await db.execute(
-                text(f"""
+                text("""
                 SELECT
                     schemaname,
                     tablename,
@@ -234,9 +263,10 @@ class QueryOptimizer:
                     idx_tup_read as tuples_read,
                     idx_tup_fetch as tuples_fetched
                 FROM pg_stat_user_indexes
-                WHERE tablename = '{table_name}'
+                WHERE tablename = :table_name
                 ORDER BY idx_scan DESC
-            """)
+            """),
+                {"table_name": table_name}  # Parameterized query
             )
 
             index_stats = index_result.mappings().all()
@@ -370,7 +400,11 @@ class DatabaseMaintenance:
     async def vacuum_analyze_table(db: AsyncSession, table_name: str) -> bool:
         """Run VACUUM ANALYZE on a specific table"""
         try:
-            await db.execute(text(f"VACUUM ANALYZE {table_name}"))
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
+            # Use text() with validated table name (VACUUM doesn't support parameters)
+            await db.execute(text(f"VACUUM ANALYZE {safe_table_name}"))
             await db.commit()
             logger.info(f"VACUUM ANALYZE completed for table: {table_name}")
             return True
@@ -382,7 +416,11 @@ class DatabaseMaintenance:
     async def update_table_statistics(db: AsyncSession, table_name: str) -> bool:
         """Update table statistics"""
         try:
-            await db.execute(text(f"ANALYZE {table_name}"))
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
+            # Use text() with validated table name (ANALYZE doesn't support parameters)
+            await db.execute(text(f"ANALYZE {safe_table_name}"))
             await db.commit()
             logger.info(f"Statistics updated for table: {table_name}")
             return True
@@ -394,7 +432,11 @@ class DatabaseMaintenance:
     async def reindex_table(db: AsyncSession, table_name: str) -> bool:
         """Rebuild indexes on a table"""
         try:
-            await db.execute(text(f"REINDEX TABLE {table_name}"))
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
+            # Use text() with validated table name (REINDEX doesn't support parameters)
+            await db.execute(text(f"REINDEX TABLE {safe_table_name}"))
             await db.commit()
             logger.info(f"Indexes rebuilt for table: {table_name}")
             return True

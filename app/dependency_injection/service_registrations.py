@@ -394,5 +394,5 @@ def is_services_registered() -> bool:
     try:
         service_info = container.get_service_info()
         return len(service_info) > 0
-    except:
+    except Exception as e:
         return False

@@ -75,7 +75,7 @@ class SmokeTestSuite:
                 try:
                     response_data = await response.json()
                     details["response_data"] = response_data
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     response_text = await response.text()
                     details["response_text"] = response_text[:500]  # Limit length
 

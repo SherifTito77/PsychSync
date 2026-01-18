@@ -639,7 +639,7 @@ class LogAggregationService:
                 if "T" in timestamp_str and "+" not in timestamp_str:
                     timestamp_str += "Z"
                 timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-            except:
+            except Exception as e:
                 pass
 
         level = LogLevel.INFO
@@ -686,14 +686,14 @@ class LogAggregationService:
         if "timestamp" in metadata:
             try:
                 timestamp = datetime.fromisoformat(metadata["timestamp"].replace("Z", "+00:00"))
-            except:
+            except Exception as e:
                 pass
 
         level = LogLevel.INFO
         if "level" in metadata:
             try:
                 level = LogLevel[metadata["level"].upper()]
-            except:
+            except Exception as e:
                 pass
 
         return LogEntry(

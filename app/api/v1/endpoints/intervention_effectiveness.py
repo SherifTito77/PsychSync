@@ -7,7 +7,7 @@ Provides comprehensive endpoints for managing interventions and analyzing their 
 
 from datetime import datetime, timedelta
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session

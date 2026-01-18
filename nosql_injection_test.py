@@ -137,7 +137,7 @@ class NoSQLInjectionTester:
                 indicators.append("large_data_response")
             elif isinstance(data, dict) and "data" in data and len(str(data)) > 10000:
                 indicators.append("extensive_data")
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             pass
 
         # Authentication bypass indicators

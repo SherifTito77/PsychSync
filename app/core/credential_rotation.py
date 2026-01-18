@@ -406,7 +406,7 @@ class CredentialRotationManager:
             try:
                 with open(self.rotation_log) as f:
                     return json.load(f)
-            except:
+            except (OSError, IOError, ValueError) as e:
                 return []
         return []
 

@@ -426,7 +426,7 @@ class LLMSanitizer:
                 data = json.loads(content)
                 if "code" in data or "sql" in data or "script" in data:
                     return True
-            except:
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
                 pass
 
         return False
@@ -485,7 +485,7 @@ class LLMSanitizer:
         try:
             json.loads(content)
             return True
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             return False
 
     def _contains_code(self, content: str) -> bool:

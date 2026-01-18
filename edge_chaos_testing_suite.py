@@ -294,7 +294,7 @@ class EdgeChaosTester:
                     try:
                         os.remove(temp_file)
                         print("Cleaned up test file")
-                    except:
+                    except Exception as e:
                         pass
 
                 system_after = self._capture_system_baseline()

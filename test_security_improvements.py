@@ -573,7 +573,7 @@ class SecurityImprovementsValidator:
 
         try:
             # Test if rate limiting exists
-            from app.core.rate_limiter import RateLimiter
+            from app.core.rate_limiter_unified import RateLimiter
 
             self.log_result(
                 "Rate Limiting Framework",

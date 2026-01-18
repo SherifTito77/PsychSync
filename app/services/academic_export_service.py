@@ -350,7 +350,7 @@ class AcademicExportService:
                 if isinstance(v, str):
                     datetime.fromisoformat(v.replace("Z", "+00:00"))
             return "date", "interval"
-        except:
+        except Exception as e:
             pass
 
         # Default to string/nominal
@@ -390,7 +390,7 @@ class AcademicExportService:
                     decimals = max(len(str(v).split(".")[1]) if "." in str(v) else 0 for v in numeric_values[:10])
                     width = max(len(str(int(max_val))) + decimals + 1, 8)
                     return width, min(decimals, 2)
-            except:
+            except Exception as e:
                 pass
 
         elif data_type == "string":

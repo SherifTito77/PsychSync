@@ -743,7 +743,7 @@ class APMService:
             else:
                 # If no loop running, create a new one
                 asyncio.run(self.record_metric(name, metric_type, value, unit, **kwargs))
-        except:
+        except (OSError, IOError, ValueError) as e:
             # Fallback - ignore if we can't record the metric
             pass
 

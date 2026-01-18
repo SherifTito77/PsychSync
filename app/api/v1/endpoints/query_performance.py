@@ -6,7 +6,7 @@ Provides real-time query performance monitoring and optimization suggestions
 
 from typing import Dict, Any, Optional, List
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession

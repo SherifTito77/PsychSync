@@ -6,8 +6,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 import pytest
 @pytest.fixture
-
-@pytest.fixture
 def client():
     return TestClient(app)
 

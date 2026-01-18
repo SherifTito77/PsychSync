@@ -219,7 +219,7 @@ class TestTimezoneEdgeCases:
         try:
             # In newer Python, need to handle fold parameter for ambiguous times
             dt_with_tz = ambiguous_time.replace(tzinfo=eastern_tz, fold=0)  # First occurrence
-        except:
+        except Exception as e:
             # Fallback for older Python versions
             dt_with_tz = ambiguous_time.replace(tzinfo=eastern_tz)
 

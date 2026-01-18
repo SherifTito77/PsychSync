@@ -113,7 +113,7 @@ class MBTIScorer:
                 elif isinstance(value, str):
                     try:
                         value = float(value)
-                    except:
+                    except Exception as e:
                         continue
 
                 # Reverse score if needed

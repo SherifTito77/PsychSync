@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.api.v1.deps import get_current_user, Depends
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 

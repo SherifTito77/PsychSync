@@ -551,7 +551,7 @@ class WebhookManager:
                         if key in ["created_at", "delivered_at", "next_retry_at"] and value:
                             try:
                                 delivery[key] = datetime.fromisoformat(value)
-                            except:
+                            except Exception as e:
                                 pass
 
                     if status is None or delivery.get("status") == status.value:

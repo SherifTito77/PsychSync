@@ -5,7 +5,7 @@ REST API for report generation, templates, scheduling, and management
 
 from datetime import datetime, timedelta
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 

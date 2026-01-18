@@ -1,7 +1,7 @@
 // Behavioral Analytics Service
 // Handles API calls for behavioral pattern recognition and analysis
 
-import { apiClient } from './authService';
+import { apiClient } from './api';
 
 export interface BehavioralPattern {
   pattern_id: string;

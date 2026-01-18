@@ -62,9 +62,49 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             self.redis_client.ping()
             logger.info("Redis connection established for security middleware")
 
+        except redis.ConnectionError as e:
+            logger.critical(
+                f"Redis connection failed: {e!s}",
+                extra={
+                    "error_type": "ConnectionError",
+                    "redis_host": settings.REDIS_HOST,
+                    "redis_port": settings.REDIS_PORT,
+                    "environment": settings.ENVIRONMENT
+                },
+                exc_info=True
+            )
+
+            # In production, Redis is required for security
+            if settings.ENVIRONMENT == "production":
+                raise RuntimeError(
+                    f"Redis initialization failed in production. "
+                    f"Rate limiting and security monitoring disabled. Error: {e}"
+                ) from e
+
+            # Development-only: Continue with warning
+            logger.warning(
+                "⚠️  Running without Redis - rate limiting and security monitoring disabled. "
+                "This is NOT safe for production!"
+            )
+            self.redis_client = None
+
         except Exception as e:
-            logger.error(f"Failed to initialize Redis: {e!s}")
-            # Continue without Redis for development
+            logger.critical(
+                f"Unexpected error initializing Redis: {e!s}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "redis_host": settings.REDIS_HOST,
+                    "redis_port": settings.REDIS_PORT,
+                    "environment": settings.ENVIRONMENT
+                },
+                exc_info=True
+            )
+
+            if settings.ENVIRONMENT == "production":
+                raise RuntimeError(f"Unexpected Redis initialization error in production: {e}") from e
+
+            logger.warning("Continuing without Redis due to unexpected error")
             self.redis_client = None
 
         # Initialize security manager will be created per request with DB session
@@ -103,7 +143,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check for blocked IPs
         if await self._is_ip_blocked(client_ip):
-            raise HTTPException(status_code=403, detail="Access denied: IP address blocked") from e
+            raise HTTPException(status_code=403, detail="Access denied: IP address blocked")
 
         # Validate request size
         content_length = request.headers.get("content-length")
@@ -164,8 +204,21 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             # Check blocked IPs list
             is_blocked = self.redis_client.get(f"blocked_ip:{ip_address}")
             return bool(is_blocked)
+        except redis.ConnectionError as e:
+            logger.error(
+                f"Redis connection error while checking blocked IP: {e!s}",
+                extra={"ip_address": ip_address, "error_type": "ConnectionError"},
+                exc_info=True
+            )
+            # Fail open - don't block if Redis is down
+            return False
         except Exception as e:
-            logger.error(f"Failed to check blocked IP: {e!s}")
+            logger.error(
+                f"Unexpected error checking blocked IP: {e!s}",
+                extra={"ip_address": ip_address, "error_type": type(e).__name__},
+                exc_info=True
+            )
+            # Fail open for safety
             return False
 
     async def _validate_request_headers(self, request: Request):
@@ -246,8 +299,22 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                 raise RateLimitExceeded(error_message)
         except RateLimitExceeded:
             raise
+        except redis.ConnectionError as e:
+            logger.error(
+                f"Redis connection error during rate limiting: {e!s}",
+                extra={"key": key, "limit": limit, "error_type": "ConnectionError"},
+                exc_info=True
+            )
+            # Fail open - don't block requests if Redis is down
+            pass
         except Exception as e:
-            logger.error(f"Rate limiting check failed: {e!s}")
+            logger.error(
+                f"Unexpected error during rate limiting: {e!s}",
+                extra={"key": key, "limit": limit, "error_type": type(e).__name__},
+                exc_info=True
+            )
+            # Fail open for safety
+            pass
 
     async def _check_burst_protection(self, client_ip: str):
         """Check burst protection for rapid requests"""
@@ -261,11 +328,27 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             # Allow maximum of 20 requests in 10 seconds
             if burst_count > 20:
                 self.redis_client.setex(f"blocked_ip:{client_ip}", 300, "1")  # Block for 5 minutes
+                logger.warning(
+                    f"Burst limit exceeded for IP: {client_ip}",
+                    extra={"client_ip": client_ip, "burst_count": burst_count}
+                )
                 raise HTTPException(
                     status_code=429, detail="Burst limit exceeded - temporarily blocked"
-                ) from e
+                )
+        except HTTPException:
+            raise
+        except redis.ConnectionError as e:
+            logger.error(
+                f"Redis connection error during burst protection: {e!s}",
+                extra={"client_ip": client_ip, "error_type": "ConnectionError"},
+                exc_info=True
+            )
         except Exception as e:
-            logger.error(f"Burst protection check failed: {e!s}")
+            logger.error(
+                f"Unexpected error during burst protection: {e!s}",
+                extra={"client_ip": client_ip, "error_type": type(e).__name__},
+                exc_info=True
+            )
 
     async def _add_security_headers(self, response: Response):
         """Add security headers to response"""

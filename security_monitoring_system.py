@@ -339,7 +339,7 @@ class SecurityMonitoringSystem:
                     # Parse JSON log entries if possible
                     try:
                         log_entry = json.loads(line)
-                    except:
+                    except (OSError, IOError, ValueError) as e:
                         log_entry = {"raw_log": line}
 
                     # Check for security events

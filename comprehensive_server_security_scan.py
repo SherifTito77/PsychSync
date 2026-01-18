@@ -84,7 +84,7 @@ class ServerSecurityScanner:
                     })
                     print(f"  ✅ Port {port} - Web App - OPEN")
                 sock.close()
-            except:
+            except Exception as e:
                 pass
 
         self.results['open_ports'] = open_ports
@@ -258,7 +258,7 @@ class ServerSecurityScanner:
                     rapid_failures += 1
                 sock.close()
                 time.sleep(0.1)
-            except:
+            except Exception as e:
                 failed_connections += 1
 
         if rapid_failures >= 8:

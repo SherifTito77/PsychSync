@@ -116,8 +116,7 @@ def test_live_validation_endpoints():
                         try:
                             error = response.json()
                             print(f"   Error: {error.get('detail', 'Unknown')}")
-                        except:
-                            pass
+except Exception as e:                            pass
             else:  # expected_validation == "fail"
                 if response.status_code == 422:
                     print(f"✅ {test['name']}")
@@ -125,8 +124,7 @@ def test_live_validation_endpoints():
                         error = response.json()
                         error_msg = error.get('detail', 'Unknown validation error')
                         print(f"   Status: Correctly rejected - {error_msg}")
-                    except:
-                        print(f"   Status: Correctly rejected")
+except Exception as e:                        print(f"   Status: Correctly rejected")
                 else:
                     print(f"❌ {test['name']}")
                     print(f"   Expected validation to fail but got {response.status_code}")
@@ -134,8 +132,7 @@ def test_live_validation_endpoints():
                         try:
                             error = response.json()
                             print(f"   Unexpected: {error.get('detail', 'Unknown')}")
-                        except:
-                            pass
+except Exception as e:                            pass
 
         except requests.exceptions.RequestException as e:
             print(f"❌ {test['name']} - Network error: {str(e)}")
@@ -181,8 +178,7 @@ def test_live_validation_endpoints():
                         print("   ✅ Fixed error message format detected!")
                         print("   ✅ Multiple validation errors aggregated correctly!")
 
-            except:
-                print(f"   Raw error response: {response.text}")
+except Exception as e:                print(f"   Raw error response: {response.text}")
 
     except requests.exceptions.RequestException as e:
         print(f"❌ Error message test failed: {str(e)}")
@@ -199,8 +195,7 @@ def test_live_validation_endpoints():
             print("✅ Swagger UI documentation accessible")
         else:
             print(f"⚠️  Docs returned status: {docs_response.status_code}")
-    except:
-        print("❌ Could not access documentation")
+except Exception as e:        print("❌ Could not access documentation")
 
     try:
         openapi_response = requests.get(f"{base_url}/openapi.json", timeout=5)
@@ -210,12 +205,10 @@ def test_live_validation_endpoints():
                 openapi_data = openapi_response.json()
                 schema_count = len(openapi_data.get('components', {}).get('schemas', {}))
                 print(f"   Schemas defined: {schema_count}")
-            except:
-                pass
+except Exception as e:                pass
         else:
             print(f"⚠️  OpenAPI returned status: {openapi_response.status_code}")
-    except:
-        print("❌ Could not access OpenAPI specification")
+except Exception as e:        print("❌ Could not access OpenAPI specification")
 
     print()
 

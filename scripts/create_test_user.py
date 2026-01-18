@@ -321,7 +321,7 @@ def clean_test_data():
 
         try:
             db.query(AssessmentResponse).delete()
-        except:
+        except Exception as e:
             pass  # Table might not exist
 
         db.query(User).delete()

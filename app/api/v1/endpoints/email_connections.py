@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db
 from app.db.models.email_connection import EmailProvider
 from app.db.models.user import User
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 
 # Temporarily disabled due to async conversion issues
 # from app.services.email_connector_service import email_connector_service

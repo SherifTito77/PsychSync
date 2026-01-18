@@ -5,7 +5,7 @@ Provides team optimization and analysis features
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional

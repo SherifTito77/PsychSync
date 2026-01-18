@@ -197,7 +197,7 @@ def add_docstrings_to_file(file_path: str) -> Tuple[int, int]:
 
     try:
         tree = ast.parse(content)
-    except:
+    except (OSError, IOError, ValueError) as e:
         return 0, 0
 
     functions_added = 0
@@ -304,7 +304,7 @@ def add_module_docstrings(file_path: str) -> bool:
 
     try:
         tree = ast.parse(content)
-    except:
+    except (OSError, IOError, ValueError) as e:
         return False
 
     if ast.get_docstring(tree):

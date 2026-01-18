@@ -656,7 +656,7 @@ class SentryService:
                     import sentry_sdk
 
                     sentry_sdk.capture_exception(e)
-                except:
+                except Exception as e:
                     logger.error(f"Failed to capture exception: {e!s}")
                 raise
 
@@ -722,7 +722,7 @@ class SentryService:
                 import sentry_sdk
 
                 sentry_sdk.flush()
-            except:
+            except Exception as e:
                 pass
 
 

@@ -6,7 +6,7 @@ Easy setup for non-technical users using IMAP and app passwords
 
 from typing import List, Dict, Any, Optional
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession

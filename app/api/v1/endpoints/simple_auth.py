@@ -77,7 +77,7 @@ async def simple_login(username: str = Form(...), password: str = Form(...)):
         finally:
             try:
                 await db_gen.aclose()
-            except:
+            except Exception as e:
                 pass
 
     except HTTPException:

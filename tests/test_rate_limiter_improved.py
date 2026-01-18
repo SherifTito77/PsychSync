@@ -11,7 +11,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from app.core.rate_limiter import RateLimitConfig, RateLimitExceeded, TokenBucket, RateLimitMiddleware, EndpointRateLimiter
+    from app.core.rate_limiter_unified import RateLimitConfig, RateLimitExceeded, TokenBucket, RateLimitMiddleware, EndpointRateLimiter, RateLimitStrategy
     IMPORTS_AVAILABLE = True
 except ImportError:
     IMPORTS_AVAILABLE = False
@@ -74,7 +74,7 @@ class TestRateLimiter:
     def test_endpoint_rate_limiter_configuration(self, setup_test_env):
         """Test EndpointRateLimiter configuration"""
         # TODO(human): Implement endpoint rate limiter configuration test
-        limiter = EndpointRateLimiter(
+        limiter = EndpointUnifiedRateLimiter(
             default_limit=100,
             endpoints={
                 "/api/v1/login": 10,

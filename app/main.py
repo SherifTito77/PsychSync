@@ -75,7 +75,8 @@ security_config = SecurityConfig()
 from app.core.account_lockout import get_lockout_manager, init_lockout_manager
 
 # ENTERPRISE SECURITY MODULES (Phase 3 - Comprehensive Security Transformation)
-from app.core.advanced_rate_limiter import get_rate_limiter, init_rate_limiter
+# Using unified rate limiter with strategy pattern
+from app.core.rate_limiter_unified import UnifiedRateLimiter, RateLimitConfig, RateLimitStrategy, StorageBackend
 from app.core.config import settings
 from app.core.constants import AppInfo
 from app.core.csrf import CSRFMiddleware
@@ -89,17 +90,12 @@ from app.core.handlers import (
 )
 from app.core.logging_config import setup_logging
 from app.core.secure_logging import configure_secure_logging, security_logger
-from app.core.security_middleware import SecurityMiddleware
 
-# NEW COMPREHENSIVE SECURITY MIDDLEWARE (Phase 2 Security Implementation)
-from app.middleware.comprehensive_security_headers import ComprehensiveSecurityHeadersMiddleware
-from app.middleware.csrf_xss_protection import (
-    ContentSecurityPolicyMiddleware,
-    CSRFProtectionMiddleware,
-    XSSProtectionMiddleware,
-)
+# UNIFIED SECURITY MIDDLEWARE (Consolidates all security middleware)
+from app.middleware.security_unified import UnifiedSecurityMiddleware, SecurityConfig
 from app.middleware.input_validation_middleware import SecurityValidationMiddleware
 from app.middleware.logging import StructuredLoggingMiddleware
+from app.middleware.security import SecurityMiddleware
 
 # PERFORMANCE OPTIMIZATION IMPORTS
 # ================================
@@ -147,10 +143,9 @@ limiter = Limiter(
     key_func=get_remote_address, default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"]
 )
 
-# Advanced tier-based rate limiting (ENTERPRISE MODULE - initialized in lifespan)
-# Note: The new AdvancedRateLimiter from app.core.advanced_rate_limiter is initialized
-# in the lifespan function with Redis backing. This is kept for compatibility.
-advanced_rate_limiter = None  # Will be initialized in lifespan
+# Unified rate limiting (ENTERPRISE MODULE - initialized in lifespan)
+# Uses the new unified rate limiter with strategy pattern and Redis backing
+unified_rate_limiter: UnifiedRateLimiter | None = None  # Will be initialized in lifespan
 
 
 class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
@@ -477,11 +472,19 @@ async def lifespan(app: FastAPI):
             try:
                 redis_url = settings.REDIS_URL
 
-                # Initialize advanced rate limiter
-                app_security_logger.info("Initializing advanced rate limiter...")
-                await init_rate_limiter(redis_url)
+                # Initialize unified rate limiter with multiple strategies
+                app_security_logger.info("Initializing unified rate limiter...")
+                global unified_rate_limiter
+                unified_rate_limiter = UnifiedRateLimiter(
+                    config=RateLimitConfig(
+                        limit=100,
+                        window=60,
+                        strategy=RateLimitStrategy.SLIDING_WINDOW,
+                    ),
+                    backend=StorageBackend.REDIS,
+                )
                 app_security_logger.info(
-                    "✅ 4-layer rate limiting active (IP + Username + Device + Geo)"
+                    "✅ Unified rate limiting active (Sliding Window strategy)"
                 )
 
                 # Initialize account lockout manager
@@ -553,10 +556,10 @@ async def lifespan(app: FastAPI):
 
         try:
             # Close security module connections
-            rate_limiter = get_rate_limiter()
-            if rate_limiter:
-                await rate_limiter.close()
-                app_security_logger.info("✅ Rate limiter closed")
+            # Note: unified_rate_limiter already declared as global in startup section
+            if unified_rate_limiter:
+                await unified_rate_limiter.close()
+                app_security_logger.info("✅ Unified rate limiter closed")
 
             lockout_manager = get_lockout_manager()
             if lockout_manager:
@@ -640,11 +643,53 @@ except Exception as e:
 # 5.1. Comprehensive Security Headers (Second layer - after CORS)
 try:
     csrf_secret_key = os.getenv("CSRF_SECRET_KEY", os.getenv("SECRET_KEY", secrets.token_hex(32)))
-    # Disable CSP here - handled by ContentSecurityPolicyMiddleware below for Swagger UI
-    app.add_middleware(ComprehensiveSecurityHeadersMiddleware, enable_csp=False)
-    app_security_logger.info("✅ Comprehensive security headers middleware enabled (CSP delegated)")
+    # UNIFIED SECURITY MIDDLEWARE (Consolidates all security middleware)
+    # This replaces: ComprehensiveSecurityHeadersMiddleware, XSSProtectionMiddleware,
+    #               ContentSecurityPolicyMiddleware, CSRFProtectionMiddleware, SecurityMiddleware
+    unified_security_config = SecurityConfig(
+        # Feature toggles
+        security_headers_enabled=True,
+        csrf_protection_enabled=True,
+        ip_blocking_enabled=True,
+        attack_detection_enabled=True,
+        request_logging_enabled=False,  # Set to True for debugging
+
+        # Security headers configuration
+        hsts_max_age=31536000,  # 1 year
+        hsts_include_subdomains=True,
+        hsts_preload=True,
+        csp_level="medium",  # medium supports Swagger UI
+
+        # CSRF configuration
+        csrf_cookie_name="csrf_token",
+        csrf_header_name="X-CSRF-Token",
+        csrf_token_expiry=3600,  # 1 hour
+
+        # IP blocking configuration
+        failed_login_threshold=5,
+        ip_block_duration=900,  # 15 minutes
+        max_requests_per_minute=60,
+
+        # Attack detection
+        block_known_attack_tools=True,
+        log_suspicious_paths=True,
+
+        # Exclusions (health endpoints, docs, etc.)
+        exclude_paths={
+            "/health",
+            "/metrics",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/static",
+            "/favicon.ico",
+        },
+    )
+
+    app.add_middleware(UnifiedSecurityMiddleware, config=unified_security_config)
+    app_security_logger.info("✅ Unified security middleware enabled (consolidates all security features)")
 except Exception as e:
-    app_security_logger.warning(f"Failed to enable comprehensive security headers: {e}")
+    app_security_logger.warning(f"Failed to enable unified security middleware: {e}")
 
 # 5.2. Input Validation Middleware (Third layer - validates all inputs)
 try:
@@ -660,43 +705,45 @@ except Exception as e:
     app_security_logger.warning(f"Failed to enable input validation middleware: {e}")
 
 # 5.3. XSS Protection Middleware (Fourth layer - sanitizes inputs)
-try:
-    app.add_middleware(
-        XSSProtectionMiddleware, enable_sanitization=True, strip_tags=True, escape_html=True
-    )
-    app_security_logger.info("✅ XSS protection middleware enabled")
-except Exception as e:
-    app_security_logger.warning(f"Failed to enable XSS protection middleware: {e}")
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     app.add_middleware(
+#         XSSProtectionMiddleware, enable_sanitization=True, strip_tags=True, escape_html=True
+#     )
+#     app_security_logger.info("✅ XSS protection middleware enabled")
+# except Exception as e:
+#     app_security_logger.warning(f"Failed to enable XSS protection middleware: {e}")
 
 # 5.4. Content Security Policy Middleware (Fifth layer - CSP headers)
-try:
-    # Define CSP directives for the application (ENHANCED - removed unsafe-inline/unsafe-eval)
-    csp_directives = {
-        "default-src": "'self'",
-        "script-src": "'self' https://cdn.jsdelivr.net",  # For Swagger UI JS
-        "style-src": "'self' https://fonts.googleapis.com https://cdn.jsdelivr.net",  # For Swagger UI CSS
-        "img-src": "'self' data: https: blob: https://fastapi.tiangolo.com",  # For Swagger UI favicon
-        "font-src": "'self' https://fonts.gstatic.com data:",
-        "connect-src": "'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:",
-        "frame-src": "'none'",
-        "object-src": "'none'",
-        "base-uri": "'self'",
-        "form-action": "'self'",
-        "frame-ancestors": "'none'",
-        "upgrade-insecure-requests": "",
-        "require-trusted-types-for": "'script'",  # Additional XSS protection
-    }
-
-    app.add_middleware(
-        ContentSecurityPolicyMiddleware,
-        csp_directives=csp_directives,
-        report_only=False,  # Set to True for testing, False for enforcement
-    )
-    app_security_logger.info(
-        "✅ Content Security Policy middleware enabled (ENHANCED - no unsafe-inline/unsafe-eval)"
-    )
-except Exception as e:
-    app_security_logger.warning(f"Failed to enable CSP middleware: {e}")
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     # Define CSP directives for the application (ENHANCED - removed unsafe-inline/unsafe-eval)
+#     csp_directives = {
+#         "default-src": "'self'",
+#         "script-src": "'self' https://cdn.jsdelivr.net",  # For Swagger UI JS
+#         "style-src": "'self' https://fonts.googleapis.com https://cdn.jsdelivr.net",  # For Swagger UI CSS
+#         "img-src": "'self' data: https: blob: https://fastapi.tiangolo.com",  # For Swagger UI favicon
+#         "font-src": "'self' https://fonts.gstatic.com data:",
+#         "connect-src": "'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:",
+#         "frame-src": "'none'",
+#         "object-src": "'none'",
+#         "base-uri": "'self'",
+#         "form-action": "'self'",
+#         "frame-ancestors": "'none'",
+#         "upgrade-insecure-requests": "",
+#         "require-trusted-types-for": "'script'",  # Additional XSS protection
+#     }
+#
+#     app.add_middleware(
+#         ContentSecurityPolicyMiddleware,
+#         csp_directives=csp_directives,
+#         report_only=False,  # Set to True for testing, False for enforcement
+#     )
+#     app_security_logger.info(
+#         "✅ Content Security Policy middleware enabled (ENHANCED - no unsafe-inline/unsafe-eval)"
+#     )
+# except Exception as e:
+#     app_security_logger.warning(f"Failed to enable CSP middleware: {e}")
 
 # 5.5. CSRF Protection Middleware (Sixth layer - token-based CSRF)
 try:

@@ -61,7 +61,7 @@ class SimpleCVEScanner:
                         'type': 'database',
                         'source': 'command'
                     })
-        except:
+        except Exception as e:
             print("   PostgreSQL not found")
 
         # Redis
@@ -78,7 +78,7 @@ class SimpleCVEScanner:
                         'type': 'cache',
                         'source': 'command'
                     })
-        except:
+        except Exception as e:
             print("   Redis not found")
 
         # Web servers
@@ -97,7 +97,7 @@ class SimpleCVEScanner:
                     'type': 'webserver',
                     'source': 'command'
                 })
-        except:
+        except Exception as e:
             print("   Nginx not found")
 
         # Python
@@ -115,7 +115,7 @@ class SimpleCVEScanner:
                         'type': 'runtime',
                         'source': 'command'
                     })
-        except:
+        except Exception as e:
             print("   Python not found")
 
         self.results['software_detected'] = software_detected
@@ -176,7 +176,7 @@ class SimpleCVEScanner:
             if result.stdout.strip() == '0':
                 security_issues.append("Running as root - security risk")
                 print("   ⚠️  Running as root user")
-        except:
+        except Exception as e:
             pass
 
         # Check for common vulnerable packages
@@ -188,7 +188,7 @@ class SimpleCVEScanner:
                 if pkg_version in result.stdout:
                     security_issues.append(f"Vulnerable package: {package}")
                     print(f"   ❌ Vulnerable package found: {package}")
-            except:
+            except Exception as e:
                 pass
 
         self.results['vulnerabilities_found'] = vulnerabilities_found + security_issues

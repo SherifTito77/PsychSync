@@ -14,7 +14,7 @@ import pandas as pd
 from pydantic import BaseModel, Field, validator
 
 from app.api.v1.deps import get_current_user
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 
 # Import analytics modules
 # In production, adjust these imports based on your project structure

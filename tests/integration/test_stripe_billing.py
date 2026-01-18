@@ -60,7 +60,7 @@ async def stripe_test_customer(billing_service: StripeBillingService):
         # Cleanup test customer
         try:
             await billing_service.stripe.Customer.delete(customer.id)
-        except:
+        except Exception as e:
             pass
 
 

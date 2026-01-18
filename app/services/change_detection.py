@@ -751,7 +751,7 @@ class AdvancedChangeDetector:
                         if p_value < best_p_value:
                             best_p_value = p_value
                             best_split = split_point
-                    except:
+                    except Exception as e:
                         continue
 
                 # If significant difference found, update window

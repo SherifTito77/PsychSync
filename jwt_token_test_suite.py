@@ -149,8 +149,7 @@ class JWTTokenTester:
 
                 try:
                     response_data = await response.json()
-                except:
-                    response_data = {"raw_response": await response.text()}
+except Exception as e:                    response_data = {"raw_response": await response.text()}
 
                 return TokenTestResult(
                     test_name=endpoint,

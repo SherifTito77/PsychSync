@@ -560,9 +560,61 @@
             });
 
             const data = await response.json();
-            alert(`✅ Prompt executed!\n\nExecution ID: ${data.execution.id}\nExecuted at: ${data.execution.executed_at}`);
-            document.getElementById('promptModal').style.display = 'none';
-            loadStats();
+
+            // Show execution results in modal
+            document.getElementById('modalContent').innerHTML = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="font-size: 60px;">✅</div>
+                    <h2 style="color: #10b981; margin: 10px 0;">Prompt Executed Successfully!</h2>
+                    <p style="color: #666;">Execution ID: <strong>${data.execution.id}</strong></p>
+                </div>
+
+                <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0;">${data.prompt.prompt}</h3>
+                    <p style="color: #666; margin-bottom: 10px;">
+                        <span style="background: #dbeafe; color: #1e40af; padding: 5px 10px; border-radius: 15px; font-size: 12px;">
+                            ${data.prompt.type}
+                        </span>
+                        <span style="background: #fef3c7; color: #92400e; padding: 5px 10px; border-radius: 15px; font-size: 12px; margin-left: 10px;">
+                            ${data.prompt.complexity}
+                        </span>
+                    </p>
+                </div>
+
+                <h3 style="color: #3b82f6;">📋 Expected Outputs</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    ${data.prompt.outputs.map(output => `
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 8px; display: flex; align-items: start; gap: 10px;">
+                            <span style="color: #3b82f6; font-size: 20px;">✓</span>
+                            <span style="color: #1e40af; font-size: 14px;">${output}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <h3 style="color: #8b5cf6;">🎯 Use Cases</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                    ${data.prompt.use_cases.map(useCase => `
+                        <span style="background: #f3e8ff; color: #7c3aed; padding: 8px 15px; border-radius: 20px; font-size: 13px;">
+                            ${useCase}
+                        </span>
+                    `).join('')}
+                </div>
+
+                <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin-top: 0; color: #92400e;">📊 Execution Details</h4>
+                    <p style="margin: 5px 0;"><strong>Executed at:</strong> ${new Date(data.execution.executed_at).toLocaleString()}</p>
+                    <p style="margin: 5px 0;"><strong>Status:</strong> ${data.execution.status}</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button onclick="document.getElementById('promptModal').style.display='none'; loadStats();"
+                            style="background: #3b82f6; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('promptModal').style.display = 'block';
         }
 
         // Helper: Get icon

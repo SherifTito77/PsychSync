@@ -20,7 +20,7 @@ from fastapi import HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
-from app.core.rate_limiter import SimpleRateLimiter
+from app.core.rate_limiter_unified import SimpleRateLimiter, RateLimitStrategy
 from app.core.security import constant_time_compare, hash_string
 from app.db.crud import users as user_crud
 from app.services.email_service import send_email
@@ -120,7 +120,7 @@ class SecurePasswordResetService:
     """
 
     def __init__(self):
-        self.rate_limiter = SimpleRateLimiter()
+        self.rate_limiter = SimpleUnifiedRateLimiter()
 
     async def initiate_password_reset(
         self,

@@ -352,16 +352,14 @@ class AIEnhancedAnalyticsService:
                             result = processor._safe_process(responses)
                             if result.get("type"):
                                 mbti_types.append(result["type"])
-                        except:
-                            pass
+except Exception as e:                            pass
                     elif framework == "big_five" and responses:
                         try:
                             processor = self.ai_processors["big_five"]
                             result = processor._safe_process(responses)
                             if result.get("dimensions"):
                                 big_five_profiles.append(result["dimensions"])
-                        except:
-                            pass
+except Exception as e:                            pass
 
                 # Generate diversity insights
                 if len(mbti_types) >= 3:
@@ -659,8 +657,7 @@ class AIEnhancedAnalyticsService:
             params = {"org_id": organization_id, "team_id": team_id, "days": time_period_days}
             result = await self.db.execute(query, params)
             return [str(row[0]) for row in result.fetchall()]
-        except:
-            return []
+except Exception as e:            return []
 
     async def _serialize_insight(self, insight: AIInsight) -> dict[str, Any]:
         """Convert AIInsight to dictionary for JSON serialization"""

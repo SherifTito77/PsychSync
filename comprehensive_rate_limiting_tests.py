@@ -49,8 +49,7 @@ class ComprehensiveRateLimitingTester:
                 try:
                     health_json = response.json()
                     health_data["server_info"] = health_json
-                except:
-                    pass
+except Exception as e:                    pass
 
             print(f"✅ Health check passed - {response.status_code} ({health_data['response_time']:.0f}ms)")
             return health_data
@@ -104,8 +103,7 @@ class ComprehensiveRateLimitingTester:
             try:
                 with open("postman_rate_limiting_results.json", 'r') as f:
                     results_data = json.load(f)
-            except:
-                pass
+except (OSError, IOError) as e:                pass
 
             postman_results = {
                 "success": success,

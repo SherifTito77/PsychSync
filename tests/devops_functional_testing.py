@@ -454,7 +454,7 @@ class FunctionalTestFramework:
             try:
                 async with self.db_pool.acquire() as connection:
                     await connection.execute("DELETE FROM users WHERE id = $1", test_user_id)
-            except:
+            except Exception as e:
                 pass
 
             return FunctionalTestResult(
@@ -543,7 +543,7 @@ class FunctionalTestFramework:
             # Try to start TLS
             try:
                 server.starttls()
-            except:
+            except Exception as e:
                 pass  # TLS might not be available in test environment
 
             # Test connection (don't need to login for basic connectivity test)

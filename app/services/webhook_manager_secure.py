@@ -166,7 +166,7 @@ class SSRFProtection:
                     blocked_ports = [22, 23, 25, 53, 3306, 5432, 5433, 6379, 27017, 9200]
                     if port in blocked_ports:
                         return False, f"Port {port} is not allowed for webhooks"
-            except:
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
                 pass
 
             # For production: Perform actual DNS resolution and check IP

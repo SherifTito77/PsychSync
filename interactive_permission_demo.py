@@ -170,7 +170,7 @@ class InteractivePermissionDemo:
             # Parse response
             try:
                 response_data = response.json() if response.content else None
-            except:
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
                 response_data = response.text if response.text else None
 
             # Security check

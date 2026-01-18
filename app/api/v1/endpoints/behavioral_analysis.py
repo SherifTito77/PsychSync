@@ -6,7 +6,7 @@ Separate from personality assessments and clinical mental health tools
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import asyncio

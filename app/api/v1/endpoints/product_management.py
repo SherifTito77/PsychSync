@@ -243,11 +243,20 @@ async def execute_prompt(
             use_ai=request.use_ai
         )
 
+        # Debug logging
         logger.info(f"User {current_user.id} executed prompt {request.prompt_id} (AI: {request.use_ai})")
+        logger.debug(f"Execution result keys: {list(result.keys())}")
+        logger.debug(f"Prompt in result: {result.get('prompt')}")
+        if 'prompt' in result:
+            logger.debug(f"Prompt keys: {list(result['prompt'].keys())}")
+            logger.debug(f"Has outputs: {'outputs' in result['prompt']}")
+            if 'outputs' in result['prompt']:
+                logger.debug(f"Outputs: {result['prompt']['outputs']}")
 
         return result
 
     except ValueError as e:
+        logger.error(f"ValueError executing prompt {request.prompt_id}: {e}")
         raise HTTPException(status_code=404, detail=str(e))
 
 

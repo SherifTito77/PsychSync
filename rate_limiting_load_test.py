@@ -208,7 +208,7 @@ class RateLimitingLoadTester:
                     try:
                         error_data = json.loads(response_text)
                         error_message = error_data.get("detail", response_text)
-                    except:
+                    except (ValueError, TypeError, json.JSONDecodeError) as e:
                         error_message = response_text
 
                 return LoadTestResult(

@@ -6,7 +6,7 @@ Advanced skill gap analysis and development planning endpoints.
 
 from typing import List, Optional, Dict, Any
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session

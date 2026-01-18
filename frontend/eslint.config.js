@@ -10,6 +10,7 @@ import importPlugin from "eslint-plugin-import";
 import { includeIgnoreFile } from "@eslint/compat";
 import path from "path";
 import { fileURLToPath } from "url";
+import memoryLeakPlugin from "./eslint-rules/memory-leak-rules.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,6 +91,7 @@ export default [
       react: react,
       "jsx-a11y": jsxA11y,
       import: importPlugin,
+      "memory-leak": memoryLeakPlugin,
     },
     settings: {
       react: {
@@ -227,6 +229,12 @@ export default [
       "no-useless-return": "error",
       "eqeqeq": ["error", "always"],
       "curly": ["error", "all"],
+
+      // Memory leak prevention rules
+      "memory-leak/no-uncleaned-timers": "error",
+      "memory-leak/no-uncleaned-event-listeners": "error",
+      "memory-leak/no-uncleaned-websockets": "error",
+      "memory-leak/no-uncleaned-subscriptions": "error",
     },
   },
 

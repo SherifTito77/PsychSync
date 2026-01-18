@@ -176,8 +176,7 @@ class PsychSyncPlatformRegressionSuite:
                 try:
                     health_data = response.json() if response.content else {}
                     dependencies = health_data.get("dependencies", {})
-                except:
-                    pass
+except Exception as e:                    pass
 
                 health_check = PlatformHealthCheck(
                     component=endpoint['name'],
@@ -697,8 +696,7 @@ class PsychSyncPlatformRegressionSuite:
                             try:
                                 data = response.json()
                                 print(f"✅ {endpoint}: Valid JSON response")
-                            except:
-                                print(f"⚠️  {endpoint}: Invalid JSON response")
+except Exception as e:                                print(f"⚠️  {endpoint}: Invalid JSON response")
                         else:
                             print(f"⚠️  {endpoint}: Non-JSON response type: {content_type}")
 
@@ -764,8 +762,7 @@ class PsychSyncPlatformRegressionSuite:
                 try:
                     data = response.json() if response.content else {}
                     data_validated = True
-                except:
-                    data_validated = True  # Some endpoints may return empty responses
+except Exception as e:                    data_validated = True  # Some endpoints may return empty responses
 
                 self.test_results.append(RegressionTestResult(
                     test_name=test_name,

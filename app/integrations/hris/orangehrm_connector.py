@@ -100,7 +100,7 @@ class OrangeHRMConnector(HRISConnector):
             response = self._make_request("GET", "/employees")
             if response:
                 return True
-        except:
+        except Exception as e:
             pass
 
         # Try database connection

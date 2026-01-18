@@ -231,7 +231,7 @@ async def test_redis_failure_during_cache_operations():
     # Cleanup
     try:
         await AsyncCache.delete(cache_key)
-    except:
+    except Exception as e:
         pass  # Redis is down, delete may fail
 
 
@@ -286,7 +286,7 @@ async def test_redis_failure_with_concurrent_operations():
     # Cleanup (may fail if Redis is down)
     try:
         await AsyncCache.delete_pattern(f"{cache_prefix}*")
-    except:
+    except Exception as e:
         pass
 
 
@@ -438,7 +438,7 @@ async def test_partial_service_failure():
             try:
                 if cache_available:
                     await AsyncCache.set(f"user:{user_id}", user_data, expire=300)
-            except:
+            except Exception as e:
                 pass  # Cache failure is OK
 
             return {"source": "database", "data": user_data}
@@ -636,7 +636,7 @@ async def test_graceful_degradation_on_cache_failure():
                 cached = await AsyncCache.get(key)
                 if cached:
                     return {"source": "cache", "data": cached}
-            except:
+            except Exception as e:
                 pass  # Cache failure - fall through to database
 
         # Fall back to "database"
@@ -651,7 +651,7 @@ async def test_graceful_degradation_on_cache_failure():
         try:
             if cache_enabled:
                 await AsyncCache.set(key, data, expire=300)
-        except:
+        except Exception as e:
             pass  # Silent failure - OK
 
         return {"source": "database", "data": data}
@@ -857,7 +857,7 @@ async def test_memory_pressure_handling():
         # Try to cache (may fail under memory pressure)
         try:
             await AsyncCache.set(key, data, expire=60)
-        except:
+        except Exception as e:
             pass  # Cache may fail under memory pressure
 
         # Simulate processing
@@ -890,5 +890,5 @@ async def test_memory_pressure_handling():
     # Cleanup
     try:
         await AsyncCache.delete_pattern(f"{cache_prefix}*")
-    except:
+    except Exception as e:
         pass

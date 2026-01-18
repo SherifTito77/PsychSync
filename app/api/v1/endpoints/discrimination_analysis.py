@@ -15,7 +15,7 @@ from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
 from app.db.models.user import User
 from app.services.discrimination_analysis_service import DiscriminationAnalysisService
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 
 router = APIRouter(prefix="/discrimination-analysis")
 

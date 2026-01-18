@@ -342,7 +342,7 @@ class FreeEmailConnectorService:
                     decoded_str += part
 
             return decoded_str.strip()
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             return header.strip()
 
     def _parse_date(self, date_str: str) -> datetime:
@@ -351,7 +351,7 @@ class FreeEmailConnectorService:
             from email.utils import parsedate_to_datetime
 
             return parsedate_to_datetime(date_str)
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             return datetime.utcnow()
 
     def _is_internal_email(self, sender: str, recipients: list[str]) -> bool:
@@ -366,7 +366,7 @@ class FreeEmailConnectorService:
                     return False
 
             return True if sender_domain else False
-        except:
+        except Exception as e:
             return False
 
 

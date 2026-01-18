@@ -271,7 +271,7 @@ class SimpleSSHSecurityTester:
                     banner = sock.recv(256)
                     connection_stats['connection_times'].append(conn_time)
                     sock.close()
-                except:
+                except Exception as e:
                     pass
 
                 connection_stats['total_attempts'] += 1

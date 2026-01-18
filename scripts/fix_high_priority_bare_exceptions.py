@@ -22,7 +22,7 @@ def fix_file(file_path: Path) -> int:
     fixes_count = 0
 
     for i, line in enumerate(lines):
-        # Match bare except:
+        except (OSError, IOError, ValueError) as e:
         if re.search(r'except\s*:\s*$', line):
             # Get context (previous 5 lines)
             context_start = max(0, i - 5)

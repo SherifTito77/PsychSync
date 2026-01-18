@@ -260,7 +260,7 @@ class APIKeyManager:
                 expire_date = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
                 if datetime.utcnow() > expire_date:
                     return False
-            except:
+            except Exception as e:
                 pass
 
         return True

@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 
 from app.api.v1.deps import get_current_user
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import date

@@ -6,7 +6,7 @@ Advanced multimodal analysis endpoints with transcription, facial recognition, a
 
 from typing import List, Optional, Dict, Any
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 
 from app.core.path_utils import sanitize_path, safe_filename
 from datetime import datetime, timedelta

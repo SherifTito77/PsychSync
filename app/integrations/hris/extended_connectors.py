@@ -92,7 +92,7 @@ class MintHCMConnector(HRISConnector):
             try:
                 response = self._make_request("GET", "/Api/V8/module/Employees")
                 return response is not None
-            except:
+            except Exception as e:
                 pass
 
         try:

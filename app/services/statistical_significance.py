@@ -647,7 +647,7 @@ class StatisticalSignificanceTester:
                 + t.cdf(-critical_t, n - 1, non_central_param)
             )
             observed_power = max(0, min(1, observed_power))
-        except:
+        except Exception as e:
             observed_power = 0.5  # Conservative estimate
 
         # Required sample size for 80% power

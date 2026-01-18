@@ -22,7 +22,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174,
+    port: 5176,
     host: true,
     https: false, // Enable HTTPS in development
     headers: {

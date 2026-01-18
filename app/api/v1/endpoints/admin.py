@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_active_superuser, get_db
 from app.api.v1.deps import get_current_user
 from app.db.models.user import User as UserModel
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from app.schemas.user import UserOut as UserSchema
 
 # Temporarily disabled due to syntax issues after async conversion

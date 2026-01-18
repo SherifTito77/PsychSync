@@ -40,6 +40,7 @@ export const useRealTimeHealthMonitoring = (
 
   const wsRef = useRef<WebSocket | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Handle incoming health alert
@@ -135,7 +136,7 @@ export const useRealTimeHealthMonitoring = (
         setState(prev => ({ ...prev, isConnected: false }));
 
         // Attempt to reconnect after 5 seconds
-        setTimeout(() => {
+        reconnectTimeoutRef.current = setTimeout(() => {
           if (enabled) {
             connectWebSocket();
           }
@@ -194,6 +195,11 @@ export const useRealTimeHealthMonitoring = (
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
 
     setState(prev => ({

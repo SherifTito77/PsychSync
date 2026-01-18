@@ -1,6 +1,7 @@
 // src/services/abTestingService.ts
 // Frontend A/B testing service for onboarding optimization
 import { apiClient } from './api';
+import { safeJSONParse } from '@/utils/safeJSON';
 
 export interface UserSegments {
   role?: 'manager' | 'hr' | 'lead' | 'member' | 'executive';
@@ -32,10 +33,45 @@ class ABTestingService {
   private currentAssignments: Map<string, TestAssignment> = new Map();
   private userId: string | null = null;
   private sessionId: string;
+  private syncInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.sessionId = this.getOrCreateSessionId();
     this.loadCachedAssignments();
+    this.startPeriodicSync();
+  }
+
+  /**
+   * Start periodic event synchronization
+   */
+  private startPeriodicSync(): void {
+    // Clear any existing interval
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+    }
+
+    // Sync events every 30 seconds
+    this.syncInterval = setInterval(() => {
+      this.syncLocalEvents();
+    }, 30000);
+  }
+
+  /**
+   * Stop periodic event synchronization
+   */
+  private stopPeriodicSync(): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
+  }
+
+  /**
+   * Cleanup method to stop syncing and release resources
+   */
+  destroy(): void {
+    this.stopPeriodicSync();
+    this.currentAssignments.clear();
   }
 
   private getOrCreateSessionId(): string {
@@ -51,7 +87,7 @@ class ABTestingService {
     try {
       const cached = localStorage.getItem('psychsync_ab_assignments');
       if (cached) {
-        const assignments = JSON.parse(cached);
+        const assignments = safeJSONParse<Record<string, TestAssignment>>(cached, {});
         Object.entries(assignments).forEach(([testName, assignment]) => {
           this.currentAssignments.set(testName, assignment as TestAssignment);
         });
@@ -271,7 +307,10 @@ class ABTestingService {
   private trackEventLocally(event: ConversionEvent): void {
     // Store events locally for later sync
     try {
-      const events = JSON.parse(localStorage.getItem('psychsync_ab_events') || '[]');
+      const events = safeJSONParse<ConversionEvent[]>(
+        localStorage.getItem('psychsync_ab_events'),
+        []
+      );
       events.push(event);
 
       // Keep only last 100 events
@@ -342,7 +381,10 @@ class ABTestingService {
    */
   async syncLocalEvents(): Promise<void> {
     try {
-      const events = JSON.parse(localStorage.getItem('psychsync_ab_events') || '[]');
+      const events = safeJSONParse<ConversionEvent[]>(
+        localStorage.getItem('psychsync_ab_events'),
+        []
+      );
       if (events.length === 0) return;
 
       // Batch send events
@@ -364,7 +406,10 @@ class ABTestingService {
     if (!assignment) return null;
 
     // Calculate some basic client-side metrics
-    const events = JSON.parse(localStorage.getItem('psychsync_ab_events') || '[]');
+    const events = safeJSONParse<ConversionEvent[]>(
+      localStorage.getItem('psychsync_ab_events'),
+      []
+    );
     const testEvents = events.filter((e: any) => e.test_name === testName && e.variant === assignment.variant);
 
     return {
@@ -380,6 +425,7 @@ class ABTestingService {
    * Cleanup and reset all test data
    */
   reset(): void {
+    this.stopPeriodicSync();
     this.currentAssignments.clear();
     localStorage.removeItem('psychsync_ab_assignments');
     localStorage.removeItem('psychsync_ab_events');
@@ -389,10 +435,5 @@ class ABTestingService {
 
 // Export singleton instance
 export const abTestingService = new ABTestingService();
-
-// Sync events periodically
-setInterval(() => {
-  abTestingService.syncLocalEvents();
-}, 30000); // Every 30 seconds
 
 export default abTestingService;

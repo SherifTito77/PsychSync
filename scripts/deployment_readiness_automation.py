@@ -418,7 +418,7 @@ class DeploymentReadinessAutomation:
                 # Get last commit
                 last_commit = result.stdout.strip().split('\n')[0].split(' ')[1]
                 rollback_result.last_successful_deployment = last_commit
-        except:
+        except Exception as e:
             pass
 
         # Check for database backups
@@ -439,7 +439,7 @@ class DeploymentReadinessAutomation:
             backup_info = await self._get_latest_backup_info()
             if backup_info:
                 rollback_result.backup_timestamp = backup_info.get('timestamp', '')
-        except:
+        except Exception as e:
             pass
 
         rollback_result.rollback_available = len(rollback_methods) > 0

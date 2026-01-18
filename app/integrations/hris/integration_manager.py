@@ -271,7 +271,7 @@ class HRISIntegrationManager:
                     "connected": is_connected,
                     "type": connector.__class__.__name__,
                 }
-            except:
+            except Exception as e:
                 status["connectors"][hris_type] = {
                     "connected": False,
                     "type": connector.__class__.__name__,

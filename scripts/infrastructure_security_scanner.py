@@ -231,7 +231,7 @@ class InfrastructureSecurityScanner:
                 try:
                     sock.send(b"GET / HTTP/1.0\r\n\r\n")
                     banner = sock.recv(1024).decode('utf-8', errors='ignore')
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     banner = ""
 
                 service = self._guess_service(port)
@@ -1092,7 +1092,7 @@ class InfrastructureSecurityScanner:
                                 version = line.split('=')[1].strip().strip('"')
                                 if "linux" in versions:
                                     versions["linux"] += f" {version}"
-                except:
+                except (OSError, IOError, ValueError) as e:
                     pass
 
             # Add common software

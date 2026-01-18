@@ -375,7 +375,7 @@ def _encode_js_string(value: str) -> str:
     # Use JSON encoding for JS strings (safest approach)
     try:
         return json.dumps(value)[1:-1]  # Remove quotes
-    except:
+    except (ValueError, TypeError, json.JSONDecodeError) as e:
         # Fallback to manual escaping
         value = value.replace("\\", "\\\\")
         value = value.replace("'", "\\'")

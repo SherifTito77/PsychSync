@@ -47,7 +47,7 @@ class SSHBruteForceTester:
                     self.results['banner'] = banner
                     sock.close()
                     return True
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     sock.close()
                     return True
             else:
@@ -145,7 +145,7 @@ class SSHBruteForceTester:
                                     else:
                                         print(f"  ✅ {config['description']}: {value} (Secure)")
                                         config_analysis['hardening_score'] += 5
-                                except:
+                                except Exception as e:
                                     pass
                             elif setting == 'LoginGraceTime':
                                 try:
@@ -157,7 +157,7 @@ class SSHBruteForceTester:
                                     else:
                                         print(f"  ✅ {config['description']}: {value}s (Secure)")
                                         config_analysis['hardening_score'] += 5
-                                except:
+                                except Exception as e:
                                     pass
                             else:
                                 if value == config.get('secure') or (setting == 'Port' and value != '22'):

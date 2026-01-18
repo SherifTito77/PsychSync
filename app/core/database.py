@@ -117,24 +117,55 @@ if settings.TESTING:
         echo=settings.DEBUG,
     )
 else:
-    # Production PostgreSQL configuration
+    # Production PostgreSQL configuration with performance optimizations
     async_engine = create_async_engine(
         get_database_url(async_driver=True, test_mode=False),
-        # Async-compatible pool settings
-        pool_size=20,
-        max_overflow=30,
-        pool_timeout=30,
+        # ============================================================================
+        # PERFORMANCE-OPTIMIZED POOL SETTINGS
+        # ============================================================================
+        # Base pool size: Number of persistent connections to maintain
+        # Optimal for: (number_of_app_instances * pool_size) <= database_max_connections
+        pool_size=20,  # Increased from default 5 for better concurrency
+
+        # Max overflow: Additional connections allowed under load
+        # Total max connections = pool_size + max_overflow = 20 + 40 = 60
+        max_overflow=40,  # Increased to handle traffic spikes
+
+        # Pool timeout: How long to wait for a connection before erroring
+        pool_timeout=30,  # Keep at 30s - reasonable for production
+
+        # Pool recycle: Recycle connections after N seconds to prevent stale connections
+        # PostgreSQL recommends 3600s (1 hour) to avoid connection bloat
         pool_recycle=3600,
+
+        # Pool pre-ping: Test connections before use (prevents stale connection errors)
+        # Small performance cost (~1ms) but significantly improves reliability
         pool_pre_ping=True,
-        # Settings
-        echo=settings.DB_ECHO and settings.DEBUG,
-        future=True,
-        # PostgreSQL-specific connect_args
+
+        # Use LIFO (Last-In-First-Out) instead of FIFO for connection selection
+        # LIFO reduces stale connections by using most-recently-used connections first
+        pool_use_lifo=True,  # PERFORMANCE: Minimizes stale connection overhead
+
+        # ============================================================================
+        # QUERY SETTINGS
+        # ============================================================================
+        echo=settings.DB_ECHO and settings.DEBUG,  # SQL query logging (disable in prod!)
+        future=True,  # Use SQLAlchemy 2.0 style
+
+        # ============================================================================
+        # POSTGRESQL-SPECIFIC CONNECTION SETTINGS
+        # ============================================================================
         connect_args={
             "server_settings": {
                 "application_name": "psychsync",
                 "timezone": "UTC",
-            }
+                # Query timeout (30s) - prevents runaway queries
+                "statement_timeout": "30000",
+                # Enable parallel query planning for complex analytics
+                "max_parallel_workers_per_gather": "2",
+            },
+            # Connection timeout (10s)
+            "timeout": 10,
         },
     )
 
@@ -166,14 +197,14 @@ async def get_async_db_with_retry(max_attempts: int = 3) -> AsyncGenerator[Async
         if session:
             try:
                 await session.close()
-            except:
+            except Exception as e:
                 pass
         raise RuntimeError(f"Database connection failed: {e}") from e
     finally:
         if session:
             try:
                 await session.close()
-            except:
+            except Exception as e:
                 pass
 
 

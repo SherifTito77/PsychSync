@@ -490,7 +490,7 @@ class PrivilegeEscalationTester:
                 user_info = await client.admin.command('usersInfo')
                 current_user = user_info['users'][0]['user'] if user_info['users'] else 'unknown'
                 current_roles = user_info['users'][0]['roles'] if user_info['users'] else []
-            except:
+            except Exception as e:
                 current_user = 'unknown'
                 current_roles = []
 

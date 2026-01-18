@@ -6,7 +6,7 @@ Separate from other services with dedicated HRIS functionality
 
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import asyncio

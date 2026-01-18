@@ -133,7 +133,7 @@ class SimpleSSLDowngradeTester:
                     if file_mode == '644':  # World-readable
                         result["security_issues"].append(f"Certificate file world-readable: {cert_file.name} (permissions: {file_mode})")
 
-                except:
+                except (OSError, IOError, ValueError) as e:
                     pass
 
                 result["certificates_analyzed"] += 1

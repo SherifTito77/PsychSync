@@ -67,7 +67,7 @@ class SimpleLoadTester:
             try:
                 error_data = e.read().decode('utf-8')
                 response_size = len(error_data)
-            except:
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
                 error_data = ""
                 response_size = 0
 

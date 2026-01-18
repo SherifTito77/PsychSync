@@ -79,7 +79,7 @@ class BareExceptionFixer:
 
         # Find all bare except patterns using regex
         for i, line in enumerate(lines):
-            # Match bare except:
+            except (OSError, IOError, ValueError) as e:
             if re.search(r'except\s*:\s*$', line):
                 fix = self._analyze_and_fix_bare_except(lines, i, file_path)
                 if fix:

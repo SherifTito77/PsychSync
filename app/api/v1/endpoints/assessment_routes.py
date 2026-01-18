@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 # Import assessment modules
 from app.assessments.scoring_engine import ScoringEngine
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 
 # Initialize router
 router = APIRouter(prefix="/assessments", tags=["Assessments"])

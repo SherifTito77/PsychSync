@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.deps import get_current_active_user, get_current_user_optional
 from app.core.database import get_async_db as get_db
 from app.core.input_validation import validate_input
-from app.core.rate_limiter import RateLimiter
+from app.core.rate_limiter_unified import RateLimiter, RateLimitStrategy
 from app.db.models.user import User
 from app.schemas.onboarding import (
     OnboardingAnalyticsEvent,
@@ -29,7 +29,7 @@ analytics_service = AnalyticsService()
 
 
 @router.post("/quick-assessment", response_model=QuickAssessmentResponse)
-@RateLimiter(limit=20, window_seconds=60)  # 20 requests per minute
+@rate_limit(limit=20, window_seconds=60)  # 20 requests per minute
 async def quick_assessment(
     request: QuickAssessmentRequest,
     http_request: Request,
@@ -109,7 +109,7 @@ async def quick_assessment(
 
 
 @router.post("/team-insights", response_model=TeamInsightResponse)
-@RateLimiter(limit=30, window_seconds=60)  # 30 requests per minute for authenticated users
+@rate_limit(limit=30, window_seconds=60)  # 30 requests per minute for authenticated users
 async def get_team_insights(
     request: TeamInsightRequest,
     db: AsyncSession = Depends(get_db),
@@ -161,7 +161,7 @@ async def get_team_insights(
 
 
 @router.post("/track-conversion")
-@RateLimiter(limit=100, window_seconds=60)  # Higher limit for analytics
+@rate_limit(limit=100, window_seconds=60)  # Higher limit for analytics
 async def track_conversion_event(
     event: OnboardingAnalyticsEvent,
     http_request: Request,
@@ -196,7 +196,7 @@ async def track_conversion_event(
 
 
 @router.get("/onboarding-status")
-@RateLimiter(limit=60, window_seconds=60)
+@rate_limit(limit=60, window_seconds=60)
 async def get_onboarding_status(
     http_request: Request,
     current_user: User = Depends(get_current_user_optional),
@@ -224,7 +224,7 @@ async def get_onboarding_status(
 
 
 @router.post("/setup-wizard")
-@RateLimiter(limit=20, window_seconds=60)
+@rate_limit(limit=20, window_seconds=60)
 async def setup_wizard_step(
     step_data: dict[str, Any],
     http_request: Request,
@@ -266,7 +266,7 @@ async def setup_wizard_step(
 
 
 @router.get("/value-metrics")
-@RateLimiter(limit=30, window_seconds=60)
+@rate_limit(limit=30, window_seconds=60)
 async def get_value_metrics(
     http_request: Request,
     current_user: User = Depends(get_current_active_user),  # Require authentication

@@ -48,7 +48,7 @@ def count_issues():
         try:
             data = json.loads(result.stdout)
             return len(data)
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             pass
 
     return "unknown"
@@ -142,7 +142,7 @@ def main():
             top_issues = sorted(codes.items(), key=lambda x: -x[1])[:5]
             for code, count in top_issues:
                 print(f"  {code}: {count}")
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             pass
 
     print("\n✅ Linting fixes complete!")

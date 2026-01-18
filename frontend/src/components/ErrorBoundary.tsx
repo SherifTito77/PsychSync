@@ -1,5 +1,6 @@
 // frontend/src/components/ErrorBoundary.tsx
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import logger from '@/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -48,8 +49,18 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
-    // Log error details
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log error details using structured logging
+    logger.error('React Error Boundary caught error', {
+      error_name: error.name,
+      error_message: error.message,
+      error_stack: error.stack,
+      component_stack: errorInfo.componentStack,
+      error_id: this.state.errorId,
+      error_boundary: 'ErrorBoundary',
+      url: window.location.href,
+      user_agent: navigator.userAgent,
+      category: 'react_error',
+    });
 
     // Send error to monitoring service if enabled
     if (this.props.enableErrorReporting !== false) {
@@ -74,8 +85,13 @@ class ErrorBoundary extends Component<Props, State> {
         url: window.location.href,
         userId: this.getUserId(),
         retryCount: this.state.retryCount,
-        buildVersion: process.env.REACT_APP_VERSION || 'unknown'
+        buildVersion: import.meta.env.VITE_VERSION || 'unknown'
       };
+
+      logger.logApiCall('/api/v1/errors/client', 'POST', {
+        error_id: this.state.errorId,
+        error_message: error.message,
+      });
 
       // Send error to monitoring service
       await fetch('/api/v1/errors/client', {
@@ -85,10 +101,20 @@ class ErrorBoundary extends Component<Props, State> {
         },
         body: JSON.stringify(errorData),
       }).catch(err => {
-        console.warn('Failed to report error to service:', err);
+        logger.logApiError('/api/v1/errors/client', 'POST', err, {
+          error_id: this.state.errorId,
+          fallback: 'error_not_reported'
+        });
+      });
+
+      logger.info('Error reported to monitoring service', {
+        error_id: this.state.errorId,
       });
     } catch (reportingError) {
-      console.error('Failed to report error:', reportingError);
+      logger.error('Failed to report error to monitoring service', {
+        error_id: this.state.errorId,
+        reporting_error: reportingError,
+      });
     }
   };
 
@@ -100,7 +126,10 @@ class ErrorBoundary extends Component<Props, State> {
         return user.id;
       }
     } catch (error) {
-      console.error('Failed to get user ID:', error);
+      logger.error('Failed to get user ID for error reporting', {
+        error: error,
+        error_id: this.state.errorId,
+      });
     }
     return null;
   };
@@ -108,12 +137,25 @@ class ErrorBoundary extends Component<Props, State> {
   private handleRetry = () => {
     const maxRetries = this.props.maxRetries || 3;
     if (this.state.retryCount < maxRetries) {
+      logger.info('User retrying after error', {
+        error_id: this.state.errorId,
+        retry_count: this.state.retryCount + 1,
+        max_retries: maxRetries,
+        action: 'retry',
+      });
+
       this.setState(prevState => ({
         hasError: false,
         error: null,
         errorInfo: null,
         retryCount: prevState.retryCount + 1
       }));
+    } else {
+      logger.warn('Maximum retry attempts reached', {
+        error_id: this.state.errorId,
+        retry_count: this.state.retryCount,
+        max_retries: maxRetries,
+      });
     }
   };
 

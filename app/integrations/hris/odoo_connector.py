@@ -148,7 +148,7 @@ class OdooHRConnector(HRISConnector):
                     )
                     if contracts and contracts[0].get("date_start"):
                         hire_date = datetime.strptime(contracts[0]["date_start"], "%Y-%m-%d").date()
-            except:
+            except Exception as e:
                 pass
 
             emp = Employee(

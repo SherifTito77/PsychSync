@@ -274,7 +274,7 @@ def run_advanced_validation(docs_dir: Path) -> dict:
 
         try:
             content = doc_file.read_text()
-        except:
+        except (OSError, IOError, ValueError) as e:
             continue
 
         # Check for TODOs

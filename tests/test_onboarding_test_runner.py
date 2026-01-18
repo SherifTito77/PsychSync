@@ -709,7 +709,7 @@ class OnboardingTestRunner:
                     "team_size": "5-10"
                 })
                 return time.time() - start_time
-            except:
+            except Exception as e:
                 return float('inf')
 
         # Run concurrent requests

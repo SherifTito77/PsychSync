@@ -110,7 +110,7 @@ def identify_improvements(file_path: str) -> List[str]:
                 if len(node.body) > 50:
                     improvements.append(f"Function {node.name} is very long ({len(node.body)} statements)")
 
-    except:
+    except (ValueError, TypeError, json.JSONDecodeError) as e:
         pass
 
     return improvements

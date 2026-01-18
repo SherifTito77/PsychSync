@@ -136,7 +136,7 @@ class DatabasePrivilegeEscalationTester:
                     elif isinstance(data, dict) and "admin" in str(data).lower():
                         test_result["escalation_detected"] = True
                         test_result["security_issue"] = "Regular user accessing admin data"
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     pass
 
         except Exception as e:
@@ -407,7 +407,7 @@ class DatabasePrivilegeEscalationTester:
                         content = f.read()
                         if "sqlalchemy" in content.lower() or "orm" in content.lower():
                             orm_configs.append(str(py_file.relative_to(self.base_path)))
-                except:
+                except (OSError, IOError, ValueError) as e:
                     pass
 
         # Test ORM privilege bypass patterns

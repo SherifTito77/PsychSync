@@ -12,7 +12,7 @@ REST API endpoints for comprehensive psychometric analysis including:
 
 from datetime import datetime, timedelta
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from typing import Dict, List, Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.responses import JSONResponse

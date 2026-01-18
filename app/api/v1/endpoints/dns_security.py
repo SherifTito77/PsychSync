@@ -12,7 +12,7 @@ from app.core.dns_security import dns_security_manager
 from app.core.responses import APIResponse, get_request_id
 from app.core.structured_logging import EventType, get_logger
 from app.db.models.user import User
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 
 router = APIRouter()
 logger = get_logger(__name__)

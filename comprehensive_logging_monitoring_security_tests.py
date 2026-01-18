@@ -295,7 +295,7 @@ class LoggingMonitoringSecurityTester:
                                 endpoints_with_audit.append(endpoint_file.name)
                             else:
                                 endpoints_without_audit.append(endpoint_file.name)
-                    except:
+                    except (OSError, IOError, ValueError) as e:
                         continue
 
                 details["endpoints_with_audit"] = len(endpoints_with_audit)

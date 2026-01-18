@@ -130,7 +130,7 @@ class DISCScorer:
                 elif isinstance(value, str):
                     try:
                         value = float(value)
-                    except:
+                    except Exception as e:
                         continue
 
                 total_score += value

@@ -94,8 +94,7 @@ def test_available_endpoints():
                         print(f"   📄 Response keys: {list(data.keys())}")
                         if 'access_token' in data:
                             print(f"   🔑 Token found: {data['access_token'][:20]}...")
-                    except:
-                        print(f"   📄 Response: {response.text[:100]}...")
+except Exception as e:                        print(f"   📄 Response: {response.text[:100]}...")
                 elif response.status_code != 404:
                     print(f"   📄 Response: {response.text[:100]}...")
 

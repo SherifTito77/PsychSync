@@ -6,9 +6,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Clock, TrendingUp, Users, BarChart, Settings, Star } from 'lucide-react';
+import { Search, Filter, Clock, TrendingUp, Users, BarChart, Settings, Star, X, Check, AlertCircle } from 'lucide-react';
 import { api } from '@/services/api';
-import type { Prompt, Category, PromptExecution } from '@/types/productManagement';
+import type { Prompt, Category, PromptExecution, PromptExecutionResponse } from '@/types/productManagement';
 
 interface ProductManagementPromptsProps {
   onExecute?: (prompt: Prompt) => void;
@@ -25,6 +25,9 @@ export const ProductManagementPrompts: React.FC<ProductManagementPromptsProps> =
   const [complexityFilter, setComplexityFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [executingPrompt, setExecutingPrompt] = useState<string | null>(null);
+  const [executionResult, setExecutionResult] = useState<PromptExecutionResponse | null>(null);
+  const [executionError, setExecutionError] = useState<string | null>(null);
 
   useEffect(() => {
     loadCategories();
@@ -87,8 +90,37 @@ export const ProductManagementPrompts: React.FC<ProductManagementPromptsProps> =
   };
 
   const executePrompt = async (prompt: Prompt) => {
-    if (onExecute) {
-      onExecute(prompt);
+    setExecutingPrompt(prompt.id);
+    setExecutionError(null);
+    setExecutionResult(null);
+
+    try {
+      const response = await api.post('/product-management/prompts/execute', {
+        prompt_id: prompt.id,
+        use_ai: false
+      });
+
+      // Log the full axios response structure
+      console.log('🔍 Full Axios Response:', response);
+      console.log('🔍 response.data:', response.data);
+      console.log('🔍 response.data.prompt:', response.data?.prompt);
+      console.log('🔍 Outputs:', response.data?.prompt?.outputs);
+
+      // Check if data is wrapped in another 'data' property (common in some API setups)
+      const actualData = response.data?.data || response.data;
+      console.log('🔍 Actual data being used:', actualData);
+
+      setExecutionResult(actualData);
+
+      if (onExecute) {
+        onExecute(prompt);
+      }
+    } catch (error: any) {
+      console.error('Failed to execute prompt:', error);
+      console.error('Error response:', error.response?.data);
+      setExecutionError(error.response?.data?.detail || 'Failed to execute prompt. Please try again.');
+    } finally {
+      setExecutingPrompt(null);
     }
   };
 
@@ -247,9 +279,204 @@ export const ProductManagementPrompts: React.FC<ProductManagementPromptsProps> =
                 onExecute={() => executePrompt(prompt)}
                 getComplexityColor={getComplexityColor}
                 getTypeColor={getTypeColor}
+                executingPrompt={executingPrompt}
               />
             ))
           )}
+        </div>
+      )}
+
+      {/* Execution Results Modal */}
+      {executionResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-full">
+                  <Check className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Prompt Executed Successfully!</h2>
+                  <p className="text-sm text-gray-600">Execution ID: {executionResult.execution_id}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setExecutionResult(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Prompt Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  {executionResult.prompt?.prompt || executionResult.prompt?.id || 'Unknown Prompt'}
+                </h3>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {executionResult.prompt?.type && (
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTypeColor(executionResult.prompt.type)}`}>
+                      {executionResult.prompt.type}
+                    </span>
+                  )}
+                  {executionResult.prompt?.complexity && (
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getComplexityColor(executionResult.prompt.complexity)}`}>
+                      {executionResult.prompt.complexity}
+                    </span>
+                  )}
+                  {executionResult.prompt?.estimated_time && (
+                    <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-medium">
+                      ⏱️ {executionResult.prompt.estimated_time}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Expected Outputs */}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-blue-600" />
+                  Expected Outputs
+                </h4>
+                {executionResult.prompt?.outputs && executionResult.prompt.outputs.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {executionResult.prompt.outputs.map((output, idx) => (
+                      <div key={idx} className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                        <Check className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm text-gray-700">{output}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800">No outputs found</p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          The API response didn't include expected outputs. Check the Debug Info section below to see what data was actually returned.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Use Cases */}
+              {executionResult.prompt?.use_cases && executionResult.prompt.use_cases.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-purple-600" />
+                    Use Cases
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {executionResult.prompt.use_cases.map((useCase, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-purple-50 border border-purple-200 rounded-full text-sm text-purple-700">
+                        {useCase}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Execution Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Execution Details</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Executed at:</span>
+                    <p className="font-medium text-gray-900">
+                      {new Date(executionResult.executed_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">AI Enhanced:</span>
+                    <p className="font-medium text-gray-900">
+                      {executionResult.use_ai ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Prompt ID:</span>
+                    <p className="font-medium text-gray-900">{executionResult.prompt?.id || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Complexity:</span>
+                    <p className="font-medium text-gray-900">{executionResult.prompt?.complexity || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Debug Info - Always visible for now */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <details className="cursor-pointer">
+                  <summary className="font-semibold text-gray-900 mb-2 cursor-pointer hover:text-gray-700">
+                    🔍 Debug Info - Click to Expand
+                  </summary>
+                  <pre className="text-xs text-gray-700 overflow-x-auto mt-2 bg-white p-3 rounded border">
+                    {JSON.stringify(executionResult, null, 2)}
+                  </pre>
+                </details>
+              </div>
+
+              {/* AI Suggestion (if available) */}
+              {executionResult.ai_suggestion && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <Star className="w-5 h-5 text-purple-600" />
+                    AI-Generated Output
+                  </h4>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{executionResult.ai_suggestion}</p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setExecutionResult(null)}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `Prompt: ${executionResult.prompt.prompt}\n\nExecution ID: ${executionResult.execution_id}\n\nExpected Outputs:\n${executionResult.prompt.outputs.map((o, i) => `${i + 1}. ${o}`).join('\n')}`
+                    );
+                    alert('Execution details copied to clipboard!');
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Copy Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {executionError && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Execution Failed</h2>
+              </div>
+              <p className="text-gray-600 mb-6">{executionError}</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setExecutionError(null)}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -263,6 +490,7 @@ interface PromptCardProps {
   onExecute: () => void;
   getComplexityColor: (complexity: string) => string;
   getTypeColor: (type: string) => string;
+  executingPrompt: string | null;
 }
 
 const PromptCard: React.FC<PromptCardProps> = ({
@@ -271,7 +499,8 @@ const PromptCard: React.FC<PromptCardProps> = ({
   onToggleFavorite,
   onExecute,
   getComplexityColor,
-  getTypeColor
+  getTypeColor,
+  executingPrompt
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
@@ -334,9 +563,21 @@ const PromptCard: React.FC<PromptCardProps> = ({
         </div>
         <button
           onClick={onExecute}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          disabled={executingPrompt === prompt.id}
+          className={`px-4 py-2 rounded-lg transition-colors font-medium flex items-center gap-2 ${
+            executingPrompt === prompt.id
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
         >
-          Execute Prompt
+          {executingPrompt === prompt.id ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Executing...
+            </>
+          ) : (
+            'Execute Prompt'
+          )}
         </button>
       </div>
     </div>

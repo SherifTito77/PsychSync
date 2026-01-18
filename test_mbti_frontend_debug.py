@@ -71,7 +71,7 @@ def test_mbti_frontend_browser():
                     print(f"      • {error['message'][:100]}...")
             else:
                 print("   ✅ No JavaScript errors detected")
-        except:
+        except Exception as e:
             print("   ⚠️  Could not access browser logs")
 
         # Check console
@@ -104,7 +104,7 @@ def test_mbti_frontend_browser():
     finally:
         try:
             driver.quit()
-        except:
+        except Exception as e:
             pass
 
 def test_direct_api():

@@ -8,7 +8,7 @@ from app.core.security_validator import (
     SecurityValidator, SecurityLevel, ValidationResult
 )
 from app.core.audit_logger import AuditLogger, SecurityEventType
-from app.core.rate_limiter import RateLimiter, AdvancedRateLimiter
+from app.core.rate_limiter_unified import RateLimiter, AdvancedRateLimiter, RateLimitStrategy
 import time
 import uuid
 from unittest.mock import Mock, patch
@@ -351,7 +351,7 @@ class TestRateLimiter:
 
     def setup_method(self):
         """Setup test environment"""
-        self.rate_limiter = RateLimiter()  # Uses memory fallback
+        self.rate_limiter = UnifiedRateLimiter()  # Uses memory fallback
 
     @pytest.mark.asyncio
     async def test_rate_limiting_basic(self):
@@ -437,7 +437,7 @@ class TestAdvancedRateLimiter:
 
     def setup_method(self):
         """Setup test environment"""
-        self.advanced_limiter = AdvancedRateLimiter()
+        self.advanced_limiter = AdvancedUnifiedRateLimiter()
 
     @pytest.mark.asyncio
     async def test_policy_based_rate_limiting(self):

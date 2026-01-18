@@ -206,7 +206,7 @@ class GDPRService:
         try:
             # This would be from a consent management table
             user_data["consent_records"] = await self._get_user_consents(user_id, db)
-        except:
+        except Exception as e:
             user_data["consent_records"] = []
 
         # Privacy settings

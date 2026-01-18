@@ -65,7 +65,7 @@ class DolibarrConnector(HRISConnector):
                 response = self._make_request("GET", "/users")
                 if response:
                     return True
-            except:
+            except Exception as e:
                 pass
 
         # Try database

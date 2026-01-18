@@ -96,7 +96,7 @@ class SimplePWAAconGenerator:
                     # Try to use a system font
                     font_size = max(width // 8, 16)
                     font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", font_size) if sys.platform == "darwin" else ImageFont.load_default()
-                except:
+                except Exception as e:
                     font = ImageFont.load_default()
 
                 text = "P"

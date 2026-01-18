@@ -132,7 +132,7 @@ class PerformanceOptimizer:
                         response_time = time.time() - endpoint_start
                         response_times.append(response_time)
                         metrics[f"{endpoint.replace('/', '_').replace('-', '_')}_time"] = round(response_time, 3)
-                except:
+                except Exception as e:
                     pass  # Skip failed endpoints
 
             if response_times:

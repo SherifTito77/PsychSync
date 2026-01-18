@@ -1,5 +1,6 @@
 // frontend/src/services/assessmentService.ts
 import api from './api';
+import logger from '@/utils/logger';
 export interface Question {
   id: number;
   section_id: number;
@@ -103,45 +104,163 @@ export interface ResponseSubmit {
 export const assessmentService = {
   // Assessment CRUD
   async createAssessment(data: CreateAssessmentRequest): Promise<Assessment> {
-    const response = await api.post<Assessment>('/assessments', data);
-    return response.data;
+    logger.logApiCall('/assessments', 'POST', {
+      title: data.title,
+      category: data.category,
+    });
+
+    try {
+      const response = await api.post<Assessment>('/assessments', data);
+
+      logger.info('Assessment created successfully', {
+        assessment_id: response.data.id,
+        title: response.data.title,
+        category: response.data.category,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      logger.logApiError('/assessments', 'POST', error, {
+        title: data.title,
+        category: data.category,
+      });
+
+      throw error;
+    }
   },
   async getAssessments(
     category?: string,
     status?: string
   ): Promise<Assessment[]> {
-    const response = await api.get<{ assessments: Assessment[]; total: number }>(
-      '/assessments-minimal',
-      {
-        params: { category, status },
-      }
-    );
-    return response.data.assessments;
+    logger.logApiCall('/assessments-minimal', 'GET', {
+      category,
+      status,
+    });
+
+    try {
+      const response = await api.get<{ assessments: Assessment[]; total: number }>(
+        '/assessments-minimal',
+        {
+          params: { category, status },
+        }
+      );
+
+      logger.info('Assessments retrieved successfully', {
+        count: response.data.assessments.length,
+        total: response.data.total,
+        category,
+        status,
+      });
+
+      return response.data.assessments;
+    } catch (error: any) {
+      logger.logApiError('/assessments-minimal', 'GET', error, {
+        category,
+        status,
+      });
+
+      throw error;
+    }
   },
   async getAssessment(assessmentId: number): Promise<AssessmentWithSections> {
-    const response = await api.get<AssessmentWithSections>(
-      `/assessments/${assessmentId}`
-    );
-    return response.data;
+    logger.logApiCall(`/assessments/${assessmentId}`, 'GET', {
+      assessment_id: assessmentId,
+    });
+
+    try {
+      const response = await api.get<AssessmentWithSections>(
+        `/assessments/${assessmentId}`
+      );
+
+      logger.info('Assessment retrieved successfully', {
+        assessment_id: assessmentId,
+        title: response.data.title,
+        sections_count: response.data.sections.length,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      logger.logApiError(`/assessments/${assessmentId}`, 'GET', error, {
+        assessment_id: assessmentId,
+      });
+
+      throw error;
+    }
   },
   async updateAssessment(
     assessmentId: number,
     data: UpdateAssessmentRequest
   ): Promise<Assessment> {
-    const response = await api.put<Assessment>(
-      `/assessments/${assessmentId}`,
-      data
-    );
-    return response.data;
+    logger.logApiCall(`/assessments/${assessmentId}`, 'PUT', {
+      assessment_id: assessmentId,
+      updates: Object.keys(data),
+    });
+
+    try {
+      const response = await api.put<Assessment>(
+        `/assessments/${assessmentId}`,
+        data
+      );
+
+      logger.info('Assessment updated successfully', {
+        assessment_id: assessmentId,
+        title: response.data.title,
+        updates: Object.keys(data),
+      });
+
+      return response.data;
+    } catch (error: any) {
+      logger.logApiError(`/assessments/${assessmentId}`, 'PUT', error, {
+        assessment_id: assessmentId,
+        updates: Object.keys(data),
+      });
+
+      throw error;
+    }
   },
   async deleteAssessment(assessmentId: number): Promise<void> {
-    await api.delete(`/assessments/${assessmentId}`);
+    logger.logApiCall(`/assessments/${assessmentId}`, 'DELETE', {
+      assessment_id: assessmentId,
+    });
+
+    try {
+      await api.delete(`/assessments/${assessmentId}`);
+
+      logger.info('Assessment deleted successfully', {
+        assessment_id: assessmentId,
+      });
+    } catch (error: any) {
+      logger.logApiError(`/assessments/${assessmentId}`, 'DELETE', error, {
+        assessment_id: assessmentId,
+      });
+
+      throw error;
+    }
   },
   async publishAssessment(assessmentId: number): Promise<Assessment> {
-    const response = await api.post<Assessment>(
-      `/assessments/${assessmentId}/publish`
-    );
-    return response.data;
+    logger.logApiCall(`/assessments/${assessmentId}/publish`, 'POST', {
+      assessment_id: assessmentId,
+    });
+
+    try {
+      const response = await api.post<Assessment>(
+        `/assessments/${assessmentId}/publish`
+      );
+
+      logger.info('Assessment published successfully', {
+        assessment_id: assessmentId,
+        title: response.data.title,
+        status: response.data.status,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      logger.logApiError(`/assessments/${assessmentId}/publish`, 'POST', error, {
+        assessment_id: assessmentId,
+      });
+
+      throw error;
+    }
   },
   async archiveAssessment(assessmentId: number): Promise<Assessment> {
     const response = await api.post<Assessment>(

@@ -88,7 +88,21 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                     if len(body_str) > self.max_body_size:
                         body_str = body_str[: self.max_body_size] + "...[truncated]"
                     request_log["body"] = body_str
-            except Exception:
+            except (UnicodeDecodeError, AttributeError) as e:
+                # Expected errors - body encoding issues or missing body attribute
+                request_log["body"] = f"[Unable to read body: {type(e).__name__}]"
+            except Exception as e:
+                # Unexpected errors - log with context but don't fail the request
+                logger.warning(
+                    f"Unexpected error reading request body: {e!s}",
+                    extra={
+                        "path": request.url.path,
+                        "method": request.method,
+                        "error_type": type(e).__name__,
+                        "correlation_id": correlation_id
+                    },
+                    exc_info=True
+                )
                 request_log["body"] = "[Unable to read body]"
 
         logger.info("API Request", extra=request_log)
@@ -108,8 +122,22 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             if hasattr(response, "body"):
                 try:
                     response_size = len(response.body) if response.body else 0
-                except:
-                    pass
+                except (TypeError, AttributeError) as e:
+                    # Expected errors - response body might not be a string/bytes or might not have length
+                    response_size = 0
+                except Exception as e:
+                    # Unexpected errors - log but don't fail
+                    logger.warning(
+                        f"Unexpected error getting response size: {e!s}",
+                        extra={
+                            "path": request.url.path,
+                            "status_code": response.status_code,
+                            "error_type": type(e).__name__,
+                            "correlation_id": correlation_id
+                        },
+                        exc_info=True
+                    )
+                    response_size = 0
 
             # Log response
             response_log = {

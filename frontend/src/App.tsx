@@ -10,6 +10,7 @@ import RequireAuth from './components/RequireAuth';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ErrorBoundary from './components/ErrorBoundary';
 import { initializeSecurity, SecurityUtils } from './utils/securityUtils';
+import { initializeGlobalErrorHandlers } from './utils/globalErrorHandlers';
 // SECURITY: No longer using SecureTokenStorage - tokens in httpOnly cookies
 import { pwaManager } from './utils/pwaManager';
 import PWAInstaller from './components/PWAInstaller';
@@ -245,9 +246,20 @@ const SecureFallback: React.FC<{ message?: string }> = memo(({ message = "Loadin
 ));
 
 const App: React.FC = memo(() => {
-  // Initialize PWA functionality
+  // Initialize PWA functionality and global error handlers
   useEffect(() => {
-    pwaManager.initialize().catch(console.error);
+    // Initialize global error handlers first
+    initializeGlobalErrorHandlers();
+
+    // Then initialize PWA functionality
+    pwaManager.initialize().catch((error) => {
+      console.error('Failed to initialize PWA:', error);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      pwaManager.cleanup();
+    };
   }, []);
 
   // Show navigation helper in development

@@ -253,7 +253,7 @@ class WebApplicationFirewall:
         if body and request.headers.get("content-type", "").startswith("application/json"):
             try:
                 data["json"] = json.loads(data["body"])
-            except:
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
                 pass
 
         return data

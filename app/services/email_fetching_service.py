@@ -154,7 +154,7 @@ class EmailFetchingService:
                 try:
                     date_sent = date_parser.parse(date_sent_str)
                     date_received = date_sent
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     logger.warning(f"Could not parse date: {date_sent_str}")
 
             # Create subject hash for deduplication
@@ -231,7 +231,7 @@ class EmailFetchingService:
                 return count
 
             return count_parts_recursive(parts)
-        except:
+        except Exception as e:
             return 0
 
     async def _fetch_outlook_emails(
@@ -303,7 +303,7 @@ class EmailFetchingService:
                 try:
                     date_sent = date_parser.parse(date_sent_str)
                     date_received = date_sent
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     logger.warning(f"Could not parse date: {date_sent_str}")
 
             # Create subject hash

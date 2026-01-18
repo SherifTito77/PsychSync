@@ -5,7 +5,7 @@ Enterprise-grade user acquisition, retention, and growth automation
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any, Optional

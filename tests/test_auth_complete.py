@@ -65,10 +65,8 @@ from app.core.security_monitoring import (
     AnomalyType as MonitorAnomalyType
 )
 from app.core.csrf import CSRFMiddleware
-from app.api.v1.endpoints.auth import (
-    sanitize_input,
-    router
-)
+from app.api.v1.endpoints.auth_unified import router as auth_router
+from app.core.security import sanitize_input
 from app.schemas.user import UserCreate, UserResponse
 from app.db.models.user import User, UserRole
 from sqlalchemy.ext.asyncio import AsyncSession

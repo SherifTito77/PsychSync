@@ -747,7 +747,7 @@ class InterventionAnalyzer:
                 + stats.nct.cdf(-critical_t, n - 1, noncentral_t)
             )
             power = max(0, min(1, power))  # Ensure power is between 0 and 1
-        except:
+        except Exception as e:
             power = None
 
         return {

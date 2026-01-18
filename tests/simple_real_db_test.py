@@ -70,7 +70,7 @@ async def test_basic_database_connection():
                 result = await connection.execute(text("SELECT COUNT(*) FROM test_rollback"))
                 count = result.scalar()
                 print(f"✅ Transaction rollback test: {count} rows (should be 0)")
-            except:
+            except Exception as e:
                 print("✅ Transaction rollback test: table doesn't exist (correct)")
 
             # Test foreign key constraints

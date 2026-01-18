@@ -166,7 +166,7 @@ class AuditLogger:
                 logger.error(
                     f"Security audit failure: {event_type if event_type else 'unknown'} - {details if details else 'no details'}"
                 )
-            except:
+            except Exception as e:
                 pass
 
     def _sanitize_event_data(self, event_data: dict[str, Any]) -> dict[str, Any]:

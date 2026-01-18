@@ -15,7 +15,7 @@ from app.core.security_utils import sanitize_dict
 from app.db.models.team import Team
 from app.db.models.team import TeamMember as TeamMemberModel
 from app.db.models.user import User
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from app.schemas.team import (
     TeamCreate,
     TeamWithMembers,

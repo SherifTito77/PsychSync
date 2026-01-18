@@ -70,7 +70,7 @@ class IceHRMConnector(HRISConnector):
                 response = self._make_request("GET", "/api/employees")
                 if response:
                     return True
-            except:
+            except Exception as e:
                 pass
 
         # Try database

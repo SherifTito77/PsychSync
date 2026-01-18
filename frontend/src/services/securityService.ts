@@ -1,5 +1,6 @@
 // Security monitoring service
 import apiClient from './api';
+import logger from '@/utils/logger';
 
 export interface SecurityMetrics {
   time_range: {
@@ -72,8 +73,26 @@ export interface SecurityTimelineResponse {
 
 // Fetch security metrics
 export const getSecurityMetrics = async (hours: number = 24): Promise<SecurityMetrics> => {
-  const response = await apiClient.get<SecurityMetrics>(`/dashboard/metrics?hours=${hours}`);
-  return response.data;
+  logger.logApiCall('/dashboard/metrics', 'GET', {
+    hours,
+  });
+
+  try {
+    const response = await apiClient.get<SecurityMetrics>(`/dashboard/metrics?hours=${hours}`);
+
+    logger.info('Security metrics retrieved successfully', {
+      hours,
+      time_range: response.data.time_range,
+    });
+
+    return response.data;
+  } catch (error: any) {
+    logger.logApiError('/dashboard/metrics', 'GET', error, {
+      hours,
+    });
+
+    throw error;
+  }
 };
 
 // Fetch security events
@@ -81,24 +100,85 @@ export const getSecurityEvents = async (
   limit: number = 50,
   eventType?: string
 ): Promise<SecurityEventsResponse> => {
-  const params = new URLSearchParams({ limit: limit.toString() });
-  if (eventType) {
-    params.append('event_type', eventType);
+  logger.logApiCall('/dashboard/events', 'GET', {
+    limit,
+    event_type: eventType,
+  });
+
+  try {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (eventType) {
+      params.append('event_type', eventType);
+    }
+
+    const response = await apiClient.get<SecurityEventsResponse>(`/dashboard/events?${params}`);
+
+    logger.info('Security events retrieved successfully', {
+      limit,
+      event_type: eventType,
+      total_events: response.data.total_events,
+      events_count: response.data.events.length,
+    });
+
+    return response.data;
+  } catch (error: any) {
+    logger.logApiError('/dashboard/events', 'GET', error, {
+      limit,
+      event_type: eventType,
+    });
+
+    throw error;
   }
-  const response = await apiClient.get<SecurityEventsResponse>(`/dashboard/events?${params}`);
-  return response.data;
 };
 
 // Fetch security timeline
 export const getSecurityTimeline = async (hours: number = 24): Promise<SecurityTimelineResponse> => {
-  const response = await apiClient.get<SecurityTimelineResponse>(`/dashboard/stats/timeline?hours=${hours}`);
-  return response.data;
+  logger.logApiCall('/dashboard/stats/timeline', 'GET', {
+    hours,
+  });
+
+  try {
+    const response = await apiClient.get<SecurityTimelineResponse>(`/dashboard/stats/timeline?hours=${hours}`);
+
+    logger.info('Security timeline retrieved successfully', {
+      hours,
+      timeline_entries: response.data.timeline.length,
+    });
+
+    return response.data;
+  } catch (error: any) {
+    logger.logApiError('/dashboard/stats/timeline', 'GET', error, {
+      hours,
+    });
+
+    throw error;
+  }
 };
 
 // Send test alert
 export const sendTestAlert = async (alertType: string): Promise<{ message: string; alert_type: string; timestamp: string }> => {
-  const formData = new FormData();
-  formData.append('alert_type', alertType);
-  const response = await apiClient.post(`/dashboard/test-alert`, formData);
-  return response.data;
+  logger.logApiCall('/dashboard/test-alert', 'POST', {
+    alert_type: alertType,
+  });
+
+  try {
+    const formData = new FormData();
+    formData.append('alert_type', alertType);
+
+    const response = await apiClient.post(`/dashboard/test-alert`, formData);
+
+    logger.info('Test alert sent successfully', {
+      alert_type: alertType,
+      message: response.data.message,
+      timestamp: response.data.timestamp,
+    });
+
+    return response.data;
+  } catch (error: any) {
+    logger.logApiError('/dashboard/test-alert', 'POST', error, {
+      alert_type: alertType,
+    });
+
+    throw error;
+  }
 };

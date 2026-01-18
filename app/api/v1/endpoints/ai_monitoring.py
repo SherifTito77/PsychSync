@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_db
 from app.db.models.user import User
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from app.services.ai_monitoring_service import AIMonitoringService, MetricType
 
 logger = logging.getLogger(__name__)

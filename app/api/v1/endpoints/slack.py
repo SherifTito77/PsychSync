@@ -9,7 +9,7 @@ Why we need these endpoints:
 """
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 import logging

@@ -227,7 +227,7 @@ def redis_health_check() -> dict:
                 "used_memory": info.get("used_memory_human"),
                 "connected_clients": info.get("connected_clients"),
             }
-        except:
+        except (OSError, IOError, ValueError) as e:
             # Fallback for any async issues
             return {"status": "healthy", "message": "Redis client available (fallback)"}
     except Exception as e:

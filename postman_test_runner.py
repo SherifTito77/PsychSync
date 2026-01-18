@@ -125,8 +125,7 @@ class PostmanTestRunner:
             # Parse response
             try:
                 response_data = response.json() if response.content else {}
-            except:
-                response_data = {'raw_response': response.text}
+except Exception as e:                response_data = {'raw_response': response.text}
 
             return TestResult(
                 name=request_data.get('description', 'Unknown Request'),
@@ -209,8 +208,7 @@ class PostmanTestRunner:
                                             self.tokens['accessToken'] = data['data']['access_token']
                                         elif 'access_token' in data:
                                             self.tokens['accessToken'] = data['access_token']
-                                except:
-                                    pass
+except Exception as e:                                    pass
 
                         # Small delay between requests
                         time.sleep(0.1)

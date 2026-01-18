@@ -140,7 +140,7 @@ class StructuredFormatter(logging.Formatter):
             if len(parts) == 4:
                 parts[-1] = "xxx"
                 return ".".join(parts)
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             pass
         return "xxx.xxx.xxx.xxx"
 '''

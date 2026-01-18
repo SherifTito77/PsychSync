@@ -682,7 +682,7 @@ def validate_business_rules(data: dict[str, Any]) -> bool:
             start = datetime.fromisoformat(data["start_date"])
             end = datetime.fromisoformat(data["end_date"])
             return end > start
-        except:
+        except Exception as e:
             return False
     return True
 
@@ -709,7 +709,7 @@ def validate(scope: ValidationScope = ValidationScope.COMPREHENSIVE):
             else:
                 try:
                     data = await request.json()
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     data = {}
 
             # Validate request

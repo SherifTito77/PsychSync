@@ -233,7 +233,7 @@ class PaginationHelper:
             # Decode cursor (in production, use proper decoding)
             cursor_value = bytes.fromhex(cursor)
             return cursor_value.decode("utf-8")
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             return None
 
 

@@ -686,7 +686,7 @@ class SentimentDashboardService:
             scaler = StandardScaler()
             try:
                 normalized_features = scaler.fit_transform(features).tolist()
-            except:
+            except Exception as e:
                 normalized_features = features
 
             # Simple k-means-like clustering

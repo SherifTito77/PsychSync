@@ -15,10 +15,20 @@
  * Access: Clinicians and Administrators only
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+// TODO(human): Implement performance optimization through component memoization
+// The dashboard has several child components that re-render unnecessarily when parent state changes.
+// Your task is to:
+// 1. Extract MetricCard, HighRiskUsersList, TreatmentOutcomesChart, and TimeSeriesChart into separate memoized components
+// 2. Use useMemo() for expensive calculations (like risk distribution calculations)
+// 3. Use useCallback() for event handlers to prevent child re-renders
+// 4. Consider using React.memo() for components that only depend on their props
+//
+// Performance goal: Reduce unnecessary re-renders by 60-80% when filters change
 import {
   Users,
   AlertTriangle,
@@ -329,9 +339,15 @@ export default function PopulationHealthDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [daysBack, setDaysBack] = useState(30);
   const [refreshing, setRefreshing] = useState(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchSummary();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [daysBack]);
 
   const fetchSummary = async () => {
@@ -340,15 +356,21 @@ export default function PopulationHealthDashboard() {
 
     try {
       const response = await api.get(`/api/v1/population-health/summary?days_back=${daysBack}`);
-      setSummary(response.data);
+      if (isMountedRef.current) {
+        setSummary(response.data);
+      }
     } catch (err: any) {
       console.error('Error fetching summary:', err);
-      setError(
-        err.response?.data?.detail || 'Failed to load population health data'
-      );
+      if (isMountedRef.current) {
+        setError(
+          err.response?.data?.detail || 'Failed to load population health data'
+        );
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -447,6 +469,7 @@ export default function PopulationHealthDashboard() {
       )}
 
       {/* Overview Metrics */}
+      <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             title="Total Users"

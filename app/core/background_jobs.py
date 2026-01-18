@@ -355,7 +355,7 @@ class TaskQueue:
                         data = json.loads(completion_data)
                         task_name = data.get("task_name", "unknown")
                         task_counts[task_name] = task_counts.get(task_name, 0) + 1
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     pass
 
             stats["task_counts"] = task_counts

@@ -5,7 +5,7 @@
 
 from fastapi import APIRouter, HTTPException, Depends, status
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional
 from datetime import datetime

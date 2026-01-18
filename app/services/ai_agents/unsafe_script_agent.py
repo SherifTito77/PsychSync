@@ -446,7 +446,7 @@ class UnsafeScriptAgent:
                     # Very basic comparison - in production use proper semver
                     if current.strip() < required_min:
                         return True
-                except:
+                except Exception as e:
                     pass
 
         return False

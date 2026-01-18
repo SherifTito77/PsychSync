@@ -64,6 +64,8 @@ BROKEN_ENDPOINTS = [
 # Feature endpoints (optional, can fail gracefully)
 FEATURE_ENDPOINTS = [
     # Temporarily minimized for debugging - enabling only essential endpoints
+    "frontend_logs",  # ✅ NEW: Frontend logging endpoint for Phase 2 error handling
+    "client_errors",  # ✅ NEW: Client error reporting endpoint for ErrorBoundary
     "assessments",
     "responses",
     "clinical_analytics",  # ✅ NEW: Clinical screening analytics and population health

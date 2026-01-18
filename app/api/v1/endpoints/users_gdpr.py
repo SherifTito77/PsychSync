@@ -10,7 +10,7 @@ designed for quick implementation and easy integration.
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response
 
-from app.middleware.rate_limiter import check_rate_limit
+from app.core.rate_limiter_unified import check_rate_limit
 
 from app.core.path_utils import sanitize_path, safe_filename
 from sqlalchemy.orm import Session

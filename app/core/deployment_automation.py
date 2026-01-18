@@ -360,7 +360,7 @@ class HealthCheckManager:
             start_time = time.time()
             response = await self.http_client.get(f"{base_url}/api/v1/health")
             return time.time() - start_time
-        except:
+        except (OSError, IOError, ValueError) as e:
             return 0.0
 
 
@@ -502,7 +502,7 @@ class DockerDeploymentManager:
             existing = self.client.containers.get(container_name)
             existing.stop()
             existing.remove()
-        except:
+        except Exception as e:
             pass
 
         # Create and start new container
@@ -635,7 +635,7 @@ class DockerDeploymentManager:
             container.stop()
             container.remove()
             logger.info(f"Cleaned up failed {color} deployment")
-        except:
+        except Exception as e:
             pass
 
 

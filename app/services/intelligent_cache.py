@@ -161,7 +161,7 @@ class MemoryCache:
                     size = len(value)
                 else:
                     size = len(pickle.dumps(value))
-            except:
+            except Exception as e:
                 size = 1024  # Default estimate
 
             # Check if need to evict for space

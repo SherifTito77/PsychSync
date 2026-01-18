@@ -93,7 +93,7 @@ def archive_service(service_name, service_path, manifest_file):
             timeout=10
         )
         method = 'git mv'
-    except:
+    except Exception as e:
         # Fall back to regular mv
         try:
             subprocess.run(

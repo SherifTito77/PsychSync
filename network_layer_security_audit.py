@@ -151,7 +151,7 @@ class NetworkSecurityAuditor:
                         with socket.create_connection((self.target_host, self.target_port), timeout=2) as sock:
                             with context.wrap_socket(sock, server_hostname=self.target_host) as ssock:
                                 tls_versions[tls_name] = True
-            except:
+            except Exception as e:
                 pass  # Version not supported
 
         results["tests"]["tls_versions"] = tls_versions
@@ -592,7 +592,7 @@ class NetworkSecurityAuditor:
                     })
                     results["status"] = "failed"
                     print(f"    ⚠ CRITICAL: Admin panel exposed at {path}")
-            except:
+            except Exception as e:
                 pass  # Admin panel not accessible or doesn't exist
 
         return results
@@ -772,7 +772,7 @@ class NetworkSecurityAuditor:
                             "details": "Error response contains stack trace"
                         })
                         print(f"    ⚠ Stack trace in error: {path}")
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     pass
             except Exception:
                 pass

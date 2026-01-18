@@ -8,6 +8,7 @@ import html
 import logging
 from pathlib import Path
 import secrets
+import time
 from typing import Any
 from urllib.parse import urlparse
 
@@ -72,7 +73,7 @@ class EmailService:
         # Load base template if it exists
         try:
             self.base_template = self.env.get_template("base.html")
-        except:
+        except Exception as e:
             self.base_template = None
             logger.warning("Base template not found, using individual templates")
 

@@ -296,7 +296,7 @@ class IntelligentCache:
             # Check if data is large enough to benefit from compression
             serialized = pickle.dumps(data)
             return len(serialized) > 1024  # Compress if > 1KB
-        except:
+        except Exception as e:
             return False
 
     def _compress_data(self, data: Any) -> bytes:

@@ -1,6 +1,7 @@
 // AI Service - Connects frontend to AI engine endpoints
 import { apiClient } from './api';
 import axios from 'axios';
+import { safeJSONParse } from '@/utils/safeJSON';
 
 // Create a separate axios instance for AI requests that don't require authentication
 const aiApiClient = axios.create({
@@ -217,7 +218,7 @@ class AIService {
    */
   private getUserContext(): any {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = safeJSONParse<any>(localStorage.getItem('user'), {});
       return {
         user_id: user.id,
         email: user.email,
