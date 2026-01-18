@@ -3,9 +3,8 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api.v1.deps import get_current_active_user
 from app.core.async_cache import async_cached
@@ -37,7 +36,7 @@ router = APIRouter()
 @async_cached(expire=120, key_prefix="teams_list")  # ✅ ASYNC: Non-blocking cache
 async def list_teams(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(50, ge=1, le=100),  # ✅ OPTIMIZED: Reduced max limit from 1000 to 100
     my_teams: bool = Query(False, description="Filter to only teams I'm a member of"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -45,17 +44,44 @@ async def list_teams(
     """
     List teams.
     Use my_teams=true to see only teams you're a member of.
+
+    Performance optimizations:
+    - Uses subquery for member counting (avoids loading all members into memory)
+    - Reduced pagination limit (max 100 instead of 1000)
+    - Single efficient query with aggregation
     """
-    # Simple placeholder implementation without corrupted TeamService
-    query = select(Team).options(selectinload(Team.members))
+    # ✅ OPTIMIZED: Use subquery for efficient member counting
+    # This avoids loading all member objects into memory just to count them
+    member_count_subquery = (
+        select(func.count(TeamMemberModel.id))
+        .where(TeamMemberModel.team_id == Team.id)
+        .correlate(Team)
+        .scalar_subquery()
+    )
+
+    # Build query with member count subquery
+    query = select(
+        Team.id,
+        Team.name,
+        Team.description,
+        Team.organization_id,
+        Team.created_at,
+        Team.updated_at,
+        Team.created_by_id,
+        member_count_subquery.label("members_count")
+    )
 
     if my_teams:
         # Only return teams where the current user is a member
-        query = query.join(TeamMemberModel).filter(TeamMemberModel.user_id == current_user.id)
-    # No is_active filter - return all teams
+        query = query.join(TeamMemberModel, Team.id == TeamMemberModel.team_id).filter(
+            TeamMemberModel.user_id == current_user.id
+        )
+
+    # Apply pagination
+    query = query.offset(skip).limit(limit)
 
     result = await db.execute(query)
-    teams = result.scalars().all()
+    teams = result.all()
 
     # Convert teams to response format
     # Note: PERF401 suggests list comprehension, but current approach is more readable
@@ -68,7 +94,7 @@ async def list_teams(
             "created_at": team.created_at.isoformat() if team.created_at else None,
             "updated_at": team.updated_at.isoformat() if team.updated_at else None,
             "created_by_id": str(team.created_by_id) if team.created_by_id else None,
-            "members_count": len(team.members) if hasattr(team, "members") and team.members else 0,
+            "members_count": team.members_count or 0,  # ✅ OPTIMIZED: Already counted by database
         }
         for team in teams
     ]
@@ -133,6 +159,13 @@ async def create_team(
             await db.commit()
             result = await db.execute(text("SELECT id FROM organizations LIMIT 1"))
             org_row = result.fetchone()
+
+        # Defensive null check - ensure we have a valid organization
+        if org_row is None or len(org_row) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve or create organization"
+            )
 
         # Sanitize input data
         sanitized_data = sanitize_dict(team_data.model_dump(), text_fields=["name", "description"])
