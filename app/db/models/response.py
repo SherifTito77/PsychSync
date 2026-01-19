@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Index
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -54,6 +55,25 @@ class Response(Base):
     assessment = relationship("Assessment")
 # user = relationship("User", back_populates="responses")  # TEMPORARILY DISABLED
 # question = relationship("AssessmentQuestion", back_populates="responses")  # TEMPORARILY DISABLED
+
+    # Performance optimization indexes
+    __table_args__ = (
+        # Composite index for user's responses ordered by date (most common query)
+        # Optimizes: SELECT * FROM responses WHERE user_id = ? ORDER BY created_at DESC
+        Index('idx_response_user_created', 'user_id', sa.text('created_at DESC')),
+
+        # Composite index for assessment responses by user
+        # Optimizes: SELECT * FROM responses WHERE assessment_id = ? AND user_id = ?
+        Index('idx_response_assessment_user', 'assessment_id', 'user_id'),
+
+        # Composite index for user's responses in assessment
+        # Optimizes: SELECT * FROM responses WHERE user_id = ? AND assessment_id = ? ORDER BY created_at DESC
+        Index('idx_response_user_assessment_created', 'user_id', 'assessment_id', sa.text('created_at DESC')),
+
+        # GIN index for JSONB queries on answer_data
+        # Optimizes: WHERE answer_data->>'question_type' = 'multiple_choice'
+        Index('idx_response_answer_data_gin', 'answer_data', postgresql_using='gin'),
+    )
 
     def __repr__(self):
         return (

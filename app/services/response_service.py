@@ -76,14 +76,15 @@ class ResponseService:
 
     @staticmethod
     async def get_by_user(db: AsyncSession, user_id: UUID, limit: int = 100) -> list[Response]:
-        """Get user's responses."""
-        result = await db.execute(
-            select(Response)
-            .where(Response.user_id == user_id)
-            .order_by(Response.created_at.desc())
-            .limit(limit)
-        )
-        return result.scalars().all()
+        """
+        Get user's responses with assessment data pre-loaded.
+
+        Uses eager loading to prevent N+1 queries when accessing response.assessment
+        """
+        from app.core.query_optimizer import get_responses_with_assessments
+
+        # Use optimized query that loads assessments in same query
+        return await get_responses_with_assessments(db, user_id, limit)
 
     @staticmethod
     async def update(
