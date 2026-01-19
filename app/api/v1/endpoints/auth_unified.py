@@ -40,8 +40,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.account_lockout_enhanced import account_lockout_manager
+from app.core.atomic_lockout_tracker import atomic_lockout_tracker
 from app.core.config import settings
+from app.schemas.auth_validation import LoginRequestValidator, MFALoginRequestValidator
 from app.services.security import (
 create_access_token,
     create_refresh_token,
@@ -91,8 +92,25 @@ async def login(
     """
     client_ip = request.client.host if request.client else "unknown"
 
+    # Validate input BEFORE any expensive operations (DoS prevention)
+    try:
+        LoginRequestValidator(
+            username=form_data.username,
+            password=form_data.password
+        )
+    except ValueError as validation_error:
+        logger.warning(
+            "Login validation failed from IP %s: %s",
+            client_ip,
+            str(validation_error)
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(validation_error)
+        )
+
     # Check if IP is banned
-    is_ip_banned, ip_ban_remaining = await account_lockout_manager.is_ip_banned(client_ip)
+    is_ip_banned, ip_ban_remaining = await atomic_lockout_tracker.is_ip_banned(client_ip)
     if is_ip_banned:
         logger.warning("Login attempt from banned IP: %s", client_ip)
         raise HTTPException(
@@ -107,7 +125,7 @@ async def login(
 
     if not user:
         # Record failed attempt (even for non-existent users to prevent enumeration)
-        is_locked, lockout_msg = await account_lockout_manager.record_failed_attempt(
+        is_locked, lockout_msg = await atomic_lockout_tracker.record_failed_attempt(
             "unknown", client_ip, db
         )
         if is_locked:
@@ -123,7 +141,7 @@ async def login(
         )
 
     # Check if user account is locked
-    is_locked, lockout_remaining = await account_lockout_manager.is_user_locked_out(str(user.id))
+    is_locked, lockout_remaining = await atomic_lockout_tracker.is_user_locked_out(str(user.id))
     if is_locked:
         logger.warning("Login attempt for locked account: %s", user.email)
         raise HTTPException(
@@ -135,7 +153,7 @@ async def login(
     # Verify password
     if not verify_password(form_data.password, user.password_hash):
         # Record failed attempt
-        is_locked, lockout_msg = await account_lockout_manager.record_failed_attempt(
+        is_locked, lockout_msg = await atomic_lockout_tracker.record_failed_attempt(
             str(user.id), client_ip, db
         )
 
@@ -181,28 +199,39 @@ async def login(
             algorithm=settings.ALGORITHM
         )
 
-        # Store challenge token in Redis
+        # Store challenge token in Redis with automatic connection cleanup
         import redis.asyncio as redis
 
         try:
-            redis_client = await redis.from_url(
+            # Use async context manager for automatic connection cleanup
+            # This prevents connection leaks if any error occurs
+            async with await redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                decoding="utf-8"
-            )
+                decoding="utf-8",
+                health_check_interval=30  # Detect stale connections
+            ) as redis_client:
+                challenge_key = f"mfa_challenge:{str(user.id)}"
+                await redis_client.setex(
+                    challenge_key,
+                    300,  # 5 minutes
+                    mfa_challenge_token
+                )
 
-            challenge_key = f"mfa_challenge:{str(user.id)}"
-            await redis_client.setex(
-                challenge_key,
-                300,  # 5 minutes
-                mfa_challenge_token
-            )
+                logger.info(
+                    "MFA challenge issued for user: %s",
+                    user.email
+                )
 
-            await redis_client.close()
-
-            logger.info(
-                "MFA challenge issued for user: %s",
-                user.email
+        except redis.ConnectionError as conn_error:
+            logger.error(
+                "Redis connection error while storing MFA challenge for user %s: %s",
+                user.email,
+                conn_error
             )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service temporarily unavailable"
+            ) from conn_error
 
         except Exception as redis_error:
             logger.error(
@@ -227,7 +256,7 @@ async def login(
         }
 
     # Record successful attempt (clears failed attempts)
-    await account_lockout_manager.record_successful_attempt(str(user.id), client_ip)
+    await atomic_lockout_tracker.record_successful_attempt(str(user.id), client_ip)
 
     # Create tokens
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -310,6 +339,23 @@ async def login_verify_mfa(
     """
     client_ip = request.client.host if request.client else "unknown"
 
+    # Validate input BEFORE any expensive operations
+    try:
+        MFALoginRequestValidator(
+            mfa_challenge_token=mfa_challenge_token,
+            totp_code=totp_code
+        )
+    except ValueError as validation_error:
+        logger.warning(
+            "MFA validation failed from IP %s: %s",
+            client_ip,
+            str(validation_error)
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(validation_error)
+        )
+
     try:
         # Decode challenge token to get user ID
         try:
@@ -348,36 +394,42 @@ async def login_verify_mfa(
                 detail="Invalid MFA challenge token"
             ) from decode_error
 
-        # Verify challenge token exists in Redis
+        # Verify challenge token exists in Redis with automatic connection cleanup
         import redis.asyncio as redis
 
         try:
-            redis_client = await redis.from_url(
+            # Use async context manager for automatic connection cleanup
+            async with await redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                decoding="utf-8"
-            )
+                decoding="utf-8",
+                health_check_interval=30
+            ) as redis_client:
+                challenge_key = f"mfa_challenge:{user_id}"
+                stored_token = await redis_client.get(challenge_key)
 
-            challenge_key = f"mfa_challenge:{user_id}"
-            stored_token = await redis_client.get(challenge_key)
+                if not stored_token or stored_token != mfa_challenge_token:
+                    logger.warning(
+                        "MFA challenge token not found or invalid for user %s from IP: %s",
+                        user_id,
+                        client_ip
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid or expired MFA challenge token"
+                    )
 
-            if not stored_token or stored_token != mfa_challenge_token:
-                logger.warning(
-                    "MFA challenge token not found or invalid for user %s from IP: %s",
-                    user_id,
-                    client_ip
-                )
-                await redis_client.close()
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid or expired MFA challenge token"
-                )
-
-            # Delete the challenge token (single-use)
-            await redis_client.delete(challenge_key)
-            await redis_client.close()
+                # Delete the challenge token (single-use)
+                await redis_client.delete(challenge_key)
+                logger.info("MFA challenge verified and consumed for user: %s", user_id)
 
         except HTTPException:
             raise
+        except redis.ConnectionError as conn_error:
+            logger.error("Redis connection error during MFA verification: %s", conn_error)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service temporarily unavailable"
+            ) from conn_error
         except Exception as redis_error:
             logger.error("Redis error during MFA verification: %s", redis_error)
             raise HTTPException(
@@ -415,7 +467,7 @@ async def login_verify_mfa(
             ) from mfa_error
 
         # Record successful attempt (clears failed attempts)
-        await account_lockout_manager.record_successful_attempt(str(user.id), client_ip)
+        await atomic_lockout_tracker.record_successful_attempt(str(user.id), client_ip)
 
         # Create access and refresh tokens
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

@@ -15,6 +15,7 @@ from sqlalchemy import text
 from app.core.audit_logger import AuditLogger, SecurityEventType
 from app.core.config.settings import settings
 from app.core.correlation import get_correlation_id, log_with_context
+from app.services.security import verify_password
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -64,9 +65,9 @@ async def simple_login(
                 user_agent=user_agent,
             )
 
-            # Query user from database
+            # Query user from database (include password_hash for verification)
             result = await db.execute(
-                text("SELECT id, email, full_name FROM users WHERE email = :email"),
+                text("SELECT id, email, full_name, password_hash FROM users WHERE email = :email"),
                 {"email": username}
             )
             user = result.fetchone()
@@ -117,9 +118,43 @@ async def simple_login(
                 client_ip=client_ip,
             )
 
-            # For demo/development purposes: accept ANY user with ANY password
-            # In production, you would validate the password hash here
-            # Create simple JWT token
+            # SECURITY FIX: Verify password before issuing token
+            if not verify_password(password, user.password_hash):
+                # Password verification failed
+                log_with_context(
+                    logger,
+                    logging.WARNING,
+                    "Authentication failed - invalid password",
+                    event="auth_failure",
+                    user_id=str(user.id),
+                    email=user.email,
+                    reason="invalid_password",
+                    client_ip=client_ip,
+                    user_agent=user_agent,
+                )
+
+                # Security audit log for failed authentication
+                AuditLogger.log_security_event(
+                    event_type=SecurityEventType.AUTHENTICATION_FAILURE,
+                    details=f"Login attempt with invalid password for: {user.email}",
+                    client_ip=client_ip,
+                    user_agent=user_agent,
+                    endpoint="/api/v1/auth/simple-login",
+                    method="POST",
+                    request_id=correlation_id,
+                    additional_data={
+                        "email": user.email,
+                        "user_id": str(user.id),
+                        "reason": "invalid_password",
+                    }
+                )
+
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid password"
+                )
+
+            # Password verified successfully - create JWT token
             token_data = {
                 "sub": user.email,
                 "user_id": str(user.id),

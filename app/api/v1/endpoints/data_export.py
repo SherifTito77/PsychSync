@@ -131,9 +131,7 @@ async def create_export_request(
         )
 
     except Exception as e:
-        logger.error(f"Failed to create export request: {str(e)}"
-@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
-)
+        logger.error(f"Failed to create export request: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
