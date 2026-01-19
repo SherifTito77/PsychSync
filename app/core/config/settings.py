@@ -160,6 +160,16 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
         env="ALLOWED_UPLOAD_EXTENSIONS",
     )
 
+    # Retry Configuration for External Integrations
+    RETRY_MAX_ATTEMPTS: int = Field(default=3, env="RETRY_MAX_ATTEMPTS")
+    RETRY_TIMEOUT_SHORT: int = Field(default=10, env="RETRY_TIMEOUT_SHORT")
+    RETRY_TIMEOUT_MEDIUM: int = Field(default=30, env="RETRY_TIMEOUT_MEDIUM")
+    RETRY_TIMEOUT_LONG: int = Field(default=300, env="RETRY_TIMEOUT_LONG")
+    RETRY_MULTIPLIER: float = Field(default=1.0, env="RETRY_MULTIPLIER")
+    RETRY_MIN_WAIT: float = Field(default=1.0, env="RETRY_MIN_WAIT")
+    RETRY_MAX_WAIT: float = Field(default=10.0, env="RETRY_MAX_WAIT")
+    RETRY_BACKOFF_BASE: int = Field(default=2, env="RETRY_BACKOFF_BASE")
+
     def __init__(self, **data):
         """Initialize settings with comprehensive validation"""
         super().__init__(**data)
@@ -297,6 +307,24 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
             },
         }
 
+    def get_retry_config(self) -> dict[str, Any]:
+        """
+        Get retry configuration for external integrations
+
+        Returns:
+            Retry configuration dictionary with timeout and backoff settings
+        """
+        return {
+            "max_attempts": self.RETRY_MAX_ATTEMPTS,
+            "timeout_short": self.RETRY_TIMEOUT_SHORT,
+            "timeout_medium": self.RETRY_TIMEOUT_MEDIUM,
+            "timeout_long": self.RETRY_TIMEOUT_LONG,
+            "multiplier": self.RETRY_MULTIPLIER,
+            "min_wait": self.RETRY_MIN_WAIT,
+            "max_wait": self.RETRY_MAX_WAIT,
+            "backoff_base": self.RETRY_BACKOFF_BASE,
+        }
+
     def validate_production_readiness(self) -> list[str]:
         """
         Validate configuration for production deployment
@@ -362,6 +390,7 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
             "cache": self.get_cache_config(),
             "email": self.get_email_config(),
             "monitoring": self.get_monitoring_config(),
+            "retry": self.get_retry_config(),
         }
 
 

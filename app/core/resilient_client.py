@@ -133,9 +133,11 @@ class ResilientHTTPClient:
         # Create HTTP client with connection pooling
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(
+                self.config.timeout,  # Default timeout for all operations
                 connect=self.config.connect_timeout,
                 read=self.config.timeout,
                 write=self.config.timeout,
+                pool=self.config.timeout,
             ),
             limits=httpx.Limits(
                 max_connections=100,

@@ -684,9 +684,29 @@ class DatabaseBackupService:
         # Add other providers as needed
 
     async def _upload_to_s3(self, backup_id: str, file_path: str) -> None:
-        """Upload file to S3"""
+        """
+        Upload file to S3 with optimized retry and transfer configuration.
+
+        Features:
+        - Configured boto3 retry strategy (10 attempts, adaptive mode)
+        - Multipart upload for large files (8MB threshold)
+        - Server-side encryption (AES256)
+        - Connection pooling and threading for better performance
+        """
         try:
-            s3_client = boto3.client("s3")
+            from botocore.config import Config
+            from boto3.s3.transfer import TransferConfig
+
+            # Configure explicit retry settings
+            config = Config(
+                region_name=os.environ.get("AWS_REGION", "us-east-1"),
+                retries={
+                    'max_attempts': 10,  # Increased from default 5
+                    'mode': 'adaptive'    # Adaptive retry strategy for better resilience
+                }
+            )
+
+            s3_client = boto3.client("s3", config=config)
 
             bucket_name = os.environ.get("AWS_BACKUP_BUCKET")
             if not bucket_name:
@@ -694,8 +714,22 @@ class DatabaseBackupService:
 
             s3_key = f"backups/{backup_id}/{os.path.basename(file_path)}"
 
+            # Configure multipart upload for large files
+            transfer_config = TransferConfig(
+                multipart_threshold=8 * 1024 * 1024,  # 8MB threshold
+                max_concurrency=10,                      # Upload up to 10 parts in parallel
+                multipart_chunksize=8 * 1024 * 1024,    # 8MB chunks
+                use_threads=True                         # Use threading for performance
+            )
+
+            logger.info(f"Uploading backup {backup_id} to S3 with multipart configuration")
+
             s3_client.upload_file(
-                file_path, bucket_name, s3_key, ExtraArgs={"ServerSideEncryption": "AES256"}
+                file_path,
+                bucket_name,
+                s3_key,
+                ExtraArgs={"ServerSideEncryption": "AES256"},
+                Config=transfer_config
             )
 
             logger.info(f"Backup {backup_id} uploaded to S3: {s3_key}")

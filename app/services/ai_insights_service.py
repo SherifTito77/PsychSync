@@ -7,7 +7,20 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
+
+import logging
+
 from app.core.cache import cache_get, cache_set
+from app.core.cache_stamped_protection import cache_stampede_protect
+
+logger = logging.getLogger(__name__)
 
 
 class AIInsightsService:
@@ -59,6 +72,7 @@ Respond ONLY with valid JSON, no additional text."""
     ) -> List[Dict[str, str]]:
         """
         Generate AI-powered insights for a team based on personality data.
+        Uses cache stampede protection to prevent multiple concurrent API calls.
 
         Args:
             team_data: Dictionary with team personality data
@@ -67,22 +81,32 @@ Respond ONLY with valid JSON, no additional text."""
         Returns:
             List of insight dictionaries with heading, rationale, and action
         """
-        # Check cache first
-        if use_cache:
-            cache_key = f"team_insights:{team_data.get('team_id')}"
-            cached_insights = await cache_get(cache_key)
-            if cached_insights:
-                return cached_insights
+        if not use_cache:
+            # Bypass cache if requested
+            return await AIInsightsService._generate_with_openai(team_data)
+
+        # Use cache stampede protection to prevent multiple API calls
+        cache_key = f"team_insights:{team_data.get('team_id')}"
+
+        async def generate_insights():
+            """Generator function for cache stampede protection"""
+            try:
+                insights = await AIInsightsService._generate_with_openai(team_data)
+                return insights
+            except Exception as e:
+                logger.error(f"Error generating AI insights: {e}")
+                raise
 
         try:
-            # Try to use OpenAI API
-            insights = await AIInsightsService._generate_with_openai(team_data)
-
-            if insights:
-                # Cache for 24 hours
-                cache_key = f"team_insights:{team_data.get('team_id')}"
-                await cache_set(cache_key, insights, expire=86400)
-                return insights
+            # Cache stampede protection ensures only one request calls OpenAI
+            insights = await cache_stampede_protect(
+                cache_key=cache_key,
+                generator=generate_insights,
+                expire=86400,  # 24 hours
+                lock_timeout=30,  # Max 30 seconds to generate
+                wait_timeout=15,  # Wait up to 15 seconds for other request
+            )
+            return insights
 
         except Exception as e:
             # Fall back to rule-based insights if AI fails
@@ -91,9 +115,20 @@ Respond ONLY with valid JSON, no additional text."""
         return AIInsightsService._generate_rule_based_insights(team_data)
 
     @staticmethod
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
     async def _generate_with_openai(team_data: Dict[str, Any]) -> Optional[List[Dict[str, str]]]:
         """
         Generate insights using OpenAI GPT-4 API.
+
+        Features:
+        - Retry with exponential backoff on connection errors
+        - 30-second timeout to prevent hanging
+        - Graceful fallback to rule-based insights
 
         Args:
             team_data: Team personality data
@@ -103,13 +138,19 @@ Respond ONLY with valid JSON, no additional text."""
         """
         try:
             import openai
+            from openai import APITimeoutError, RateLimitError
 
             # Check if API key is available
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
+                logger.warning("OpenAI API key not configured")
                 return None
 
-            client = openai.AsyncOpenAI(api_key=api_key)
+            # Create client with explicit timeout
+            client = openai.AsyncOpenAI(
+                api_key=api_key,
+                timeout=30.0  # 30-second timeout
+            )
 
             # Build prompt
             prompt = AIInsightsService.TEAM_INSIGHTS_PROMPT.format(
@@ -130,6 +171,8 @@ Respond ONLY with valid JSON, no additional text."""
                 strengths=", ".join(team_data.get("strengths", [])),
                 gaps=", ".join(team_data.get("gaps", []))
             )
+
+            logger.info(f"Calling OpenAI API for team {team_data.get('team_id')}")
 
             # Call GPT-4
             response = await client.chat.completions.create(
@@ -153,10 +196,19 @@ Respond ONLY with valid JSON, no additional text."""
                 "heading" in insight and "rationale" in insight and "action" in insight
                 for insight in insights
             ):
+                logger.info(f"Successfully generated AI insights for team {team_data.get('team_id')}")
                 return insights
 
+        except (APITimeoutError, RateLimitError) as e:
+            logger.error(f"OpenAI API error (will retry): {e}")
+            raise  # Re-raise for tenacity to retry
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse OpenAI response as JSON: {e}")
+            return None
+
         except Exception as e:
-            print(f"OpenAI API call failed: {e}")
+            logger.error(f"OpenAI API call failed: {e}")
             return None
 
         return None

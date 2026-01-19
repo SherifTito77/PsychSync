@@ -723,3 +723,7 @@ def with_retry(**kwargs):
     if rp_name not in manager.retry_policies:
         manager.create_retry_policy(rp_name, **{k: v for k, v in kwargs.items() if k != "name"})
     return resilient(retry_policy=rp_name)
+
+# Compatibility alias for resilient_client
+# CircuitBreaker was renamed to Circuit in some parts of the codebase
+Circuit = CircuitBreaker

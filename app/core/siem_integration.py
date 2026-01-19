@@ -57,9 +57,10 @@ class SIEMConfig:
     sourcetype: str | None = "_json"
     headers: dict[str, str] = None
     verify_ssl: bool = True
-    timeout_seconds: int = 10
+    timeout_seconds: int = 30  # Increased from 10s to 30s for bulk operations
     batch_size: int = 100
     batch_flush_seconds: int = 60
+    max_retries: int = 3
 
     def __post_init__(self):
         if self.headers is None:
@@ -287,140 +288,215 @@ class SIEMIntegration:
             return False
 
     async def _send_to_splunk(self, events: list[SIEMEvent]) -> bool:
-        """Send events to Splunk HTTP Event Collector"""
-        try:
-            if not self.config.endpoint_url or not self.config.token:
-                logger.error("Splunk HEC requires endpoint_url and token")
-                return False
+        """Send events to Splunk HTTP Event Collector with retry logic"""
+        for attempt in range(self.config.max_retries):
+            try:
+                if not self.config.endpoint_url or not self.config.token:
+                    logger.error("Splunk HEC requires endpoint_url and token")
+                    return False
 
-            url = self.config.endpoint_url.rstrip("/") + "/services/collector/event"
-            headers = {
-                "Authorization": f"Splunk {self.config.token}",
-                "Content-Type": "application/json",
-            }
-
-            # Send events as batch
-            events_data = []
-            for event in events:
-                event_dict = event.to_dict()
-                splunk_event = {
-                    "time": int(datetime.timestamp(event.timestamp)),
-                    "host": "psychsync",
-                    "source": self.config.source,
-                    "sourcetype": self.config.sourcetype,
-                    "index": self.config.index,
-                    "event": event_dict,
+                url = self.config.endpoint_url.rstrip("/") + "/services/collector/event"
+                headers = {
+                    "Authorization": f"Splunk {self.config.token}",
+                    "Content-Type": "application/json",
                 }
-                events_data.append(splunk_event)
 
-            # For Splunk, we need to send events individually or with proper newline delimiter
-            # Using newline-delimited JSON
-            payload = "\n".join(json.dumps(e) for e in events_data)
+                # Send events as batch
+                events_data = []
+                for event in events:
+                    event_dict = event.to_dict()
+                    splunk_event = {
+                        "time": int(datetime.timestamp(event.timestamp)),
+                        "host": "psychsync",
+                        "source": self.config.source,
+                        "sourcetype": self.config.sourcetype,
+                        "index": self.config.index,
+                        "event": event_dict,
+                    }
+                    events_data.append(splunk_event)
 
-            async with self._session.post(
-                url,
-                headers=headers,
-                data=payload,
-                ssl=self.config.verify_ssl,
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
-            ) as response:
-                if response.status in [200, 201]:
-                    return True
-                text = await response.text()
-                logger.error(f"Splunk HEC error: {response.status} - {text}")
+                # For Splunk, we need to send events individually or with proper newline delimiter
+                # Using newline-delimited JSON
+                payload = "\n".join(json.dumps(e) for e in events_data)
+
+                async with self._session.post(
+                    url,
+                    headers=headers,
+                    data=payload,
+                    ssl=self.config.verify_ssl,
+                    timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
+                ) as response:
+                    if response.status in [200, 201]:
+                        return True
+
+                    # Handle rate limiting
+                    if response.status == 429 and attempt < self.config.max_retries - 1:
+                        wait_time = 2 ** attempt  # Exponential backoff
+                        logger.warning(f"Splunk rate limited, retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        continue
+
+                    text = await response.text()
+                    logger.error(f"Splunk HEC error: {response.status} - {text}")
+                    return False
+
+            except asyncio.TimeoutError:
+                if attempt < self.config.max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Splunk timeout (attempt {attempt + 1}), retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                logger.error("Splunk request timed out after all retries")
                 return False
 
-        except Exception as e:
-            logger.error(f"Error sending to Splunk: {e}")
-            return False
+            except Exception as e:
+                if attempt < self.config.max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Error sending to Splunk (attempt {attempt + 1}): {e}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                logger.error(f"Error sending to Splunk after all retries: {e}")
+                return False
+
+        return False
 
     async def _send_to_elasticsearch(self, events: list[SIEMEvent]) -> bool:
-        """Send events to Elasticsearch"""
-        try:
-            if not self.config.endpoint_url:
-                logger.error("Elasticsearch requires endpoint_url")
+        """Send events to Elasticsearch with retry logic"""
+        for attempt in range(self.config.max_retries):
+            try:
+                if not self.config.endpoint_url:
+                    logger.error("Elasticsearch requires endpoint_url")
+                    return False
+
+                index = self.config.index or f"psychsync-security-{datetime.now().strftime('%Y.%m')}"
+
+                url = f"{self.config.endpoint_url.rstrip('/')}/{index}/_bulk"
+                headers = {"Content-Type": "application/x-ndjson"}
+
+                if self.config.token:
+                    headers["Authorization"] = f"Bearer {self.config.token}"
+
+                # Build bulk payload
+                bulk_lines = []
+                for event in events:
+                    event_dict = event.to_dict()
+
+                    # Add index action line
+                    action_line = json.dumps({"index": {"_index": index}})
+                    bulk_lines.append(action_line)
+
+                    # Add data line
+                    data_line = json.dumps(event_dict)
+                    bulk_lines.append(data_line)
+
+                payload = "\n".join(bulk_lines) + "\n"
+
+                async with self._session.post(
+                    url,
+                    headers=headers,
+                    data=payload,
+                    ssl=self.config.verify_ssl,
+                    timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
+                ) as response:
+                    if response.status in [200, 201]:
+                        return True
+
+                    # Handle rate limiting
+                    if response.status == 429 and attempt < self.config.max_retries - 1:
+                        wait_time = 2 ** attempt
+                        logger.warning(f"Elasticsearch rate limited, retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        continue
+
+                    text = await response.text()
+                    logger.error(f"Elasticsearch error: {response.status} - {text}")
+                    return False
+
+            except asyncio.TimeoutError:
+                if attempt < self.config.max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Elasticsearch timeout (attempt {attempt + 1}), retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                logger.error("Elasticsearch request timed out after all retries")
                 return False
 
-            index = self.config.index or f"psychsync-security-{datetime.now().strftime('%Y.%m')}"
-
-            url = f"{self.config.endpoint_url.rstrip('/')}/{index}/_bulk"
-            headers = {"Content-Type": "application/x-ndjson"}
-
-            if self.config.token:
-                headers["Authorization"] = f"Bearer {self.config.token}"
-
-            # Build bulk payload
-            bulk_lines = []
-            for event in events:
-                event_dict = event.to_dict()
-
-                # Add index action line
-                action_line = json.dumps({"index": {"_index": index}})
-                bulk_lines.append(action_line)
-
-                # Add data line
-                data_line = json.dumps(event_dict)
-                bulk_lines.append(data_line)
-
-            payload = "\n".join(bulk_lines) + "\n"
-
-            async with self._session.post(
-                url,
-                headers=headers,
-                data=payload,
-                ssl=self.config.verify_ssl,
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
-            ) as response:
-                if response.status in [200, 201]:
-                    return True
-                text = await response.text()
-                logger.error(f"Elasticsearch error: {response.status} - {text}")
+            except Exception as e:
+                if attempt < self.config.max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Error sending to Elasticsearch (attempt {attempt + 1}): {e}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                logger.error(f"Error sending to Elasticsearch after all retries: {e}")
                 return False
 
-        except Exception as e:
-            logger.error(f"Error sending to Elasticsearch: {e}")
-            return False
+        return False
 
     async def _send_to_webhook(self, events: list[SIEMEvent]) -> bool:
-        """Send events to generic webhook endpoint"""
-        try:
-            if not self.config.endpoint_url:
-                logger.error("Webhook requires endpoint_url")
+        """Send events to generic webhook endpoint with retry logic"""
+        for attempt in range(self.config.max_retries):
+            try:
+                if not self.config.endpoint_url:
+                    logger.error("Webhook requires endpoint_url")
+                    return False
+
+                headers = {"Content-Type": "application/json"}
+
+                # Add custom headers
+                headers.update(self.config.headers)
+
+                # Add auth header if token provided
+                if self.config.token:
+                    headers["Authorization"] = f"Bearer {self.config.token}"
+
+                payload = {
+                    "source": "psychsync",
+                    "platform": "security_monitoring",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "events": [e.to_dict() for e in events],
+                    "event_count": len(events),
+                }
+
+                async with self._session.post(
+                    self.config.endpoint_url,
+                    headers=headers,
+                    data=json.dumps(payload),
+                    ssl=self.config.verify_ssl,
+                    timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
+                ) as response:
+                    if response.status in [200, 201, 202, 204]:
+                        return True
+
+                    # Handle rate limiting
+                    if response.status == 429 and attempt < self.config.max_retries - 1:
+                        wait_time = 2 ** attempt
+                        logger.warning(f"Webhook rate limited, retrying in {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        continue
+
+                    text = await response.text()
+                    logger.error(f"Webhook error: {response.status} - {text}")
+                    return False
+
+            except asyncio.TimeoutError:
+                if attempt < self.config.max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Webhook timeout (attempt {attempt + 1}), retrying in {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                logger.error("Webhook request timed out after all retries")
                 return False
 
-            headers = {"Content-Type": "application/json"}
-
-            # Add custom headers
-            headers.update(self.config.headers)
-
-            # Add auth header if token provided
-            if self.config.token:
-                headers["Authorization"] = f"Bearer {self.config.token}"
-
-            payload = {
-                "source": "psychsync",
-                "platform": "security_monitoring",
-                "timestamp": datetime.utcnow().isoformat(),
-                "events": [e.to_dict() for e in events],
-                "event_count": len(events),
-            }
-
-            async with self._session.post(
-                self.config.endpoint_url,
-                headers=headers,
-                data=json.dumps(payload),
-                ssl=self.config.verify_ssl,
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout_seconds),
-            ) as response:
-                if response.status in [200, 201, 202, 204]:
-                    return True
-                text = await response.text()
-                logger.error(f"Webhook error: {response.status} - {text}")
+            except Exception as e:
+                if attempt < self.config.max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Error sending to webhook (attempt {attempt + 1}): {e}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                logger.error(f"Error sending to webhook after all retries: {e}")
                 return False
 
-        except Exception as e:
-            logger.error(f"Error sending to webhook: {e}")
-            return False
+        return False
 
     async def test_connection(self) -> dict[str, Any]:
         """

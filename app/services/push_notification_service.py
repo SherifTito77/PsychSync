@@ -206,7 +206,7 @@ class PushNotificationService:
     def __init__(self):
         self.fcm_server_key = settings.FCM_SERVER_KEY
         self.fcm_api_url = "https://fcm.googleapis.com/fcm/send"
-        self.timeout = 10.0  # seconds
+        self.timeout = 20.0  # Increased from 10s to 20s for better reliability
 
     # -------------------------------------------------------------------------
     # Token Management
@@ -622,16 +622,27 @@ class PushNotificationService:
         return payload
 
     async def _send_to_fcm(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Send notification to FCM servers"""
+        """
+        Send notification to FCM servers using resilient HTTP client.
+
+        Features:
+        - Automatic retry with exponential backoff
+        - Circuit breaker to prevent cascading failures
+        - 20-second timeout
+        - Connection pooling for better performance
+        """
 
         try:
+            from app.core.resilient_client import resilient_http_client, HTTPClientError
+
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"key={self.fcm_server_key}",
             }
 
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.post(
+            try:
+                # Use resilient HTTP client with automatic retry
+                response = await resilient_http_client.post(
                     self.fcm_api_url,
                     json=payload,
                     headers=headers,
@@ -650,9 +661,9 @@ class PushNotificationService:
                     logger.error(f"FCM API error: {response.status_code} - {response.text}")
                     return [{"success": False, "error": "FCM API error"}]
 
-        except httpx.TimeoutException:
-            logger.error("FCM request timeout")
-            return [{"success": False, "error": "Request timeout"}]
+            except HTTPClientError as e:
+                logger.error(f"FCM HTTP client error after retries: {str(e)}")
+                return [{"success": False, "error": f"Request failed: {str(e)}"}]
 
         except Exception as e:
             logger.error(f"Failed to send to FCM: {str(e)}")
