@@ -1,20 +1,20 @@
 # api/optimizer_endpoints.py
-from fastapi import APIRouter, HTTPException, Depends, Query
-
-from app.api.v1.deps import get_current_user
-
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
-from typing import List, Optional
-from pydantic import BaseModel, Field
 from datetime import date
+from typing import List, Optional
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from team_optimizer import (
-    TeamOptimizationEngine,
-    Player,
     LineupConstraints,
     OptimizationObjective,
-    OptimizedLineup
+    OptimizedLineup,
+    Player,
+    TeamOptimizationEngine,
 )
+
+from app.api.v1.deps import get_current_user
+from app.core.exception_handling import handle_exceptions
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 
 router = APIRouter(prefix="/api/optimizer", tags=["optimizer"])
 
@@ -666,6 +666,7 @@ async def optimizer_health():
             'version': '1.0.0'
         }
     except Exception as e:
+        logger.error(f"Unexpected error: {e!s}", exc_info=True)
         return {
             'status': 'unhealthy',
             'error': str(e)

@@ -21,7 +21,7 @@ except ImportError:
     Question = None
 
 # Import analytics models
-from .analytics import Analytics, AnalyticsEvent
+from .analytics import Analytics, AnalyticsEvent, UnifiedAnalyticsEvent
 
 # Import Employee Safety models
 from .employee_safety import (
@@ -69,11 +69,7 @@ except ImportError:
 
 # Import biometric health models
 try:
-    from .biometric_health import (
-        BiometricHealthData,
-        HealthDataConsent,
-        DataSourceType
-    )
+    from .biometric_health import BiometricHealthData, DataSourceType, HealthDataConsent
 except ImportError:
     BiometricHealthData = None
     HealthDataConsent = None
@@ -82,11 +78,11 @@ except ImportError:
 # Import clinical screening models (HIPAA-compliant mental health screening)
 try:
     from .clinical_screening import (
-        ClinicalScreening,
         ClinicalAlert,
-        ClinicalReferral,
         ClinicalAuditLog,
-        ClinicalConsent
+        ClinicalConsent,
+        ClinicalReferral,
+        ClinicalScreening,
     )
 except ImportError:
     ClinicalScreening = None
@@ -95,25 +91,29 @@ except ImportError:
     ClinicalAuditLog = None
     ClinicalConsent = None
 
-# Import notification system models (clinician alerts and preferences)
+# Import notification system models (comprehensive notification system)
 try:
-    from .notification import (
+    from .notifications import (
         Notification,
-        NotificationPreference,
-        NotificationQueue
+        NotificationTemplate,
+        NotificationCampaign,
+        NotificationPreferences,
+        NotificationAnalytics,
     )
 except ImportError:
     Notification = None
-    NotificationPreference = None
-    NotificationQueue = None
+    NotificationTemplate = None
+    NotificationCampaign = None
+    NotificationPreferences = None
+    NotificationAnalytics = None
 
 # Import advanced clinical features models (telehealth, chatbot, mobile)
 try:
     from .clinical_advanced import (
-        TelehealthSession,
         ChatbotConversation,
+        ClinicalAnalyticsSnapshot,
         MobileDevice,
-        ClinicalAnalyticsSnapshot
+        TelehealthSession,
     )
 except ImportError:
     TelehealthSession = None
@@ -123,24 +123,38 @@ except ImportError:
 
 # Import biometric authentication models
 try:
-    from .biometric import (
-        BiometricKey,
-        BiometricChallenge,
-        BiometricAttempt
-    )
+    from .biometric import BiometricAttempt, BiometricChallenge, BiometricKey
 except ImportError:
     BiometricKey = None
     BiometricChallenge = None
     BiometricAttempt = None
 
+# Import SQL audit and query performance models
+try:
+    from .sql_audit import SQLQuery, SQLVulnerability, SQLScanReport
+    from .query_performance import (
+        SlowQuery,
+        IndexRecommendation,
+        QueryPerformanceHistory,
+        QueryOptimizationReport,
+    )
+except ImportError:
+    SQLQuery = None
+    SQLVulnerability = None
+    SQLScanReport = None
+    SlowQuery = None
+    IndexRecommendation = None
+    QueryPerformanceHistory = None
+    QueryOptimizationReport = None
+
 # Import audit logging models
 try:
     from .audit import (
         AuditLog,
-        DataAccessLog,
         AuthenticationLog,
         ComplianceReport,
-        SecurityIncident
+        DataAccessLog,
+        SecurityIncident,
     )
 except ImportError:
     AuditLog = None
@@ -149,21 +163,37 @@ except ImportError:
     ComplianceReport = None
     SecurityIncident = None
 
-# Import product management prompts models
+# Import Corporate Psychology models
 try:
-    from .product_management import (
-        PromptExecution,
-        PromptTemplate,
-        PromptWorkflow,
-        PromptFavorite,
-        PromptResult
+    from .corporate_psychology import (
+        CorporatePsychologyMetrics,
+        InterventionCategory,
+        InterventionStatus,
+        RiskHorizon,
+        StructuralIntervention,
+        SystemSignalAlert,
     )
 except ImportError:
-    PromptExecution = None
-    PromptTemplate = None
-    PromptWorkflow = None
-    PromptFavorite = None
-    PromptResult = None
+    CorporatePsychologyMetrics = None
+    SystemSignalAlert = None
+    StructuralIntervention = None
+    RiskHorizon = None
+    InterventionCategory = None
+    InterventionStatus = None
+
+# Import Dead Letter Queue models
+try:
+    from .dead_letter import DeadLetterTask, DLQStatus, DLQReason
+except ImportError:
+    DeadLetterTask = None
+    DLQStatus = None
+    DLQReason = None
+
+# Import Kafka Dead Letter Queue models
+try:
+    from .kafka_dead_letter import KafkaDeadLetterTask
+except ImportError:
+    KafkaDeadLetterTask = None
 
 # Make models available when importing from this package
 __all__ = [
@@ -224,8 +254,10 @@ __all__ = [
     "ClinicalConsent",
     # Notification system models
     "Notification",
-    "NotificationPreference",
-    "NotificationQueue",
+    "NotificationTemplate",
+    "NotificationCampaign",
+    "NotificationPreferences",
+    "NotificationAnalytics",
     # Advanced clinical features models
     "TelehealthSession",
     "ChatbotConversation",
@@ -235,16 +267,30 @@ __all__ = [
     "BiometricKey",
     "BiometricChallenge",
     "BiometricAttempt",
+    # SQL audit and query performance models
+    "SQLQuery",
+    "SQLVulnerability",
+    "SQLScanReport",
+    "SlowQuery",
+    "IndexRecommendation",
+    "QueryPerformanceHistory",
+    "QueryOptimizationReport",
     # Audit logging models
     "AuditLog",
     "DataAccessLog",
     "AuthenticationLog",
     "ComplianceReport",
     "SecurityIncident",
-    # Product management prompts models
-    "PromptExecution",
-    "PromptTemplate",
-    "PromptWorkflow",
-    "PromptFavorite",
-    "PromptResult",
+    # Corporate Psychology models
+    "CorporatePsychologyMetrics",
+    "SystemSignalAlert",
+    "StructuralIntervention",
+    "RiskHorizon",
+    "InterventionCategory",
+    "InterventionStatus",
+    # Dead Letter Queue models
+    "DeadLetterTask",
+    "DLQStatus",
+    "DLQReason",
+    "KafkaDeadLetterTask",
 ]

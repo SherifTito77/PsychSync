@@ -9,9 +9,9 @@ Database Backup Management API Endpoints
 - Backup statistics and reporting
 """
 
-from datetime import datetime
 import logging
 import os
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -21,8 +21,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_async_db, get_current_admin_user
 from app.api.v1.deps import Depends, get_current_user
+from app.core.exception_handling import handle_exceptions
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.schemas.responses import PaginatedResponse, SuccessResponse
 from app.services.database_backup_service import (
     BackupConfig,
@@ -580,6 +581,7 @@ async def test_storage_connection(
                 connection_status = "connected"
                 message = "S3 connection successful"
             except Exception as e:
+                logger.error(f"Unexpected error: {e!s}", exc_info=True)
                 connection_status = "error"
                 message = f"S3 connection failed: {e!s}"
 

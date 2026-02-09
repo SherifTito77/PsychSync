@@ -9,11 +9,9 @@ Author: Architecture Team
 """
 
 import logging
-from typing import Callable, Dict, List, Optional, Any
-from datetime import datetime
+from typing import Dict, List, Optional
 
 from aiokafka import AIOKafkaConsumer
-from aiokafka.errors import KafkaError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -72,11 +70,12 @@ class KafkaEventConsumer:
         topics: List[str],
         group_id: str,
         bootstrap_servers: Optional[str] = None,
-        auto_offset_reset: str = 'earliest',
-        enable_auto_commit: bool = True,
+        auto_offset_reset: str = "earliest",
+        enable_auto_commit: bool = False,  # ✅ FIX: Changed from True to False
         session_timeout_ms: int = 30000,  # 30 seconds
-        heartbeat_interval_ms: int =3000,  # 3 seconds
+        heartbeat_interval_ms: int = 3000,  # 3 seconds
         max_poll_records: int = 100,
+        commit_after_processing: bool = True,  # ✅ NEW: Commit after successful processing
     ):
         """
         Initialize Kafka consumer.
@@ -86,10 +85,11 @@ class KafkaEventConsumer:
             group_id: Consumer group ID
             bootstrap_servers: Kafka servers (default: from settings)
             auto_offset_reset: Where to start if no offset (earliest, latest)
-            enable_auto_commit: Auto-commit offsets
+            enable_auto_commit: Auto-commit offsets (default: False for reliability)
             session_timeout_ms: Session timeout
             heartbeat_interval_ms: Heartbeat interval
             max_poll_records: Max records per poll
+            commit_after_processing: Manually commit after successful processing
         """
         self.topics = topics
         self.group_id = group_id
@@ -99,12 +99,17 @@ class KafkaEventConsumer:
         self.session_timeout_ms = session_timeout_ms
         self.heartbeat_interval_ms = heartbeat_interval_ms
         self.max_poll_records = max_poll_records
+        self.commit_after_processing = commit_after_processing
 
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.handlers: Dict[EventType, List[EventHandler]] = {}
         self._running = False
+        self._processed_messages = []  # ✅ NEW: Track processed messages for manual commit
 
-        logger.info(f"KafkaEventConsumer initialized: topics={topics}, group_id={group_id}")
+        logger.info(
+            f"KafkaEventConsumer initialized: topics={topics}, group_id={group_id}, "
+            f"auto_commit={enable_auto_commit}, commit_after_processing={commit_after_processing}"
+        )
 
     def register_handler(
         self,
@@ -124,7 +129,9 @@ class KafkaEventConsumer:
             self.handlers[event_type] = []
 
         self.handlers[event_type].append(handler)
-        logger.info(f"Registered handler for {event_type.value}: {handler.__class__.__name__}")
+        logger.info(
+            f"Registered handler for {event_type.value}: {handler.__class__.__name__}"
+        )
 
     async def start(self):
         """Start the Kafka consumer."""
@@ -139,12 +146,15 @@ class KafkaEventConsumer:
                 heartbeat_interval_ms=self.heartbeat_interval_ms,
                 max_poll_records=self.max_poll_records,
                 # Deserialization
-                value_deserializer=lambda m: m.decode('utf-8') if m else None,
+                value_deserializer=lambda m: m.decode("utf-8") if m else None,
                 auto_commit_interval_ms=1000,  # Commit every second
             )
 
             await self.consumer.start()
-            logger.info(f"✅ Kafka consumer started: topics={self.topics}, group_id={self.group_id}")
+            logger.info(
+                f"✅ Kafka consumer started: topics={self.topics}, group_id={self.group_id}, "
+                f"auto_commit={self.enable_auto_commit}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to start Kafka consumer: {e}")
@@ -203,25 +213,54 @@ class KafkaEventConsumer:
             handlers = self.handlers.get(event.type, [])
 
             if not handlers:
-                logger.warning(f"No handlers registered for event type: {event.type.value}")
+                logger.warning(
+                    f"No handlers registered for event type: {event.type.value}"
+                )
+                # Still commit if no handlers (message successfully consumed but nothing to do)
+                if self.commit_after_processing:
+                    await self.consumer.commit()
                 return
 
             # Dispatch to all handlers
+            all_handlers_succeeded = True
             for handler in handlers:
                 try:
                     await handler.handle(event)
                     logger.debug(f"Event handled by {handler.__class__.__name__}")
 
                 except Exception as e:
+                    all_handlers_succeeded = False
                     logger.error(
                         f"Handler {handler.__class__.__name__} failed for event "
                         f"{event.type.value}: {e}",
-                        exc_info=True
+                        exc_info=True,
                     )
                     # Continue processing with other handlers
 
+            # ✅ FIX: Only commit after all handlers succeed
+            if self.commit_after_processing and all_handlers_succeeded:
+                # Commit the offset for this message
+                await self.consumer.commit({msg.partition: msg.offset + 1})
+                logger.debug(
+                    f"Committed offset for event {event.type.value} "
+                    f"(partition={msg.partition}, offset={msg.offset})"
+                )
+            elif not all_handlers_succeeded:
+                # Handler failed, don't commit - message will be reprocessed
+                logger.warning(
+                    f"⚠️ Not committing offset due to handler failure - "
+                    f"message will be reprocessed "
+                    f"(topic={msg.topic}, partition={msg.partition}, offset={msg.offset})"
+                )
+
         except Exception as e:
             logger.error(f"Failed to process message: {e}", exc_info=True)
+            # Don't commit on parse errors - message will be reprocessed
+            if self.commit_after_processing:
+                logger.warning(
+                    f"⚠️ Not committing offset due to processing error - "
+                    f"message will be reprocessed"
+                )
 
 
 class BatchEventConsumer(KafkaEventConsumer):
@@ -233,11 +272,7 @@ class BatchEventConsumer(KafkaEventConsumer):
     """
 
     def __init__(
-        self,
-        *args,
-        batch_size: int = 10,
-        batch_timeout_ms: int = 1000,
-        **kwargs
+        self, *args, batch_size: int = 10, batch_timeout_ms: int = 1000, **kwargs
     ):
         """
         Initialize batch consumer.
@@ -294,30 +329,73 @@ class BatchEventConsumer(KafkaEventConsumer):
         logger.info(f"Processing batch of {len(batch)} messages")
 
         events = []
+        failed_messages = []  # ✅ NEW: Track failed messages for DLQ
+
         for msg in batch:
             try:
                 event_data = msg.value
                 event = CloudEvent.parse_raw(event_data)
-                events.append(event)
+                events.append((event, msg))  # ✅ NEW: Keep message reference for commit
             except Exception as e:
                 logger.error(f"Failed to parse message in batch: {e}")
+                # ✅ NEW: Track parse failures
+                failed_messages.append((msg, "parse_error", str(e)))
 
         # Process events
-        for event in events:
+        processed_events = []
+        for event, msg in events:
             handlers = self.handlers.get(event.type, [])
+            all_succeeded = True
+
             for handler in handlers:
                 try:
                     await handler.handle(event)
                 except Exception as e:
+                    all_succeeded = False
                     logger.error(
                         f"Handler {handler.__class__.__name__} failed for event "
                         f"{event.type.value}: {e}"
                     )
+                    # ✅ NEW: Track handler failures
+                    failed_messages.append((msg, "handler_error", str(e)))
+
+            if all_succeeded:
+                processed_events.append(msg)
+
+        # ✅ FIX: Only commit successfully processed messages
+        if self.commit_after_processing and processed_events:
+            # Build commit map: partition -> list of offsets
+            commit_map = {}
+            for msg in processed_events:
+                if msg.partition not in commit_map:
+                    commit_map[msg.partition] = []
+                commit_map[msg.partition].append(msg.offset + 1)
+
+            # Commit the highest offset for each partition
+            final_commit_map = {
+                partition: max(offsets) for partition, offsets in commit_map.items()
+            }
+
+            await self.consumer.commit(final_commit_map)
+            logger.info(
+                f"✅ Committed {len(processed_events)} messages in batch, "
+                f"{len(failed_messages)} failed"
+            )
+
+        # ✅ NEW: Handle failed messages (send to DLQ or log)
+        if failed_messages:
+            logger.warning(
+                f"⚠️ {len(failed_messages)} messages failed in batch, "
+                f"offsets not committed - will be reprocessed"
+            )
+            # TODO: Send to Kafka DLQ for failed events
+            # await self._send_failed_to_dlq(failed_messages)
 
 
 # ============================================
 # EXAMPLE HANDLERS
 # ============================================
+
 
 class AssessmentCompletedHandler(EventHandler):
     """
@@ -331,9 +409,9 @@ class AssessmentCompletedHandler(EventHandler):
         logger.info(f"Processing assessment completion: {event.data['assessment_id']}")
 
         # Extract data
-        assessment_id = event.data.get("assessment_id")
+        event.data.get("assessment_id")
         user_id = event.data.get("user_id")
-        score = event.data.get("score")
+        event.data.get("score")
 
         # Update analytics (in real implementation)
         # await analytics_service.update_user_metrics(user_id, score)
@@ -354,7 +432,7 @@ class UserRegisteredHandler(EventHandler):
 
         # Extract data
         email = event.data.get("email")
-        full_name = event.data.get("full_name")
+        event.data.get("full_name")
 
         # Send welcome email (in real implementation)
         # await email_service.send_welcome(email, full_name)
@@ -375,7 +453,7 @@ class TeamCreatedHandler(EventHandler):
 
         # Extract data
         team_id = event.data.get("team_id")
-        organization_id = event.data.get("organization_id")
+        event.data.get("organization_id")
 
         # Initialize team analytics (in real implementation)
         # await analytics_service.initialize_team_analytics(team_id, organization_id)
@@ -386,6 +464,7 @@ class TeamCreatedHandler(EventHandler):
 # ============================================
 # CONSUMER FACTORY
 # ============================================
+
 
 async def create_consumer(
     topics: List[str],
