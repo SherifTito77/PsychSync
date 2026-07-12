@@ -32,15 +32,27 @@ coverage.xml
 *.save
 .DS_Store
 Thumbs.db
+# Additional backup patterns
+env.*.backup
+*.env.backup
+*env*.bak
 
 # ===== SECURITY AND SENSITIVE DATA =====
-# Environment variables and secrets
+# Environment variables and secrets - Comprehensive patterns
 .env
+.env.*
 .env.local
 .env.development
 .env.staging
 .env.test
 .env.production
+.env.dev
+.env.prod
+.env.localhost
+.env.bak
+.env.*.local
+!env.example  # Allow example files
+!*.example  # Allow all example files
 secrets/
 .ansible_vault
 

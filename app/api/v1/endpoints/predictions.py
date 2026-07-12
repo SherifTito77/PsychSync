@@ -9,35 +9,39 @@ REST API endpoints for machine learning prediction capabilities including:
 - Batch prediction operations
 """
 
-from datetime import datetime, timedelta
-
-from app.api.v1.deps import get_current_user
-
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
-from typing import Dict, List, Any, Optional, Union, Tuple
-from enum import Enum
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field
 import asyncio
 import logging
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from app.api.deps import get_async_db
-from app.services.prediction_service import (
-    PredictionService, ModelType, TargetType,
-    ModelComparisonResult
-)
+import pandas as pd
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, ConfigDict
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
+
+from app.api.v1.deps import get_current_user, get_db
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.services.prediction_data_service import PredictionDataCollectionService
+from app.services.prediction_service import (
+    ModelComparisonResult,
+    ModelType,
+    PredictionService,
+)
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/predictions", tags=["predictions"])
 
 # Pydantic models for request/response schemas
 
+
 class PredictionType(str, Enum):
     """Types of predictions supported by the service."""
+
     TEAM_PERFORMANCE = "team_performance"
     USER_OUTCOME = "user_outcome"
     ASSESSMENT_COMPLETION = "assessment_completion"
@@ -47,8 +51,12 @@ class PredictionType(str, Enum):
     LEADERSHIP_POTENTIAL = "leadership_potential"
     TEAM_COHESION = "team_cohesion"
 
+
 class PredictionResult(BaseModel):
     """Single prediction result with confidence."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     prediction: Union[float, int, str]
     confidence: float
     prediction_interval: Optional[Tuple[float, float]] = None
@@ -58,62 +66,102 @@ class PredictionResult(BaseModel):
     prediction_type: Optional[PredictionType] = None
     timestamp: Optional[datetime] = None
 
+
 class TrainingRequest(BaseModel):
     """Request model for training prediction models."""
-    prediction_type: PredictionType = Field(..., description="Type of prediction to train for")
+
+    prediction_type: PredictionType = Field(
+        ..., description="Type of prediction to train for"
+    )
     target_variable: str = Field(..., description="Target variable to predict")
-    team_ids: Optional[List[int]] = Field(None, description="Specific team IDs to include")
-    user_ids: Optional[List[str]] = Field(None, description="Specific user IDs to include")
-    model_types: Optional[List[ModelType]] = Field(None, description="Model types to train")
+    team_ids: Optional[List[int]] = Field(
+        None, description="Specific team IDs to include"
+    )
+    user_ids: Optional[List[str]] = Field(
+        None, description="Specific user IDs to include"
+    )
+    model_types: Optional[List[ModelType]] = Field(
+        None, description="Model types to train"
+    )
     test_size: float = Field(0.2, ge=0.1, le=0.5, description="Test set proportion")
     cv_folds: int = Field(5, ge=2, le=10, description="Cross-validation folds")
-    hyperparameter_tuning: bool = Field(True, description="Enable hyperparameter tuning")
+    hyperparameter_tuning: bool = Field(
+        True, description="Enable hyperparameter tuning"
+    )
     feature_selection: bool = Field(True, description="Enable feature selection")
-    min_data_quality: float = Field(0.7, ge=0.0, le=1.0, description="Minimum data quality score")
+    min_data_quality: float = Field(
+        0.7, ge=0.0, le=1.0, description="Minimum data quality score"
+    )
+
 
 class PredictionRequest(BaseModel):
     """Request model for making predictions."""
+
     prediction_type: PredictionType = Field(..., description="Type of prediction")
     entity_ids: List[Union[int, str]] = Field(..., description="Team IDs or user IDs")
     model_id: Optional[str] = Field(None, description="Specific model to use")
     include_confidence: bool = Field(True, description="Include confidence intervals")
-    include_feature_importance: bool = Field(True, description="Include feature contributions")
-    batch_size: Optional[int] = Field(50, ge=1, le=200, description="Batch size for processing")
+    include_feature_importance: bool = Field(
+        True, description="Include feature contributions"
+    )
+    batch_size: Optional[int] = Field(
+        50, ge=1, le=200, description="Batch size for processing"
+    )
+
 
 class ModelEvaluationRequest(BaseModel):
     """Request model for model evaluation."""
+
     model_id: str = Field(..., description="Model ID to evaluate")
     cv_folds: int = Field(5, ge=2, le=10, description="Cross-validation folds")
 
+
 class BatchTrainingRequest(BaseModel):
     """Request model for batch training multiple models."""
-    training_configs: List[TrainingRequest] = Field(..., description="List of training configurations")
+
+    training_configs: List[TrainingRequest] = Field(
+        ..., description="List of training configurations"
+    )
     parallel_execution: bool = Field(True, description="Execute training in parallel")
+
 
 # Response models
 
+
 class ModelPerformance(BaseModel):
     """Model performance metrics."""
-    model_name: str
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     accuracy: Optional[float] = None
     mse: Optional[float] = None
     mae: Optional[float] = None
-    r2_score: Optional[float] = None
-    f1_score: Optional[float] = None
+    rmse: Optional[float] = None
+    r2: Optional[float] = Field(None, serialization_alias="r2_score")
+    f1: Optional[float] = Field(None, serialization_alias="f1_score")
     precision: Optional[float] = None
     recall: Optional[float] = None
+    auc: Optional[float] = None
     training_time: Optional[float] = None
     prediction_time: Optional[float] = None
 
+
 class ModelComparisonResult(BaseModel):
     """Model comparison results."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     model_performances: Dict[str, ModelPerformance]
     best_model_name: str
     comparison_metrics: Dict[str, float]
     recommendation: str
 
+
 class TrainingResponse(BaseModel):
     """Response model for training results."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     success: bool
     model_comparison: Optional[ModelComparisonResult] = None
     best_model_id: Optional[str] = None
@@ -121,26 +169,39 @@ class TrainingResponse(BaseModel):
     error_message: Optional[str] = None
     training_metadata: Optional[Dict[str, Any]] = None
 
+
 class PredictionResponse(BaseModel):
     """Response model for prediction results."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     success: bool
     predictions: List[PredictionResult] = []
     prediction_time_seconds: Optional[float] = None
     model_metadata: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
 
+
 class ModelInfoResponse(BaseModel):
     """Response model for model information."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     success: bool
     model_info: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
 
+
 class ModelsListResponse(BaseModel):
     """Response model for listing trained models."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     success: bool
     models: List[Dict[str, Any]] = []
     total_count: int = 0
     error_message: Optional[str] = None
+
 
 # Initialize services
 prediction_service = PredictionService()
@@ -148,11 +209,13 @@ data_service = PredictionDataCollectionService()
 
 
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
-@router.post("/train", response_model=TrainingResponse, dependencies=[Depends(get_current_user)])
+@router.post(
+    "/train", response_model=TrainingResponse, dependencies=[Depends(get_current_user)]
+)
 async def train_prediction_model(
     request: TrainingRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Train a new prediction model.
@@ -163,8 +226,10 @@ async def train_prediction_model(
     try:
         start_time = datetime.now()
 
-        logger.info(f"Starting model training for {request.prediction_type.value} "
-                   f"with target: {request.target_variable}")
+        logger.info(
+            f"Starting model training for {request.prediction_type.value} "
+            f"with target: {request.target_variable}"
+        )
 
         # Route to appropriate training method
         if request.prediction_type == PredictionType.TEAM_PERFORMANCE:
@@ -176,26 +241,26 @@ async def train_prediction_model(
                 test_size=request.test_size,
                 cv_folds=request.cv_folds,
                 hyperparameter_tuning=request.hyperparameter_tuning,
-                feature_selection=request.feature_selection
+                feature_selection=request.feature_selection,
             )
         elif request.prediction_type == PredictionType.USER_OUTCOME:
             result = await prediction_service.train_user_outcome_model(
                 db=db,
                 outcome_variable=request.target_variable,
                 user_ids=request.user_ids,
-                model_types=request.model_types
+                model_types=request.model_types,
             )
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Training not implemented for {request.prediction_type.value}"
+                detail=f"Training not implemented for {request.prediction_type.value}",
             )
 
         training_time = (datetime.now() - start_time).total_seconds()
 
         # Get the best model ID
         best_model_id = None
-        if hasattr(result, 'best_model_name') and result.model_performances:
+        if hasattr(result, "best_model_name") and result.model_performances:
             best_model_id = f"{result.best_model_name}_{request.prediction_type.value}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         return TrainingResponse(
@@ -206,22 +271,20 @@ async def train_prediction_model(
             training_metadata={
                 "prediction_type": request.prediction_type.value,
                 "target_variable": request.target_variable,
-                "data_sources": getattr(result, 'data_sources', []),
-                "feature_count": getattr(result, 'feature_count', 0)
-            }
+                "data_sources": getattr(result, "data_sources", []),
+                "feature_count": getattr(result, "feature_count", 0),
+            },
         )
 
     except Exception as e:
-        logger.error(f"Error in model training: {str(e)}")
-        return TrainingResponse(
-            success=False,
-            error_message=str(e)
-        )
+        logger.error(f"Error in model training: {str(e)}", exc_info=True)
+        logger.debug(f"Exception type: {type(e).__name__}, repr: {repr(e)}")
+        return TrainingResponse(success=False, error_message=str(e))
+
 
 @router.post("/predict", response_model=PredictionResponse)
 async def make_predictions(
-    request: PredictionRequest,
-    db: AsyncSession = Depends(get_async_db)
+    request: PredictionRequest, db: AsyncSession = Depends(get_db)
 ):
     """
     Make predictions for specified entities.
@@ -232,8 +295,10 @@ async def make_predictions(
     try:
         start_time = datetime.now()
 
-        logger.info(f"Making {request.prediction_type.value} predictions for "
-                   f"{len(request.entity_ids)} entities")
+        logger.info(
+            f"Making {request.prediction_type.value} predictions for "
+            f"{len(request.entity_ids)} entities"
+        )
 
         # Route to appropriate prediction method
         if request.prediction_type == PredictionType.TEAM_PERFORMANCE:
@@ -242,7 +307,7 @@ async def make_predictions(
                 db=db,
                 prediction_type=request.prediction_type,
                 entity_ids=request.entity_ids,  # These are team IDs
-                model_id=request.model_id
+                model_id=request.model_id,
             )
 
             prediction_time = (datetime.now() - start_time).total_seconds()
@@ -250,35 +315,37 @@ async def make_predictions(
             # Get model metadata if model_id specified
             model_metadata = None
             if request.model_id:
-                model_metadata = await prediction_service.get_model_info(request.model_id)
+                model_metadata = await prediction_service.get_model_info(
+                    request.model_id
+                )
 
             return PredictionResponse(
                 success=True,
                 predictions=results,
                 prediction_time_seconds=prediction_time,
-                model_metadata=model_metadata
+                model_metadata=model_metadata,
             )
 
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Prediction not implemented for {request.prediction_type.value}"
+                detail=f"Prediction not implemented for {request.prediction_type.value}",
             )
 
     except Exception as e:
         logger.error(f"Error in p rediction: {str(e)}")
-        return PredictionResponse(
-            success=False,
-            error_message=str(e)
-        )
+        return PredictionResponse(success=False, error_message=str(e))
+
 
 @router.post("/predict/team/{team_id}", response_model=PredictionResponse)
 async def predict_team_performance(
     team_id: int,
     model_id: Optional[str] = Query(None, description="Specific model to use"),
     include_confidence: bool = Query(True, description="Include confidence intervals"),
-    include_feature_importance: bool = Query(True, description="Include feature contributions"),
-    db: AsyncSession = Depends(get_async_db)
+    include_feature_importance: bool = Query(
+        True, description="Include feature contributions"
+    ),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Predict performance for a specific team.
@@ -296,7 +363,7 @@ async def predict_team_performance(
             team_id=team_id,
             model_id=model_id,
             include_confidence=include_confidence,
-            include_feature_importance=include_feature_importance
+            include_feature_importance=include_feature_importance,
         )
 
         prediction_time = (datetime.now() - start_time).total_seconds()
@@ -310,20 +377,22 @@ async def predict_team_performance(
             success=True,
             predictions=[result],
             prediction_time_seconds=prediction_time,
-            model_metadata=model_metadata
+            model_metadata=model_metadata,
         )
 
     except Exception as e:
         logger.error(f"Error in team prediction: {str(e)}")
-        return PredictionResponse(
-            success=False,
-            error_message=str(e)
-        )
+        return PredictionResponse(success=False, error_message=str(e))
+
 
 @router.get("/models", response_model=ModelsListResponse)
 async def list_models(
-    prediction_type: Optional[PredictionType] = Query(None, description="Filter by prediction type"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of models to return")
+    prediction_type: Optional[PredictionType] = Query(
+        None, description="Filter by prediction type"
+    ),
+    limit: int = Query(
+        50, ge=1, le=100, description="Maximum number of models to return"
+    ),
 ):
     """
     List all trained prediction models.
@@ -340,19 +409,12 @@ async def list_models(
         if limit and len(models) > limit:
             models = models[:limit]
 
-        return ModelsListResponse(
-            success=True,
-            models=models,
-            total_count=len(models)
-        )
+        return ModelsListResponse(success=True, models=models, total_count=len(models))
 
     except Exception as e:
         logger.error(f"Error listing models: {str(e)}")
-        return ModelsListResponse(
-            success=False,
-            error_message=str(e),
-            total_count=0
-        )
+        return ModelsListResponse(success=False, error_message=str(e), total_count=0)
+
 
 @router.get("/models/{model_id}", response_model=ModelInfoResponse)
 async def get_model_info(model_id: str):
@@ -367,27 +429,22 @@ async def get_model_info(model_id: str):
 
         if model_info is None:
             return ModelInfoResponse(
-                success=False,
-                error_message=f"Model {model_id} not found"
+                success=False, error_message=f"Model {model_id} not found"
             )
 
-        return ModelInfoResponse(
-            success=True,
-            model_info=model_info
-        )
+        return ModelInfoResponse(success=True, model_info=model_info)
 
     except Exception as e:
         logger.error(f"Error getting model info: {str(e)}")
         return ModelInfoResponse(
             success=False,
-            error_message=str(e, dependencies=[Depends(get_current_user)])
+            error_message=str(e),
         )
+
 
 @router.post("/models/{model_id}/evaluate", response_model=Dict[str, Any])
 async def evaluate_model(
-    model_id: str,
-    request: ModelEvaluationRequest,
-    db: AsyncSession = Depends(get_async_db)
+    model_id: str, request: ModelEvaluationRequest, db: AsyncSession = Depends(get_db)
 ):
     """
     Evaluate a trained model's performance.
@@ -397,8 +454,7 @@ async def evaluate_model(
     """
     try:
         performance = await prediction_service.evaluate_model_performance(
-            model_id=model_id,
-            cv_folds=request.cv_folds
+            model_id=model_id, cv_folds=request.cv_folds
         )
 
         return {
@@ -415,17 +471,18 @@ async def evaluate_model(
                 "f1": performance.f1,
                 "auc": performance.auc,
                 "cv_scores": performance.cv_scores,
-                "feature_importance": performance.feature_importance
+                "feature_importance": performance.feature_importance,
             },
-            "evaluation_time": datetime.now().isoformat()
+            "evaluation_time": datetime.now().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Error evaluating model: {str(e)}")
         return {
             "success": False,
-            "error_message": str(e, dependencies=[Depends(get_current_user)])
+            "error_message": str(e),
         }
+
 
 @router.delete("/models/{model_id}")
 async def delete_model(model_id: str):
@@ -442,14 +499,11 @@ async def delete_model(model_id: str):
                 status_code=404,
                 content={
                     "success": False,
-                    "error_message": f"Model {model_id} not found"
-                }
+                    "error_message": f"Model {model_id} not found",
+                },
             )
 
-        return {
-            "success": True,
-            "message": f"Model {model_id} deleted successfully"
-        }
+        return {"success": True, "message": f"Model {model_id} deleted successfully"}
 
     except Exception as e:
         logger.error(f"Error deleting model: {str(e)}")
@@ -457,15 +511,20 @@ async def delete_model(model_id: str):
             status_code=500,
             content={
                 "success": False,
-                "error_message": str(e, dependencies=[Depends(get_current_user)])
-            }
+                "error_message": str(e),
+            },
         )
 
-@router.post("/train/batch", response_model=Dict[str, Any], dependencies=[Depends(get_current_user)])
+
+@router.post(
+    "/train/batch",
+    response_model=Dict[str, Any],
+    dependencies=[Depends(get_current_user)],
+)
 async def batch_train_models(
     request: BatchTrainingRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Train multiple models in batch.
@@ -476,7 +535,9 @@ async def batch_train_models(
     try:
         start_time = datetime.now()
 
-        logger.info(f"Starting batch training for {len(request.training_configs)} models")
+        logger.info(
+            f"Starting batch training for {len(request.training_configs)} models"
+        )
 
         results = []
 
@@ -484,9 +545,7 @@ async def batch_train_models(
             # Execute training tasks in parallel
             tasks = []
             for config in request.training_configs:
-                task = asyncio.create_task(
-                    _train_single_model(config, db)
-                )
+                task = asyncio.create_task(_train_single_model(config, db))
                 tasks.append(task)
 
             # Wait for all tasks to complete
@@ -494,11 +553,13 @@ async def batch_train_models(
 
             for i, result in enumerate(batch_results):
                 if isinstance(result, Exception):
-                    results.append({
-                        "config_index": i,
-                        "success": False,
-                        "error_message": str(result)
-                    })
+                    results.append(
+                        {
+                            "config_index": i,
+                            "success": False,
+                            "error_message": str(result),
+                        }
+                    )
                 else:
                     results.append(result)
 
@@ -521,23 +582,94 @@ async def batch_train_models(
             "total_time_seconds": total_time,
             "results": results,
             "summary": {
-                "success_rate": len(successful_trainings) / len(request.training_configs),
-                "average_training_time": total_time / len(request.training_configs)
-            }
+                "success_rate": len(successful_trainings)
+                / len(request.training_configs),
+                "average_training_time": total_time / len(request.training_configs),
+            },
         }
 
     except Exception as e:
         logger.error(f"Error in batch training: {str(e)}")
+        return {"success": False, "error_message": str(e)}
+
+@router.get("/clinical-screenings")
+async def get_clinical_screenings(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(100, description="Maximum number of screenings to return"),
+    screening_types: Optional[List[str]] = Query(None, description="Filter by screening type"),
+):
+    """
+    Get clinical screening data directly (GAD7, PHQ9, etc.)
+
+    This endpoint returns clinical screening records without complex merging,
+    providing raw data for the frontend to display.
+    """
+    try:
+        # Collect clinical screening data
+        clinical_result = await data_service.collect_clinical_screening_data(
+            db=db,
+            screening_types=screening_types
+        )
+
+        if not clinical_result["success"]:
+            return {
+                "success": False,
+                "error_message": clinical_result.get("error", "Data collection failed")
+            }
+
+        df = pd.DataFrame(clinical_result["data"])
+
+        # Calculate summary statistics by screening type
+        summary = {}
+        if "screening_type" in df.columns and not df.empty:
+            # Use named aggregation for pandas 2.0+ compatibility
+            type_stats = (
+                df.groupby("screening_type")
+                .agg(
+                    count=("screening_id", "count"),
+                    avg_score=("total_score", "mean"),
+                    max_score=("total_score", "max"),
+                    min_score=("total_score", "min"),
+                    crisis_count=("crisis_alert", "sum")
+                )
+                .reset_index()
+                .to_dict("records")
+            )
+            # Convert to dictionary format
+            type_stats_dict = {}
+            for row in type_stats:
+                stype = row["screening_type"]
+                type_stats_dict[stype] = {
+                    "count": row["count"],
+                    "avg_score": row["avg_score"],
+                    "max_score": row["max_score"],
+                    "min_score": row["min_score"],
+                    "crisis_count": row["crisis_count"]
+                }
+
+            return {
+                "success": True,
+                "screenings": df.to_dict("records"),
+                "summary": {
+                    "total": len(df),
+                    "by_type": type_stats_dict
+                },
+                "screening_types": df["screening_type"].unique().tolist() if "screening_type" in df.columns else []
+            }
+
+    except Exception as e:
+        logger.error(f"Error getting clinical screenings: {str(e)}")
         return {
             "success": False,
             "error_message": str(e)
         }
 
+
 @router.get("/data/quality")
 async def assess_data_quality(
-    db: AsyncSession = Depends(get_async_db),
+    db: AsyncSession = Depends(get_db),
     team_ids: Optional[List[int]] = Query(None, description="Team IDs to assess"),
-    user_ids: Optional[List[str]] = Query(None, description="User IDs to assess")
+    user_ids: Optional[List[str]] = Query(None, description="User IDs to assess"),
 ):
     """
     Assess data quality for model training.
@@ -550,21 +682,26 @@ async def assess_data_quality(
         data_result = await data_service.collect_training_data(
             db=db,
             include_assessment_responses=True,
+            include_clinical_screenings=True,
             include_team_performance=True,
             include_demographics=True,
             include_response_patterns=True,
             team_ids=team_ids,
             user_ids=user_ids,
-            min_data_quality=0.0  # Collect all data for assessment
+            min_data_quality=0.0,  # Collect all data for assessment
         )
 
         if not data_result["success"]:
             return {
                 "success": False,
-                "error_message": data_result.get("error", "Data collection failed")
+                "error_message": data_result.get("error", "Data collection failed"),
             }
 
-        df = data_result["data"]
+        # Convert list data to DataFrame if needed
+        if isinstance(data_result.get("data"), list):
+            df = pd.DataFrame(data_result["data"])
+        else:
+            df = data_result["data"]
 
         # Calculate quality metrics
         total_cells = len(df) * len(df.columns)
@@ -572,15 +709,25 @@ async def assess_data_quality(
         completeness = 1 - (missing_cells / total_cells) if total_cells > 0 else 0
 
         # Feature statistics
-        numeric_features = len(df.select_dtypes(include=['number']).columns)
-        categorical_features = len(df.select_dtypes(include=['object', 'category']).columns)
+        numeric_features = len(df.select_dtypes(include=["number"]).columns)
+        categorical_features = len(
+            df.select_dtypes(include=["object", "category"]).columns
+        )
 
         # Data volume assessment
         rows = len(df)
         columns = len(df.columns)
 
         # Quality assessment
-        quality_score = min(1.0, completeness * 0.6 + (rows / 1000) * 0.4)  # Weighted score
+        quality_score = min(
+            1.0, completeness * 0.6 + (rows / 1000) * 0.4
+        )  # Weighted score
+
+        # Generate recommendations
+        recommendations = _generate_data_quality_recommendations(
+            quality_score, rows, completeness
+        )
+        logger.info(f"Generated {len(recommendations)} recommendations: {recommendations}")
 
         return {
             "success": True,
@@ -593,19 +740,18 @@ async def assess_data_quality(
                 "categorical_features": categorical_features,
                 "missing_values": int(missing_cells),
                 "data_sources": data_result.get("data_sources", []),
-                "assessment_time": datetime.now().isoformat()
+                "assessment_time": datetime.now().isoformat(),
             },
-            "recommendations": _generate_data_quality_recommendations(quality_score, rows, completeness)
+            "recommendations": recommendations,
         }
 
     except Exception as e:
         logger.error(f"Error assessing data quality: {str(e)}")
-        return {
-            "success": False,
-            "error_message": str(e)
-        }
+        return {"success": False, "error_message": str(e)}
+
 
 # Helper functions
+
 
 async def _train_single_model(config: TrainingRequest, db: Session) -> Dict[str, Any]:
     """Helper function to train a single model."""
@@ -621,10 +767,12 @@ async def _train_single_model(config: TrainingRequest, db: Session) -> Dict[str,
                 test_size=config.test_size,
                 cv_folds=config.cv_folds,
                 hyperparameter_tuning=config.hyperparameter_tuning,
-                feature_selection=config.feature_selection
+                feature_selection=config.feature_selection,
             )
         else:
-            raise ValueError(f"Unsupported prediction type: {config.prediction_type.value}")
+            raise ValueError(
+                f"Unsupported prediction type: {config.prediction_type.value}"
+            )
 
         training_time = (datetime.now() - start_time).total_seconds()
 
@@ -634,34 +782,43 @@ async def _train_single_model(config: TrainingRequest, db: Session) -> Dict[str,
             "target_variable": config.target_variable,
             "best_model": result.best_model_name,
             "training_time_seconds": training_time,
-            "performance_metrics": result.comparison_metrics
+            "performance_metrics": result.comparison_metrics,
         }
 
     except Exception as e:
         logger.error(f"Error training model: {str(e)}")
-        return {
-            "success": False,
-            "error_message": str(e)
-        }
+        return {"success": False, "error_message": str(e)}
 
-def _generate_data_quality_recommendations(quality_score: float, rows: int, completeness: float) -> List[str]:
+
+def _generate_data_quality_recommendations(
+    quality_score: float, rows: int, completeness: float
+) -> List[str]:
     """Generate data quality recommendations."""
     recommendations = []
 
+    logger.info(f"Generating recommendations: quality_score={quality_score:.3f}, rows={rows}, completeness={completeness:.3f}")
+
     if quality_score < 0.3:
-        recommendations.append("Data quality is poor. Consider data collection improvements before training models.")
+        recommendations.append(
+            "Data quality is poor. Consider data collection improvements before training models."
+        )
     elif quality_score < 0.6:
-        recommendations.append("Data quality is fair. Some feature engineering may improve model performance.")
+        recommendations.append(
+            "Data quality is fair. Some feature engineering may improve model performance."
+        )
+    elif quality_score >= 0.8 and rows >= 500:
+        recommendations.append("Good data quality for model training.")
 
     if completeness < 0.8:
-        recommendations.append("Consider data imputation strategies for missing values.")
+        recommendations.append(
+            "Consider data imputation strategies for missing values."
+        )
 
     if rows < 100:
         recommendations.append("Limited data volume. Models may not generalize well.")
     elif rows < 500:
-        recommendations.append("Moderate data volume. Consider cross-validation for robust evaluation.")
-
-    if quality_score >= 0.8 and rows >= 500:
-        recommendations.append("Good data quality for model training.")
+        recommendations.append(
+            "Moderate data volume. Consider cross-validation for robust evaluation."
+        )
 
     return recommendations

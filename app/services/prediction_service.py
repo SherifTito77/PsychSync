@@ -57,7 +57,7 @@ from sklearn.model_selection import (
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
@@ -358,12 +358,16 @@ class PredictionService:
         df = data_result["data"]
 
         # Prepare features and target
-        feature_cols = [col for col in df.columns if col != target_variable and col != "team_id"]
+        # Filter to only numeric columns to avoid median errors on categorical data
+        numeric_feature_cols = [col for col in df.columns if col != target_variable and col != "team_id" and pd.api.types.is_numeric_dtype(df[col])]
+
+        if not numeric_feature_cols:
+            raise ValueError("No numeric feature columns available for training")
 
         if target_variable not in df.columns:
             raise ValueError(f"Target variable '{target_variable}' not found in data")
 
-        X = df[feature_cols].fillna(df[feature_cols].median())
+        X = df[numeric_feature_cols].fillna(df[numeric_feature_cols].median())
         y = df[target_variable].fillna(df[target_variable].median())
 
         # Determine target type
@@ -441,7 +445,7 @@ class PredictionService:
                     prediction_type=PredictionType.TEAM_PERFORMANCE,
                     target_type=target_type,
                     model=full_pipeline,
-                    feature_names=feature_cols,
+                    feature_names=numeric_feature_cols,
                     target_name=target_variable,
                     performance=performance,
                     hyperparameters=best_params,
@@ -709,7 +713,7 @@ class PredictionService:
         categorical_transformer = Pipeline(
             steps=[
                 ("imputer", SimpleImputer(strategy="constant", fill_value="missing")),
-                ("onehot", pd.get_dummies),  # Simplified
+                ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
             ]
         )
 
@@ -797,6 +801,8 @@ class PredictionService:
         """Compare models and select the best one."""
 
         comparison_metrics = {}
+        if not model_performances:
+            return "none", {}, "No models were trained. Check your data and model configuration."
 
         if target_type == TargetType.REGRESSION:
             # Use R² score for regression (higher is better)
@@ -810,12 +816,15 @@ class PredictionService:
                 max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
             )
 
-            if scores[best_model] > 0.8:
-                recommendation = f"Excellent model: {best_model} with R² = {scores[best_model]:.3f}"
-            elif scores[best_model] > 0.6:
-                recommendation = f"Good model: {best_model} with R² = {scores[best_model]:.3f}"
+            if best_model in scores:
+                if scores[best_model] > 0.8:
+                    recommendation = f"Excellent model: {best_model} with R² = {scores[best_model]:.3f}"
+                elif scores[best_model] > 0.6:
+                    recommendation = f"Good model: {best_model} with R² = {scores[best_model]:.3f}"
+                else:
+                    recommendation = f"Fair model: {best_model} with R² = {scores[best_model]:.3f}. Consider feature engineering."
             else:
-                recommendation = f"Fair model: {best_model} with R² = {scores[best_model]:.3f}. Consider feature engineering."
+                recommendation = "No valid regression metrics found for the trained models."
 
         else:
             # Use accuracy for classification
@@ -829,16 +838,19 @@ class PredictionService:
                 max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
             )
 
-            if scores[best_model] > 0.9:
-                recommendation = (
-                    f"Excellent model: {best_model} with accuracy = {scores[best_model]:.3f}"
-                )
-            elif scores[best_model] > 0.8:
-                recommendation = (
-                    f"Good model: {best_model} with accuracy = {scores[best_model]:.3f}"
-                )
+            if best_model in scores:
+                if scores[best_model] > 0.9:
+                    recommendation = (
+                        f"Excellent model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                    )
+                elif scores[best_model] > 0.8:
+                    recommendation = (
+                        f"Good model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                    )
+                else:
+                    recommendation = f"Fair model: {best_model} with accuracy = {scores[best_model]:.3f}. Consider more data or feature engineering."
             else:
-                recommendation = f"Fair model: {best_model} with accuracy = {scores[best_model]:.3f}. Consider more data or feature engineering."
+                recommendation = "No valid classification metrics found for the trained models."
 
         return best_model, comparison_metrics, recommendation
 
