@@ -1034,25 +1034,18 @@ const ClinicalAssessment: React.FC = () => {
       }
 
       // Save assessment results
-      const response = await fetch('/api/v1/clinical/screenings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: JSON.stringify({
-          screening_type: tool.toUpperCase(),
-          responses,
-          total_score: score,
-          severity_level: severity?.label,
-          risk_level: showCrisisWarning ? 'high' : 'low',
-          crisis_alert: showCrisisWarning,
-          completed_at: new Date().toISOString(),
-        }),
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: tool.toLowerCase(),
+        responses,
+        total_score: score,
+        severity_level: severity?.label,
+        risk_level: showCrisisWarning ? 'high' : 'low',
+        crisis_alert: showCrisisWarning,
+        completed_at: new Date().toISOString(),
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (response.status === 200 || response.status === 201) {
+        const result = response.data;
         navigate(`/clinical/assessment/${tool}/complete`, {
           state: { result, score, severity, crisisAlert: showCrisisWarning }
         });
