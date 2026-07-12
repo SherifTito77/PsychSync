@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
+import api from '@/services/api';
 import { Question as QuestionType, getRandomQuestions as getRandomQuestionsFn, getPreviousQuestionIds as getPreviousQuestionIdsFn, saveQuestionIds as saveQuestionIdsFn } from './data/phq9-question-bank';
 import { BASE_ASSESSMENTS, getAssessmentConfig, AssessmentData as AssessmentDataType } from './config/assessment-configs';
 
