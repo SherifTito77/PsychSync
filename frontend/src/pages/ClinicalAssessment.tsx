@@ -1010,27 +1010,20 @@ const ClinicalAssessment: React.FC = () => {
         const suicidalQuestions = assessmentData.questions.filter(q => q.category === 'suicidal');
         const hasCriticalResponse = suicidalQuestions.some(q => responses[q.id] === 'Nearly every day');
 
-        await fetch('/api/v1/clinical/alerts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        await api.post('/clinical/crisis/alert', {
+          alert_type: 'suicide_risk',
+          severity: hasCriticalResponse ? 'critical' : 'high',
+          alert_message: 'User reported suicidal ideation in PHQ-9 assessment',
+          screening_data: {
+            tool,
+            responses,
+            score,
+            severity_level: severity?.label,
+            suicidal_responses: suicidalQuestions.map(q => ({
+              question: q.text,
+              response: responses[q.id]
+            }))
           },
-          body: JSON.stringify({
-            alert_type: 'suicide_risk',
-            severity: hasCriticalResponse ? 'critical' : 'high',
-            alert_message: 'User reported suicidal ideation in PHQ-9 assessment',
-            screening_data: {
-              tool,
-              responses,
-              score,
-              severity_level: severity?.label,
-              suicidal_responses: suicidalQuestions.map(q => ({
-                question: q.text,
-                response: responses[q.id]
-              }))
-            },
-          }),
         });
       }
 
